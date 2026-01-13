@@ -424,6 +424,30 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         program, analyzed_procs, analyzed_funcs, global_symtab
     )
     analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
+    # Build parameter specs for procedures and functions (name -> [(param, width)])
+    def _build_param_specs_procs(procs):
+        specs: dict[str, list[tuple[str, int]]] = {}
+        for ap in procs:
+            params: list[tuple[str, int]] = []
+            for prm in ap.ast.params:
+                is_word = prm.type.is_pointer or prm.type.base == "WORD"
+                params.append((prm.name, 2 if is_word else 1))
+            specs[ap.ast.name] = params
+        return specs
+
+    def _build_param_specs_funcs(funcs):
+        specs: dict[str, list[tuple[str, int]]] = {}
+        for af in funcs:
+            params: list[tuple[str, int]] = []
+            for prm in af.ast.params:
+                is_word = prm.type.is_pointer or prm.type.base == "WORD"
+                params.append((prm.name, 2 if is_word else 1))
+            specs[af.ast.name] = params
+        return specs
+
+    proc_param_specs = _build_param_specs_procs(analyzed_procs)
+    func_param_specs = _build_param_specs_funcs(analyzed_funcs)
+
     cg = CodeGen(
         global_symtab,
         tc,
@@ -431,6 +455,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         used_globals=used_globals,
         debug_info=getattr(program, "debug", None),
         command_line=command_line,
+        proc_param_specs=proc_param_specs,
+        func_param_specs=func_param_specs,
     )
 
     prune_unused_locals(analyzed_procs, analyzed_funcs)

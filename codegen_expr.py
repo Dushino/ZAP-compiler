@@ -29,7 +29,7 @@ class CodeGen:
     label_id = 0
     loop_stack = []
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None):
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int]]] | None = None, func_param_specs: dict[str, list[tuple[str, int]]] | None = None):
         # global symbol table (globals)
         self.global_symtab: SymbolTable = symtab
         # currently active table (can be scoped for PROC/FUNC)
@@ -47,6 +47,9 @@ class CodeGen:
         self.used_globals = used_globals or set()
         self.used_temps: set[str] = set()
         self.command_line = command_line
+        # Parameter specs: mapping name -> list of (param_name, width_bytes)
+        self.proc_param_specs: dict[str, list[tuple[str, int]]] = proc_param_specs or {}
+        self.func_param_specs: dict[str, list[tuple[str, int]]] = func_param_specs or {}
         # Debug/source maps
         self.debug = debug_info or {}
         self.stmt_src = self.debug.get("stmt_src", {})
@@ -1265,9 +1268,19 @@ class CodeGen:
         elif isinstance(expr, SubscriptExpr):
             self._gen_subscript(expr, load_only=True)
         elif isinstance(expr, CallExpr):
-            # evaluate arguments left-to-right (results are not passed in this simple ABI)
-            for a in expr.args:
-                self.gen_expr(a)
+            # Evaluate and pass arguments to function parameters
+            specs = self.func_param_specs.get(expr.name)
+            if specs is not None:
+                n = min(len(specs), len(expr.args))
+                for i in range(n):
+                    pname, width = specs[i]
+                    self.gen_expr(expr.args[i])
+                    asm = f"_{expr.name}_{pname}"
+                    if width == 1:
+                        self.emit(f"\tSTA {asm}")
+                    else:
+                        self.emit(f"\tSTA {asm}")
+                        self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {expr.name}")
 
         elif isinstance(expr, BinaryExpr):
@@ -1553,6 +1566,20 @@ class CodeGen:
             return
 
         if isinstance(stmt, CallStmt):
+            # Pass arguments to callee parameters (simple ABI via memory)
+            specs = self.proc_param_specs.get(stmt.name)
+            if specs is not None:
+                n = min(len(specs), len(stmt.args))
+                for i in range(n):
+                    pname, width = specs[i]
+                    # evaluate arg into A/(X)
+                    self.gen_expr(stmt.args[i])
+                    asm = f"_{stmt.name}_{pname}"
+                    if width == 1:
+                        self.emit(f"\tSTA {asm}")
+                    else:
+                        self.emit(f"\tSTA {asm}")
+                        self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {stmt.name}")
             return
 
