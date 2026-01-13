@@ -16,6 +16,7 @@ from collections import deque
 from typing import Optional, Set
 
 # Global switch to disable all peephole-level optimizations without removing code.
+# This is set dynamically by compiler.py based on --peepholes flag
 DISABLE_PEEPHOLE_OPTIMIZATIONS = True
 
 
@@ -349,7 +350,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         af.locals = prune_one(af.ast.body, af.locals, af.symtab.local, af.ast.params)
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peepholes: bool = False) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
     proc_table = ProcTable()
@@ -520,7 +521,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 cg.gen_func(af)
 
     # Peephole before inserting vars/footer
-    if not DISABLE_PEEPHOLE_OPTIMIZATIONS:
+    if enable_peepholes:
         cg.peephole_optimize()
     else:
         # Keep code legal even with peepholes disabled
@@ -538,7 +539,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     cg.gen_file_footer()
 
-    if not DISABLE_PEEPHOLE_OPTIMIZATIONS:
+    if enable_peepholes:
         cg.peephole_optimize()
 
         while True:

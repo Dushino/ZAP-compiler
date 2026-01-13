@@ -18,8 +18,10 @@ end
 ; main -----------------------------------------
 proc main()
     byte a1
+    word b1
     a1 = a4 + a5 + 5
     test1(a1, 8)
     test2(a1, 7)
+    b1 = a4 + a5 + 6
 end
 

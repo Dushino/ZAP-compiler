@@ -16,6 +16,7 @@ _MAIN_A1:	.res 1
 _TEST2_B1:	.res 2
 _TEST2_B2:	.res 2
 _TEST2_T1:	.res 2
+_MAIN_B1:	.res 2
 
 .segment "CODE"
 ; Globals initialization
@@ -33,11 +34,9 @@ __START:
 TEST1:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 9:     t1 = p1 + p2
 	LDA _TEST1_P1
-	LDX #0
 	STA TMP0
-	STX TMP1
+	STZ TMP1
 	LDA _TEST1_P2
-	LDX #0
 	CLC
 	ADC TMP0
 	STA _TEST1_T1
@@ -65,22 +64,24 @@ TEST2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 19: proc main()
 ; -- Procedure MAIN --
 MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 21:     a1 = a4 + a5 + 5
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 22:     a1 = a4 + a5 + 5
 	LDA #$69
 	STA _MAIN_A1
-	LDX #0
 	STA _TEST1_P1
 	LDA #8
 	STA _TEST1_P2
 	JSR TEST1
 	LDA _MAIN_A1
-	LDX #0
 	STA _TEST2_B1
-	STX _TEST2_B1+1
+	STZ _TEST2_B1+1
 	LDA #7
 	STA _TEST2_B2
-	STX _TEST2_B2+1
+	STZ _TEST2_B2+1
 	JSR TEST2
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 25:     b1 = a4 + a5 + 6
+	LDA #$6A
+	STA _MAIN_B1
+	STZ _MAIN_B1+1
 	RTS
 
 .segment "CODE"

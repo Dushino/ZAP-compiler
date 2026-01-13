@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Optional, Set
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peepholes: bool = False) -> str:
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
         src = src[1:]
@@ -20,7 +20,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         
         parser = Parser(src, filename="<input.zap>")
         program = parser.parse_program()
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peepholes=enable_peepholes)
 
     except CompileError as e:
         if e.line is not None:
@@ -30,7 +30,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peepholes: bool = False) -> str:
     """Compile a file with module support"""
     try:
         # Get base directory for resolving includes
@@ -43,7 +43,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         program, defined_symbols = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peepholes=enable_peepholes)
     
     except CompileError as e:
         # Prefer attached source text (e.g., preprocessed/cleaned) if available
@@ -113,15 +113,13 @@ if __name__ == "__main__":
         print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
         sys.exit(1)
 
-    # Configure peephole optimizations toggle in pipeline
-    cp.DISABLE_PEEPHOLE_OPTIMIZATIONS = not enable_peepholes
-
     # Compile program
     output = compile_file(
         src_file,
         target_6502=target_6502,
         predefined_symbols=predefined_symbols,
         command_line=command_line,
+        enable_peepholes=enable_peepholes,
     )
 
     # Write to file if requested, else print to stdout

@@ -168,6 +168,77 @@ class CodeGen:
                 if matched:
                     continue
 
+            # Remove orphaned register loads (LDX/LDY) when next instruction doesn't use them
+            # Common pattern: LDX #0 after byte load, followed by STA (X is never read)
+            if i + 1 < len(self.code):
+                cur = self.code[i].strip().upper()
+                nxt = self.code[i + 1].strip().upper()
+                
+                # Check if current instruction loads X or Y with immediate value
+                loads_x = cur.startswith("LDX #")
+                loads_y = cur.startswith("LDY #")
+                
+                if loads_x or loads_y:
+                    # Check if next instruction reads or writes the loaded register
+                    # If next instruction writes X/Y, the load is orphaned
+                    # If next instruction reads X/Y, the load is needed
+                    
+                    skip_load = False
+                    if loads_x:
+                        # X is orphaned if next instruction writes X (without reading it first)
+                        # or if next instruction doesn't use X at all
+                        if (nxt.startswith("LDX ") or  # Next instruction overwrites X
+                            # Next instruction doesn't read X (conservative check - only safe instructions)
+                            (nxt.startswith("STA ") and not nxt.startswith("STA X") or
+                             nxt.startswith("LDA #") or
+                             nxt.startswith("JSR ") or
+                             nxt == "RTS" or
+                             nxt.startswith("JMP ") or
+                             nxt.startswith("CLC") or
+                             nxt.startswith("SEC"))):
+                            # But make sure there's no STX in the next few instructions before X is reloaded
+                            # Look ahead to see if X is used before being overwritten
+                            x_used_before_reload = False
+                            for j in range(i + 1, min(i + 5, len(self.code))):
+                                check = self.code[j].strip().upper()
+                                if check.startswith("STX ") or check.endswith(" X") or check.startswith("TXA") or check.startswith("DEX") or check.startswith("INX"):
+                                    x_used_before_reload = True
+                                    break
+                                if check.startswith("LDX "):
+                                    # X is reloaded, so the current LDX is orphaned
+                                    break
+                            
+                            if not x_used_before_reload:
+                                skip_load = True
+                    
+                    elif loads_y:
+                        # Similar logic for Y
+                        if (nxt.startswith("LDY ") or
+                            (nxt.startswith("STA ") and not nxt.startswith("STA Y") or
+                             nxt.startswith("LDA #") or
+                             nxt.startswith("STX ") or
+                             nxt.startswith("JSR ") or
+                             nxt == "RTS" or
+                             nxt.startswith("JMP ") or
+                             nxt.startswith("CLC") or
+                             nxt.startswith("SEC"))):
+                            y_used_before_reload = False
+                            for j in range(i + 1, min(i + 5, len(self.code))):
+                                check = self.code[j].strip().upper()
+                                if check.startswith("STY ") or check.endswith(" Y") or check.startswith("TYA") or check.startswith("DEY") or check.startswith("INY"):
+                                    y_used_before_reload = True
+                                    break
+                                if check.startswith("LDY "):
+                                    break
+                            
+                            if not y_used_before_reload:
+                                skip_load = True
+                    
+                    if skip_load:
+                        # Skip the orphaned register load
+                        i += 1
+                        continue
+
             # Replace illegal 'OP X' with safe sequence using TMP4
             line_upper = self.code[i].strip().upper()
             if line_upper.endswith(" X"):
@@ -189,6 +260,75 @@ class CodeGen:
                         if len(sta_parts) == 2:
                             optimized.append(f"\tSTZ {sta_parts[1]}")
                             i += 2
+                            continue
+                    
+                    # 65c02: LDX #0 followed by STX → replace all STX with STZ until X is modified
+                    # Pattern: LDX #0 ... STX addr1 ... STX addr2 ... (until LDX/DEX/INX/TXA/etc)
+                    cur = self.code[i].strip().upper()
+                    if cur == "LDX #0":
+                        # Scan forward to find all STX instructions before X is modified/reloaded
+                        stx_positions = []
+                        j = i + 1
+                        while j < len(self.code):
+                            check = self.code[j].strip().upper()
+                            if check.startswith("STX "):
+                                # Found STX - mark for conversion to STZ
+                                stx_positions.append(j)
+                            elif check.startswith("LDX ") or check.startswith("DEX") or check.startswith("INX") or check.startswith("TXA"):
+                                # X is modified - stop scanning
+                                break
+                            elif check.endswith(" X") or "TAX" in check:
+                                # X is used or modified - stop scanning
+                                break
+                            j += 1
+                            if j > i + 10:  # Limit lookahead
+                                break
+                        
+                        # If we found STX instructions, replace them with STZ and remove LDX #0
+                        if stx_positions:
+                            # Skip LDX #0
+                            skip_count = 1
+                            for pos in range(i + 1, stx_positions[-1] + 1):
+                                line = self.code[pos].strip()
+                                line_upper = line.upper()
+                                if pos in stx_positions:
+                                    # Replace STX with STZ
+                                    parts = line.split(maxsplit=1)
+                                    if len(parts) == 2:
+                                        optimized.append(f"\tSTZ {parts[1]}")
+                                else:
+                                    # Keep other instructions
+                                    optimized.append(self.code[pos])
+                            i = stx_positions[-1] + 1
+                            continue
+                    
+                    # Similar pattern for LDY #0
+                    if cur == "LDY #0":
+                        sty_positions = []
+                        j = i + 1
+                        while j < len(self.code):
+                            check = self.code[j].strip().upper()
+                            if check.startswith("STY "):
+                                sty_positions.append(j)
+                            elif check.startswith("LDY ") or check.startswith("DEY") or check.startswith("INY") or check.startswith("TYA"):
+                                break
+                            elif check.endswith(" Y") or "TAY" in check:
+                                break
+                            j += 1
+                            if j > i + 10:
+                                break
+                        
+                        if sty_positions:
+                            skip_count = 1
+                            for pos in range(i + 1, sty_positions[-1] + 1):
+                                line = self.code[pos].strip()
+                                if pos in sty_positions:
+                                    parts = line.split(maxsplit=1)
+                                    if len(parts) == 2:
+                                        optimized.append(f"\tSTZ {parts[1]}")
+                                else:
+                                    optimized.append(self.code[pos])
+                            i = sty_positions[-1] + 1
                             continue
 
                 inc_op = self._inc_operand(self.code[i])
