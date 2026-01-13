@@ -511,18 +511,21 @@ class CodeGen:
                 curU = cur.strip().upper()
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
                     k = i + 1
+                    pending_non_exec: list[str] = []
                     while k < len(self.code):
                         nxt_raw = self.code[k]
                         nxt = nxt_raw.strip()
                         nxtU = nxt.upper()
                         # Skip blanks, labels, and comments (lines starting with ';')
                         if not nxt or nxt.endswith(":") or nxt.startswith(";"):
+                            pending_non_exec.append(self.code[k])
                             k += 1
                             continue
                         if (curU.startswith("LDA ") and nxtU.startswith("LDA ")) or \
                            (curU.startswith("LDX ") and nxtU.startswith("LDX ")) or \
                            (curU.startswith("LDY ") and nxtU.startswith("LDY ")):
-                            # Drop current load and continue from k
+                            # Drop current load but preserve any skipped comments/labels
+                            cleaned.extend(pending_non_exec)
                             i = k
                             break
                         else:

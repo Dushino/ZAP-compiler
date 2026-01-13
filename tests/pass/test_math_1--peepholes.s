@@ -37,6 +37,8 @@ __START:
 ; -- Procedure MATH1 --
 MATH1:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 11:     r = b1 + 0
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 12:     r = b1 - 0
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 13:     r = b1 + 1
 	LDA _MATH1_B1
 	CLC
 	ADC #1
@@ -74,6 +76,8 @@ MATH1:
 ; -- Procedure MATH2 --
 MATH2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 23:     r = b1 + 0
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 24:     r = b1 - 0
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 25:     r = b1 + 1
 	LDA _MATH2_B1
 	STA TMP0
 	LDA #1
