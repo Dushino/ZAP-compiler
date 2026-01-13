@@ -440,6 +440,17 @@ class CodeGen:
                     i += 2
                     continue
 
+                # Tail call optimization: JSR followed by RTS → JMP
+                cur = self.code[i].strip().upper()
+                nxt = self.code[i + 1].strip().upper()
+                if cur.startswith("JSR ") and nxt == "RTS":
+                    # Replace JSR with JMP and skip RTS
+                    target = self.code[i].strip().split(maxsplit=1)
+                    if len(target) == 2:
+                        optimized.append(f"\tJMP {target[1]}")
+                        i += 2
+                        continue
+
             if i + 3 < len(self.code):
                 c0 = self._lda_const(self.code[i])
                 c1 = self._lda_const(self.code[i + 2])

@@ -45,6 +45,7 @@ proc main()
 
     ; word to byte conversion
     test1(b1, 1234)
+    test3(b1, 1023)
 
 
 end

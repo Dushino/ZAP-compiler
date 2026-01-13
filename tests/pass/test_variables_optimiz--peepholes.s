@@ -131,7 +131,16 @@ MAIN:
 	LDA #210
 	STA _TEST1_P2
 	JSR TEST1
-	RTS
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 48:     test3(b1, 1023)
+	LDA _MAIN_B1
+	LDX _MAIN_B1+1
+	STA _TEST3_B1
+	STX _TEST3_B1+1
+	LDA #255
+	LDX #3
+	STA _TEST3_B2
+	STX _TEST3_B2+1
+	JMP TEST3
 
 .segment "CODE"
 __END:
