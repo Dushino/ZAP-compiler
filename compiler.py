@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Optional, Set
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
         src = src[1:]
@@ -20,7 +20,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         
         parser = Parser(src, filename="<input.zap>")
         program = parser.parse_program()
-        return compile_program(program, target_6502=target_6502)
+        return compile_program(program, target_6502=target_6502, command_line=command_line)
 
     except CompileError as e:
         if e.line is not None:
@@ -30,7 +30,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
     """Compile a file with module support"""
     try:
         # Get base directory for resolving includes
@@ -43,7 +43,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         program = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502)
+        return compile_program(program, target_6502=target_6502, command_line=command_line)
     
     except CompileError as e:
         # Try to read source for error reporting
@@ -62,6 +62,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
 if __name__ == "__main__":
     import sys
     
+    command_line = " ".join([sys.executable] + sys.argv)
     args = sys.argv[1:]
     target_6502 = False
     out_file = None
@@ -113,7 +114,12 @@ if __name__ == "__main__":
     cp.DISABLE_PEEPHOLE_OPTIMIZATIONS = not enable_peepholes
 
     # Compile program
-    output = compile_file(src_file, target_6502=target_6502, predefined_symbols=predefined_symbols)
+    output = compile_file(
+        src_file,
+        target_6502=target_6502,
+        predefined_symbols=predefined_symbols,
+        command_line=command_line,
+    )
 
     # Write to file if requested, else print to stdout
     if out_file:

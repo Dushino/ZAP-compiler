@@ -86,21 +86,21 @@ tests:
 			echo "  Variant 1: default (WDC65c02, no peepholes)"; \
 			$(ZC) $$zapfile -o tests/$$base.s; \
 			echo "  Variant 2: --peepholes (WDC65c02)"; \
-		$(ZC) $$zapfile --peepholes -o tests/$$base--peepholes.s; \
-		echo "  Variant 3: --6502 (no peepholes)"; \
-		$(ZC) $$zapfile --6502 -o tests/$$base--6502.s; \
-		echo "  Variant 4: --peepholes --6502"; \
-		$(ZC) $$zapfile --peepholes --6502 -o tests/$$base--peepholes--6502.s; \
+			$(ZC) $$zapfile --peepholes -o tests/$$base--peepholes.s; \
+			echo "  Variant 3: --6502 (no peepholes)"; \
+			$(ZC) $$zapfile --6502 -o tests/$$base--6502.s; \
+			echo "  Variant 4: --peepholes --6502"; \
+			$(ZC) $$zapfile --peepholes --6502 -o tests/$$base--peepholes--6502.s; \
 		fi; \
 	done
 	@echo "Assembling all .s files..."
 	@for sfile in tests/*.s; do \
 		if [ -f "$$sfile" ]; then \
 			if echo "$$sfile" | grep -q -- "--6502"; then \
-				echo "Assembling $$sfile with $(ATARI_CPU)..."; \
+				echo "Assembling $$sfile for Atari with $(ATARI_CPU)..."; \
 				$(AS) $(ATARI_AS_OPTS) $$sfile -o $${sfile%.s}.o 2>&1 | head -20; \
 			else \
-				echo "Assembling $$sfile with $(SBC_CPU)..."; \
+				echo "Assembling $$sfile for SBC with $(SBC_CPU)..."; \
 				$(AS) $(SBC_AS_OPTS) $$sfile -o $${sfile%.s}.o 2>&1 | head -20; \
 			fi; \
 		fi; \

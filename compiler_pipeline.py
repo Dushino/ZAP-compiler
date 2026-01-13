@@ -348,7 +348,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         af.locals = prune_one(af.ast.body, af.locals, af.symtab.local, af.ast.params)
 
 
-def compile_program(program: Program, *, target_6502: bool = False) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
     proc_table = ProcTable()
@@ -400,7 +400,14 @@ def compile_program(program: Program, *, target_6502: bool = False) -> str:
         program, analyzed_procs, analyzed_funcs, global_symtab
     )
     analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
-    cg = CodeGen(global_symtab, tc, is_65c02=not target_6502, used_globals=used_globals, debug_info=getattr(program, "debug", None))
+    cg = CodeGen(
+        global_symtab,
+        tc,
+        is_65c02=not target_6502,
+        used_globals=used_globals,
+        debug_info=getattr(program, "debug", None),
+        command_line=command_line,
+    )
 
     prune_unused_locals(analyzed_procs, analyzed_funcs)
 
