@@ -35,7 +35,7 @@
       "patterns": [
         {
           "name": "keyword.control.zap",
-          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|FI|WHILE|DO|OD|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|DO|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
         },
         {
           "name": "keyword.other.zap",
