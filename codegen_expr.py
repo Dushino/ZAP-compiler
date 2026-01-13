@@ -1528,6 +1528,11 @@ class CodeGen:
         elif isinstance(expr, SubscriptExpr):
             self._gen_subscript(expr, load_only=True)
         elif isinstance(expr, CallExpr):
+            # Emit source comment for function call if available
+            info = self.stmt_src.get(id(expr))
+            if info:
+                fname, line, text = info
+                self.emit(f"; {fname} {line}: {text}")
             # Evaluate and pass arguments to function parameters
             specs = self.func_param_specs.get(expr.name)
             if specs is not None:

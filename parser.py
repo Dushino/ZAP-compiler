@@ -641,6 +641,7 @@ class Parser:
             # peek next token
             nxt = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
             if nxt is not None and nxt.type == TOK_LBRACE:
+                start_line = self.cur.line
                 name = self.cur.value
                 self.advance()
                 # parse arg list
@@ -652,6 +653,9 @@ class Parser:
                         self.advance()
                         args.append(self.parse_expr())
                 self.expect(TOK_RBRACE)
-                return CallStmt(name, args)
+                node = CallStmt(name, args)
+                line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+                self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+                return node
 
         return self.parse_assign()
