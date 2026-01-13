@@ -272,9 +272,23 @@ class CodeGen:
                             used = True
                             break
                         j += 1
+                    # Only remove dead store if preceded by simple load (LDA/LDX/LDY immediate)
+                    # Don't remove if it's the result of computation (checked via previous instruction)
                     if overwritten and not used:
-                        i += 1
-                        continue
+                        # Check if this is result of computation (previous instruction modifies accumulator)
+                        if i > 0:
+                            prev = self.code[i - 1].strip().upper()
+                            # If previous instruction is arithmetic/logic, keep the store (don't remove)
+                            if any(prev.startswith(op) for op in ["ADC", "SBC", "ORA", "AND", "EOR", "ASL", "LSR", "ROL", "ROR"]):
+                                # This store is result of computation; keep it to maintain code structure
+                                pass
+                            else:
+                                # Simple assignment, safe to remove
+                                i += 1
+                                continue
+                        else:
+                            i += 1
+                            continue
 
             # Drop dead LDA loads if A is clobbered before any read (small window)
             cur_strip = self.code[i].strip()
@@ -1702,6 +1716,43 @@ class CodeGen:
                                 self.emit(f"\tLDA {left_asm}+1")
                                 self.emit(f"\tSBC {right_asm}+1")
                                 self.emit(f"\tSTA {asm}+1")
+                                return
+
+                # Optimize byte var = var1 +/- imm (direct immediate operations)
+                if not is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
+                    # Check if one operand is identifier and other is immediate
+                    var_opnd = None
+                    imm_opnd = None
+                    
+                    if isinstance(rhs.left, Identifier) and isinstance(rhs.right, IntLiteral):
+                        var_opnd = rhs.left
+                        imm_opnd = rhs.right
+                        is_sub_reversed = False
+                    elif isinstance(rhs.right, Identifier) and isinstance(rhs.left, IntLiteral) and rhs.op == BinOp.ADD:
+                        # For addition, const + var is same as var + const
+                        var_opnd = rhs.right
+                        imm_opnd = rhs.left
+                        is_sub_reversed = False
+                    
+                    if var_opnd and imm_opnd:
+                        var_sym = self.current_symtab.lookup(var_opnd.name)
+                        if not var_sym.is_array and var_sym.address is None:
+                            var_asm = var_sym.asm_name()
+                            imm_val = imm_opnd.value & 0xFF
+                            
+                            if rhs.op == BinOp.ADD:
+                                # byte_var = other_var + imm
+                                self.emit(f"\tLDA {var_asm}")
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC #{imm_val}")
+                                self.emit(f"\tSTA {asm}")
+                                return
+                            elif rhs.op == BinOp.SUB:
+                                # byte_var = other_var - imm
+                                self.emit(f"\tLDA {var_asm}")
+                                self.emit("\tSEC")
+                                self.emit(f"\tSBC #{imm_val}")
+                                self.emit(f"\tSTA {asm}")
                                 return
 
         # Fast path: store immediate into dereferenced ZP pointer without temps
