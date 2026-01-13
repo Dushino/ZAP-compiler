@@ -41,7 +41,6 @@ MAIN:
 	STA _PORTB
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_hardware_vars.zap 19:     normalVar = PORTB    ; Read may return different value (status register)
 	LDA _PORTB
-	LDX #0
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_hardware_vars.zap 22:     normalVar = RANDOM
 	LDA _RANDOM
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_hardware_vars.zap 23:     normalVar = RANDOM
