@@ -65,6 +65,8 @@ class Declarator(ASTNode):
     array_size: Optional["Expr"]      # None = není pole
     address: Optional["Expr"]         # None = bez @
     initializer: Optional[InitValue]
+    line: int = 0
+    col: int = 0
 
     def __repr__(self) -> str:
         parts = [self.name]
@@ -176,6 +178,8 @@ class Parameter:
     type: TypeNode
     name: str
     is_array: bool  # True if []
+    line: int = 0
+    col: int = 0
 
 @dataclass(frozen=True)
 class ProcDecl:

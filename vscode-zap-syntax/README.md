@@ -43,7 +43,6 @@ See the main tutorial in the repository for installation instructions.
 
 ```zap
 ; Hello World program
-.segment "CODE"
 
 PROC Main()
   BYTE x
@@ -54,11 +53,10 @@ PROC Main()
     x = 0
   .endif
   
-  WHILE x < max DO
+  WHILE x < max
     x = x + 1
-  OD
+  END
   
-  RETURN
 END
 ```
 

@@ -15,6 +15,8 @@ _B3 = $9C41
 _PTR22 = $0010
 _PTR23 = $0012
 
+; Byte variables
+_A1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
@@ -24,17 +26,17 @@ __START:
 ; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 6: byte A3 @40000 = 2
 	LDA #$02
 	STA _A3
-; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 11: byte ^ptr13 @14 = 512
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 12: byte ^ptr13 @14 = 512
 	LDA #$00
 	STA _PTR13
 	LDA #$02
 	STA _PTR13+1
-; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 15: word B3 @40001 = 1234
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 16: word B3 @40001 = 1234
 	LDA #$D2
 	STA _B3
 	LDA #$04
 	STA _B3+1
-; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 20: word ^ptr23 @18 = 512
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 21: word ^ptr23 @18 = 512
 	LDA #$00
 	STA _PTR23
 	LDA #$02
@@ -45,9 +47,12 @@ __START:
 	JSR MAIN
 	JMP *
 
-; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 23: proc main()
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 31: proc main()
 ; -- Procedure MAIN --
 MAIN:
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 32:     a1 = a5
+	LDA #$61
+	STA _A1
 	RTS
 
 .segment "CODE"

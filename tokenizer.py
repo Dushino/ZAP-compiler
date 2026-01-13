@@ -77,6 +77,7 @@ class Tokenizer:
     def _emit(self, ttype: str, start_line: int, start_col: int, value: Optional[str] = None):
         if value is None:
             value = ""
+        # Keep strings case-sensitive, but uppercase identifiers, keywords and types
         if ttype in (TOK_STRING, TOK_ASM_BLOCK):
             t1 = Token(ttype, value, start_line, start_col)
         else:
@@ -312,7 +313,7 @@ class Tokenizer:
                 if text.lower() in PREPROC:
                     self._emit(TOK_PREPROC, self.sline, self.scol, text.upper())
                     continue
-                self._emit(TOK_IDENT, self.sline, self.scol, text.upper())
+                self._emit(TOK_IDENT, self.sline, self.scol, text)
                 continue
 
             # two-char ops

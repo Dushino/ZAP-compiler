@@ -87,7 +87,11 @@ class DeclarationAnalyzer:
                 is_volatile=False,
                 proc_name=getattr(self.symtab, '_proc_name', '')
             )
-            self.symtab.define(sym)
+            try:
+                self.symtab.define(sym)
+            except SemanticError as e:
+                # Re-raise with better context for constants
+                raise SemanticError(f"Constant '{d.name}': {e.message}")
             return
 
 
@@ -132,5 +136,9 @@ class DeclarationAnalyzer:
             proc_name=getattr(self.symtab, '_proc_name', '')
         )
 
-        self.symtab.define(sym)
+        try:
+            self.symtab.define(sym)
+        except SemanticError as e:
+            # Re-raise with better context
+            raise SemanticError(f"{e.message}")
 

@@ -2,13 +2,12 @@
 """Preprocessor for handling conditional compilation directives."""
 
 from typing import Optional, Set
+from errors import CompileError
 
 
-class PreprocessorError(Exception):
-    def __init__(self, message: str, line: int = 0):
-        super().__init__(message)
-        self.message = message
-        self.line = line
+class PreprocessorError(CompileError):
+    def __init__(self, message: str, line: int = 0, col: int = 1):
+        super().__init__(message, line=line, col=col)
 
 
 class Preprocessor:
@@ -43,6 +42,9 @@ class Preprocessor:
                     parts = line.strip().split(None, 1)
                     if len(parts) >= 2:
                         symbol = parts[1].strip().upper()
+                        if symbol in self.defined_symbols:
+                            col = line.upper().find(symbol)
+                            raise PreprocessorError(f"Symbol '{symbol}' already defined", line=i + 1, col=(col + 1) if col != -1 else 1)
                         self.defined_symbols.add(symbol)
                 i += 1
                 continue

@@ -7,6 +7,7 @@ from typing import Dict, Set, Optional
 from parser import Parser
 from ast_nodes import Program, Declaration, ProcDecl, FuncDecl
 from preprocessor import Preprocessor
+from errors import SemanticError
 
 
 @dataclass
@@ -173,6 +174,28 @@ class ModuleSystem:
             processed.add(module_path)
             
             module_info = self.loaded_modules[module_path]
+
+            debug = module_info.program.debug if module_info.program else {}
+            decl_src = debug.get("global_decl_src", {})
+            proc_src = debug.get("proc_src", {})
+            source_lines = debug.get("source_lines", [])
+            source_text = "\n".join(source_lines) if source_lines else None
+
+            def raise_dup(msg: str, name: str, info):
+                line = None
+                col = None
+                if info:
+                    _, line, text = info
+                    if text:
+                        idx = text.upper().find(name)
+                        if idx != -1:
+                            col = idx + 1
+                    if col is None:
+                        col = 1
+                err = SemanticError(msg, line=line, col=col)
+                if source_text:
+                    setattr(err, "source_text", source_text)
+                raise err
             
             # First process dependencies
             for inc in module_info.includes:
@@ -183,23 +206,31 @@ class ModuleSystem:
             
             # Add this module's exports
             for decl in module_info.declarations:
-                # Use first declarator name as key
-                if decl.declarators:
-                    key = decl.declarators[0].name
-                    if key not in seen_decls:
-                        seen_decls.add(key)
-                        all_decls.append(decl)
+                for d in decl.declarators:
+                    name = d.name
+                    if name in seen_decls:
+                        raise_dup(f"Variable '{name}' already defined", name, decl_src.get(name))
+                    seen_decls.add(name)
+                all_decls.append(decl)
 
             # Merge top-level items, deduping procs/funcs by name, preserving directives
             for item in module_info.top_level_items:
                 if isinstance(item, ProcDecl):
-                    if item.name not in seen_procs:
-                        seen_procs.add(item.name)
-                        all_procs.append(item)
+                    name = item.name
+                    if name in seen_procs:
+                        raise_dup(f"Procedure '{name}' already defined", name, proc_src.get(name))
+                    if name in seen_funcs:
+                        raise_dup(f"Procedure '{name}' conflicts with existing function", name, proc_src.get(name))
+                    seen_procs.add(name)
+                    all_procs.append(item)
                 elif isinstance(item, FuncDecl):
-                    if item.name not in seen_funcs:
-                        seen_funcs.add(item.name)
-                        all_procs.append(item)
+                    name = item.name
+                    if name in seen_funcs:
+                        raise_dup(f"Function '{name}' already defined", name, proc_src.get(name))
+                    if name in seen_procs:
+                        raise_dup(f"Function '{name}' conflicts with existing procedure", name, proc_src.get(name))
+                    seen_funcs.add(name)
+                    all_procs.append(item)
                 else:
                     # e.g., SegmentDirective or other future top-level items
                     all_procs.append(item)

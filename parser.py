@@ -20,6 +20,7 @@ class Parser:
         self.local_decl_src: dict[tuple[str, str], tuple[str, int, str]] = {}
         self.global_decl_src: dict[str, tuple[str, int, str]] = {}
         self.proc_src: dict[str, tuple[str, int, str]] = {}
+        self.param_src: dict[tuple[str, str], tuple[str, int, str]] = {}
 
     def advance(self):
         self.pos += 1
@@ -98,18 +99,32 @@ class Parser:
         locals = []
         body = []
         params = []
+        seen_names: set[str] = set()
 
         self.expect(TOK_LBRACE)
         # parse parameter list
         if self.cur.type != TOK_RBRACE:
-            params.append(self.parse_parameter())
+            p = self.parse_parameter()
+            if p.name in seen_names:
+                raise SyntaxError(f"Duplicate parameter '{p.name}' in procedure", line=p.line, col=p.col)
+            seen_names.add(p.name)
+            params.append(p)
             while self.cur.type == TOK_DELIM and self.cur.value == ',':
                 self.advance()
-                params.append(self.parse_parameter())
+                p = self.parse_parameter()
+                if p.name in seen_names:
+                    raise SyntaxError(f"Duplicate parameter '{p.name}' in procedure", line=p.line, col=p.col)
+                seen_names.add(p.name)
+                params.append(p)
         self.expect(TOK_RBRACE)
 
         while self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
-            locals.append(self.parse_declaration())
+            decl = self.parse_declaration()
+            for d in decl.declarators:
+                if d.name in seen_names:
+                    raise SyntaxError(f"Duplicate local '{d.name}' in procedure", line=d.line, col=d.col)
+                seen_names.add(d.name)
+            locals.append(decl)
 
         while not (self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "RETURN")):
             body.append(self.parse_stmt())
@@ -126,6 +141,7 @@ class Parser:
         return ProcDecl(name, params, locals, body)
 
     def parse_func(self):
+        start_line = self.cur.line
         self.expect(TOK_KEYWORD, "FUNC")
         
         # return type
@@ -142,18 +158,32 @@ class Parser:
         locals = []
         body = []
         params = []
+        seen_names: set[str] = set()
         
         self.expect(TOK_LBRACE)
         # parse parameter list
         if self.cur.type != TOK_RBRACE:
-            params.append(self.parse_parameter())
+            p = self.parse_parameter()
+            if p.name in seen_names:
+                raise SyntaxError(f"Duplicate parameter '{p.name}' in function", line=p.line, col=p.col)
+            seen_names.add(p.name)
+            params.append(p)
             while self.cur.type == TOK_DELIM and self.cur.value == ',':
                 self.advance()
-                params.append(self.parse_parameter())
+                p = self.parse_parameter()
+                if p.name in seen_names:
+                    raise SyntaxError(f"Duplicate parameter '{p.name}' in function", line=p.line, col=p.col)
+                seen_names.add(p.name)
+                params.append(p)
         self.expect(TOK_RBRACE)
         
         while self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
-            locals.append(self.parse_declaration())
+            decl = self.parse_declaration()
+            for d in decl.declarators:
+                if d.name in seen_names:
+                    raise SyntaxError(f"Duplicate local '{d.name}' in function", line=d.line, col=d.col)
+                seen_names.add(d.name)
+            locals.append(decl)
         
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "RETURN"):
             body.append(self.parse_stmt())
@@ -162,7 +192,10 @@ class Parser:
         self.expect(TOK_KEYWORD, "RETURN")
         ret_expr = self.parse_expr()
         body.append(ReturnStmt(ret_expr))
-        
+
+        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        self.proc_src[name] = (self.filename, start_line, line_text)
+
         return FuncDecl(name, TypeNode(ret_type_tok.value, ret_is_pointer), params, locals, body)
 
     def parse_parameter(self):
@@ -176,6 +209,8 @@ class Parser:
             self.advance()
         
         name = self.cur.value
+        name_line = self.cur.line
+        name_col = self.cur.col
         self.expect(TOK_IDENT)
         
         is_array = False
@@ -184,7 +219,7 @@ class Parser:
             self.expect(TOK_OP, ']')
             is_array = True
         
-        return Parameter(TypeNode(type_tok.value, is_pointer), name, is_array)
+        return Parameter(TypeNode(type_tok.value, is_pointer), name, is_array, name_line, name_col)
 
     def parse_declaration(self):
         is_const = False
@@ -224,6 +259,7 @@ class Parser:
             if name.startswith('_'):
                 self.error("Variable names cannot start with underscore")
             decl_line = self.cur.line
+            decl_col = self.cur.col
             self.expect(TOK_IDENT)
 
             array_size = None
@@ -280,7 +316,7 @@ class Parser:
                 self.local_decl_src[(self.current_proc_name, name)] = (self.filename, decl_line, line_text)
             else:
                 self.global_decl_src[name] = (self.filename, decl_line, line_text)
-            return Declarator(name, array_size, address, init)
+            return Declarator(name, array_size, address, init, decl_line, decl_col)
 
         declarators = [parse_declarator()]
 

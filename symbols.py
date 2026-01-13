@@ -45,7 +45,7 @@ class SymbolTable:
 
     def define(self, sym: Symbol):
         if sym.name in self._symbols:
-            raise SemanticError(f"Symbol '{sym.name}' already defined")
+            raise SemanticError(f"Variable '{sym.name}' already defined")
         self._symbols[sym.name] = sym
 
     def lookup(self, name: str) -> Symbol:

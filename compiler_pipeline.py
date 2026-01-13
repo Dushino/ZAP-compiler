@@ -372,8 +372,16 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     for p in program.procs:
         if isinstance(p, ProcDecl):
             proc_an.analyze_decl(p)
+            # Check for collision with existing global variables
+            if p.name in global_symtab._symbols:
+                from errors import SemanticError
+                raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable")
         elif isinstance(p, FuncDecl):
             func_an.analyze_decl(p)
+            # Check for collision with existing global variables
+            if p.name in global_symtab._symbols:
+                from errors import SemanticError
+                raise SemanticError(f"Function '{p.name}' conflicts with existing variable")
     
     # Ensure main() procedure exists (required for initialization code)
     try:
