@@ -1,7 +1,7 @@
 [x] extend peepholes to fold LDA #c / STA / LDA #c / STA into a single load, 
 [x] add INC/DEC pair cancellations, 
 [x] run peephole before math/runtime footer too if we emit more helpers later.
-[ ] line numbers in generated code with .line directive? Is .line supported in ca65?
+[x] line numbers in generated code with source file command 
 [x] fix tokenizer to handle character literals and escape sequences properly
 [x] ASM for inile assembler entry. 
 [x] fix module handling to remove unused functions and procs from modules
@@ -22,5 +22,5 @@
 [ ] improve error messages 
 [ ] implement module constructors and destructors?
 [x] fix wrong code generation as ORA X is
-[ ] compiler defines in command line
-[ ] modify scr.ac to distinguish between Atari and SBC
+[x] compiler defines in command line
+[ ] create scr.zap to distinguish between Atari and SBC

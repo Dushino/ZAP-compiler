@@ -7,14 +7,14 @@ from preprocessor import Preprocessor
 import os
 import sys
 
-def compile_source(src: str, *, target_6502: bool = False) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: set = None) -> str:
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
         src = src[1:]
 
     try:
         # Apply preprocessor
-        preprocessor = Preprocessor()
+        preprocessor = Preprocessor(predefined_symbols)
         src = preprocessor.process(src)
         
         parser = Parser(src, filename="<input.zap>")
@@ -29,14 +29,14 @@ def compile_source(src: str, *, target_6502: bool = False) -> str:
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: set = None) -> str:
     """Compile a file with module support"""
     try:
         # Get base directory for resolving includes
         base_dir = os.path.dirname(os.path.abspath(filepath))
         
         # Create module system
-        module_sys = ModuleSystem(base_dir)
+        module_sys = ModuleSystem(base_dir, predefined_symbols=predefined_symbols)
         
         # Build program with all dependencies
         program = module_sys.build_program(filepath)
@@ -65,8 +65,9 @@ if __name__ == "__main__":
     target_6502 = False
     out_file = None
     enable_peepholes = False
+    predefined_symbols = set()
 
-    # Simple CLI parsing to support -6502 and -o <file>
+    # Simple CLI parsing to support -6502, -o <file>, and -D <symbol>
     i = 0
     src_file = None
     while i < len(args):
@@ -82,9 +83,17 @@ if __name__ == "__main__":
         if a == "-o":
             if i + 1 >= len(args):
                 print("Error: -o requires an output filename")
-                print("Usage: python compiler.py [-6502] [--peepholes] [-o <output.s>] <source.act>")
+                print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             out_file = args[i + 1]
+            i += 2
+            continue
+        if a == "-D":
+            if i + 1 >= len(args):
+                print("Error: -D requires a symbol name")
+                print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
+                sys.exit(1)
+            predefined_symbols.add(args[i + 1].upper())
             i += 2
             continue
         # First non-option is the source file
@@ -96,14 +105,14 @@ if __name__ == "__main__":
         i += 1
 
     if src_file is None:
-        print("Usage: python compiler.py [-6502] [--peepholes] [-o <output.s>] <source.act>")
+        print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
         sys.exit(1)
 
     # Configure peephole optimizations toggle in pipeline
     cp.DISABLE_PEEPHOLE_OPTIMIZATIONS = not enable_peepholes
 
     # Compile program
-    output = compile_file(src_file, target_6502=target_6502)
+    output = compile_file(src_file, target_6502=target_6502, predefined_symbols=predefined_symbols)
 
     # Write to file if requested, else print to stdout
     if out_file:

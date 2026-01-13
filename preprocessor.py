@@ -12,8 +12,8 @@ class PreprocessorError(Exception):
 
 
 class Preprocessor:
-    def __init__(self):
-        self.defined_symbols: Set[str] = set()
+    def __init__(self, predefined_symbols: Set[str] = None):
+        self.defined_symbols: Set[str] = predefined_symbols.copy() if predefined_symbols else set()
     
     def process(self, source: str) -> str:
         """Process conditional compilation directives and return filtered source."""

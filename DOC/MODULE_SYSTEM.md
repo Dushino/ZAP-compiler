@@ -90,6 +90,124 @@ The compiler automatically:
 4. Merges all symbols
 5. Compiles the complete program
 
+## Preprocessor Directives
+
+The module system integrates with the preprocessor to support conditional compilation.
+
+### .define SYMBOL
+
+Defines a preprocessor symbol that can be tested with `.ifdef` or `.ifndef`.
+
+```zap
+.define DEBUG
+.define ATARI_PLATFORM
+```
+
+### .undef SYMBOL
+
+Undefines a previously defined symbol.
+
+```zap
+.undef DEBUG
+```
+
+### .ifdef SYMBOL
+
+Conditionally includes code if the symbol is defined (either via `.define` or the `-D` command line option).
+
+```zap
+.ifdef DEBUG
+  ; This code is only included if DEBUG is defined
+  BYTE debug_counter
+.endif
+```
+
+### .ifndef SYMBOL
+
+Conditionally includes code if the symbol is NOT defined.
+
+```zap
+.ifndef RELEASE
+  ; This code is included unless RELEASE is defined
+  PROC DebugPrint()
+    ; Debug implementation
+  END
+.endif
+```
+
+### .else
+
+Provides an alternative branch for `.ifdef` or `.ifndef`.
+
+```zap
+.ifdef ATARI_PLATFORM
+  ; Atari-specific code
+  .include "atari_hardware.zap"
+.else
+  ; Generic or other platform code
+  .include "generic_hardware.zap"
+.endif
+```
+
+### .endif
+
+Closes an `.ifdef` or `.ifndef` block.
+
+### Command Line Symbol Definition
+
+Symbols can be defined on the command line using the `-D` option:
+
+```bash
+python compiler.py program.zap -D DEBUG -D PLATFORM_ATARI -o program.s
+```
+
+This is equivalent to having `.define DEBUG` and `.define PLATFORM_ATARI` at the start of the source file, but allows you to control compilation variants without modifying source code.
+
+### Practical Examples
+
+**Platform-specific compilation:**
+```zap
+.ifdef ATARI
+  .segment "DATA"
+  screen BYTE = $58
+.endif
+
+.ifdef SBC
+  .segment "DATA"  
+  screen BYTE = $2000
+.endif
+```
+
+**Debug vs Release builds:**
+```zap
+PROC Main()
+  .ifdef DEBUG
+    BYTE error_log[100]
+    PROC LogError(BYTE code)
+      ; Debug logging code
+    END
+  .endif
+  
+  ; Main program code
+  .ifdef DEBUG
+    LogError(0)
+  .endif
+END
+```
+
+**Feature toggles:**
+```zap
+.ifdef ENABLE_SOUND
+  PROC PlaySound()
+    ; Sound implementation
+  END
+.else
+  PROC PlaySound()
+    ; Empty stub
+  END
+.endif
+```
+
 ## Example
 
 See [tests/test_module_main.act](tests/test_module_main.act) and [tests/math_module.act](tests/math_module.act) for a complete example.
@@ -100,3 +218,7 @@ The module system is implemented in [module_system.py](module_system.py):
 - `ModuleSystem.load_module()` - Loads a module and its dependencies
 - `ModuleSystem.build_program()` - Builds complete program AST from main file
 - `ModuleInfo` - Stores parsed module information
+
+The preprocessor is implemented in [preprocessor.py](preprocessor.py):
+- `Preprocessor.process()` - Processes conditional compilation directives
+- Symbols defined via `-D` are shared across all modules in a compilation

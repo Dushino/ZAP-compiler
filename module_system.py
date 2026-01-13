@@ -29,11 +29,11 @@ class ModuleSystem:
     Manages module loading and dependency resolution
     """
     
-    def __init__(self, base_path: str = "."):
+    def __init__(self, base_path: str = ".", predefined_symbols: set = None):
         self.base_path = os.path.abspath(base_path)
         self.loaded_modules: Dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection
-        self.preprocessor = Preprocessor()  # Shared preprocessor for all modules
+        self.preprocessor = Preprocessor(predefined_symbols)  # Shared preprocessor for all modules
     
     def parse_file(self, filepath: str):
         """Parse a single file and extract module directives"""
