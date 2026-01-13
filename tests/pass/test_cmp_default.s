@@ -5,6 +5,7 @@
 .segment "ZEROPAGE"
 ; System variables
 TMP0:	.res 2
+TMP1:	.res 2
 
 ; Pointer variables
 _PTR:	.res 2
@@ -32,12 +33,9 @@ __START:
 ; -- Procedure COMPARE1 --
 COMPARE1:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 11:     if a > b then
-	LDA _COMPARE1_B
-	LDX #0
-	STA TMP0
 	LDA _COMPARE1_A
 	LDX #0
-	CMP TMP0
+	CMP _COMPARE1_B
 	BEQ else_1
 	BCS then_3
 	JMP else_1
@@ -57,12 +55,9 @@ endif_2:
 	INC _PTR+1
 INC_WORD_4:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 18:     if a >= b then
-	LDA _COMPARE1_B
-	LDX #0
-	STA TMP0
 	LDA _COMPARE1_A
 	LDX #0
-	CMP TMP0
+	CMP _COMPARE1_B
 	BCS then_7
 	JMP else_5
 then_7:
@@ -81,12 +76,9 @@ endif_6:
 	INC _PTR+1
 INC_WORD_8:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 25:     if a == b then
-	LDA _COMPARE1_B
-	LDX #0
-	STA TMP0
 	LDA _COMPARE1_A
 	LDX #0
-	CMP TMP0
+	CMP _COMPARE1_B
 	BNE REL_ELSE_TMP_12
 	BEQ then_11
 REL_ELSE_TMP_12:
@@ -107,12 +99,9 @@ endif_10:
 	INC _PTR+1
 INC_WORD_13:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 32:     if a <= b then
-	LDA _COMPARE1_B
-	LDX #0
-	STA TMP0
 	LDA _COMPARE1_A
 	LDX #0
-	CMP TMP0
+	CMP _COMPARE1_B
 	BCC then_16
 	BEQ then_16
 	JMP else_14
@@ -132,12 +121,9 @@ endif_15:
 	INC _PTR+1
 INC_WORD_17:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 39:     if a < b then
-	LDA _COMPARE1_B
-	LDX #0
-	STA TMP0
 	LDA _COMPARE1_A
 	LDX #0
-	CMP TMP0
+	CMP _COMPARE1_B
 	BCC then_20
 	JMP else_18
 then_20:
@@ -156,12 +142,9 @@ endif_19:
 	INC _PTR+1
 INC_WORD_21:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 46:     if a != b then
-	LDA _COMPARE1_B
-	LDX #0
-	STA TMP0
 	LDA _COMPARE1_A
 	LDX #0
-	CMP TMP0
+	CMP _COMPARE1_B
 	BNE then_24
 	JMP else_22
 then_24:

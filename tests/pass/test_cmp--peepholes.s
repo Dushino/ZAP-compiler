@@ -5,6 +5,7 @@
 .segment "ZEROPAGE"
 ; System variables
 TMP0:	.res 2
+TMP1:	.res 2
 
 ; Pointer variables
 _PTR:	.res 2
@@ -32,18 +33,20 @@ __START:
 ; -- Procedure COMPARE1 --
 COMPARE1:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 11:     if a > b then
-	LDA _COMPARE1_B
-	STA TMP0
 	LDA _COMPARE1_A
-	CMP TMP0
+	CMP _COMPARE1_B
 	BEQ else_1
 	BCS then_3
 	JMP else_1
 then_3:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 12:         ptr^ = chtrue
+	LDA #$11
+	STA (_PTR)
 	JMP endif_2
 else_1:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 14:         ptr^ = chfalse
+	LDA #$10
+	STA (_PTR)
 endif_2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 16:     ptr = ptr + 1
 	INC _PTR
@@ -51,14 +54,14 @@ endif_2:
 	INC _PTR+1
 INC_WORD_4:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 18:     if a >= b then
-	LDA _COMPARE1_B
-	STA TMP0
 	LDA _COMPARE1_A
-	CMP TMP0
+	CMP _COMPARE1_B
 	BCS then_7
 	JMP else_5
 then_7:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 19:         ptr^ = chtrue
+	LDA #$11
+	STA (_PTR)
 	JMP endif_6
 else_5:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 21:         ptr^ = chfalse
@@ -71,16 +74,16 @@ endif_6:
 	INC _PTR+1
 INC_WORD_8:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 25:     if a == b then
-	LDA _COMPARE1_B
-	STA TMP0
 	LDA _COMPARE1_A
-	CMP TMP0
+	CMP _COMPARE1_B
 	BNE REL_ELSE_TMP_12
 	BEQ then_11
 REL_ELSE_TMP_12:
 	JMP else_9
 then_11:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 26:         ptr^ = chtrue
+	LDA #$11
+	STA (_PTR)
 	JMP endif_10
 else_9:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 28:         ptr^ = chfalse
@@ -93,18 +96,20 @@ endif_10:
 	INC _PTR+1
 INC_WORD_13:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 32:     if a <= b then
-	LDA _COMPARE1_B
-	STA TMP0
 	LDA _COMPARE1_A
-	CMP TMP0
+	CMP _COMPARE1_B
 	BCC then_16
 	BEQ then_16
 	JMP else_14
 then_16:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 33:         ptr^ = chtrue
+	LDA #$11
+	STA (_PTR)
 	JMP endif_15
 else_14:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 35:         ptr^ = chfalse
+	LDA #$10
+	STA (_PTR)
 endif_15:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 37:     ptr = ptr + 1
 	INC _PTR
@@ -112,17 +117,19 @@ endif_15:
 	INC _PTR+1
 INC_WORD_17:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 39:     if a < b then
-	LDA _COMPARE1_B
-	STA TMP0
 	LDA _COMPARE1_A
-	CMP TMP0
+	CMP _COMPARE1_B
 	BCC then_20
 	JMP else_18
 then_20:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 40:         ptr^ = chtrue
+	LDA #$11
+	STA (_PTR)
 	JMP endif_19
 else_18:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 42:         ptr^ = chfalse
+	LDA #$10
+	STA (_PTR)
 endif_19:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 44:     ptr = ptr + 1
 	INC _PTR
@@ -130,14 +137,14 @@ endif_19:
 	INC _PTR+1
 INC_WORD_21:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 46:     if a != b then
-	LDA _COMPARE1_B
-	STA TMP0
 	LDA _COMPARE1_A
-	CMP TMP0
+	CMP _COMPARE1_B
 	BNE then_24
 	JMP else_22
 then_24:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 47:         ptr^ = chtrue
+	LDA #$11
+	STA (_PTR)
 	JMP endif_23
 else_22:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_cmp.zap 49:         ptr^ = chfalse

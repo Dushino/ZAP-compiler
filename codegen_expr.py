@@ -417,8 +417,33 @@ class CodeGen:
                         reload_patterns = ["LDY ", "TAY", "PLY"]
                         index_check = lambda s: ",Y" in s
                     
-                    # Scan forward to see if register is used before being overwritten
+                    # Initialize register_used
                     register_used = False
+                    
+                    # Quick check: if next non-comment/non-label instruction is a store with indirect addressing, keep the load
+                    for k in range(i + 1, min(i + 5, len(self.code))):
+                        peek = self.code[k].strip().upper()
+                        if not peek or peek.endswith(":") or peek.startswith(";"):
+                            continue
+                        # If next meaningful instruction is indirect store, preserve the load
+                        if loads_a and peek.startswith("STA (") and ")" in peek:
+                            register_used = True
+                            break
+                        if loads_x and peek.startswith("STX (") and ")" in peek:
+                            register_used = True
+                            break
+                        if loads_y and peek.startswith("STY (") and ")" in peek:
+                            register_used = True
+                            break
+                        # Stop at first meaningful instruction
+                        break
+                    
+                    if register_used:
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
+                    # Scan forward to see if register is used before being overwritten
                     for j in range(i + 1, len(self.code)):
                         check = self.code[j].strip().upper()
                         
@@ -458,6 +483,13 @@ class CodeGen:
                 if len(parts) == 2:
                     operand = parts[1].strip()
                     operand_upper = operand.upper()
+                    
+                    # NEVER optimize away stores to indirect addresses - they always have side effects
+                    if "(" in operand and ")" in operand:
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
                     overwritten = False
                     used = False
                     j = i + 1
@@ -2496,21 +2528,53 @@ class CodeGen:
         left_t = self.tc.check(expr.left)
         right_t = self.tc.check(expr.right)
         is_16bit = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
-        
-        # pravý operand first (for correct CMP operand order)
-        self.gen_expr(expr.right)
-        # Ensure high byte is well-defined in 16-bit context
-        if is_16bit and right_t.sem_type.base != "WORD":
-            self.emit("\tLDX #0")
-        self.emit("\tSTA TMP0")
-        if is_16bit:
-            self.emit("\tSTX TMP0+1")
 
-        # levý operand
-        self.gen_expr(expr.left)
-        # Ensure left high byte is well-defined in 16-bit context
-        if is_16bit and left_t.sem_type.base != "WORD":
-            self.emit("\tLDX #0")
+        # Try a fast 8-bit compare when the right operand is a simple byte value
+        cmp_operand: str | None = None
+
+        def simple_byte_operand(rhs: Expr) -> str | None:
+            """Return an operand suitable for CMP if rhs is a trivial byte source."""
+            if is_16bit:
+                return None
+
+            if isinstance(rhs, IntLiteral):
+                return f"#{rhs.value & 0xFF}"
+
+            if isinstance(rhs, Identifier):
+                sym = self.current_symtab.lookup(rhs.name)
+
+                if sym.is_array or sym.address is not None:
+                    return None
+                if sym.type.is_pointer or sym.type.base not in {"BYTE", "CHAR"}:
+                    return None
+                if sym.is_volatile:
+                    return None
+                return sym.asm_name()
+
+            return None
+
+        cmp_operand = simple_byte_operand(expr.right)
+
+        if cmp_operand is not None:
+            # Left operand only; right is accessed directly in CMP
+            self.gen_expr(expr.left)
+        else:
+            # pravý operand first (for correct CMP operand order)
+            self.gen_expr(expr.right)
+            # Ensure high byte is well-defined in 16-bit context
+            if is_16bit and right_t.sem_type.base != "WORD":
+                self.emit("\tLDX #0")
+            self.emit("\tSTA TMP0")
+            if is_16bit:
+                self.emit("\tSTX TMP0+1")
+
+            # levý operand
+            self.gen_expr(expr.left)
+            # Ensure left high byte is well-defined in 16-bit context
+            if is_16bit and left_t.sem_type.base != "WORD":
+                self.emit("\tLDX #0")
+
+            cmp_operand = "TMP0"
 
         lbl_true = self.new_label("REL_TRUE")
         lbl_end  = self.new_label("REL_END")
@@ -2562,7 +2626,7 @@ class CodeGen:
                 self.emit(f"\tBEQ {lbl_true}")
         else:
             # 8-bit comparison (original code)
-            self.emit("\tCMP TMP0")
+            self.emit(f"\tCMP {cmp_operand}")
 
             if expr.op == BinOp.EQ:
                 self.emit(f"\tBEQ {lbl_true}")
@@ -2602,6 +2666,28 @@ class CodeGen:
 
         cmp_lo = "TMP0"
         cmp_hi = "TMP0+1"
+
+        # Try a fast 8-bit compare when the right operand is a simple byte value
+        def simple_byte_operand(rhs: Expr) -> str | None:
+            """Return an operand suitable for CMP if rhs is a trivial byte source."""
+            if is_16bit:
+                return None
+
+            if isinstance(rhs, IntLiteral):
+                return f"#{rhs.value & 0xFF}"
+
+            if isinstance(rhs, Identifier):
+                sym = self.current_symtab.lookup(rhs.name)
+
+                if sym.is_array or sym.address is not None:
+                    return None
+                if sym.type.is_pointer or sym.type.base not in {"BYTE", "CHAR"}:
+                    return None
+                if sym.is_volatile:
+                    return None
+                return sym.asm_name()
+
+            return None
 
         # Optimize: if right side is a constant, use immediate addressing
         from ast_nodes import IntLiteral
@@ -2698,24 +2784,28 @@ class CodeGen:
             if is_16bit and left_t.sem_type.base != "WORD":
                 self.emit("\tLDX #0")
         else:
-            # Evaluate right into TMP0/(TMP0+1)
-            self.gen_expr(cond.right)
-            if is_16bit and right_t.sem_type.base != "WORD":
-                self.emit("\tLDX #0")
-            self.emit("\tSTA TMP0")
-            if is_16bit:
-                self.emit("\tSTX TMP0+1")
-
-            # Evaluate left into A/X
-            self.gen_expr(cond.left)
-            if is_16bit and left_t.sem_type.base != "WORD":
-                self.emit("\tLDX #0")
-
-        # Emit direct branches to external labels (short branches to true, absolute JMP to false where needed)
-        # Use immediate or memory operand based on whether right side is constant
-        if not use_immediate:
-            cmp_lo = "TMP0"
-            cmp_hi = "TMP0+1"
+            # Try simple byte operand optimization for 8-bit compares
+            cmp_operand = simple_byte_operand(cond.right)
+            
+            if cmp_operand is not None:
+                # Left operand only; right is accessed directly in CMP
+                self.gen_expr(cond.left)
+                cmp_lo = cmp_operand
+                # cmp_hi stays as "TMP0+1" but won't be used for 8-bit
+            else:
+                # Evaluate right into TMP0/(TMP0+1)
+                self.gen_expr(cond.right)
+                if is_16bit and right_t.sem_type.base != "WORD":
+                    self.emit("\tLDX #0")
+                self.emit("\tSTA TMP0")
+                if is_16bit:
+                    self.emit("\tSTX TMP0+1")
+                self.gen_expr(cond.left)
+                if is_16bit and left_t.sem_type.base != "WORD":
+                    self.emit("\tLDX #0")
+                # Set cmp_lo and cmp_hi to TMP0
+                cmp_lo = "TMP0"
+                cmp_hi = "TMP0+1"
 
         if is_16bit:
             if cond.op == BinOp.EQ:

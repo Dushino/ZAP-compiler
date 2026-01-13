@@ -39,218 +39,41 @@
      inkscape:deskcolor="#d1d1d1"
      showgrid="false"
      inkscape:zoom="11.426482"
-     inkscape:cx="-1.09395"
-     inkscape:cy="27.042444"
+     inkscape:cx="5.075928"
+     inkscape:cy="38.332008"
      inkscape:window-width="1920"
      inkscape:window-height="1151"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg56" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:34.4825px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ee4227;fill-opacity:1;stroke-width:1.17555"
+     x="3.5653985"
+     y="31.205915"
+     id="text2783-3"
+     transform="scale(1.180979,0.8467551)"><tspan
+       sodipodi:role="line"
+       id="tspan2781-6"
+       x="3.5653985"
+       y="31.205915"
+       style="fill:#ee4227;fill-opacity:1;stroke-width:1.17555">Z</tspan></text>
   <!-- Background rounded square -->
-  <rect
-     x="2"
-     y="2"
-     width="28"
-     height="28"
-     rx="4"
-     fill="#1e3a5f"
-     id="rect2"
-     style="opacity:0.538089;fill:#818181;fill-opacity:0.95901889" />
   <!-- Circuit traces background -->
   <!-- Main Z letter with circuit style -->
   <!-- Chip pins decoration -->
   <!-- Subtle highlight for depth -->
-  <g
-     id="g5908"
-     transform="translate(0,0.52844667)"
-     style="fill:#ffee00;fill-opacity:1">
-    <rect
-       x="1.994184"
-       y="6.7217207"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect40"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="1.994184"
-       y="10.721721"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect42"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="1.994184"
-       y="14.721721"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect44"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="27.994184"
-       y="6.7217207"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect46"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="27.994184"
-       y="10.721721"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect48"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="27.994184"
-       y="14.721721"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect50"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="1.9930878"
-       y="18.721386"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect42-1"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="1.9930878"
-       y="22.721386"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect44-2"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="27.993088"
-       y="18.721386"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect48-0"
-       style="fill:#ffee00;fill-opacity:1" />
-    <rect
-       x="27.993088"
-       y="22.721386"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect50-9"
-       style="fill:#ffee00;fill-opacity:1" />
-  </g>
-  <g
-     id="g5896"
-     transform="translate(0.99813366)"
-     style="fill:#ffee00;fill-opacity:1">
-    <rect
-       x="2.033071"
-       y="-23.751699"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect40-6-9"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="2.033071"
-       y="-19.751699"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect42-7-2"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="2.033071"
-       y="-15.751699"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect44-5-2"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="28.033072"
-       y="-23.751699"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect46-3-8"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="28.033072"
-       y="-19.751699"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect48-5-9"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="28.033072"
-       y="-15.751699"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect50-6-7"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="2.031975"
-       y="-11.752033"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect42-7-0-7"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="2.031975"
-       y="-7.7520332"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect44-5-6-8"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="28.031975"
-       y="-11.752033"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect48-5-6-5"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-    <rect
-       x="28.031975"
-       y="-7.7520332"
-       width="2"
-       height="1.5"
-       rx="0.5"
-       id="rect50-6-1-0"
-       style="fill:#ffee00;fill-opacity:1"
-       transform="rotate(90)" />
-  </g>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:24.294px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;opacity:1;fill:#000000;fill-opacity:1;stroke-width:0.828207"
-     x="6.9601426"
-     y="26.967484"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.5958px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;opacity:1;fill:#000000;fill-opacity:1;stroke-width:0.974861"
+     x="5.2906361"
+     y="29.075068"
      id="text2783"
-     transform="scale(1.1434082,0.87457832)"><tspan
+     transform="scale(1.1791479,0.84807003)"><tspan
        sodipodi:role="line"
        id="tspan2781"
-       x="6.9601426"
-       y="26.967484"
-       style="fill:#000000;fill-opacity:1;stroke-width:0.828207">Z</tspan></text>
+       x="5.2906361"
+       y="29.075068"
+       style="fill:#000000;fill-opacity:1;stroke-width:0.974861">Z</tspan></text>
 </svg>
