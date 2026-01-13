@@ -139,22 +139,22 @@ MATH2:
 	ADC TMP1
 	STA _MATH2_A+1
 	RTS
-; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 32: proc main()
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 45: proc main()
 ; -- Procedure MAIN --
 MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 33:     math1(1, 2)    
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 46:     math1(1, 2)    
 	LDA #1
 	STA _MATH1_B1
 	LDA #2
 	STA _MATH1_B2
 	JSR MATH1
-; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 34:     math1($ff01, $5502)
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 47:     math1($ff01, $5502)
 	LDA #1
 	STA _MATH1_B1
 	LDA #2
 	STA _MATH1_B2
 	JSR MATH1
-; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 35:     math2(1, 2)
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 48:     math2(1, 2)
 	LDA #1
 	STA _MATH2_B1
 	LDA #2
@@ -236,179 +236,6 @@ MUL16_SKIP:
 	LDA TMP2+2
 	RTS
 
-; DIV8: 8/8=8 divide
-; Input: TMP0 (dividend), TMP2 (divisor)
-; Output: A=quotient, X=0
-DIV8:
-	LDA #0
-	LDX #8
-	CLC
-DIV8_LOOP:
-	ROL TMP0
-	ROL
-	CMP TMP2
-	BCC DIV8_SKIP
-	SBC TMP2
-	INC TMP0
-DIV8_SKIP:
-	DEX
-	BNE DIV8_LOOP
-	LDA TMP0
-	RTS
-
-; DIV16_8: 16/8=16 divide
-; Input: TMP0,TMP1 (dividend), TMP2 (divisor)
-; Output: A=low, X=high
-DIV16_8:
-	STZ TMP3
-	LDX #16
-DIV16_8_LOOP:
-	ROL TMP0
-	ROL TMP1
-	ROL TMP3
-	LDA TMP3
-	CMP TMP2
-	BCC DIV16_8_SKIP
-	SBC TMP2
-	STA TMP3
-	INC TMP0
-DIV16_8_SKIP:
-	DEX
-	BNE DIV16_8_LOOP
-	LDA TMP0
-	RTS
-
-; DIV8_16: 8/16=8 divide
-; Input: TMP0 (dividend), TMP2,TMP3 (divisor)
-; Output: A=quotient (0 or 1), X=0
-DIV8_16:
-	LDA TMP0
-	CMP TMP2
-	LDA #0
-	SBC TMP3
-	BCC DIV8_16_ZERO
-	LDA #1
-	RTS
-DIV8_16_ZERO:
-	LDA #0
-	RTS
-
-; DIV16: 16/16=16 divide
-; Input: TMP0,TMP1 (dividend), TMP2,TMP3 (divisor)
-; Output: A=low, X=high
-DIV16:
-	STZ TMP2+2
-	STZ TMP2+3
-	LDX #16
-DIV16_LOOP:
-	ROL TMP0
-	ROL TMP1
-	ROL TMP2+2
-	ROL TMP2+3
-	LDA TMP2+2
-	CMP TMP2
-	LDA TMP2+3
-	SBC TMP3
-	BCC DIV16_SKIP
-	LDA TMP2+2
-	SBC TMP2
-	STA TMP2+2
-	LDA TMP2+3
-	SBC TMP3
-	STA TMP2+3
-	INC TMP0
-DIV16_SKIP:
-	DEX
-	BNE DIV16_LOOP
-	LDA TMP0
-	RTS
-
-; MOD8: 8%8=8 modulo
-; Input: TMP0 (dividend), TMP2 (divisor)
-; Output: A=remainder, X=0
-MOD8:
-	LDA #0
-	LDX #8
-	CLC
-MOD8_LOOP:
-	ROL TMP0
-	ROL
-	CMP TMP2
-	BCC MOD8_SKIP
-	SBC TMP2
-	INC TMP0
-MOD8_SKIP:
-	DEX
-	BNE MOD8_LOOP
-	RTS
-
-; MOD16_8: 16%8=8 modulo
-; Input: TMP0,TMP1 (dividend), TMP2 (divisor)
-; Output: A=remainder, X=0
-MOD16_8:
-	STZ TMP3
-	LDX #16
-MOD16_8_LOOP:
-	ROL TMP0
-	ROL TMP1
-	ROL TMP3
-	LDA TMP3
-	CMP TMP2
-	BCC MOD16_8_SKIP
-	SBC TMP2
-	STA TMP3
-	INC TMP0
-MOD16_8_SKIP:
-	DEX
-	BNE MOD16_8_LOOP
-	LDA TMP3
-	RTS
-
-; MOD8_16: 8%16=8 modulo
-; Input: TMP0 (dividend), TMP2,TMP3 (divisor)
-; Output: A=remainder, X=0
-MOD8_16:
-	LDA TMP0
-	CMP TMP2
-	LDA #0
-	SBC TMP3
-	BCC MOD8_16_RET
-	LDA TMP0
-	SBC TMP2
-	RTS
-MOD8_16_RET:
-	LDA TMP0
-	RTS
-
-; MOD16: 16%16=16 modulo
-; Input: TMP0,TMP1 (dividend), TMP2,TMP3 (divisor)
-; Output: A=low, X=high
-MOD16:
-	STZ TMP2+2
-	STZ TMP2+3
-	LDX #16
-MOD16_LOOP:
-	ROL TMP0
-	ROL TMP1
-	ROL TMP2+2
-	ROL TMP2+3
-	LDA TMP2+2
-	CMP TMP2
-	LDA TMP2+3
-	SBC TMP3
-	BCC MOD16_SKIP
-	LDA TMP2+2
-	SBC TMP2
-	STA TMP2+2
-	LDA TMP2+3
-	SBC TMP3
-	STA TMP2+3
-	INC TMP0
-MOD16_SKIP:
-	DEX
-	BNE MOD16_LOOP
-	LDA TMP2+2
-	RTS
 __END:
 .export __END
 
