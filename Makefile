@@ -88,13 +88,32 @@ tests:
 	for zapfile in tests/pass/*.zap; do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
+			variant_pass=0; variant_fail=0; \
+			for variant_flags in "" "--peepholes" "-6502" "-6502 --peepholes"; do \
+				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/'); \
+				output_file="tests/pass/$${base}$${variant_name}.s"; \
+				obj_file="tests/pass/$${base}$${variant_name}.o"; \
+				if echo "$$variant_flags" | grep -q -- "-6502"; then \
+					as_cpu="6502"; \
+				else \
+					as_cpu="65c02"; \
+				fi; \
+				if $(ZC) $$variant_flags $$zapfile -o $$output_file >/dev/null 2>&1; then \
+					if $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >/dev/null 2>&1; then \
+						variant_pass=$$((variant_pass + 1)); \
+					else \
+						variant_fail=$$((variant_fail + 1)); \
+					fi; \
+				else \
+					variant_fail=$$((variant_fail + 1)); \
+				fi; \
+			done; \
 			printf "%-30s" "$$base.zap: "; \
-			if $(ZC) -6502 $$zapfile -o tests/pass/$$base.s >/dev/null 2>&1; then \
-				echo "✓ PASS"; \
+			if [ $$variant_fail -eq 0 ]; then \
+				echo "✓ PASS (all 4 variants)"; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "✗ FAIL (expected to pass but failed)"; \
-				$(ZC) -6502 $$zapfile -o tests/pass/$$base.s 2>&1 | head -5; \
+				echo "✗ FAIL ($$variant_fail/4 variants failed)"; \
 				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
