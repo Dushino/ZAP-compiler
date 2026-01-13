@@ -239,6 +239,77 @@ class CodeGen:
                         i += 1
                         continue
 
+            # Drop dead stores that are overwritten before any read (small window)
+            cur_strip = self.code[i].strip()
+            cur_upper = cur_strip.upper()
+            if cur_upper.startswith("STA ") or cur_upper.startswith("STZ "):
+                parts = cur_strip.split(maxsplit=1)
+                if len(parts) == 2:
+                    operand = parts[1].strip()
+                    operand_upper = operand.upper()
+                    overwritten = False
+                    used = False
+                    j = i + 1
+                    while j < len(self.code) and j < i + 20:
+                        nxt = self.code[j].strip()
+                        nxt_upper = nxt.upper()
+                        # skip blanks / labels
+                        if not nxt or nxt_upper.endswith(":"):
+                            j += 1
+                            continue
+                        # stop at call/return
+                        if nxt_upper.startswith("JSR ") or nxt_upper == "RTS" or nxt_upper.startswith("BRK"):
+                            break
+                        nxt_parts = nxt.split(maxsplit=1)
+                        opcode = nxt_parts[0].upper()
+                        opnd = nxt_parts[1].strip().upper() if len(nxt_parts) == 2 else ""
+                        # detect overwrite
+                        if opcode in {"STA", "STZ", "STX", "STY"} and opnd == operand_upper:
+                            overwritten = True
+                            break
+                        # detect read
+                        if opcode in {"LDA", "LDX", "LDY", "ORA", "AND", "EOR", "ADC", "SBC", "CMP", "BIT"} and opnd == operand_upper:
+                            used = True
+                            break
+                        j += 1
+                    if overwritten and not used:
+                        i += 1
+                        continue
+
+            # Drop dead LDA loads if A is clobbered before any read (small window)
+            cur_strip = self.code[i].strip()
+            cur_upper = cur_strip.upper()
+            if cur_upper.startswith("LDA "):
+                # Skip if implied/accumulator forms (none expected here)
+                overwritten = False
+                used = False
+                j = i + 1
+                while j < len(self.code) and j < i + 20:
+                    nxt = self.code[j].strip()
+                    nxt_upper = nxt.upper()
+                    if not nxt or nxt_upper.endswith(":"):
+                        j += 1
+                        continue
+                    if nxt_upper.startswith("JSR ") or nxt_upper == "RTS" or nxt_upper.startswith("BRK"):
+                        break
+                    nxt_parts = nxt.split()
+                    if not nxt_parts:
+                        j += 1
+                        continue
+                    opcode = nxt_parts[0].upper()
+                    # Detect A overwrite
+                    if opcode in {"LDA", "PLA"}:
+                        overwritten = True
+                        break
+                    # Detect A read
+                    if opcode in {"STA", "PHA", "ADC", "SBC", "ORA", "AND", "EOR", "CMP", "BIT", "TAX", "TAY"}:
+                        used = True
+                        break
+                    j += 1
+                if overwritten and not used:
+                    i += 1
+                    continue
+
             # Replace illegal 'OP X' with safe sequence using TMP4
             line_upper = self.code[i].strip().upper()
             if line_upper.endswith(" X"):

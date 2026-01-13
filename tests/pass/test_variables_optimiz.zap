@@ -26,7 +26,7 @@ end
 
 ; main -----------------------------------------
 proc main()
-    byte a1
+    byte a1 = 5
     word b1
     
     a1 = a4 + a5 + 2
