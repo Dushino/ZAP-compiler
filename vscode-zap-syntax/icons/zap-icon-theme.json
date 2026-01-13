@@ -1,0 +1,11 @@
+{
+  "iconDefinitions": {
+    "zap-file": {
+      "iconPath": "./zap-icon.svg"
+    }
+  },
+  "fileExtensions": {
+    "zap": "zap-file"
+  },
+  "file": "zap-file"
+}

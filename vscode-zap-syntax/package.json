@@ -21,7 +21,11 @@
         "extensions": [
           ".zap"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/zap-icon.svg",
+          "dark": "./icons/zap-icon.svg"
+        }
       }
     ],
     "grammars": [
@@ -29,6 +33,13 @@
         "language": "zap",
         "scopeName": "source.zap",
         "path": "./syntaxes/zap.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "zap-icons",
+        "label": "Zap File Icons",
+        "path": "./icons/zap-icon-theme.json"
       }
     ]
   }

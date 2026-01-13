@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background rounded square -->
+  <rect x="2" y="2" width="28" height="28" rx="4" fill="#1e3a5f"/>
+  
+  <!-- Circuit traces background -->
+  <g opacity="0.3" stroke="#4a9eff" stroke-width="0.5" fill="none">
+    <!-- Horizontal traces -->
+    <line x1="4" y1="8" x2="12" y2="8"/>
+    <line x1="20" y1="8" x2="28" y2="8"/>
+    <line x1="4" y1="24" x2="12" y2="24"/>
+    <line x1="20" y1="24" x2="28" y2="24"/>
+    <!-- Vertical traces -->
+    <line x1="8" y1="4" x2="8" y2="12"/>
+    <line x1="8" y1="20" x2="8" y2="28"/>
+    <line x1="24" y1="4" x2="24" y2="12"/>
+    <line x1="24" y1="20" x2="24" y2="28"/>
+    <!-- Connection pads -->
+    <circle cx="8" cy="8" r="1.5"/>
+    <circle cx="24" cy="8" r="1.5"/>
+    <circle cx="8" cy="24" r="1.5"/>
+    <circle cx="24" cy="24" r="1.5"/>
+  </g>
+  
+  <!-- Main Z letter with circuit style -->
+  <g fill="#4a9eff">
+    <!-- Top horizontal bar -->
+    <path d="M 10 11 L 22 11 L 22 13.5 L 10 13.5 Z"/>
+    <!-- Diagonal with notch (chip pin style) -->
+    <path d="M 20 13.5 L 12 18.5 L 12 18.5 L 10 18.5 L 10 18.5 L 20.5 11.5 L 22 13.5 Z"/>
+    <!-- Bottom horizontal bar -->
+    <path d="M 10 18.5 L 22 18.5 L 22 21 L 10 21 Z"/>
+    <!-- Tech accent - small rectangle on diagonal -->
+    <rect x="15" y="15" width="2" height="2" fill="#6bb6ff"/>
+  </g>
+  
+  <!-- Chip pins decoration -->
+  <g fill="#4a9eff" opacity="0.6">
+    <!-- Left pins -->
+    <rect x="2" y="10" width="2" height="1.5" rx="0.5"/>
+    <rect x="2" y="14" width="2" height="1.5" rx="0.5"/>
+    <rect x="2" y="18" width="2" height="1.5" rx="0.5"/>
+    <!-- Right pins -->
+    <rect x="28" y="10" width="2" height="1.5" rx="0.5"/>
+    <rect x="28" y="14" width="2" height="1.5" rx="0.5"/>
+    <rect x="28" y="18" width="2" height="1.5" rx="0.5"/>
+  </g>
+  
+  <!-- Subtle highlight for depth -->
+  <rect x="2" y="2" width="28" height="1" rx="4" fill="#2a5a8f" opacity="0.5"/>
+</svg>
