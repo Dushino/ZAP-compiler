@@ -30,9 +30,17 @@ class Parser:
 
     def expect(self, kind, value=None):
         if self.cur.type != kind:
-            raise SyntaxError(f'Expected token {kind}, got {self.cur.type} ({self.cur.value})')
+            raise SyntaxError(
+                f'Expected token {kind}, got {self.cur.type} ({self.cur.value})',
+                line=self.cur.line,
+                col=self.cur.col,
+            )
         if value is not None and self.cur.value != value:
-            raise SyntaxError(f"Expected '{value}', got '{self.cur.value}'")
+            raise SyntaxError(
+                f"Expected '{value}', got '{self.cur.value}'",
+                line=self.cur.line,
+                col=self.cur.col,
+            )
         self.advance()
 
     def error(self, msg):
@@ -439,7 +447,7 @@ class Parser:
             self.expect(TOK_RBRACE)
             return node
 
-        raise SyntaxError(f"Expected expression, got {self.cur.type}")
+        self.error(f"Expected expression, got {self.cur.type}")
 
             
     def parse_if(self):
@@ -545,9 +553,7 @@ class Parser:
     def parse_stmt(self):
         # blokové terminátory NESMÍ být parsovány jako statement
         if self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "ENDIF", "ELSE"):
-            raise SyntaxError(
-                f"Unexpected block terminator {self.cur.value}"
-            )
+            self.error(f"Unexpected block terminator {self.cur.value}")
 
         if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".SEGMENT":
             # Parse .segment directive in statement context

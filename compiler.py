@@ -46,15 +46,18 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         return compile_program(program, target_6502=target_6502, command_line=command_line)
     
     except CompileError as e:
-        # Try to read source for error reporting
-        try:
-            with open(filepath, encoding='utf-8-sig') as f:
-                src = f.read()
-            if e.line is not None:
-                print_error(src, e.line, e.col, e.message)
-            else:
-                print(f"Error: {e.message}", file=sys.stderr)
-        except:
+        # Prefer attached source text (e.g., preprocessed/cleaned) if available
+        src = getattr(e, "source_text", None)
+        if src is None:
+            # Fallback: read original file
+            try:
+                with open(filepath, encoding='utf-8-sig') as f:
+                    src = f.read()
+            except Exception:
+                src = None
+        if e.line is not None and src is not None:
+            print_error(src, e.line, e.col, e.message)
+        else:
             print(f"Error: {e.message}", file=sys.stderr)
         sys.exit(1)
 

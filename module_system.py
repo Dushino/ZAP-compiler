@@ -80,7 +80,15 @@ class ModuleSystem:
         cleaned_source = '\n'.join(cleaned_lines)
         
         parser = Parser(cleaned_source, filename=filepath)
-        program = parser.parse_program()
+        try:
+            program = parser.parse_program()
+        except Exception as e:
+            # Attach source text for better error reporting if it's a CompileError subtype
+            try:
+                setattr(e, "source_text", cleaned_source)
+            except Exception:
+                pass
+            raise
         
         return program, is_module, module_name, includes
     

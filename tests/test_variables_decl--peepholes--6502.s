@@ -7,6 +7,14 @@
 TMP0:	.res 2
 TMP1:	.res 2
 
+; Fixed-address variables
+_A3 = $9C40
+_PTR12 = $000C
+_PTR13 = $000E
+_B3 = $9C41
+_PTR22 = $0010
+_PTR23 = $0012
+
 
 .segment "CODE"
 ; Globals initialization
@@ -19,7 +27,7 @@ __START:
 	JSR MAIN
 	JMP *
 
-; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 6: proc main()
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 23: proc main()
 ; -- Procedure MAIN --
 MAIN:
 	RTS
