@@ -77,35 +77,59 @@ compile_sbc:
 
 
 tests:
-	@echo "Compiling all tests with 4 variants each..."
-	@mkdir -p tests
-	@for zapfile in tests/*.zap; do \
+	@echo "=========================================="
+	@echo "Running ZAP Compiler Test Suite"
+	@echo "=========================================="
+	@mkdir -p tests/pass tests/fail
+	@pass_count=0; fail_count=0; error_count=0; \
+	echo ""; \
+	echo "Testing files that SHOULD PASS..."; \
+	echo "------------------------------------------"; \
+	for zapfile in tests/pass/*.zap; do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
-			echo "Processing $$base.zap..."; \
-			echo "  Variant 1: default (WDC65c02, no peepholes)"; \
-			$(ZC) $$zapfile -o tests/$$base.s; \
-			echo "  Variant 2: --peepholes (WDC65c02)"; \
-			$(ZC) $$zapfile --peepholes -o tests/$$base--peepholes.s; \
-			echo "  Variant 3: --6502 (no peepholes)"; \
-			$(ZC) $$zapfile --6502 -o tests/$$base--6502.s; \
-			echo "  Variant 4: --peepholes --6502"; \
-			$(ZC) $$zapfile --peepholes --6502 -o tests/$$base--peepholes--6502.s; \
-		fi; \
-	done
-	@echo "Assembling all .s files..."
-	@for sfile in tests/*.s; do \
-		if [ -f "$$sfile" ]; then \
-			if echo "$$sfile" | grep -q -- "--6502"; then \
-				echo "Assembling $$sfile for Atari with $(ATARI_CPU)..."; \
-				$(AS) $(ATARI_AS_OPTS) $$sfile -o $${sfile%.s}.o 2>&1 | head -20; \
+			printf "%-30s" "$$base.zap: "; \
+			if $(ZC) -6502 $$zapfile -o tests/pass/$$base.s >/dev/null 2>&1; then \
+				echo "✓ PASS"; \
+				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "Assembling $$sfile for SBC with $(SBC_CPU)..."; \
-				$(AS) $(SBC_AS_OPTS) $$sfile -o $${sfile%.s}.o 2>&1 | head -20; \
+				echo "✗ FAIL (expected to pass but failed)"; \
+				$(ZC) -6502 $$zapfile -o tests/pass/$$base.s 2>&1 | head -5; \
+				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
-	done
-	@echo "Tests compilation complete!"
+	done; \
+	echo ""; \
+	echo "Testing files that SHOULD FAIL..."; \
+	echo "------------------------------------------"; \
+	for zapfile in tests/fail/*.zap; do \
+		if [ -f "$$zapfile" ]; then \
+			base=$$(basename $$zapfile .zap); \
+			printf "%-30s" "$$base.zap: "; \
+			if $(ZC) -6502 $$zapfile -o tests/fail/$$base.s >/dev/null 2>&1; then \
+				echo "✗ FAIL (expected to fail but passed)"; \
+				error_count=$$((error_count + 1)); \
+			else \
+				echo "✓ PASS (correctly rejected)"; \
+				fail_count=$$((fail_count + 1)); \
+			fi; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "=========================================="; \
+	echo "Test Results Summary"; \
+	echo "=========================================="; \
+	echo "Should-pass tests: $$pass_count passed"; \
+	echo "Should-fail tests: $$fail_count correctly rejected"; \
+	echo "Errors: $$error_count"; \
+	echo ""; \
+	if [ "$$error_count" -eq 0 ]; then \
+		echo "✓ All tests behaved as expected!"; \
+		exit 0; \
+	else \
+		echo "✗ $$error_count test(s) behaved incorrectly"; \
+		exit 1; \
+	fi
 
 
 
@@ -118,8 +142,10 @@ clean:
 	find $(APPBINDIR)  -name *.da65 -type f -delete | true
 	find $(APPSRC2DIR) -name *.s -type f -delete | true
 	find $(APPSRC2DIR) -name *.inc -type f -delete | true
-	find tests -name *.s -type f -delete 2>/dev/null | true
-	find tests -name *.o -type f -delete 2>/dev/null | true
+	find tests/pass -name *.s -type f -delete 2>/dev/null | true
+	find tests/pass -name *.o -type f -delete 2>/dev/null | true
+	find tests/fail -name *.s -type f -delete 2>/dev/null | true
+	find tests/fail -name *.o -type f -delete 2>/dev/null | true
 
 
 	

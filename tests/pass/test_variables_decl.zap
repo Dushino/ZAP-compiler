@@ -20,10 +20,10 @@ word ^ptr21
 word ^ptr22 @16
 word ^ptr23 @18 = 512
 
-.define a41
+.define a4
 
-proc a42()
-    byte a43
+proc a4x()
+    byte a4
 
 end
 
