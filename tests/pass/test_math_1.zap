@@ -46,5 +46,6 @@ proc main()
     math1(1, 2)    
     math1($ff01, $5502)
     math2(1, 2)
+    
 end
 

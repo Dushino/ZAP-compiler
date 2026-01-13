@@ -126,6 +126,7 @@ def _walk_initializer(init, ctx, global_symtab):
 def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
     proc_map = {p.ast.name: p for p in analyzed_procs}
     func_map = {f.ast.name: f for f in analyzed_funcs}
+    all_proc_names = set(proc_map.keys())
 
     referenced_globals: set[str] = set()
     fixed_globals: set[str] = set(
@@ -223,7 +224,9 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
     pruned_procs = [p for p in analyzed_procs if p.ast.name in reachable_procs]
     pruned_funcs = [f for f in analyzed_funcs if f.ast.name in reachable_funcs]
 
-    return pruned_procs, pruned_funcs, referenced_globals
+    removed_procs = sorted(all_proc_names - reachable_procs)
+
+    return pruned_procs, pruned_funcs, referenced_globals, removed_procs
 
 
 def _walk_expr_locals(expr, used: set[str], local_symtab):
@@ -421,7 +424,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # --- codegen ---   
     # reuse func_table from analysis (already has all functions registered)
     tc = ExprTypeChecker(global_symtab, func_table)
-    pruned_procs, pruned_funcs, used_globals = prune_unused(
+    pruned_procs, pruned_funcs, used_globals, removed_procs = prune_unused(
         program, analyzed_procs, analyzed_funcs, global_symtab
     )
     analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
@@ -458,6 +461,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         command_line=command_line,
         proc_param_specs=proc_param_specs,
         func_param_specs=func_param_specs,
+        pruned_procs=removed_procs,
     )
 
     prune_unused_locals(analyzed_procs, analyzed_funcs)
