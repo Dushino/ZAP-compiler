@@ -173,6 +173,7 @@ MAIN:
 ; Output: A=low, X=high
 MUL8:
 	LDA #0
+	LDX #8
 	CLC
 MUL8_LOOP:
 	ROR TMP2
@@ -241,7 +242,9 @@ MUL16_SKIP:
 ; DIV8: 8/8=8 divide
 ; Input: TMP0 (dividend), TMP2 (divisor)
 ; Output: A=quotient, X=0
+DIV8:
 	LDA #0
+	LDX #8
 	CLC
 DIV8_LOOP:
 	ROL TMP0
@@ -259,6 +262,7 @@ DIV8_SKIP:
 ; DIV16_8: 16/8=16 divide
 ; Input: TMP0,TMP1 (dividend), TMP2 (divisor)
 ; Output: A=low, X=high
+DIV16_8:
 	LDA #0
 	STA TMP3
 	LDX #16
@@ -281,6 +285,7 @@ DIV16_8_SKIP:
 ; DIV8_16: 8/16=8 divide
 ; Input: TMP0 (dividend), TMP2,TMP3 (divisor)
 ; Output: A=quotient (0 or 1), X=0
+DIV8_16:
 	LDA TMP0
 	CMP TMP2
 	LDA #0
@@ -295,6 +300,7 @@ DIV8_16_ZERO:
 ; DIV16: 16/16=16 divide
 ; Input: TMP0,TMP1 (dividend), TMP2,TMP3 (divisor)
 ; Output: A=low, X=high
+DIV16:
 	LDA #0
 	STA TMP2+2
 	STA TMP2+3
@@ -325,7 +331,9 @@ DIV16_SKIP:
 ; MOD8: 8%8=8 modulo
 ; Input: TMP0 (dividend), TMP2 (divisor)
 ; Output: A=remainder, X=0
+MOD8:
 	LDA #0
+	LDX #8
 	CLC
 MOD8_LOOP:
 	ROL TMP0
@@ -342,6 +350,7 @@ MOD8_SKIP:
 ; MOD16_8: 16%8=8 modulo
 ; Input: TMP0,TMP1 (dividend), TMP2 (divisor)
 ; Output: A=remainder, X=0
+MOD16_8:
 	LDA #0
 	STA TMP3
 	LDX #16
@@ -364,6 +373,7 @@ MOD16_8_SKIP:
 ; MOD8_16: 8%16=8 modulo
 ; Input: TMP0 (dividend), TMP2,TMP3 (divisor)
 ; Output: A=remainder, X=0
+MOD8_16:
 	LDA TMP0
 	CMP TMP2
 	LDA #0
@@ -379,6 +389,7 @@ MOD8_16_RET:
 ; MOD16: 16%16=16 modulo
 ; Input: TMP0,TMP1 (dividend), TMP2,TMP3 (divisor)
 ; Output: A=low, X=high
+MOD16:
 	LDA #0
 	STA TMP2+2
 	STA TMP2+3

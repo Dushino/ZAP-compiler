@@ -150,6 +150,12 @@ class CodeGen:
             if i in skip_indices:
                 i += 1
                 continue
+
+            # Always preserve labels verbatim
+            if self.code[i].strip().endswith(":"):
+                optimized.append(self.code[i])
+                i += 1
+                continue
             
             # Elide redundant reloads:
             #   STA addr ; LDA addr  → STA addr
@@ -303,9 +309,16 @@ class CodeGen:
                             # But make sure there's no STX in the next few instructions before X is reloaded
                             # Look ahead to see if X is used before being overwritten
                             x_used_before_reload = False
-                            for j in range(i + 1, min(i + 5, len(self.code))):
+                            lookahead_count = 0
+                            for j in range(i + 1, min(i + 20, len(self.code))):
                                 check = self.code[j].strip().upper()
-                                if check.startswith("STX ") or check.endswith(" X") or check.startswith("TXA") or check.startswith("DEX") or check.startswith("INX"):
+                                # Skip labels and comments - don't count them
+                                if not check or check.endswith(":") or check.startswith(";"):
+                                    continue
+                                lookahead_count += 1
+                                if lookahead_count > 10:  # Limit actual instructions, not lines
+                                    break
+                                if check.startswith("STX ") or check.endswith(" X") or check.startswith("TXA") or check.startswith("DEX") or check.startswith("INX") or check.startswith("CPX"):
                                     x_used_before_reload = True
                                     break
                                 if check.startswith("LDX "):
@@ -327,9 +340,16 @@ class CodeGen:
                              nxt.startswith("CLC") or
                              nxt.startswith("SEC"))):
                             y_used_before_reload = False
-                            for j in range(i + 1, min(i + 5, len(self.code))):
+                            lookahead_count = 0
+                            for j in range(i + 1, min(i + 20, len(self.code))):
                                 check = self.code[j].strip().upper()
-                                if check.startswith("STY ") or check.endswith(" Y") or check.startswith("TYA") or check.startswith("DEY") or check.startswith("INY"):
+                                # Skip labels and comments - don't count them
+                                if not check or check.endswith(":") or check.startswith(";"):
+                                    continue
+                                lookahead_count += 1
+                                if lookahead_count > 10:  # Limit actual instructions, not lines
+                                    break
+                                if check.startswith("STY ") or check.endswith(" Y") or check.startswith("TYA") or check.startswith("DEY") or check.startswith("INY") or check.startswith("CPY"):
                                     y_used_before_reload = True
                                     break
                                 if check.startswith("LDY "):

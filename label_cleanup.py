@@ -8,6 +8,12 @@ IMM_HI_RE = re.compile(r'#>\s*(\w+)')
 EXPORT_RE = re.compile(r'\.export\s+(.+)')
 
 def cleanup_labels(lines: list[str]) -> list[str]:
+    # Runtime math routines should always be kept even if not referenced
+    keep_always = {
+        "MUL8", "MUL16_8", "MUL16",
+        "DIV8", "DIV16_8", "DIV8_16", "DIV16",
+        "MOD8", "MOD16_8", "MOD8_16", "MOD16",
+    }
     # 1) zjisti všechny cíle skoků a datové reference
     used = set()
     for line in lines:
@@ -35,6 +41,12 @@ def cleanup_labels(lines: list[str]) -> list[str]:
         m = LABEL_RE.match(line.strip())
         if m:
             label = m.group(1)
+
+            # Keep selected runtime labels unconditionally
+            if label in keep_always:
+                out.append(line)
+                i += 1
+                continue
 
             # Preserve variable declarations (contain .res, .byte, =, etc.)
             if '.res' in line or '.byte' in line or '=' in line:
