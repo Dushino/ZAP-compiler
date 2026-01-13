@@ -15,6 +15,12 @@ _MATH1_B2:	.res 1
 _MATH1_R:	.res 1
 _MATH1_A:	.res 1
 _MATH1_B:	.res 1
+_MATH2_B1:	.res 1
+_MATH2_B2:	.res 1
+; Word variables
+_MATH2_R:	.res 2
+_MATH2_A:	.res 2
+_MATH2_B:	.res 2
 
 .segment "CODE"
 ; Globals initialization
@@ -69,15 +75,102 @@ MATH1:
 	ADC TMP0
 	STA _MATH1_A
 	RTS
-; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 21: proc main()
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 20: proc math2(byte b1, byte b2)
+; -- Procedure MATH2 --
+MATH2:
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 23:     r = b1 + 0
+	LDX #0
+	STX _MATH2_R+1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 24:     r = b1 - 0
+	LDX #0
+	STX _MATH2_R+1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 25:     r = b1 + 1
+	LDA _MATH2_B1
+	LDX #0
+	STA TMP0
+	STX TMP1
+	LDA #1
+	CLC
+	ADC TMP0
+	STA _MATH2_R
+	STX _MATH2_R+1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 26:     r = b1 - 1
+	LDA _MATH2_B1
+	LDX #0
+	STA TMP0
+	STX TMP1
+	LDA #1
+	STA TMP2
+	SEC
+	LDA TMP0
+	SBC TMP2
+	STA _MATH2_R
+	STX _MATH2_R+1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 27:     b = c1
+	LDA #$03
+	STA _MATH2_B
+	LDA #0
+	STA _MATH2_B+1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 28:     a = r + 3 * b * (r + 1)
+	LDX _MATH2_R+1
+	STX TMP1
+	STX TMP1
+	LDA _MATH2_B
+	LDX _MATH2_B+1
+	STA TMP2
+	STX TMP3
+	LDA TMP2
+	LDX TMP3
+	STA TMP0
+	STX TMP1
+	JSR MUL16_8
+	STX TMP1
+	LDA _MATH2_R
+	LDX _MATH2_R+1
+	STA TMP0
+	STX TMP1
+	LDA #1
+	CLC
+	ADC TMP0
+	TAY
+	TXA
+	ADC TMP1
+	TAX
+	TYA
+	STA TMP2
+	STX TMP3
+	JSR MUL16
+	CLC
+	ADC TMP0
+	TAY
+	TXA
+	ADC TMP1
+	TAX
+	TYA
+	STA _MATH2_A
+	STX _MATH2_A+1
+	RTS
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 32: proc main()
 ; -- Procedure MAIN --
 MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 22:     math1(1, 2)    
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 33:     math1(1, 2)    
 	LDA #1
 	STA _MATH1_B1
 	LDA #2
 	STA _MATH1_B2
-	JMP MATH1
+	JSR MATH1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 34:     math1($ff01, $5502)
+	LDA #1
+	STA _MATH1_B1
+	LDA #2
+	STA _MATH1_B2
+	JSR MATH1
+; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 35:     math2(1, 2)
+	LDA #1
+	STA _MATH2_B1
+	LDA #2
+	STA _MATH2_B2
+	JMP MATH2
 
 .segment "CODE"
 ; ------------------------------
@@ -107,6 +200,7 @@ MUL8_SKIP:
 ; MUL16_8: 16x8=16 multiply
 ; Input: TMP0,TMP1 (multiplicand), TMP2 (multiplier)
 ; Output: A=low, X=high
+MUL16_8:
 	LDA TMP0
 	STA TMP3
 	LDA TMP1
@@ -130,6 +224,7 @@ MUL8_SKIP:
 ; MUL16: 16x16=16 multiply
 ; Input: TMP0,TMP1 (multiplicand), TMP2,TMP3 (multiplier)
 ; Output: A=low, X=high
+MUL16:
 	LDA #0
 	STA TMP2+2
 	LDX #16
