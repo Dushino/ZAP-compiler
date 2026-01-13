@@ -73,7 +73,6 @@ TEST3:
 ; -- Procedure MAIN --
 MAIN:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 29:     byte a1 = 5
-; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 32:     a1 = a4 + a5 + 2
 	LDA #$66
 	STA _MAIN_A1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 34:     test1(a1, 3)

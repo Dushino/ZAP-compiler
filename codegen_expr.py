@@ -154,6 +154,28 @@ class CodeGen:
                 nxt = self.code[i + 1].strip()
                 curU = cur.upper()
                 nxtU = nxt.upper()
+                # Drop consecutive LDA/LDX/LDY when the next meaningful instruction overwrites the same register
+                if curU.startswith(("LDA ", "LDX ", "LDY ")):
+                    redundant_load = False
+                    j = i + 1
+                    while j < len(self.code):
+                        look = self.code[j].strip()
+                        lookU = look.upper()
+                        if not look or lookU.endswith(":"):
+                            j += 1
+                            continue
+                        if (curU.startswith("LDA ") and lookU.startswith("LDA ")) or \
+                           (curU.startswith("LDX ") and lookU.startswith("LDX ")) or \
+                           (curU.startswith("LDY ") and lookU.startswith("LDY ")):
+                            redundant_load = True
+                        break
+                    if redundant_load:
+                        i += 1
+                        continue
+                # Simple consecutive LDA overwrite (preserve the later load)
+                if curU.startswith("LDA ") and nxtU.startswith("LDA "):
+                    i += 1
+                    continue
                 store_load_pairs = [("STA", "LDA"), ("STX", "LDX"), ("STY", "LDY")]
                 matched = False
                 for st, ld in store_load_pairs:
@@ -479,6 +501,45 @@ class CodeGen:
             i += 1
 
         self.code = optimized
+
+        # Second pass: remove loads immediately overwritten by a subsequent load (skip blanks/labels)
+        cleaned: list[str] = []
+        i = 0
+        while i < len(self.code):
+            if i + 1 < len(self.code):
+                cur = self.code[i]
+                curU = cur.strip().upper()
+                if curU.startswith(("LDA ", "LDX ", "LDY ")):
+                    k = i + 1
+                    while k < len(self.code):
+                        nxt_raw = self.code[k]
+                        nxt = nxt_raw.strip()
+                        nxtU = nxt.upper()
+                        # Skip blanks, labels, and comments (lines starting with ';')
+                        if not nxt or nxt.endswith(":") or nxt.startswith(";"):
+                            k += 1
+                            continue
+                        if (curU.startswith("LDA ") and nxtU.startswith("LDA ")) or \
+                           (curU.startswith("LDX ") and nxtU.startswith("LDX ")) or \
+                           (curU.startswith("LDY ") and nxtU.startswith("LDY ")):
+                            # Drop current load and continue from k
+                            i = k
+                            break
+                        else:
+                            break
+                    else:
+                        cleaned.append(cur)
+                        i += 1
+                        continue
+                    # If we broke because of redundant load, restart loop without appending cur
+                    if i == k:
+                        continue
+                cleaned.append(cur)
+                i += 1
+            else:
+                cleaned.append(self.code[i])
+                i += 1
+        self.code = cleaned
 
     def legalize_illegal_ops(self):
         """Ensure emitted code is assemblable even without peephole optimizations.
