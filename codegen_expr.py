@@ -73,7 +73,7 @@ class CodeGen:
     def _emit_store_byte_const(self, sym: Symbol, value: int):
         value &= 0xFF
         asm = sym.asm_name()
-        if value == 0 and sym.address is None:
+        if value == 0:
             self._stz(asm)
         else:
             self.emit(f"\tLDA #${value:02X}")
@@ -84,12 +84,12 @@ class CodeGen:
         lo = value & 0xFF
         hi = (value >> 8) & 0xFF
         asm = sym.asm_name()
-        if lo == 0 and sym.address is None:
+        if lo == 0:
             self._stz(asm)
         else:
             self.emit(f"\tLDA #${lo:02X}")
             self.emit(f"\tSTA {asm}")
-        if hi == 0 and sym.address is None:
+        if hi == 0:
             self._stz(f"{asm}+1")
         else:
             self.emit(f"\tLDA #${hi:02X}")

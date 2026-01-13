@@ -22,7 +22,7 @@ word ^ptr23 @18 = 512
 
 .define a4
 
-proc a4x()
+proc a4x(byte x1, word x2)
     byte a4
 
 end
