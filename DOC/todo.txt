@@ -1,0 +1,26 @@
+[x] extend peepholes to fold LDA #c / STA / LDA #c / STA into a single load, 
+[x] add INC/DEC pair cancellations, 
+[x] run peephole before math/runtime footer too if we emit more helpers later.
+[ ] line numbers in generated code with .line directive? Is .line supported in ca65?
+[x] fix tokenizer to handle character literals and escape sequences properly
+[x] ASM for inile assembler entry. 
+[x] fix module handling to remove unused functions and procs from modules
+[x] .ifdef and related directives
+[x] test file without main() should fail compilation
+[x] escape sequences for ASCII: \n, \t, \r, \", \', \\
+[ ] update grammar.ebnf
+    ToDo:
+    - after STRUCT support is added
+    - after & and | operators check
+    - after module constructors and destructors
+    - after malloc and free
+[x] .segment "name"
+[ ] binary operators &, | 
+[ ] struct support
+[ ] malloc, free?
+[x] clean up directives with #
+[ ] improve error messages 
+[ ] implement module constructors and destructors?
+[x] fix wrong code generation as ORA X is
+[ ] compiler defines in command line
+[ ] modify scr.ac to distinguish between Atari and SBC

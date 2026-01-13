@@ -1,0 +1,94 @@
+program         ::= { top_level } ;
+
+top_level       ::= declaration
+                  | proc_decl
+                  | func_decl
+                  | module_decl
+                  | include_decl ;
+
+module_decl     ::= ".module" STRING ;
+include_decl    ::= ".include" STRING ;
+
+type            ::= base_type [ "^" ] ;
+
+base_type       ::= "byte" | "word" | "char" ;
+
+declaration     ::= [ "const" ] type declarator_list ;
+
+declarator_list ::= declarator { "," declarator } ;
+
+declarator      ::= IDENT
+                    [ array_spec ]
+                    [ address_spec ]
+                    [ initializer ] ;
+
+array_spec      ::= "[" [ NUMBER ] "]" ;
+address_spec    ::= "@" NUMBER ;               (* NUMBER may be decimal, $hex, 0xhex *)
+
+initializer     ::= "=" expression             (* scalar init *)
+                  | "=" STRING                 (* byte[] string init, NUL-terminated *)
+                  | "=" array_init ;           (* list init for arrays *)
+
+array_init      ::= "{" [ init_list ] "}" ;
+init_list       ::= expression { "," expression } ;
+
+proc_decl       ::= "PROC" IDENT "(" [ param_list ] ")" block "END" ;
+
+func_decl       ::= "FUNC" type IDENT "(" [ param_list ] ")" block "RETURN" expression ;
+
+param_list      ::= param { "," param } ;
+param           ::= type IDENT [ "[]" ] ;      (* array parameters *)
+
+block           ::= { statement } ;
+
+statement       ::= declaration
+                  | assignment
+                  | if_stmt
+                  | while_stmt
+                  | for_stmt
+                  | break_stmt
+                  | return_stmt
+                  | expr_stmt ;
+
+if_stmt         ::= "IF" expression "THEN" block
+                    { "ELSE" block }
+                    "ENDIF" ;
+
+while_stmt      ::= "WHILE" expression block "END" ;
+
+for_stmt        ::= "FOR" IDENT "=" expression "TO" expression
+                    block
+                    "NEXT" IDENT ;
+
+break_stmt      ::= "BREAK" ;
+return_stmt     ::= "RETURN" [ expression ] ;
+
+assignment      ::= lvalue "=" expression ;
+expr_stmt       ::= expression ;
+
+lvalue          ::= IDENT
+                  | IDENT "^"
+                  | IDENT "[" expression "]" ;
+
+expression      ::= logical_or ;
+logical_or      ::= logical_and { "||" logical_and } ;
+logical_and     ::= equality { "&&" equality } ;
+
+equality        ::= comparison { ("==" | "!=") comparison } ;
+comparison      ::= term { ("<" | ">" | "<=" | ">=") term } ;
+term            ::= factor { ("+" | "-") factor } ;
+factor          ::= unary { ("*" | "/" | "%") unary } ;
+unary           ::= [ "-" | "!" ] primary ;
+
+primary         ::= NUMBER                      (* decimal, $hex, 0xhex, %bin, 0b, and character literals 'x' *)
+                  | STRING                      (* string literal in expressions and in inits *)
+                  | IDENT
+                  | IDENT "(" [ expr_list ] ")"
+                  | IDENT "[" expression "]"
+                  | IDENT "^"
+                  | "(" expression ")" ;
+
+expr_list       ::= expression { "," expression } ;
+
+
+

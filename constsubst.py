@@ -1,0 +1,46 @@
+from ast_nodes import (
+    Identifier,
+    Expr,
+    IntLiteral,
+    UnaryExpr,
+    BinaryExpr,
+    DerefExpr,
+    UnOp,
+    BinOp,
+)
+
+from symbols import SymbolTable
+
+def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
+    # IDENTIFIER
+    if isinstance(expr, Identifier):
+        sym = symtab.lookup(expr.name)
+        if sym.is_const:
+            assert sym.const_value is not None
+            return IntLiteral(sym.const_value)
+        return expr
+
+    # UNARY
+    if isinstance(expr, UnaryExpr):
+        return UnaryExpr(
+            expr.op,
+            subst_const(expr.expr, symtab)
+        )
+
+    # BINARY
+    if isinstance(expr, BinaryExpr):
+        return BinaryExpr(
+            subst_const(expr.left, symtab),
+            expr.op,
+            subst_const(expr.right, symtab)
+        )
+
+    # DEREF – konstanta nikdy nemá adresu
+    if isinstance(expr, DerefExpr):
+        return DerefExpr(
+            subst_const(expr.pointer, symtab)
+        )
+
+    # LITERAL nebo něco jiného
+    return expr
+
