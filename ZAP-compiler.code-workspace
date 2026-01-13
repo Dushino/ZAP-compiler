@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+    ],
+    "settings": {
+        "github.copilot.enable": {
+            "*": false,
+            "plaintext": true,
+            "markdown": false,
+            "scminput": false,
+            "python": true,
+            "ca65": true
+        }
+    }
+}

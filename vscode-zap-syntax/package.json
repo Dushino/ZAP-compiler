@@ -1,0 +1,35 @@
+{
+  "name": "zap-language",
+  "displayName": "Zap Language Support",
+  "description": "Syntax highlighting for the Zap programming language",
+  "version": "1.0.0",
+  "publisher": "zap-compiler",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "zap",
+        "aliases": [
+          "Zap",
+          "zap"
+        ],
+        "extensions": [
+          ".zap"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "zap",
+        "scopeName": "source.zap",
+        "path": "./syntaxes/zap.tmLanguage.json"
+      }
+    ]
+  }
+}
