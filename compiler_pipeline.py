@@ -464,6 +464,20 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         pruned_procs=removed_procs,
     )
 
+    # Populate fixed-address labels EARLY (before code generation) to protect hardware variables
+    # from peephole optimization. Fixed-address variables may have side effects on read/write.
+    for sym in global_symtab:
+        if hasattr(sym, "address") and sym.address is not None:
+            cg.fixed_address_labels.add(sym.asm_name())
+    for proc in analyzed_procs:
+        for sym in proc.locals:
+            if hasattr(sym, "address") and sym.address is not None:
+                cg.fixed_address_labels.add(sym.asm_name())
+    for func in analyzed_funcs:
+        for sym in func.locals:
+            if hasattr(sym, "address") and sym.address is not None:
+                cg.fixed_address_labels.add(sym.asm_name())
+
     prune_unused_locals(analyzed_procs, analyzed_funcs)
 
     cg.gen_file_header()
@@ -524,9 +538,14 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             if af:
                 cg.gen_func(af)
 
-    # Peephole before inserting vars/footer
+    # Peephole before inserting vars/footer (run until stable)
     if enable_peepholes:
-        cg.peephole_optimize()
+        max_iterations = 10  # Guard against infinite loops
+        for iteration in range(max_iterations):
+            prev_code = cg.code[:]
+            cg.peephole_optimize()
+            if cg.code == prev_code:
+                break  # Converged - no more changes
     else:
         # Keep code legal even with peepholes disabled
         cg.legalize_illegal_ops()
@@ -544,7 +563,13 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     cg.gen_file_footer()
 
     if enable_peepholes:
-        cg.peephole_optimize()
+        # Run peephole optimization until stable
+        max_iterations = 10
+        for iteration in range(max_iterations):
+            prev_code = cg.code[:]
+            cg.peephole_optimize()
+            if cg.code == prev_code:
+                break
 
         while True:
             new_code1 = jump_threading(cg.code)

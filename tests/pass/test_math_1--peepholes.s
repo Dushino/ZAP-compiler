@@ -81,17 +81,13 @@ MATH1:
 MATH2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 23:     r = b1 + 0
 	LDA _MATH2_B1
-	LDX #0
-	STX _MATH2_R+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 24:     r = b1 - 0
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 25:     r = b1 + 1
 	STA TMP0
-	STX TMP1
 	LDA #1
 	CLC
 	ADC TMP0
 	STA _MATH2_R
-	STX _MATH2_R+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 26:     r = b1 - 1
 	LDA _MATH2_B1
 	STA TMP0
@@ -109,7 +105,6 @@ MATH2:
 	STZ _MATH2_B+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 28:     a = r + 3 * b * (r + 1)
 	LDX _MATH2_R+1
-	STX TMP1
 	STX TMP1
 	LDA _MATH2_B
 	LDX _MATH2_B+1

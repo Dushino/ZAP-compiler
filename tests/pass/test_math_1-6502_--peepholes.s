@@ -112,7 +112,6 @@ MATH2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 28:     a = r + 3 * b * (r + 1)
 	LDX _MATH2_R+1
 	STX TMP1
-	STX TMP1
 	LDA _MATH2_B
 	LDX _MATH2_B+1
 	STA TMP2

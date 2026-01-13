@@ -58,6 +58,8 @@ class CodeGen:
         self.global_decl_src = self.debug.get("global_decl_src", {})
         self.proc_src = self.debug.get("proc_src", {})
         self.file_lines = self.debug.get("file_lines", {})
+        # Track fixed-address variables (hardware registers) - never optimize these
+        self.fixed_address_labels: set[str] = set()
 
     def new_label(self, prefix):
         self.label_id += 1
@@ -141,6 +143,18 @@ class CodeGen:
             return stripped[4:].strip()
         return None
 
+    def _is_fixed_address(self, operand: str) -> bool:
+        """Check if operand references a fixed-address (hardware) variable.
+        
+        Fixed-address variables must never be optimized away as reads/writes
+        may have side effects (clearing flags, triggering hardware, etc.).
+        """
+        # Extract label from operand (handle indexed modes like "LABEL,X" or "LABEL,Y" or "LABEL+1")
+        label = operand.split(',')[0].strip()  # Remove ,X or ,Y
+        label = label.split('+')[0].strip()    # Remove +1
+        label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
+        return label in self.fixed_address_labels
+
     def peephole_optimize(self):
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
         optimized: list[str] = []
@@ -158,6 +172,30 @@ class CodeGen:
                 i += 1
                 continue
             
+            # Remove duplicate consecutive stores to same location
+            #   STA addr ; STA addr  → STA addr
+            #   STX TMP1 ; STX TMP1  → STX TMP1
+            # NEVER optimize stores to fixed-address (hardware) variables
+            if i + 1 < len(self.code):
+                cur = self.code[i].strip()
+                nxt = self.code[i + 1].strip()
+                curU = cur.upper()
+                nxtU = nxt.upper()
+                
+                # Check for duplicate stores (same instruction and operand)
+                if curU.startswith(("STA ", "STX ", "STY ")):
+                    if curU == nxtU:
+                        # Extract operand to check if it's a fixed address
+                        cur_parts = curU.split(maxsplit=1)
+                        if len(cur_parts) == 2:
+                            cur_operand = cur_parts[1].strip()
+                            # Skip optimization for fixed-address variables
+                            if not self._is_fixed_address(cur_operand):
+                                # Duplicate store - skip the second one
+                                optimized.append(self.code[i])
+                                i += 2
+                                continue
+                
             # Elide redundant reloads:
             #   STA addr ; LDA addr  → STA addr
             #   STX addr ; LDX addr  → STX addr
@@ -168,18 +206,27 @@ class CodeGen:
                 curU = cur.upper()
                 nxtU = nxt.upper()
                 # Drop consecutive LDA/LDX/LDY when the next meaningful instruction overwrites the same register
+                # NEVER optimize loads from fixed-address (hardware) variables - reads may have side effects
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
+                    # Extract operand and check if it's a fixed address
+                    cur_parts = curU.split(maxsplit=1)
+                    cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    
+                    # Skip optimization for fixed-address variables
+                    if self._is_fixed_address(cur_operand):
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
                     redundant_load = False
                     redundant_at = -1
                     j = i + 1
                     jsr_seen = False
                     reg_used = False
-                    # Determine which register we're checking and extract operand
+                    # Determine which register we're checking
                     checking_a = curU.startswith("LDA ")
                     checking_x = curU.startswith("LDX ")
                     checking_y = curU.startswith("LDY ")
-                    cur_parts = curU.split(maxsplit=1)
-                    cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
                     
                     while j < len(self.code) and j < i + 20:  # Limit lookahead
                         look = self.code[j].strip()
@@ -208,8 +255,10 @@ class CodeGen:
                             look_parts = lookU.split(maxsplit=1)
                             look_operand = look_parts[1].strip() if len(look_parts) == 2 else ""
                             if look_operand == cur_operand:  # Only redundant if operands match
-                                redundant_load = True
-                                redundant_at = j
+                                # But don't mark as redundant if it's a fixed-address variable
+                                if not self._is_fixed_address(look_operand):
+                                    redundant_load = True
+                                    redundant_at = j
                             break  # Stop at any load of the same register, redundant or not
                         # Continue scanning if register not modified yet
                         if reg_used:
@@ -223,10 +272,61 @@ class CodeGen:
                         optimized.append(self.code[i])
                         i += 1
                         continue
+                
+                # Check if current instruction is a load (LDA/LDX/LDY) that will be stored to fixed-address
+                # If so, never optimize away the load. Look ahead up to 5 instructions to find the store.
+                if curU.startswith(("LDA ", "LDX ", "LDY ")):
+                    # Determine which register and corresponding store instruction
+                    if curU.startswith("LDA "):
+                        store_prefix = "STA "
+                    elif curU.startswith("LDX "):
+                        store_prefix = "STX "
+                    else:  # LDY
+                        store_prefix = "STY "
+                    
+                    # Look ahead to see if this register is stored to a fixed-address variable
+                    protect_load = False
+                    for lookahead_i in range(i + 1, min(i + 6, len(self.code))):
+                        lookahead = self.code[lookahead_i].strip().upper()
+                        # Skip comments and labels
+                        if not lookahead or lookahead.endswith(":") or lookahead.startswith(";"):
+                            continue
+                        # Check if this is a store of the loaded register to fixed-address
+                        if lookahead.startswith(store_prefix):
+                            lookahead_parts = lookahead.split(maxsplit=1)
+                            if len(lookahead_parts) == 2:
+                                lookahead_operand = lookahead_parts[1].strip()
+                                if self._is_fixed_address(lookahead_operand):
+                                    # Protect the load - it's needed for the fixed-address store
+                                    protect_load = True
+                                    break
+                        # Stop if we encounter an instruction that modifies the register
+                        if curU.startswith("LDA ") and (lookahead.startswith("LDA ") or lookahead.startswith("PLA")):
+                            break
+                        if curU.startswith("LDX ") and (lookahead.startswith("LDX ") or lookahead.startswith("PLX") or lookahead.startswith("TAX")):
+                            break
+                        if curU.startswith("LDY ") and (lookahead.startswith("LDY ") or lookahead.startswith("PLY") or lookahead.startswith("TAY")):
+                            break
+                    
+                    if protect_load:
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                
                 # Simple consecutive LDA overwrite (preserve the later load)
+                # UNLESS the second LDA is followed by a store to a fixed-address variable
                 if curU.startswith("LDA ") and nxtU.startswith("LDA "):
-                    i += 1
-                    continue
+                    # Check if instruction after second LDA is a store to fixed-address
+                    skip_opt = False
+                    if i + 2 < len(self.code):
+                        third = self.code[i + 2].strip().upper()
+                        if third.startswith("STA "):
+                            third_operand = third[4:].strip()
+                            if self._is_fixed_address(third_operand):
+                                skip_opt = True
+                    if not skip_opt:
+                        i += 1
+                        continue
                 store_load_pairs = [("STA", "LDA"), ("STX", "LDX"), ("STY", "LDY")]
                 matched = False
                 for st, ld in store_load_pairs:
@@ -234,18 +334,27 @@ class CodeGen:
                         op1 = curU[len(st) + 1:].strip()
                         op2 = nxtU[len(ld) + 1:].strip()
                         if op1 == op2:
-                            optimized.append(self.code[i])
-                            i += 2
-                            matched = True
-                            break
+                            # Skip optimization for fixed-address variables
+                            if not self._is_fixed_address(op1):
+                                optimized.append(self.code[i])
+                                i += 2
+                                matched = True
+                                break
                 if matched:
                     continue
                 
                 # Remove redundant consecutive stores (STA/STX/STY) to same location when no JSR between
+                # NEVER optimize stores to fixed-address (hardware) variables
                 if curU.startswith(("STA ", "STX ", "STY ")):
                     cur_parts = curU.split(maxsplit=1)
                     if len(cur_parts) == 2:
                         cur_operand = cur_parts[1].strip()
+                        # Skip optimization for fixed-address variables
+                        if self._is_fixed_address(cur_operand):
+                            optimized.append(self.code[i])
+                            i += 1
+                            continue
+                        
                         # Check if storing to a fixed-address variable (contains @)
                         # For now, we'll only optimize if operand doesn't look like it has @ address
                         # Fixed-address vars won't appear here since they're declared in source
@@ -279,88 +388,65 @@ class CodeGen:
                             i += 1
                             continue
 
-            # Remove orphaned register loads (LDX/LDY) when next instruction doesn't use them
-            # Common pattern: LDX #0 after byte load, followed by STA (X is never read)
+            # Remove orphaned register loads (LDA/LDX/LDY) when register is never used
+            # Scan forward until RTS/JMP/JSR or until register is used/overwritten
             if i + 1 < len(self.code):
                 cur = self.code[i].strip().upper()
-                nxt = self.code[i + 1].strip().upper()
                 
-                # Check if current instruction loads X or Y with immediate value
-                loads_x = cur.startswith("LDX #")
-                loads_y = cur.startswith("LDY #")
+                # Check if current instruction is a register load
+                loads_a = cur.startswith("LDA ")
+                loads_x = cur.startswith("LDX ")
+                loads_y = cur.startswith("LDY ")
                 
-                if loads_x or loads_y:
-                    # Check if next instruction reads or writes the loaded register
-                    # If next instruction writes X/Y, the load is orphaned
-                    # If next instruction reads X/Y, the load is needed
+                if loads_a or loads_x or loads_y:
+                    # Determine which register and what constitutes "use"
+                    if loads_a:
+                        # A is used by: STA, PHA, arithmetic (ADC, SBC, AND, OR, EOR, CMP), TAX, TAY
+                        use_patterns = ["STA ", "PHA", "ADC ", "SBC ", "AND ", "EOR ", "ORA ", "CMP ", "TAX", "TAY"]
+                        reload_patterns = ["LDA ", "PLA"]
+                        # A is affected by indexed addressing modes
+                        index_check = lambda s: ",X" in s or ",Y" in s
+                    elif loads_x:
+                        # X is used by: STX, INX, DEX, CPX, TXA, TXS, and indexed addressing
+                        use_patterns = ["STX ", "INX", "DEX", "CPX ", "TXA", "TXS"]
+                        reload_patterns = ["LDX ", "TAX", "PLX"]
+                        index_check = lambda s: ",X" in s
+                    else:  # loads_y
+                        # Y is used by: STY, INY, DEY, CPY, TYA, and indexed addressing
+                        use_patterns = ["STY ", "INY", "DEY", "CPY ", "TYA"]
+                        reload_patterns = ["LDY ", "TAY", "PLY"]
+                        index_check = lambda s: ",Y" in s
                     
-                    skip_load = False
-                    if loads_x:
-                        # X is orphaned if next instruction writes X (without reading it first)
-                        # or if next instruction doesn't use X at all
-                        if (nxt.startswith("LDX ") or  # Next instruction overwrites X
-                            # Next instruction doesn't read X (conservative check - only safe instructions)
-                            (nxt.startswith("STA ") and not nxt.startswith("STA X") or
-                             nxt.startswith("LDA #") or
-                             nxt.startswith("JSR ") or
-                             nxt == "RTS" or
-                             nxt.startswith("JMP ") or
-                             nxt.startswith("CLC") or
-                             nxt.startswith("SEC"))):
-                            # But make sure there's no STX in the next few instructions before X is reloaded
-                            # Look ahead to see if X is used before being overwritten
-                            x_used_before_reload = False
-                            lookahead_count = 0
-                            for j in range(i + 1, min(i + 20, len(self.code))):
-                                check = self.code[j].strip().upper()
-                                # Skip labels and comments - don't count them
-                                if not check or check.endswith(":") or check.startswith(";"):
-                                    continue
-                                lookahead_count += 1
-                                if lookahead_count > 10:  # Limit actual instructions, not lines
-                                    break
-                                if check.startswith("STX ") or check.endswith(" X") or check.startswith("TXA") or check.startswith("DEX") or check.startswith("INX") or check.startswith("CPX"):
-                                    x_used_before_reload = True
-                                    break
-                                if check.startswith("LDX "):
-                                    # X is reloaded, so the current LDX is orphaned
-                                    break
-                            
-                            if not x_used_before_reload:
-                                skip_load = True
+                    # Scan forward to see if register is used before being overwritten
+                    register_used = False
+                    for j in range(i + 1, len(self.code)):
+                        check = self.code[j].strip().upper()
+                        
+                        # Skip labels and comments
+                        if not check or check.endswith(":") or check.startswith(";"):
+                            continue
+                        
+                        # Stop at control flow boundaries (register state becomes uncertain)
+                        if check.startswith("JSR ") or check.startswith("JMP ") or check == "RTS" or check == "RTI":
+                            break
+                        
+                        # Check if register is used
+                        if any(check.startswith(pattern) or pattern in check for pattern in use_patterns):
+                            register_used = True
+                            break
+                        
+                        # Check for indexed addressing modes (e.g., "LDA ADDR,X")
+                        if index_check(check):
+                            register_used = True
+                            break
+                        
+                        # Check if register is reloaded (makes current load orphaned)
+                        if any(check.startswith(pattern) for pattern in reload_patterns):
+                            # Register overwritten without being used - current load is orphaned
+                            break
                     
-                    elif loads_y:
-                        # Similar logic for Y
-                        if (nxt.startswith("LDY ") or
-                            (nxt.startswith("STA ") and not nxt.startswith("STA Y") or
-                             nxt.startswith("LDA #") or
-                             nxt.startswith("STX ") or
-                             nxt.startswith("JSR ") or
-                             nxt == "RTS" or
-                             nxt.startswith("JMP ") or
-                             nxt.startswith("CLC") or
-                             nxt.startswith("SEC"))):
-                            y_used_before_reload = False
-                            lookahead_count = 0
-                            for j in range(i + 1, min(i + 20, len(self.code))):
-                                check = self.code[j].strip().upper()
-                                # Skip labels and comments - don't count them
-                                if not check or check.endswith(":") or check.startswith(";"):
-                                    continue
-                                lookahead_count += 1
-                                if lookahead_count > 10:  # Limit actual instructions, not lines
-                                    break
-                                if check.startswith("STY ") or check.endswith(" Y") or check.startswith("TYA") or check.startswith("DEY") or check.startswith("INY") or check.startswith("CPY"):
-                                    y_used_before_reload = True
-                                    break
-                                if check.startswith("LDY "):
-                                    break
-                            
-                            if not y_used_before_reload:
-                                skip_load = True
-                    
-                    if skip_load:
-                        # Skip the orphaned register load
+                    # If register is never used, skip the load instruction
+                    if not register_used:
                         i += 1
                         continue
 
@@ -689,6 +775,7 @@ class CodeGen:
         self.code = optimized
 
         # Second pass: remove loads immediately overwritten by a subsequent load (skip blanks/labels)
+        # NEVER optimize loads from fixed-address (hardware) variables
         cleaned: list[str] = []
         i = 0
         while i < len(self.code):
@@ -696,6 +783,15 @@ class CodeGen:
                 cur = self.code[i]
                 curU = cur.strip().upper()
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
+                    # Check if this is a fixed-address load
+                    cur_parts = curU.split(maxsplit=1)
+                    cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    if self._is_fixed_address(cur_operand):
+                        # Never optimize fixed-address loads
+                        cleaned.append(cur)
+                        i += 1
+                        continue
+                    
                     k = i + 1
                     pending_non_exec: list[str] = []
                     while k < len(self.code):
@@ -1220,6 +1316,8 @@ class CodeGen:
             self.emit("; Fixed-address variables")
             for sym in fixed:
                 self.emit(f"{sym.asm_name()} = ${sym.address:04X}")
+                # Track fixed-address labels to prevent peephole optimization
+                self.fixed_address_labels.add(sym.asm_name())
             self.emit("")
 
         # Zero page offset tracking (starts after emitted system variables)
