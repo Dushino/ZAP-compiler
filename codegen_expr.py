@@ -143,8 +143,14 @@ class CodeGen:
     def peephole_optimize(self):
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
         optimized: list[str] = []
+        skip_indices = set()  # Track which indices to skip
         i = 0
         while i < len(self.code):
+            # Check if this instruction should be skipped (marked as redundant)
+            if i in skip_indices:
+                i += 1
+                continue
+            
             # Elide redundant reloads:
             #   STA addr ; LDA addr  → STA addr
             #   STX addr ; LDX addr  → STX addr
@@ -157,19 +163,57 @@ class CodeGen:
                 # Drop consecutive LDA/LDX/LDY when the next meaningful instruction overwrites the same register
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
                     redundant_load = False
+                    redundant_at = -1
                     j = i + 1
-                    while j < len(self.code):
+                    jsr_seen = False
+                    reg_used = False
+                    # Determine which register we're checking and extract operand
+                    checking_a = curU.startswith("LDA ")
+                    checking_x = curU.startswith("LDX ")
+                    checking_y = curU.startswith("LDY ")
+                    cur_parts = curU.split(maxsplit=1)
+                    cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    
+                    while j < len(self.code) and j < i + 20:  # Limit lookahead
                         look = self.code[j].strip()
                         lookU = look.upper()
-                        if not look or lookU.endswith(":"):
+                        if not look or lookU.endswith(":") or lookU.startswith(";"):
                             j += 1
                             continue
-                        if (curU.startswith("LDA ") and lookU.startswith("LDA ")) or \
-                           (curU.startswith("LDX ") and lookU.startswith("LDX ")) or \
-                           (curU.startswith("LDY ") and lookU.startswith("LDY ")):
-                            redundant_load = True
-                        break
-                    if redundant_load:
+                        # Stop at barriers
+                        if lookU.startswith(("JSR ", "RTS", "BRK")) or lookU in ("RTS", "BRK"):
+                            jsr_seen = True
+                            break
+                        # Stop at branches (register might be tested)
+                        if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BPL ", "BMI ", "BVC ", "BVS ")):
+                            break
+                        # Check if register is used/modified (excluding stores which preserve the value)
+                        if checking_a and any(op in lookU for op in ["PHA", "ADC ", "SBC ", "ORA ", "AND ", "EOR ", "CMP ", "TAX", "TAY"]):
+                            reg_used = True
+                        if checking_x and any(op in lookU for op in ["INX", "DEX", "CPX ", "TXA", "TXS"]):
+                            reg_used = True
+                        if checking_y and any(op in lookU for op in ["INY", "DEY", "CPY ", "TYA"]):
+                            reg_used = True
+                        # Check if same register is reloaded with SAME operand
+                        if (checking_a and lookU.startswith("LDA ")) or \
+                           (checking_x and lookU.startswith("LDX ")) or \
+                           (checking_y and lookU.startswith("LDY ")):
+                            look_parts = lookU.split(maxsplit=1)
+                            look_operand = look_parts[1].strip() if len(look_parts) == 2 else ""
+                            if look_operand == cur_operand:  # Only redundant if operands match
+                                redundant_load = True
+                                redundant_at = j
+                            break  # Stop at any load of the same register, redundant or not
+                        # Continue scanning if register not modified yet
+                        if reg_used:
+                            break
+                        j += 1
+                    
+                    if redundant_load and not jsr_seen:
+                        # Keep first load, mark redundant load for skipping
+                        # Intermediate instructions (including comments/labels) will be processed in subsequent iterations
+                        skip_indices.add(redundant_at)
+                        optimized.append(self.code[i])
                         i += 1
                         continue
                 # Simple consecutive LDA overwrite (preserve the later load)
@@ -189,6 +233,44 @@ class CodeGen:
                             break
                 if matched:
                     continue
+                
+                # Remove redundant consecutive stores (STA/STX/STY) to same location when no JSR between
+                if curU.startswith(("STA ", "STX ", "STY ")):
+                    cur_parts = curU.split(maxsplit=1)
+                    if len(cur_parts) == 2:
+                        cur_operand = cur_parts[1].strip()
+                        # Check if storing to a fixed-address variable (contains @)
+                        # For now, we'll only optimize if operand doesn't look like it has @ address
+                        # Fixed-address vars won't appear here since they're declared in source
+                        redundant_store = False
+                        j = i + 1
+                        jsr_seen = False
+                        redundant_at = -1
+                        while j < len(self.code):
+                            look = self.code[j].strip()
+                            lookU = look.upper()
+                            if not look or lookU.endswith(":") or lookU.startswith(";"):
+                                j += 1
+                                continue
+                            if lookU.startswith("JSR "):
+                                jsr_seen = True
+                                break
+                            # Check for same store instruction
+                            if lookU.startswith(cur_parts[0] + " "):
+                                look_parts = lookU.split(maxsplit=1)
+                                if len(look_parts) == 2 and look_parts[1].strip() == cur_operand:
+                                    redundant_store = True
+                                    redundant_at = j
+                                    break
+                            # Stop if we hit any instruction that might affect the stored value
+                            break
+                        if redundant_store and not jsr_seen:
+                            # Keep first store, mark redundant store for skipping
+                            # Intermediate instructions (including comments/labels) will be processed in subsequent iterations
+                            skip_indices.add(redundant_at)
+                            optimized.append(self.code[i])
+                            i += 1
+                            continue
 
             # Remove orphaned register loads (LDX/LDY) when next instruction doesn't use them
             # Common pattern: LDX #0 after byte load, followed by STA (X is never read)
@@ -524,9 +606,10 @@ class CodeGen:
                         if (curU.startswith("LDA ") and nxtU.startswith("LDA ")) or \
                            (curU.startswith("LDX ") and nxtU.startswith("LDX ")) or \
                            (curU.startswith("LDY ") and nxtU.startswith("LDY ")):
-                            # Drop current load but preserve any skipped comments/labels
+                            # Keep first load, drop subsequent redundant load, preserve comments/labels between
+                            cleaned.append(cur)
                             cleaned.extend(pending_non_exec)
-                            i = k
+                            i = k + 1  # Skip the redundant load
                             break
                         else:
                             break
@@ -534,8 +617,8 @@ class CodeGen:
                         cleaned.append(cur)
                         i += 1
                         continue
-                    # If we broke because of redundant load, restart loop without appending cur
-                    if i == k:
+                    # If we skipped redundant load, restart loop
+                    if i == k + 1:
                         continue
                 cleaned.append(cur)
                 i += 1

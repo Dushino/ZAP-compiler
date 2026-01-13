@@ -28,7 +28,6 @@ __START:
 	STA _A3
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_decl.zap 12: byte ^ptr13 @14 = 512
 	STZ _PTR13
-	LDA #$02
 	STA _PTR13+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_decl.zap 16: word B3 @40001 = 1234
 	LDA #$D2

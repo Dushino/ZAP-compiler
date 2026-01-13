@@ -73,8 +73,8 @@ TEST3:
 ; -- Procedure MAIN --
 MAIN:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 29:     byte a1 = 5
+	LDA #$05
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 32:     a1 = a4 + a5 + 2
-	LDA #$66
 	STA _MAIN_A1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 34:     test1(a1, 3)
 	LDA _MAIN_A1
@@ -84,12 +84,11 @@ MAIN:
 	JSR TEST1
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 35:     test2(a1, 4)
 	LDA _MAIN_A1
-	STA _TEST2_B1
 	LDX #0
+	STA _TEST2_B1
 	STX _TEST2_B1+1
 	LDA #4
 	STA _TEST2_B2
-	LDX #0
 	STX _TEST2_B2+1
 	JSR TEST2
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 38:     b1 = a4 + a5 + 5
@@ -104,7 +103,6 @@ MAIN:
 	STX _TEST3_B1+1
 	LDA #6
 	STA _TEST3_B2
-	LDX #0
 	STX _TEST3_B2+1
 	JSR TEST3
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 40:     test3(10, 7)
@@ -114,27 +112,24 @@ MAIN:
 	STX _TEST3_B1+1
 	LDA #7
 	STA _TEST3_B2
-	LDX #0
 	STX _TEST3_B2+1
 	JSR TEST3
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 43:     test3(a1, 8)
 	LDA _MAIN_A1
-	STA _TEST3_B1
 	LDX #0
+	STA _TEST3_B1
 	STX _TEST3_B1+1
 	LDA #8
 	STA _TEST3_B2
-	LDX #0
 	STX _TEST3_B2+1
 	JSR TEST3
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 44:     test2(a1, 9)
 	LDA _MAIN_A1
-	STA _TEST2_B1
 	LDX #0
+	STA _TEST2_B1
 	STX _TEST2_B1+1
 	LDA #9
 	STA _TEST2_B2
-	LDX #0
 	STX _TEST2_B2+1
 	JSR TEST2
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 47:     test1(b1, 1234)
