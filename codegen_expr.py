@@ -145,6 +145,29 @@ class CodeGen:
         optimized: list[str] = []
         i = 0
         while i < len(self.code):
+            # Elide redundant reloads:
+            #   STA addr ; LDA addr  → STA addr
+            #   STX addr ; LDX addr  → STX addr
+            #   STY addr ; LDY addr  → STY addr
+            if i + 1 < len(self.code):
+                cur = self.code[i].strip()
+                nxt = self.code[i + 1].strip()
+                curU = cur.upper()
+                nxtU = nxt.upper()
+                store_load_pairs = [("STA", "LDA"), ("STX", "LDX"), ("STY", "LDY")]
+                matched = False
+                for st, ld in store_load_pairs:
+                    if curU.startswith(st + " ") and nxtU.startswith(ld + " "):
+                        op1 = curU[len(st) + 1:].strip()
+                        op2 = nxtU[len(ld) + 1:].strip()
+                        if op1 == op2:
+                            optimized.append(self.code[i])
+                            i += 2
+                            matched = True
+                            break
+                if matched:
+                    continue
+
             # Replace illegal 'OP X' with safe sequence using TMP4
             line_upper = self.code[i].strip().upper()
             if line_upper.endswith(" X"):

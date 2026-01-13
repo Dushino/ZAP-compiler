@@ -68,7 +68,6 @@ MAIN:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 21:     a1 = a4 + a5 + 5
 	LDA #$69
 	STA _MAIN_A1
-	LDA _MAIN_A1
 	LDX #0
 	STA _TEST1_P1
 	LDA #8
