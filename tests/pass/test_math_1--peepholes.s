@@ -127,23 +127,17 @@ MATH2:
 	LDA #1
 	CLC
 	ADC TMP0
-	TAY
+	STA TMP2
 	TXA
 	ADC TMP1
-	TAX
-	TYA
-	STA TMP2
-	STX TMP3
+	STA TMP3
 	JSR MUL16
 	CLC
 	ADC TMP0
-	TAY
+	STA _MATH2_A
 	TXA
 	ADC TMP1
-	TAX
-	TYA
-	STA _MATH2_A
-	STX _MATH2_A+1
+	STA _MATH2_A+1
 	RTS
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_math_1.zap 32: proc main()
 ; -- Procedure MAIN --

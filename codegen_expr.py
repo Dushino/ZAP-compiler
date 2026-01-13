@@ -568,6 +568,89 @@ class CodeGen:
                         optimized.append(f"\tJMP {target[1]}")
                         i += 2
                         continue
+                
+                # Optimize TAY ... TYA STA addr → STA addr ... (when A is modified between but not used)
+                # Pattern: TAY, (instructions that modify A), TYA, STA addr
+                # Can be replaced with: STA addr, (instructions without TYA)
+                if cur == "TAY":
+                    # Look ahead for TYA followed by STA
+                    j = i + 1
+                    found_tya_sta = False
+                    tya_index = -1
+                    while j < len(self.code) and j < i + 10:  # Limit lookahead
+                        look = self.code[j].strip().upper()
+                        if not look or look.endswith(":") or look.startswith(";"):
+                            j += 1
+                            continue
+                        if look == "TYA":
+                            # Check if next instruction is STA
+                            k = j + 1
+                            while k < len(self.code):
+                                next_look = self.code[k].strip().upper()
+                                if not next_look or next_look.endswith(":") or next_look.startswith(";"):
+                                    k += 1
+                                    continue
+                                if next_look.startswith("STA "):
+                                    found_tya_sta = True
+                                    tya_index = j
+                                break
+                            break
+                        # Stop if Y is used or modified (other than TYA)
+                        if any(op in look for op in ["INY", "DEY", "CPY ", "STY ", ",Y", " Y"]):
+                            break
+                        j += 1
+                    
+                    if found_tya_sta:
+                        # Find the STA instruction after TYA
+                        sta_index = tya_index + 1
+                        while sta_index < len(self.code):
+                            if not self.code[sta_index].strip() or self.code[sta_index].strip().endswith(":") or self.code[sta_index].strip().startswith(";"):
+                                sta_index += 1
+                                continue
+                            break
+                        
+                        # Emit STA first (store original A)
+                        optimized.append(self.code[sta_index])
+                        # Skip TAY, emit intermediate instructions, skip TYA, skip STA
+                        i += 1  # Skip TAY
+                        while i < tya_index:
+                            optimized.append(self.code[i])
+                            i += 1
+                        i = sta_index + 1  # Skip TYA and STA
+                        continue
+                
+                # Optimize TAX ; STX addr → STA addr (when X is not needed)
+                if cur == "TAX" and nxt.startswith("STX "):
+                    # Check if X is used between TAX and STX (it shouldn't be - they're consecutive)
+                    # and check if X is needed after the STX (before being overwritten)
+                    # For safety, we'll only optimize if the next instruction after STX is:
+                    # - JSR (which will likely overwrite X)
+                    # - LDX (which overwrites X)
+                    # - or another instruction that doesn't read X
+                    stx_operand = nxt[4:].strip()  # Get operand from "STX addr"
+                    safe_to_optimize = False
+                    
+                    # Check what comes after STX
+                    if i + 2 < len(self.code):
+                        k = i + 2
+                        while k < len(self.code):
+                            next_inst = self.code[k].strip().upper()
+                            if not next_inst or next_inst.endswith(":") or next_inst.startswith(";"):
+                                k += 1
+                                continue
+                            # Safe if X is immediately overwritten or not used
+                            if next_inst.startswith(("JSR ", "LDX ", "TAX", "TSX", "PLA", "TYA")) or next_inst == "RTS":
+                                safe_to_optimize = True
+                            break
+                    else:
+                        # End of code, safe to optimize
+                        safe_to_optimize = True
+                    
+                    if safe_to_optimize:
+                        # Replace TAX; STX addr with STA addr
+                        optimized.append(f"\tSTA {stx_operand}")
+                        i += 2
+                        continue
 
             if i + 3 < len(self.code):
                 c0 = self._lda_const(self.code[i])
