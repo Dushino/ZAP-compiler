@@ -21,6 +21,24 @@ _PTR23 = $0012
 ; ------------------------------
 __START:
 .export __START
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 6: byte A3 @40000 = 2
+	LDA #$02
+	STA _A3
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 11: byte ^ptr13 @14 = 512
+	LDA #$00
+	STA _PTR13
+	LDA #$02
+	STA _PTR13+1
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 15: word B3 @40001 = 1234
+	LDA #$D2
+	STA _B3
+	LDA #$04
+	STA _B3+1
+; /home/dusan/src/ZAP-compiler/tests/test_variables_decl.zap 20: word ^ptr23 @18 = 512
+	LDA #$00
+	STA _PTR23
+	LDA #$02
+	STA _PTR23+1
 
 ; Call MAIN
 ; ------------------------------
