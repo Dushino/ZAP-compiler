@@ -29,7 +29,7 @@ class ModuleSystem:
     Manages module loading and dependency resolution
     """
     
-    def __init__(self, base_path: str = ".", predefined_symbols: set = None):
+    def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None):
         self.base_path = os.path.abspath(base_path)
         self.loaded_modules: Dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection

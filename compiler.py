@@ -6,8 +6,9 @@ from module_system import ModuleSystem
 from preprocessor import Preprocessor
 import os
 import sys
+from typing import Optional, Set
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: set = None) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None) -> str:
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
         src = src[1:]
@@ -29,7 +30,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: s
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: set = None) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None) -> str:
     """Compile a file with module support"""
     try:
         # Get base directory for resolving includes

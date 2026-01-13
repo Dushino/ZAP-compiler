@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Preprocessor for handling conditional compilation directives."""
 
-from typing import Set
+from typing import Optional, Set
 
 
 class PreprocessorError(Exception):
@@ -12,7 +12,7 @@ class PreprocessorError(Exception):
 
 
 class Preprocessor:
-    def __init__(self, predefined_symbols: Set[str] = None):
+    def __init__(self, predefined_symbols: Optional[Set[str]] = None):
         self.defined_symbols: Set[str] = predefined_symbols.copy() if predefined_symbols else set()
     
     def process(self, source: str) -> str:
