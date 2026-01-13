@@ -20,7 +20,7 @@ word ^ptr21
 word ^ptr22 @16
 word ^ptr23 @18 = 512
 
-.define a4
+.define SOMEDEFINE
 
 proc a4x(byte x1, word x2)
     byte a4

@@ -14,8 +14,8 @@ class Preprocessor:
     def __init__(self, predefined_symbols: Optional[Set[str]] = None):
         self.defined_symbols: Set[str] = predefined_symbols.copy() if predefined_symbols else set()
     
-    def process(self, source: str) -> str:
-        """Process conditional compilation directives and return filtered source."""
+    def process(self, source: str) -> tuple[str, Set[str]]:
+        """Process conditional compilation directives and return filtered source and defined symbols."""
         lines = source.split('\n')
         output_lines = []
         
@@ -116,4 +116,4 @@ class Preprocessor:
         if len(cond_stack) > 1:
             raise PreprocessorError("Unclosed .ifdef/.ifndef (missing .endif)")
         
-        return '\n'.join(output_lines)
+        return '\n'.join(output_lines), self.defined_symbols

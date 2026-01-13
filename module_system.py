@@ -22,6 +22,7 @@ class ModuleInfo:
     # Preserve original top-level items order (procs, funcs, directives)
     top_level_items: list
     includes: list[str]  # List of included module names
+    defined_symbols: Set[str] = None  # Preprocessor .define symbols
     program: Program | None = None
 
 
@@ -46,7 +47,7 @@ class ModuleSystem:
             source = source[1:]
         
         # Apply preprocessor (handles .ifdef, .ifndef, .else, .endif, .define, .undef)
-        source = self.preprocessor.process(source)
+        source, defined_symbols = self.preprocessor.process(source)
         
         # Extract module/include directives
         module_name = None
@@ -91,7 +92,7 @@ class ModuleSystem:
                 pass
             raise
         
-        return program, is_module, module_name, includes
+        return program, is_module, module_name, includes, defined_symbols
     
     def load_module(self, module_path: str) -> ModuleInfo:
         """Load a module and its dependencies"""
@@ -111,7 +112,7 @@ class ModuleSystem:
         
         try:
             # Parse the module file
-            program, is_module, module_name, includes = self.parse_file(full_path)
+            program, is_module, module_name, includes, defined_symbols = self.parse_file(full_path)
             
             # Separate declarations, and also preserve the original top-level items
             declarations = program.decls
@@ -129,6 +130,7 @@ class ModuleSystem:
                 functions=functions,
                 top_level_items=top_level_items,
                 includes=includes,
+                defined_symbols=defined_symbols,
                 program=program
             )
             
@@ -147,9 +149,10 @@ class ModuleSystem:
         finally:
             self.include_stack.pop()
     
-    def build_program(self, main_file: str) -> Program:
+    def build_program(self, main_file: str) -> tuple[Program, Set[str]]:
         """
-        Build a complete program by loading main file and all its dependencies
+        Build a complete program by loading main file and all its dependencies.
+        Returns (program, defined_symbols) where defined_symbols is the union of all .define symbols.
         """
         # Reset state
         self.loaded_modules.clear()
@@ -164,6 +167,7 @@ class ModuleSystem:
         seen_decls = set()  # Track to avoid duplicates
         seen_procs = set()
         seen_funcs = set()
+        all_defined_symbols = set()  # Collect all .define symbols
         
         # Process in dependency order (includes first, then main)
         processed = set()
@@ -203,6 +207,10 @@ class ModuleSystem:
                 inc_path = os.path.join(inc_dir, inc)
                 if inc_path in self.loaded_modules:
                     collect_from_module(inc_path)
+            
+            # Collect .define symbols from this module
+            if module_info.defined_symbols:
+                all_defined_symbols.update(module_info.defined_symbols)
             
             # Add this module's exports
             for decl in module_info.declarations:
@@ -274,4 +282,4 @@ class ModuleSystem:
             "file_lines": file_lines,
         }
 
-        return final_program
+        return final_program, all_defined_symbols

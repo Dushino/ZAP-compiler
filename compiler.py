@@ -16,11 +16,11 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
     try:
         # Apply preprocessor
         preprocessor = Preprocessor(predefined_symbols)
-        src = preprocessor.process(src)
+        src, defined_symbols = preprocessor.process(src)
         
         parser = Parser(src, filename="<input.zap>")
         program = parser.parse_program()
-        return compile_program(program, target_6502=target_6502, command_line=command_line)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
 
     except CompileError as e:
         if e.line is not None:
@@ -40,10 +40,10 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         module_sys = ModuleSystem(base_dir, predefined_symbols=predefined_symbols)
         
         # Build program with all dependencies
-        program = module_sys.build_program(filepath)
+        program, defined_symbols = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502, command_line=command_line)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
     
     except CompileError as e:
         # Prefer attached source text (e.g., preprocessed/cleaned) if available

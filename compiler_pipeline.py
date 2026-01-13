@@ -13,6 +13,7 @@ import sys
 from jump_threading import jump_threading
 from label_cleanup import cleanup_labels
 from collections import deque
+from typing import Optional, Set
 
 # Global switch to disable all peephole-level optimizations without removing code.
 DISABLE_PEEPHOLE_OPTIMIZATIONS = True
@@ -348,7 +349,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         af.locals = prune_one(af.ast.body, af.locals, af.symtab.local, af.ast.params)
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
     proc_table = ProcTable()
@@ -358,6 +359,13 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     decl_an = DeclarationAnalyzer(global_symtab)
     for d in program.decls:
         decl_an.analyze(d)
+    
+    # Check for collisions with .define symbols
+    if defined_symbols:
+        for name in global_symtab._symbols:
+            if name in defined_symbols:
+                from errors import SemanticError
+                raise SemanticError(f"Variable '{name}' conflicts with .define symbol")
 
     # --- expression type checker ---
     expr_tc = ExprTypeChecker(global_symtab, func_table)
@@ -376,12 +384,20 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             if p.name in global_symtab._symbols:
                 from errors import SemanticError
                 raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable")
+            # Check for collision with .define symbols
+            if defined_symbols and p.name in defined_symbols:
+                from errors import SemanticError
+                raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol")
         elif isinstance(p, FuncDecl):
             func_an.analyze_decl(p)
             # Check for collision with existing global variables
             if p.name in global_symtab._symbols:
                 from errors import SemanticError
                 raise SemanticError(f"Function '{p.name}' conflicts with existing variable")
+            # Check for collision with .define symbols
+            if defined_symbols and p.name in defined_symbols:
+                from errors import SemanticError
+                raise SemanticError(f"Function '{p.name}' conflicts with .define symbol")
     
     # Ensure main() procedure exists (required for initialization code)
     try:

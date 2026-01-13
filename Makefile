@@ -143,10 +143,10 @@ tests:
 	echo "Errors: $$error_count"; \
 	echo ""; \
 	if [ "$$error_count" -eq 0 ]; then \
-		echo "✓ All tests behaved as expected!"; \
+		echo " ✅ All tests behaved as expected!"; \
 		exit 0; \
 	else \
-		echo "✗ $$error_count test(s) behaved incorrectly"; \
+		echo "❌ $$error_count test(s) behaved incorrectly"; \
 		exit 1; \
 	fi
 
