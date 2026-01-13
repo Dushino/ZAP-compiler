@@ -16,6 +16,9 @@ _MAIN_A1:	.res 1
 _TEST2_B1:	.res 2
 _TEST2_B2:	.res 2
 _TEST2_T1:	.res 2
+_TEST3_B1:	.res 2
+_TEST3_B2:	.res 2
+_TEST3_T1:	.res 2
 _MAIN_B1:	.res 2
 
 .segment "CODE"
@@ -46,42 +49,79 @@ TEST1:
 TEST2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 15:     t1 = b1 + b2
 	LDA _TEST2_B1
-	LDX _TEST2_B1+1
-	STA TMP0
-	STX TMP1
-	LDA _TEST2_B2
-	LDX _TEST2_B2+1
 	CLC
-	ADC TMP0
-	TAY
-	TXA
-	ADC TMP1
-	TAX
-	TYA
+	ADC _TEST2_B2
 	STA _TEST2_T1
-	STX _TEST2_T1+1
+	LDA _TEST2_B1+1
+	ADC _TEST2_B2+1
+	STA _TEST2_T1+1
 	RTS
-; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 19: proc main()
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 19: proc test3(word b1, word b2)
+; -- Procedure TEST3 --
+TEST3:
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 22:     t1 = b1 - b2
+	LDA _TEST3_B1
+	SEC
+	SBC _TEST3_B2
+	STA _TEST3_T1
+	LDA _TEST3_B1+1
+	SBC _TEST3_B2+1
+	STA _TEST3_T1+1
+	RTS
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 28: proc main()
 ; -- Procedure MAIN --
 MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 22:     a1 = a4 + a5 + 5
-	LDA #$69
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 32:     a1 = a4 + a5 + 2
+	LDA #$66
 	STA _MAIN_A1
 	STA _TEST1_P1
-	LDA #8
+	LDA #3
 	STA _TEST1_P2
 	JSR TEST1
 	LDA _MAIN_A1
 	STA _TEST2_B1
 	STZ _TEST2_B1+1
-	LDA #7
+	LDA #4
 	STA _TEST2_B2
 	STZ _TEST2_B2+1
 	JSR TEST2
-; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 25:     b1 = a4 + a5 + 6
-	LDA #$6A
+; /home/dusan/src/ZAP-compiler/tests/pass/test_variables_optimiz.zap 38:     b1 = a4 + a5 + 5
+	LDA #$69
 	STA _MAIN_B1
 	STZ _MAIN_B1+1
+	LDA #10
+	STA _TEST3_B1
+	STZ _TEST3_B1+1
+	LDA #6
+	STA _TEST3_B2
+	STZ _TEST3_B2+1
+	JSR TEST3
+	LDA #10
+	STA _TEST3_B1
+	STZ _TEST3_B1+1
+	LDA #7
+	STA _TEST3_B2
+	STZ _TEST3_B2+1
+	JSR TEST3
+	LDA _MAIN_A1
+	STA _TEST3_B1
+	STZ _TEST3_B1+1
+	LDA #8
+	STA _TEST3_B2
+	STZ _TEST3_B2+1
+	JSR TEST3
+	LDA _MAIN_A1
+	STA _TEST2_B1
+	STZ _TEST2_B1+1
+	LDA #9
+	STA _TEST2_B2
+	STZ _TEST2_B2+1
+	JSR TEST2
+	LDA _MAIN_B1
+	STA _TEST1_P1
+	LDA #210
+	STA _TEST1_P2
+	JSR TEST1
 	RTS
 
 .segment "CODE"

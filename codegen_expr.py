@@ -251,6 +251,32 @@ class CodeGen:
                         i += 1
                         continue
 
+            # Drop unused LDX/LDY if the register is not read before a call/return or reload
+            line_upper = self.code[i].strip().upper()
+            if line_upper.startswith("LDX ") or line_upper.startswith("LDY "):
+                is_x = line_upper.startswith("LDX ")
+                used = False
+                j = i + 1
+                while j < len(self.code):
+                    nxt = self.code[j].strip().upper()
+                    # Ignore empty lines / labels
+                    if not nxt or nxt.endswith(":"):
+                        j += 1
+                        continue
+                    # Barriers: call/return/stop or reload of same register
+                    if nxt.startswith("JSR ") or nxt == "JSR" or nxt == "RTS" or nxt.startswith("BRK"):
+                        break
+                    if (is_x and (" X" in nxt or ",X" in nxt or nxt.startswith("STX ") or nxt.startswith("TX") or nxt.startswith("INX") or nxt.startswith("DEX") or nxt.startswith("LDX "))):
+                        used = True
+                        break
+                    if (not is_x and (" Y" in nxt or ",Y" in nxt or nxt.startswith("STY ") or nxt.startswith("TY") or nxt.startswith("INY") or nxt.startswith("DEY") or nxt.startswith("LDY "))):
+                        used = True
+                        break
+                    j += 1
+                if not used:
+                    i += 1
+                    continue
+
             if i + 1 < len(self.code):
                 # 65c02: LDA #0 / STA addr → STZ addr
                 if self.is_65c02:
@@ -1437,13 +1463,22 @@ class CodeGen:
                 n = min(len(specs), len(expr.args))
                 for i in range(n):
                     pname, width = specs[i]
-                    self.gen_expr(expr.args[i])
+                    arg = expr.args[i]
+                    arg_type = self.tc.check(arg)
+                    self.gen_expr(arg)
                     asm = f"_{expr.name}_{pname}"
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
                         self.emit(f"\tSTA {asm}")
-                        self.emit(f"\tSTX {asm}+1")
+                        if arg_type.sem_type.base == "BYTE" and not arg_type.sem_type.is_pointer:
+                            if self.is_65c02:
+                                self.emit(f"\tSTZ {asm}+1")
+                            else:
+                                self.emit("\tLDX #0")
+                                self.emit(f"\tSTX {asm}+1")
+                        else:
+                            self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {expr.name}")
 
         elif isinstance(expr, BinaryExpr):
@@ -1546,6 +1581,41 @@ class CodeGen:
                         for _ in range(k):
                             self.emit(f"\tDEC {asm}")
                     return
+
+                # Optimize word var = var1 +/- var2 (memory-to-memory operations)
+                if is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
+                    # Check if both operands are simple identifier references
+                    if isinstance(rhs.left, Identifier) and isinstance(rhs.right, Identifier):
+                        left_sym = self.current_symtab.lookup(rhs.left.name)
+                        right_sym = self.current_symtab.lookup(rhs.right.name)
+                        
+                        # Only optimize if both are simple memory variables (not arrays, not at fixed addresses)
+                        if (not left_sym.is_array and left_sym.address is None and
+                            not right_sym.is_array and right_sym.address is None):
+                            
+                            left_asm = left_sym.asm_name()
+                            right_asm = right_sym.asm_name()
+                            
+                            if rhs.op == BinOp.ADD:
+                                # word_var = word_var1 + word_var2
+                                self.emit(f"\tLDA {left_asm}")
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC {right_asm}")
+                                self.emit(f"\tSTA {asm}")
+                                self.emit(f"\tLDA {left_asm}+1")
+                                self.emit(f"\tADC {right_asm}+1")
+                                self.emit(f"\tSTA {asm}+1")
+                                return
+                            elif rhs.op == BinOp.SUB:
+                                # word_var = word_var1 - word_var2
+                                self.emit(f"\tLDA {left_asm}")
+                                self.emit("\tSEC")
+                                self.emit(f"\tSBC {right_asm}")
+                                self.emit(f"\tSTA {asm}")
+                                self.emit(f"\tLDA {left_asm}+1")
+                                self.emit(f"\tSBC {right_asm}+1")
+                                self.emit(f"\tSTA {asm}+1")
+                                return
 
         # Fast path: store immediate into dereferenced ZP pointer without temps
         if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
@@ -1735,14 +1805,24 @@ class CodeGen:
                 n = min(len(specs), len(stmt.args))
                 for i in range(n):
                     pname, width = specs[i]
+                    arg = stmt.args[i]
+                    arg_type = self.tc.check(arg)
                     # evaluate arg into A/(X)
-                    self.gen_expr(stmt.args[i])
+                    self.gen_expr(arg)
                     asm = f"_{stmt.name}_{pname}"
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
+                        # If the argument is byte-sized, its high byte is zero; store zero safely
                         self.emit(f"\tSTA {asm}")
-                        self.emit(f"\tSTX {asm}+1")
+                        if arg_type.sem_type.base == "BYTE" and not arg_type.sem_type.is_pointer:
+                            if self.is_65c02:
+                                self.emit(f"\tSTZ {asm}+1")
+                            else:
+                                self.emit("\tLDX #0")
+                                self.emit(f"\tSTX {asm}+1")
+                        else:
+                            self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {stmt.name}")
             return
 
