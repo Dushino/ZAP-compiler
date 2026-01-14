@@ -1,2 +1,345 @@
-rem
-python -m compiler ./p1/src1/p1.zap -o ./p1/src2/p1.s
+@echo off
+setlocal enabledelayedexpansion
+
+rem ======================================================================
+rem ZAP Compiler Build System for Windows
+rem ======================================================================
+
+rem Configuration
+set "APPNAME=p1"
+set "LIBDIR=lib"
+set "SRC1DIR=src1"
+set "SRC2DIR=src2"
+set "OBJDIR=obj"
+set "BINDIR=out"
+
+rem Compiler and assembler tools
+set "ZC=python compiler.py"
+set "AS=ca65"
+set "LD=ld65"
+set "DA=da65"
+
+rem Paths
+set "APPDIR=%APPNAME%"
+set "APPSRC1DIR=%APPDIR%\%SRC1DIR%"
+set "APPSRC1=%APPSRC1DIR%\%APPNAME%.zap"
+set "APPSRC2DIR=%APPDIR%\%SRC2DIR%"
+set "APPSRC=%APPSRC2DIR%\%APPNAME%.s"
+set "APPOBJDIR=%APPDIR%\%OBJDIR%"
+set "APPOBJ=%APPOBJDIR%\%APPNAME%.o"
+set "APPBINDIR=%APPDIR%\%BINDIR%"
+set "APPBIN=%APPBINDIR%\%APPNAME%"
+
+rem CPU options
+set "ATARI_CPU=6502"
+set "ATARI_AS_OPTS=-I %LIBDIR% -t none --cpu %ATARI_CPU% -g"
+set "SBC_CPU=w65c02"
+set "SBC_AS_OPTS=-I %LIBDIR% -t none --cpu %SBC_CPU% -g"
+
+
+rem ======================================================================
+rem Parse command line arguments
+rem ======================================================================
+
+if "%1"=="" goto all
+if /I "%1"=="all" goto all
+if /I "%1"=="atari" goto atari
+if /I "%1"=="sbc" goto sbc
+if /I "%1"=="run" goto run
+if /I "%1"=="tests" goto tests
+if /I "%1"=="clean" goto clean
+if /I "%1"=="compile_atari" goto compile_atari
+if /I "%1"=="compile_sbc" goto compile_sbc
+
+echo Unknown target: %1
+echo.
+echo Available targets:
+echo   all            - Build Atari binary (default)
+echo   atari          - Build Atari binary
+echo   sbc            - Build SBC binary
+echo   run            - Build and run Atari binary in emulator
+echo   tests          - Run test suite
+echo   clean          - Clean build artifacts
+goto end
+
+
+rem ======================================================================
+rem Target: all (default - builds atari)
+rem ======================================================================
+:all
+goto atari
+
+
+rem ======================================================================
+rem Target: run (builds atari then runs in emulator)
+rem ======================================================================
+:run
+echo.
+echo ==========================================
+echo Building and running Atari binary...
+echo ==========================================
+call :atari
+if errorlevel 1 goto error
+echo.
+echo Running in Atari emulator...
+atari800 -basic "%APPBIN%.com"
+goto end
+
+
+rem ======================================================================
+rem Target: atari
+rem ======================================================================
+:atari
+call :compile_atari
+if errorlevel 1 exit /b 1
+
+echo Assembling Atari executable header...
+%AS% %ATARI_AS_OPTS% %LIBDIR%\atari\exehdr.s -o %APPOBJDIR%\exehdr.o
+if errorlevel 1 exit /b 1
+
+echo Linking Atari binary...
+%LD% -C cfg\my_atari.cfg %APPOBJ% %APPOBJDIR%\exehdr.o -o %APPBIN%.com
+if errorlevel 1 exit /b 1
+
+echo Creating cut binary (skipping header)...
+powershell -Command "$data = Get-Content -Path '%APPBIN%.com' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '%APPBIN%.cut' -Encoding Byte"
+if errorlevel 1 exit /b 1
+
+echo Disassembling binary...
+%DA% --cpu %ATARI_CPU% --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose %APPBIN%.cut > %APPBIN%.da65
+if errorlevel 1 exit /b 1
+
+echo.
+echo ✓ Atari build complete: %APPBIN%.com
+exit /b 0
+
+
+rem ======================================================================
+rem Target: compile_atari
+rem ======================================================================
+:compile_atari
+echo Creating directories...
+if not exist "%APPSRC2DIR%" mkdir "%APPSRC2DIR%"
+if not exist "%APPOBJDIR%" mkdir "%APPOBJDIR%"
+if not exist "%APPBINDIR%" mkdir "%APPBINDIR%"
+
+echo Compiling ZAP source to assembly...
+%ZC% -6502 %APPSRC1% -o %APPSRC%
+if errorlevel 1 exit /b 1
+
+echo Assembling to object file...
+%AS% %ATARI_AS_OPTS% %APPSRC% -o %APPOBJ%
+if errorlevel 1 exit /b 1
+
+exit /b 0
+
+
+rem ======================================================================
+rem Target: sbc
+rem ======================================================================
+:sbc
+call :compile_sbc
+if errorlevel 1 exit /b 1
+
+echo Assembling SBC executable header...
+%AS% %SBC_AS_OPTS% %LIBDIR%\atari\exehdr.s -o %APPOBJDIR%\exehdr.o
+if errorlevel 1 exit /b 1
+
+echo Linking SBC binary...
+%LD% -C cfg\my_sbc.cfg %APPOBJ% -o %APPBIN%.com
+if errorlevel 1 exit /b 1
+
+echo Disassembling binary...
+%DA% --cpu %SBC_CPU% --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose %APPBIN%.cut > %APPBIN%.da65
+if errorlevel 1 exit /b 1
+
+echo.
+echo ✓ SBC build complete: %APPBIN%.com
+exit /b 0
+
+
+rem ======================================================================
+rem Target: compile_sbc
+rem ======================================================================
+:compile_sbc
+echo Creating directories...
+if not exist "%APPSRC2DIR%" mkdir "%APPSRC2DIR%"
+if not exist "%APPOBJDIR%" mkdir "%APPOBJDIR%"
+if not exist "%APPBINDIR%" mkdir "%APPBINDIR%"
+
+echo Compiling ZAP source to assembly...
+%ZC% --peepholes %APPSRC1% -o %APPSRC%
+if errorlevel 1 exit /b 1
+
+echo Assembling to object file...
+%AS% %SBC_AS_OPTS% %APPSRC% -o %APPOBJ%
+if errorlevel 1 exit /b 1
+
+exit /b 0
+
+
+rem ======================================================================
+rem Target: tests
+rem ======================================================================
+:tests
+echo.
+echo ==========================================
+echo Running ZAP Compiler Test Suite
+echo ==========================================
+echo.
+
+rem Check if ca65 is available
+where ca65 >nul 2>&1
+if !errorlevel! neq 0 (
+    echo WARNING: ca65 assembler not found in PATH
+    echo The tests will only check if ZAP compilation succeeds, not assembly
+    echo To run full tests, install cc65 toolchain and add it to PATH
+    echo.
+    set "AS_AVAILABLE=0"
+) else (
+    set "AS_AVAILABLE=1"
+)
+
+if not exist "tests\pass" mkdir "tests\pass"
+if not exist "tests\fail" mkdir "tests\fail"
+
+set "pass_count=0"
+set "fail_count=0"
+set "error_count=0"
+
+echo Testing files that SHOULD PASS...
+echo ------------------------------------------
+
+for %%f in (tests\pass\*.zap) do (
+    set "base=%%~nf"
+    set "variant_pass=0"
+    set "variant_fail=0"
+    
+    rem Test all 4 variants: default, --peepholes, -6502, -6502 --peepholes
+    for %%v in ("_" "--peepholes" "-6502" "-6502 --peepholes") do (
+        set "variant_flags=%%~v"
+        if "!variant_flags!"=="_" set "variant_flags="
+        set "variant_name=!variant_flags: =_!"
+        if "!variant_name!"=="" set "variant_name=_default"
+        set "output_file=tests\pass\!base!!variant_name!.s"
+        set "obj_file=tests\pass\!base!!variant_name!.o"
+        
+        rem Determine CPU type
+        set "as_cpu=65c02"
+        echo !variant_flags! | findstr /C:"-6502" >nul 2>&1
+        if !errorlevel! equ 0 set "as_cpu=6502"
+        
+        rem Compile ZAP file
+        if "!variant_flags!"=="" (
+            %ZC% "%%f" -o "!output_file!" >nul 2>&1
+        ) else (
+            %ZC% !variant_flags! "%%f" -o "!output_file!" >nul 2>&1
+        )
+        
+        if !errorlevel! equ 0 (
+            rem Assemble to object (only if assembler is available)
+            if !AS_AVAILABLE! equ 1 (
+                %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >nul 2>&1
+                if !errorlevel! equ 0 (
+                    set /a variant_pass+=1
+                ) else (
+                    set /a variant_fail+=1
+                )
+            ) else (
+                rem Just count compilation success
+                set /a variant_pass+=1
+            )
+        ) else (
+            set /a variant_fail+=1
+        )
+    )
+    
+    rem Output result for this test
+    set "result_msg=!base!.zap: "
+    set "spaces=                              "
+    set "padded_msg=!result_msg!!spaces!"
+    set "padded_msg=!padded_msg:~0,30!"
+    
+    if !variant_fail! equ 0 (
+        echo !padded_msg!PASS ^(all 4 variants^)
+        set /a pass_count+=1
+    ) else (
+        echo !padded_msg!FAIL ^(!variant_fail!/4 variants failed^)
+        set /a error_count+=1
+    )
+)
+
+echo.
+echo Testing files that SHOULD FAIL...
+echo ------------------------------------------
+
+for %%f in (tests\fail\*.zap) do (
+    set "base=%%~nf"
+    set "result_msg=!base!.zap: "
+    set "spaces=                              "
+    set "padded_msg=!result_msg!!spaces!"
+    set "padded_msg=!padded_msg:~0,30!"
+    
+    %ZC% -6502 "%%f" -o "tests\fail\!base!.s" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo !padded_msg!FAIL ^(expected to fail but passed^)
+        set /a error_count+=1
+    ) else (
+        echo !padded_msg!PASS ^(correctly rejected^)
+        set /a fail_count+=1
+    )
+)
+
+echo.
+echo ==========================================
+echo Test Results Summary
+echo ==========================================
+echo Should-pass tests: !pass_count! passed
+echo Should-fail tests: !fail_count! correctly rejected
+echo Errors: !error_count!
+echo.
+
+if !error_count! equ 0 (
+    echo All tests behaved as expected!
+    exit /b 0
+) else (
+    echo !error_count! test^(s^) behaved incorrectly
+    exit /b 1
+)
+
+
+rem ======================================================================
+rem Target: clean
+rem ======================================================================
+:clean
+echo Cleaning build artifacts...
+
+if exist "%APPOBJDIR%\*.o" del /Q "%APPOBJDIR%\*.o" 2>nul
+if exist "%APPBINDIR%\*.com" del /Q "%APPBINDIR%\*.com" 2>nul
+if exist "%APPBINDIR%\*.cut" del /Q "%APPBINDIR%\*.cut" 2>nul
+if exist "%APPBINDIR%\*.da65" del /Q "%APPBINDIR%\*.da65" 2>nul
+if exist "%APPSRC2DIR%\*.s" del /Q "%APPSRC2DIR%\*.s" 2>nul
+if exist "%APPSRC2DIR%\*.inc" del /Q "%APPSRC2DIR%\*.inc" 2>nul
+if exist "tests\pass\*.s" del /Q "tests\pass\*.s" 2>nul
+if exist "tests\pass\*.o" del /Q "tests\pass\*.o" 2>nul
+if exist "tests\fail\*.s" del /Q "tests\fail\*.s" 2>nul
+if exist "tests\fail\*.o" del /Q "tests\fail\*.o" 2>nul
+
+echo ✓ Clean complete
+goto end
+
+
+rem ======================================================================
+rem Error handler
+rem ======================================================================
+:error
+echo.
+echo ❌ Build failed!
+exit /b 1
+
+
+rem ======================================================================
+rem End
+rem ======================================================================
+:end
+endlocal
