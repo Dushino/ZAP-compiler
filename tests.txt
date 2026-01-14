@@ -1,25 +1,41 @@
-
-==========================================
-Running ZAP Compiler Test Suite
-==========================================
-
-Testing files that SHOULD PASS...
-------------------------------------------
 Loaded tests\pass\test_cmp =_.com
 Start address: 0x4006
 CPU type: 65C02
-ERROR: Invalid instruction 0x92 at address 0x402A
+
+CPU halted: JMP * detected at $4011
+Total cycles executed: 605
+
+Simulation completed
+Cycles executed: 605
+Final PC: 0x4014
+A=0x11 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100101
+
+Memory dump (0x9C40-0x9C68):
 Loaded tests\pass\test_cmp--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
-ERROR: Invalid instruction 0x92 at address 0x4028
+
+CPU halted: JMP * detected at $4011
+Total cycles executed: 558
+
+Simulation completed
+Cycles executed: 558
+Final PC: 0x4014
+A=0x11 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100101
+
+Memory dump (0x9C40-0x9C68):
 Loaded tests\pass\test_cmp-6502.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4011
+Total cycles executed: 659
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4011
+Cycles executed: 659
+Final PC: 0x4014
 A=0x11 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
 
@@ -28,21 +44,26 @@ Loaded tests\pass\test_cmp-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4011
+Total cycles executed: 594
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4011
+Cycles executed: 594
+Final PC: 0x4014
 A=0x11 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
 
 Memory dump (0x9C40-0x9C68):
-test_cmp.zap:                 PASS (all 4 variants)
 Loaded tests\pass\test_hardware_vars =_.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 103
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 103
+Final PC: 0x400C
 A=0x14 X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
@@ -51,9 +72,12 @@ Loaded tests\pass\test_hardware_vars--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 76
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 76
+Final PC: 0x400C
 A=0x0A X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
@@ -62,9 +86,12 @@ Loaded tests\pass\test_hardware_vars-6502.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 103
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 103
+Final PC: 0x400C
 A=0x14 X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
@@ -73,21 +100,26 @@ Loaded tests\pass\test_hardware_vars-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 76
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 76
+Final PC: 0x400C
 A=0x0A X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
 Memory dump (0x9C40-0x9C68):
-test_hardware_vars.zap:       PASS (all 4 variants)
 Loaded tests\pass\test_math_1 =_.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 2055
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 2055
+Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
 
@@ -96,9 +128,12 @@ Loaded tests\pass\test_math_1--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 1896
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 1896
+Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
 
@@ -107,9 +142,12 @@ Loaded tests\pass\test_math_1-6502.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 2059
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 2059
+Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
 
@@ -118,21 +156,26 @@ Loaded tests\pass\test_math_1-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 1915
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 1915
+Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
 
 Memory dump (0x9C40-0x9C68):
-test_math_1.zap:              PASS (all 4 variants)
 Loaded tests\pass\test_variables_decl =_.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4024
+Total cycles executed: 54
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4024
+Cycles executed: 54
+Final PC: 0x4027
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
@@ -141,9 +184,12 @@ Loaded tests\pass\test_variables_decl--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4022
+Total cycles executed: 52
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4022
+Cycles executed: 52
+Final PC: 0x4025
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
@@ -152,9 +198,12 @@ Loaded tests\pass\test_variables_decl-6502.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4028
+Total cycles executed: 58
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4028
+Cycles executed: 58
+Final PC: 0x402B
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
@@ -163,21 +212,26 @@ Loaded tests\pass\test_variables_decl-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4028
+Total cycles executed: 58
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4028
+Cycles executed: 58
+Final PC: 0x402B
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 
 Memory dump (0x9C40-0x9C68):
-test_variables_decl.zap:      PASS (all 4 variants)
 Loaded tests\pass\test_variables_optimiz =_.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 437
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 437
+Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
 
@@ -186,9 +240,12 @@ Loaded tests\pass\test_variables_optimiz--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 402
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 402
+Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
 
@@ -197,9 +254,12 @@ Loaded tests\pass\test_variables_optimiz-6502.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 459
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 459
+Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
 
@@ -208,29 +268,13 @@ Loaded tests\pass\test_variables_optimiz-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
+CPU halted: JMP * detected at $4009
+Total cycles executed: 418
+
 Simulation completed
-Cycles executed: 2048
-Final PC: 0x4009
+Cycles executed: 418
+Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
 
 Memory dump (0x9C40-0x9C68):
-test_variables_optimiz.zap:   PASS (all 4 variants)
-
-Testing files that SHOULD FAIL...
-------------------------------------------
-test_dup.zap:                 PASS (correctly rejected)
-test_dup_define.zap:          PASS (correctly rejected)
-test_dup_func_param.zap:      PASS (correctly rejected)
-test_dup_local.zap:           PASS (correctly rejected)
-test_dup_param.zap:           PASS (correctly rejected)
-test_dup_param_local.zap:     PASS (correctly rejected)
-
-==========================================
-Test Results Summary
-==========================================
-Should-pass tests: 5 passed
-Should-fail tests: 6 correctly rejected
-Errors: 0
-
-All tests behaved as expected

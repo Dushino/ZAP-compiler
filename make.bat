@@ -212,11 +212,13 @@ set "error_count=0"
 echo Testing files that SHOULD PASS...
 echo ------------------------------------------
 
+if exist "tests.txt" del /Q "tests.txt" 2>nul
+
 for %%f in (tests\pass\*.zap) do (
     set "base=%%~nf"
     set "variant_pass=0"
     set "variant_fail=0"
-    
+
     rem Test all 4 variants: default, --peepholes, -6502, -6502 --peepholes
     for %%v in ("_" "--peepholes" "-6502" "-6502 --peepholes") do (
         set "variant_flags=%%~v"
@@ -256,8 +258,19 @@ for %%f in (tests\pass\*.zap) do (
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
                             %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=tests\pass\!base!!variant_name!.txt"
-                            %SIM% --cpu 65C02 --max-cycles 2048 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!"  "!bin_file!"
-                            set /a variant_pass+=1
+                            %SIM% --cpu 65C02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            if !errorlevel! equ 0 (
+                                set "ref_file=tests\pass\!base!.ref"
+                                rem check result by comparing with reference file
+                                fc "!ref_file!" "!txt_file!" > nul
+                                if !errorlevel! equ 0 (
+                                    set /a variant_pass+=1
+                                ) else (
+                                    set /a variant_fail+=1    
+                                )                                
+                            ) else (
+                                set /a variant_fail+=1
+                            )
                         ) else (
                             set /a variant_fail+=1
                         )
