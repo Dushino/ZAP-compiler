@@ -1,3 +1,10 @@
+tests\pass\test_cmp.zap 
+python compiler.py "tests\pass\test_cmp.zap" -o "tests\pass\test_cmp =_.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_cmp =_.s" -o "tests\pass\test_cmp =_.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_cmp =__exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp =_.o" "tests\pass\test_cmp =__exehdr.o" -o "tests\pass\test_cmp =_.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp =_.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp =_.txt" "tests\pass\test_cmp =_.com" 
 Loaded tests\pass\test_cmp =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -10,8 +17,17 @@ Cycles executed: 605
 Final PC: 0x4014
 A=0x11 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_cmp.ref" "tests\pass\test_cmp =_.txt" 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_cmp.zap 
+python compiler.py --peepholes "tests\pass\test_cmp.zap" -o "tests\pass\test_cmp--peepholes.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_cmp--peepholes.s" -o "tests\pass\test_cmp--peepholes.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_cmp--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp--peepholes.o" "tests\pass\test_cmp--peepholes_exehdr.o" -o "tests\pass\test_cmp--peepholes.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp--peepholes.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp--peepholes.txt" "tests\pass\test_cmp--peepholes.com" 
 Loaded tests\pass\test_cmp--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -24,11 +40,20 @@ Cycles executed: 558
 Final PC: 0x4014
 A=0x11 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_cmp.ref" "tests\pass\test_cmp--peepholes.txt" 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_cmp.zap 
+python compiler.py -6502 "tests\pass\test_cmp.zap" -o "tests\pass\test_cmp-6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_cmp-6502.s" -o "tests\pass\test_cmp-6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_cmp-6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp-6502.o" "tests\pass\test_cmp-6502_exehdr.o" -o "tests\pass\test_cmp-6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp-6502.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp-6502.txt" "tests\pass\test_cmp-6502.com" 
 Loaded tests\pass\test_cmp-6502.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4011
 Total cycles executed: 659
@@ -38,11 +63,20 @@ Cycles executed: 659
 Final PC: 0x4014
 A=0x11 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_cmp.ref" "tests\pass\test_cmp-6502.txt" 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_cmp.zap 
+python compiler.py -6502 --peepholes "tests\pass\test_cmp.zap" -o "tests\pass\test_cmp-6502_--peepholes.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_cmp-6502_--peepholes.s" -o "tests\pass\test_cmp-6502_--peepholes.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_cmp-6502_--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp-6502_--peepholes.o" "tests\pass\test_cmp-6502_--peepholes_exehdr.o" -o "tests\pass\test_cmp-6502_--peepholes.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp-6502_--peepholes.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp-6502_--peepholes.txt" "tests\pass\test_cmp-6502_--peepholes.com" 
 Loaded tests\pass\test_cmp-6502_--peepholes.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4011
 Total cycles executed: 594
@@ -52,8 +86,17 @@ Cycles executed: 594
 Final PC: 0x4014
 A=0x11 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_cmp.ref" "tests\pass\test_cmp-6502_--peepholes.txt" 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_hardware_vars.zap 
+python compiler.py "tests\pass\test_hardware_vars.zap" -o "tests\pass\test_hardware_vars =_.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_hardware_vars =_.s" -o "tests\pass\test_hardware_vars =_.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars =__exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars =_.o" "tests\pass\test_hardware_vars =__exehdr.o" -o "tests\pass\test_hardware_vars =_.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars =_.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars =_.txt" "tests\pass\test_hardware_vars =_.com" 
 Loaded tests\pass\test_hardware_vars =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -66,8 +109,18 @@ Cycles executed: 103
 Final PC: 0x400C
 A=0x14 X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars =_.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_hardware_vars.zap 
+python compiler.py --peepholes "tests\pass\test_hardware_vars.zap" -o "tests\pass\test_hardware_vars--peepholes.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_hardware_vars--peepholes.s" -o "tests\pass\test_hardware_vars--peepholes.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars--peepholes.o" "tests\pass\test_hardware_vars--peepholes_exehdr.o" -o "tests\pass\test_hardware_vars--peepholes.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars--peepholes.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars--peepholes.txt" "tests\pass\test_hardware_vars--peepholes.com" 
 Loaded tests\pass\test_hardware_vars--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -80,11 +133,21 @@ Cycles executed: 76
 Final PC: 0x400C
 A=0x0A X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_hardware_vars.zap 
+python compiler.py -6502 "tests\pass\test_hardware_vars.zap" -o "tests\pass\test_hardware_vars-6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_hardware_vars-6502.s" -o "tests\pass\test_hardware_vars-6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars-6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars-6502.o" "tests\pass\test_hardware_vars-6502_exehdr.o" -o "tests\pass\test_hardware_vars-6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars-6502.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars-6502.txt" "tests\pass\test_hardware_vars-6502.com" 
 Loaded tests\pass\test_hardware_vars-6502.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4009
 Total cycles executed: 103
@@ -94,11 +157,21 @@ Cycles executed: 103
 Final PC: 0x400C
 A=0x14 X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars-6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_hardware_vars.zap 
+python compiler.py -6502 --peepholes "tests\pass\test_hardware_vars.zap" -o "tests\pass\test_hardware_vars-6502_--peepholes.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_hardware_vars-6502_--peepholes.s" -o "tests\pass\test_hardware_vars-6502_--peepholes.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars-6502_--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars-6502_--peepholes.o" "tests\pass\test_hardware_vars-6502_--peepholes_exehdr.o" -o "tests\pass\test_hardware_vars-6502_--peepholes.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars-6502_--peepholes.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars-6502_--peepholes.txt" "tests\pass\test_hardware_vars-6502_--peepholes.com" 
 Loaded tests\pass\test_hardware_vars-6502_--peepholes.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4009
 Total cycles executed: 76
@@ -108,8 +181,18 @@ Cycles executed: 76
 Final PC: 0x400C
 A=0x0A X=0x50 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars-6502_--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_math_1.zap 
+python compiler.py "tests\pass\test_math_1.zap" -o "tests\pass\test_math_1 =_.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_math_1 =_.s" -o "tests\pass\test_math_1 =_.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_math_1 =__exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1 =_.o" "tests\pass\test_math_1 =__exehdr.o" -o "tests\pass\test_math_1 =_.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1 =_.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1 =_.txt" "tests\pass\test_math_1 =_.com" 
 Loaded tests\pass\test_math_1 =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -122,8 +205,18 @@ Cycles executed: 2055
 Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1 =_.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_math_1.zap 
+python compiler.py --peepholes "tests\pass\test_math_1.zap" -o "tests\pass\test_math_1--peepholes.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_math_1--peepholes.s" -o "tests\pass\test_math_1--peepholes.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_math_1--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1--peepholes.o" "tests\pass\test_math_1--peepholes_exehdr.o" -o "tests\pass\test_math_1--peepholes.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1--peepholes.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1--peepholes.txt" "tests\pass\test_math_1--peepholes.com" 
 Loaded tests\pass\test_math_1--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -136,11 +229,21 @@ Cycles executed: 1896
 Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_math_1.zap 
+python compiler.py -6502 "tests\pass\test_math_1.zap" -o "tests\pass\test_math_1-6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_math_1-6502.s" -o "tests\pass\test_math_1-6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_math_1-6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1-6502.o" "tests\pass\test_math_1-6502_exehdr.o" -o "tests\pass\test_math_1-6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1-6502.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1-6502.txt" "tests\pass\test_math_1-6502.com" 
 Loaded tests\pass\test_math_1-6502.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4009
 Total cycles executed: 2059
@@ -150,11 +253,21 @@ Cycles executed: 2059
 Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1-6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_math_1.zap 
+python compiler.py -6502 --peepholes "tests\pass\test_math_1.zap" -o "tests\pass\test_math_1-6502_--peepholes.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_math_1-6502_--peepholes.s" -o "tests\pass\test_math_1-6502_--peepholes.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_math_1-6502_--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1-6502_--peepholes.o" "tests\pass\test_math_1-6502_--peepholes_exehdr.o" -o "tests\pass\test_math_1-6502_--peepholes.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1-6502_--peepholes.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1-6502_--peepholes.txt" "tests\pass\test_math_1-6502_--peepholes.com" 
 Loaded tests\pass\test_math_1-6502_--peepholes.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4009
 Total cycles executed: 1915
@@ -164,8 +277,18 @@ Cycles executed: 1915
 Final PC: 0x400C
 A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1-6502_--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_decl.zap 
+python compiler.py "tests\pass\test_variables_decl.zap" -o "tests\pass\test_variables_decl =_.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_decl =_.s" -o "tests\pass\test_variables_decl =_.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl =__exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl =_.o" "tests\pass\test_variables_decl =__exehdr.o" -o "tests\pass\test_variables_decl =_.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl =_.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl =_.txt" "tests\pass\test_variables_decl =_.com" 
 Loaded tests\pass\test_variables_decl =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -178,8 +301,18 @@ Cycles executed: 54
 Final PC: 0x4027
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_decl.ref" "tests\pass\test_variables_decl =_.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_decl.zap 
+python compiler.py --peepholes "tests\pass\test_variables_decl.zap" -o "tests\pass\test_variables_decl--peepholes.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_decl--peepholes.s" -o "tests\pass\test_variables_decl--peepholes.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl--peepholes.o" "tests\pass\test_variables_decl--peepholes_exehdr.o" -o "tests\pass\test_variables_decl--peepholes.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl--peepholes.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl--peepholes.txt" "tests\pass\test_variables_decl--peepholes.com" 
 Loaded tests\pass\test_variables_decl--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -192,11 +325,21 @@ Cycles executed: 52
 Final PC: 0x4025
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_decl.ref" "tests\pass\test_variables_decl--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_decl.zap 
+python compiler.py -6502 "tests\pass\test_variables_decl.zap" -o "tests\pass\test_variables_decl-6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_decl-6502.s" -o "tests\pass\test_variables_decl-6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl-6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl-6502.o" "tests\pass\test_variables_decl-6502_exehdr.o" -o "tests\pass\test_variables_decl-6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl-6502.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl-6502.txt" "tests\pass\test_variables_decl-6502.com" 
 Loaded tests\pass\test_variables_decl-6502.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4028
 Total cycles executed: 58
@@ -206,11 +349,21 @@ Cycles executed: 58
 Final PC: 0x402B
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_decl.ref" "tests\pass\test_variables_decl-6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_decl.zap 
+python compiler.py -6502 --peepholes "tests\pass\test_variables_decl.zap" -o "tests\pass\test_variables_decl-6502_--peepholes.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_decl-6502_--peepholes.s" -o "tests\pass\test_variables_decl-6502_--peepholes.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl-6502_--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl-6502_--peepholes.o" "tests\pass\test_variables_decl-6502_--peepholes_exehdr.o" -o "tests\pass\test_variables_decl-6502_--peepholes.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl-6502_--peepholes.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl-6502_--peepholes.txt" "tests\pass\test_variables_decl-6502_--peepholes.com" 
 Loaded tests\pass\test_variables_decl-6502_--peepholes.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4028
 Total cycles executed: 58
@@ -220,8 +373,18 @@ Cycles executed: 58
 Final PC: 0x402B
 A=0x61 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_decl.ref" "tests\pass\test_variables_decl-6502_--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_optimiz.zap 
+python compiler.py "tests\pass\test_variables_optimiz.zap" -o "tests\pass\test_variables_optimiz =_.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_optimiz =_.s" -o "tests\pass\test_variables_optimiz =_.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz =__exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz =_.o" "tests\pass\test_variables_optimiz =__exehdr.o" -o "tests\pass\test_variables_optimiz =_.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz =_.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz =_.txt" "tests\pass\test_variables_optimiz =_.com" 
 Loaded tests\pass\test_variables_optimiz =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -234,8 +397,18 @@ Cycles executed: 437
 Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_optimiz.ref" "tests\pass\test_variables_optimiz =_.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_optimiz.zap 
+python compiler.py --peepholes "tests\pass\test_variables_optimiz.zap" -o "tests\pass\test_variables_optimiz--peepholes.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_optimiz--peepholes.s" -o "tests\pass\test_variables_optimiz--peepholes.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz--peepholes.o" "tests\pass\test_variables_optimiz--peepholes_exehdr.o" -o "tests\pass\test_variables_optimiz--peepholes.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz--peepholes.cut" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz--peepholes.txt" "tests\pass\test_variables_optimiz--peepholes.com" 
 Loaded tests\pass\test_variables_optimiz--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -248,11 +421,21 @@ Cycles executed: 402
 Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_optimiz.ref" "tests\pass\test_variables_optimiz--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_optimiz.zap 
+python compiler.py -6502 "tests\pass\test_variables_optimiz.zap" -o "tests\pass\test_variables_optimiz-6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_optimiz-6502.s" -o "tests\pass\test_variables_optimiz-6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz-6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz-6502.o" "tests\pass\test_variables_optimiz-6502_exehdr.o" -o "tests\pass\test_variables_optimiz-6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz-6502.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz-6502.txt" "tests\pass\test_variables_optimiz-6502.com" 
 Loaded tests\pass\test_variables_optimiz-6502.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4009
 Total cycles executed: 459
@@ -262,11 +445,21 @@ Cycles executed: 459
 Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_optimiz.ref" "tests\pass\test_variables_optimiz-6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+tests\pass\test_variables_optimiz.zap 
+python compiler.py -6502 --peepholes "tests\pass\test_variables_optimiz.zap" -o "tests\pass\test_variables_optimiz-6502_--peepholes.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_optimiz-6502_--peepholes.s" -o "tests\pass\test_variables_optimiz-6502_--peepholes.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz-6502_--peepholes_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz-6502_--peepholes.o" "tests\pass\test_variables_optimiz-6502_--peepholes_exehdr.o" -o "tests\pass\test_variables_optimiz-6502_--peepholes.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz-6502_--peepholes.cut" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz-6502_--peepholes.txt" "tests\pass\test_variables_optimiz-6502_--peepholes.com" 
 Loaded tests\pass\test_variables_optimiz-6502_--peepholes.com
 Start address: 0x4006
-CPU type: 65C02
+CPU type: 6502
 
 CPU halted: JMP * detected at $4009
 Total cycles executed: 418
@@ -276,5 +469,8 @@ Cycles executed: 418
 Final PC: 0x400C
 A=0xFC X=0x03 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 10100100
-
-Memory dump (0x9C40-0x9C68):
+fc "tests\pass\test_variables_optimiz.ref" "tests\pass\test_variables_optimiz-6502_--peepholes.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         

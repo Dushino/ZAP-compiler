@@ -233,60 +233,80 @@ for %%f in (tests\pass\*.zap) do (
         echo !variant_flags! | findstr /C:"-6502" >nul 2>&1
         if !errorlevel! equ 0 set "as_cpu=6502"
         
+        echo %%f >> tests.txt
+
         rem Compile ZAP file
         if "!variant_flags!"=="" (
+            echo %ZC% "%%f" -o "!output_file!" >> tests.txt
             %ZC% "%%f" -o "!output_file!" >nul 2>&1
         ) else (
+            echo %ZC% !variant_flags! "%%f" -o "!output_file!" >> tests.txt
             %ZC% !variant_flags! "%%f" -o "!output_file!" >nul 2>&1
         )
         
         if !errorlevel! equ 0 (
             rem Assemble to object (only if assembler is available)
             if !AS_AVAILABLE! equ 1 (
+                echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >> tests.txt
                 %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >nul 2>&1
                 if !errorlevel! equ 0 (
                     rem Create Atari binary with header
                     set "exehdr_obj=tests\pass\!base!!variant_name!_exehdr.o"
                     set "bin_file=tests\pass\!base!!variant_name!.com"
+                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
                     %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >nul 2>&1
                     if !errorlevel! equ 0 (
+                        echo %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >> tests.txt
                         %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >nul 2>&1
                         if !errorlevel! equ 0 (
                             rem Create cut binary (skip 6-byte header) for disassembly
                             set "cut_file=tests\pass\!base!!variant_name!.cut"
                             set "dis_file=tests\pass\!base!!variant_name!.dis65"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
+                            echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
                             %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=tests\pass\!base!!variant_name!.txt"
-                            %SIM% --cpu 65C02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            echo %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                             if !errorlevel! equ 0 (
                                 set "ref_file=tests\pass\!base!.ref"
                                 rem check result by comparing with reference file
-                                fc "!ref_file!" "!txt_file!" > nul
+                                echo fc "!ref_file!" "!txt_file!" >> tests.txt
+                                fc "!ref_file!" "!txt_file!" 2>nul > nul
                                 if !errorlevel! equ 0 (
                                     set /a variant_pass+=1
                                 ) else (
-                                    set /a variant_fail+=1    
+                                    set /a variant_fail+=1
+                                    echo Simulation result does not match reference >> tests.txt
                                 )                                
                             ) else (
                                 set /a variant_fail+=1
+                                echo Simulation failed >> tests.txt
                             )
                         ) else (
                             set /a variant_fail+=1
+                            echo Linker failed >> tests.txt
                         )
                     ) else (
                         set /a variant_fail+=1
+                        echo Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
                     )
                 ) else (
                     set /a variant_fail+=1
+                    echo Assembler failed on "!output_file!" >> tests.txt
                 )
             ) else (
                 rem Just count compilation success
-                set /a variant_pass+=1
+                set /a variant_fail+=1
+                echo ca65 not found, compilation failed.
             )
         ) else (
             set /a variant_fail+=1
+            echo ZAP compiler failed >> tests.txt
         )
+        echo:  >> tests.txt
+        echo:  >> tests.txt
+        echo --------------------------------------------------------------- >> tests.txt        
     )
     
     rem Output result for this test
@@ -364,7 +384,7 @@ if exist "tests\pass\*.dis" del /Q "tests\pass\*.dis" 2>nul
 if exist "tests\fail\*.s" del /Q "tests\fail\*.s" 2>nul
 if exist "tests\fail\*.o" del /Q "tests\fail\*.o" 2>nul
 
-echo ✓ Clean complete
+echo Clean complete
 goto end
 
 
@@ -373,7 +393,7 @@ rem Error handler
 rem ======================================================================
 :error
 echo.
-echo ❌ Build failed!
+echo Build failed!
 exit /b 1
 
 
