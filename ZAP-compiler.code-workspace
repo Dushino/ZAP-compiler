@@ -11,7 +11,8 @@
             "markdown": false,
             "scminput": false,
             "python": true,
-            "ca65": true
+            "ca65": true,
+            "makefile": true
         }
     }
 }

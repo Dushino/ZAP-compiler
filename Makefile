@@ -16,6 +16,7 @@ CC   = cc65
 AS   = ca65
 LD   = ld65
 DA   = da65
+SIM  = 6502_simulator
 
 # main
 APPDIR 		=  $(APPNAME)
@@ -85,45 +86,79 @@ tests:
 	echo ""; \
 	echo "Testing files that SHOULD PASS..."; \
 	echo "------------------------------------------"; \
-	for zapfile in tests/pass/*.zap; do \
+	for zapfile in $$(ls -1 tests/pass/*.zap 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
-			variant_pass=0; variant_fail=0; \
+			ref_file="tests/pass/$${base}.ref"; \
+			if [ ! -f "$$ref_file" ]; then \
+				printf "%-30s" "$$base.zap: "; \
+				echo "✗ FAIL (no reference file: $$ref_file)"; \
+				error_count=$$((error_count + 1)); \
+				continue; \
+			fi; \
+			variant_pass=0; variant_fail=0; variant_errors=""; \
 			for variant_flags in "" "--peepholes" "-6502" "-6502 --peepholes"; do \
 				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/'); \
 				output_file="tests/pass/$${base}$${variant_name}.s"; \
 				obj_file="tests/pass/$${base}$${variant_name}.o"; \
+				exehdr_obj="tests/pass/$${base}$${variant_name}_exehdr.o"; \
+				bin_file="tests/pass/$${base}$${variant_name}.com"; \
+				cut_file="tests/pass/$${base}$${variant_name}.cut"; \
+				dis_file="tests/pass/$${base}$${variant_name}.dis65"; \
+				txt_file="tests/pass/$${base}$${variant_name}.txt"; \
 				if echo "$$variant_flags" | grep -q -- "-6502"; then \
 					as_cpu="6502"; \
 				else \
 					as_cpu="65c02"; \
 				fi; \
-				if $(ZC) $$variant_flags $$zapfile -o $$output_file >/dev/null 2>&1; then \
-					if $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >/dev/null 2>&1; then \
-						exehdr_obj="tests/pass/$${base}$${variant_name}_exehdr.o"; \
-						bin_file="tests/pass/$${base}$${variant_name}.com"; \
-						if $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >/dev/null 2>&1; then \
-							if $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >/dev/null 2>&1; then \
-								variant_pass=$$((variant_pass + 1)); \
-							else \
-								variant_fail=$$((variant_fail + 1)); \
-							fi; \
-						else \
-							variant_fail=$$((variant_fail + 1)); \
-						fi; \
-					else \
-						variant_fail=$$((variant_fail + 1)); \
-					fi; \
-				else \
+				if ! $(ZC) $$variant_flags $$zapfile -o $$output_file >/dev/null 2>&1; then \
+					variant_errors="$$variant_errors [ZAP_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					continue; \
 				fi; \
+				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >/dev/null 2>&1; then \
+					variant_errors="$$variant_errors [CA65_ERROR:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >/dev/null 2>&1; then \
+					variant_errors="$$variant_errors [CA65_ERROR:exehdr-$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if ! $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >/dev/null 2>&1; then \
+					variant_errors="$$variant_errors [LD65_ERROR:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if ! dd if=$$bin_file of=$$cut_file bs=6 skip=1 >/dev/null 2>&1; then \
+					variant_errors="$$variant_errors [DD_ERROR:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if ! $(DA) --cpu $$as_cpu --multi-pass --start-addr $$4006 --comments 3 --hexoffs --verbose --verbose $$cut_file > $$dis_file 2>&1; then \
+					variant_errors="$$variant_errors [DA65_ERROR:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if ! $(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file $$txt_file $$bin_file >/dev/null 2>&1; then \
+					variant_errors="$$variant_errors [SIM_ERROR:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if ! cmp -s $$ref_file $$txt_file; then \
+					variant_errors="$$variant_errors [OUTPUT_MISMATCH:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				variant_pass=$$((variant_pass + 1)); \
 			done; \
 			printf "%-30s" "$$base.zap: "; \
 			if [ $$variant_fail -eq 0 ]; then \
 				echo "✓ PASS (all 4 variants)"; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "✗ FAIL ($$variant_fail/4 variants failed)"; \
+				echo "✗ FAIL ($$variant_fail/4 variants failed)$$variant_errors"; \
 				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
@@ -131,7 +166,7 @@ tests:
 	echo ""; \
 	echo "Testing files that SHOULD FAIL..."; \
 	echo "------------------------------------------"; \
-	for zapfile in tests/fail/*.zap; do \
+	for zapfile in $$(ls -1 tests/fail/*.zap 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
 			printf "%-30s" "$$base.zap: "; \
@@ -165,17 +200,20 @@ tests:
 # --------------------------------------------------------------------------
 # Cleanup rules
 clean:
-	find $(APPOBJDIR)  -name *.o -type f -delete | true
-	find $(APPBINDIR)  -name *.com -type f -delete | true
-	find $(APPBINDIR)  -name *.cut -type f -delete | true
-	find $(APPBINDIR)  -name *.da65 -type f -delete | true
-	find $(APPSRC2DIR) -name *.s -type f -delete | true
-	find $(APPSRC2DIR) -name *.inc -type f -delete | true
-	find tests/pass -name *.s -type f -delete 2>/dev/null | true
-	find tests/pass -name *.o -type f -delete 2>/dev/null | true
-	find tests/pass -name *.com -type f -delete 2>/dev/null | true
-	find tests/fail -name *.s -type f -delete 2>/dev/null | true
-	find tests/fail -name *.o -type f -delete 2>/dev/null | true
+	find $(APPOBJDIR)  -name '*.o' -type f -delete 2>/dev/null | true
+	find $(APPBINDIR)  -name '*.com' -type f -delete 2>/dev/null | true
+	find $(APPBINDIR)  -name '*.cut' -type f -delete 2>/dev/null | true
+	find $(APPBINDIR)  -name '*.da65' -type f -delete 2>/dev/null | true
+	find $(APPSRC2DIR) -name '*.s' -type f -delete 2>/dev/null | true
+	find $(APPSRC2DIR) -name '*.inc' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.s' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.o' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.com' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.cut' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.txt' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.dis65' -type f -delete 2>/dev/null | true
+	find tests/fail -name '*.s' -type f -delete 2>/dev/null | true
+	find tests/fail -name '*.o' -type f -delete 2>/dev/null | true
 
 
 	
