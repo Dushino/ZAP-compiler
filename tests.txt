@@ -1,0 +1,236 @@
+
+==========================================
+Running ZAP Compiler Test Suite
+==========================================
+
+Testing files that SHOULD PASS...
+------------------------------------------
+Loaded tests\pass\test_cmp =_.com
+Start address: 0x4006
+CPU type: 65C02
+ERROR: Invalid instruction 0x92 at address 0x402A
+Loaded tests\pass\test_cmp--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+ERROR: Invalid instruction 0x92 at address 0x4028
+Loaded tests\pass\test_cmp-6502.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4011
+A=0x11 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100101
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_cmp-6502_--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4011
+A=0x11 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100101
+
+Memory dump (0x9C40-0x9C68):
+test_cmp.zap:                 PASS (all 4 variants)
+Loaded tests\pass\test_hardware_vars =_.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x14 X=0x50 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_hardware_vars--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x0A X=0x50 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_hardware_vars-6502.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x14 X=0x50 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_hardware_vars-6502_--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x0A X=0x50 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+test_hardware_vars.zap:       PASS (all 4 variants)
+Loaded tests\pass\test_math_1 =_.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x00 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_math_1--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x00 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_math_1-6502.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x00 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_math_1-6502_--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0x00 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+
+Memory dump (0x9C40-0x9C68):
+test_math_1.zap:              PASS (all 4 variants)
+Loaded tests\pass\test_variables_decl =_.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4024
+A=0x61 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_variables_decl--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4022
+A=0x61 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_variables_decl-6502.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4028
+A=0x61 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_variables_decl-6502_--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4028
+A=0x61 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+
+Memory dump (0x9C40-0x9C68):
+test_variables_decl.zap:      PASS (all 4 variants)
+Loaded tests\pass\test_variables_optimiz =_.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0xFC X=0x03 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 10100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_variables_optimiz--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0xFC X=0x03 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 10100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_variables_optimiz-6502.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0xFC X=0x03 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 10100100
+
+Memory dump (0x9C40-0x9C68):
+Loaded tests\pass\test_variables_optimiz-6502_--peepholes.com
+Start address: 0x4006
+CPU type: 65C02
+
+Simulation completed
+Cycles executed: 2048
+Final PC: 0x4009
+A=0xFC X=0x03 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 10100100
+
+Memory dump (0x9C40-0x9C68):
+test_variables_optimiz.zap:   PASS (all 4 variants)
+
+Testing files that SHOULD FAIL...
+------------------------------------------
+test_dup.zap:                 PASS (correctly rejected)
+test_dup_define.zap:          PASS (correctly rejected)
+test_dup_func_param.zap:      PASS (correctly rejected)
+test_dup_local.zap:           PASS (correctly rejected)
+test_dup_param.zap:           PASS (correctly rejected)
+test_dup_param_local.zap:     PASS (correctly rejected)
+
+==========================================
+Test Results Summary
+==========================================
+Should-pass tests: 5 passed
+Should-fail tests: 6 correctly rejected
+Errors: 0
+
+All tests behaved as expected

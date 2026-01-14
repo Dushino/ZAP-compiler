@@ -100,7 +100,17 @@ tests:
 				fi; \
 				if $(ZC) $$variant_flags $$zapfile -o $$output_file >/dev/null 2>&1; then \
 					if $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >/dev/null 2>&1; then \
-						variant_pass=$$((variant_pass + 1)); \
+						exehdr_obj="tests/pass/$${base}$${variant_name}_exehdr.o"; \
+						bin_file="tests/pass/$${base}$${variant_name}.com"; \
+						if $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >/dev/null 2>&1; then \
+							if $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >/dev/null 2>&1; then \
+								variant_pass=$$((variant_pass + 1)); \
+							else \
+								variant_fail=$$((variant_fail + 1)); \
+							fi; \
+						else \
+							variant_fail=$$((variant_fail + 1)); \
+						fi; \
 					else \
 						variant_fail=$$((variant_fail + 1)); \
 					fi; \
@@ -163,6 +173,7 @@ clean:
 	find $(APPSRC2DIR) -name *.inc -type f -delete | true
 	find tests/pass -name *.s -type f -delete 2>/dev/null | true
 	find tests/pass -name *.o -type f -delete 2>/dev/null | true
+	find tests/pass -name *.com -type f -delete 2>/dev/null | true
 	find tests/fail -name *.s -type f -delete 2>/dev/null | true
 	find tests/fail -name *.o -type f -delete 2>/dev/null | true
 
