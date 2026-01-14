@@ -90,12 +90,6 @@ tests:
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
 			ref_file="tests/pass/$${base}.ref"; \
-			if [ ! -f "$$ref_file" ]; then \
-				printf "%-30s" "$$base.zap: "; \
-				echo "✗ FAIL (no reference file: $$ref_file)"; \
-				error_count=$$((error_count + 1)); \
-				continue; \
-			fi; \
 			variant_pass=0; variant_fail=0; variant_errors=""; \
 			for variant_flags in "" "--peepholes" "-6502" "-6502 --peepholes"; do \
 				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/'); \
@@ -143,6 +137,11 @@ tests:
 				fi; \
 				if ! $(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file $$txt_file $$bin_file >/dev/null 2>&1; then \
 					variant_errors="$$variant_errors [SIM_ERROR:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+					continue; \
+				fi; \
+				if [ ! -f "$$ref_file" ]; then \
+					variant_errors="$$variant_errors [NO_REF_FILE]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					continue; \
 				fi; \
