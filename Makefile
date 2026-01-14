@@ -29,6 +29,8 @@ APPOBJ 		=  $(APPOBJDIR)/$(APPNAME).o
 APPBINDIR 	=  $(APPDIR)/$(BINDIR)
 APPBIN 		:= $(APPBINDIR)/$(APPNAME)
 LIBDIR      =  lib
+TEST_REPORT_FILE = tests_report.txt
+TEST_REPORT = tests/$(TEST_REPORT_FILE)
 
 ATARI_CPU = 6502
 ATARI_AS_OPTS = -I $(LIBDIR) -t none --cpu $(ATARI_CPU) -g
@@ -82,6 +84,7 @@ tests:
 	@echo "Running ZAP Compiler Test Suite"
 	@echo "=========================================="
 	@mkdir -p tests/pass tests/fail
+	@rm -f $(TEST_REPORT)
 	@pass_count=0; fail_count=0; error_count=0; \
 	echo ""; \
 	echo "Testing files that SHOULD PASS..."; \
@@ -105,52 +108,106 @@ tests:
 				else \
 					as_cpu="65c02"; \
 				fi; \
+				echo "$$zapfile" >> $(TEST_REPORT); \
+				if [ -z "$$variant_flags" ]; then \
+					echo "$(ZC) \"$$zapfile\" -o \"$$output_file\"" >> $(TEST_REPORT); \
+				else \
+					echo "$(ZC) $$variant_flags \"$$zapfile\" -o \"$$output_file\"" >> $(TEST_REPORT); \
+				fi; \
 				if ! $(ZC) $$variant_flags $$zapfile -o $$output_file >/dev/null 2>&1; then \
 					variant_errors="$$variant_errors [ZAP_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "ZAP compiler failed" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
+				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g \"$$output_file\" -o \"$$obj_file\"" >> $(TEST_REPORT); \
 				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >/dev/null 2>&1; then \
 					variant_errors="$$variant_errors [CA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "ca65 assembler failed" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
+				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o \"$$exehdr_obj\"" >> $(TEST_REPORT); \
 				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >/dev/null 2>&1; then \
 					variant_errors="$$variant_errors [CA65_ERROR:exehdr-$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "ca65 assembler failed on exehdr" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
+				echo "$(LD) -C cfg/my_atari.cfg \"$$obj_file\" \"$$exehdr_obj\" -o \"$$bin_file\"" >> $(TEST_REPORT); \
 				if ! $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >/dev/null 2>&1; then \
 					variant_errors="$$variant_errors [LD65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "ld65 linker failed" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
 				if ! dd if=$$bin_file of=$$cut_file bs=6 skip=1 >/dev/null 2>&1; then \
 					variant_errors="$$variant_errors [DD_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "dd command failed" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
+				echo "$(DA) --cpu $$as_cpu --multi-pass --start-addr \$$4006 --comments 3 --hexoffs --verbose --verbose \"$$cut_file\"" >> $(TEST_REPORT); \
 				if ! $(DA) --cpu $$as_cpu --multi-pass --start-addr $$4006 --comments 3 --hexoffs --verbose --verbose $$cut_file > $$dis_file 2>&1; then \
 					variant_errors="$$variant_errors [DA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "da65 disassembler failed" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				if ! $(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file $$txt_file $$bin_file >/dev/null 2>&1; then \
+				echo "$(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file \"$$txt_file\" \"$$bin_file\"" >> $(TEST_REPORT); \
+				if $(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file $$txt_file $$bin_file >> $(TEST_REPORT) 2>&1; then \
+					:; \
+				else \
 					variant_errors="$$variant_errors [SIM_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "Simulation failed" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
 				if [ ! -f "$$ref_file" ]; then \
 					variant_errors="$$variant_errors [NO_REF_FILE]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "cmp \"$$ref_file\" \"$$txt_file\"" >> $(TEST_REPORT); \
+					echo "Reference file not found" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
+				echo "cmp \"$$ref_file\" \"$$txt_file\"" >> $(TEST_REPORT); \
 				if ! cmp -s $$ref_file $$txt_file; then \
 					variant_errors="$$variant_errors [OUTPUT_MISMATCH:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
+					echo "Output does not match reference file" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "" >> $(TEST_REPORT); \
+					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
 				variant_pass=$$((variant_pass + 1)); \
+				echo "" >> $(TEST_REPORT); \
+				echo "" >> $(TEST_REPORT); \
+				echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 			done; \
 			printf "%-30s" "$$base.zap: "; \
 			if [ $$variant_fail -eq 0 ]; then \
@@ -205,6 +262,7 @@ clean:
 	find $(APPBINDIR)  -name '*.da65' -type f -delete 2>/dev/null | true
 	find $(APPSRC2DIR) -name '*.s' -type f -delete 2>/dev/null | true
 	find $(APPSRC2DIR) -name '*.inc' -type f -delete 2>/dev/null | true
+	find tests -name '$(TEST_REPORT_FILE)' -type f -delete 2>/dev/null | true
 	find tests/pass -name '*.s' -type f -delete 2>/dev/null | true
 	find tests/pass -name '*.o' -type f -delete 2>/dev/null | true
 	find tests/pass -name '*.com' -type f -delete 2>/dev/null | true
@@ -213,8 +271,7 @@ clean:
 	find tests/pass -name '*.dis65' -type f -delete 2>/dev/null | true
 	find tests/fail -name '*.s' -type f -delete 2>/dev/null | true
 	find tests/fail -name '*.o' -type f -delete 2>/dev/null | true
-
-
+	
 	
 	
 
