@@ -27,13 +27,40 @@ Zap compiles Zap! source code into optimized 6502 assembly for Atari 8-bit compu
 
 ## Quick Start
 
+### Linux/Unix
+
 ```bash
-# Compile a Zap! program
+# Compile a Zap! program to assembly
+python3 compiler.py program.zap -o program.s
+
+# Assemble and link (using cc65 tools)
+ca65 -I lib -t none --cpu 65c02 -g program.s -o program.o
+ca65 -I lib -t none --cpu 65c02 -g lib/atari/exehdr.s -o exehdr.o
+ld65 -C cfg/my_atari.cfg program.o exehdr.o -o program.com
+
+# Run tests
+make tests
+
+# Clean build artifacts
+make clean
+```
+
+### Windows
+
+```batch
+# Compile a Zap! program to assembly
 python compiler.py program.zap -o program.s
 
-# Assemble the output (using ca65)
-ca65 -t atari program.s -o program.o
-ld65 -t atari program.o -o program.xex
+# Assemble and link (using cc65 tools)
+ca65 -I lib -t none --cpu 65c02 -g program.s -o program.o
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o exehdr.o
+ld65 -C cfg\my_atari.cfg program.o exehdr.o -o program.com
+
+# Run tests
+make.bat tests
+
+# Clean build artifacts
+make.bat clean
 ```
 
 ## Command Line Options
@@ -124,21 +151,55 @@ python compiler.py program.zap --peepholes -D SBC_PLATFORM -o program.s
 
 ```bash
 # Basic compilation to stdout
-python compiler.py hello.zap
+python3 compiler.py hello.zap
 
 # Compile to file
-python compiler.py hello.zap -o hello.s
+python3 compiler.py hello.zap -o hello.s
 
-# Compile for Atari with optimizations
-python compiler.py game.zap --6502 --peepholes -o game.s
+# Compile for original Atari (NMOS 6502) with optimizations
+python3 compiler.py game.zap --6502 --peepholes -o game.s
+
+# Compile for SBC system (WDC 65C02, default)
+python3 compiler.py app.zap --peepholes -o app.s
 
 # Conditional compilation for different platforms
-python compiler.py app.zap -D ATARI --6502 -o app_atari.s
-python compiler.py app.zap -D SBC --peepholes -o app_sbc.s
+python3 compiler.py app.zap -D ATARI --6502 -o app_atari.s
+python3 compiler.py app.zap -D SBC --peepholes -o app_sbc.s
 
 # Debug build with verbose output
-python compiler.py app.zap -D DEBUG -D VERBOSE -o app_debug.s
+python3 compiler.py app.zap -D DEBUG -D VERBOSE -o app_debug.s
 ```
+
+## Build System
+
+### Makefile (Linux/Unix)
+The project includes a comprehensive Makefile with targets for:
+
+```bash
+make all              # Build Atari binary (default)
+make atari            # Build Atari 6502 binary
+make sbc              # Build SBC 65C02 binary
+make run              # Build and run Atari binary in emulator
+make tests            # Run complete test suite
+make clean            # Clean all build artifacts
+```
+
+### make.bat (Windows)
+Equivalent batch file for Windows systems with the same targets.
+
+### Test Suite
+
+Run tests with: `make tests` (Linux) or `make.bat tests` (Windows)
+
+Tests are scanned **alphabetically**, allowing you to name tests as `001_filename.zap`, `002_filename.zap`, etc. to ensure proper execution order from simpler to more complex tests.
+
+**Testing Features:**
+- Tests all 4 variants: default, `--peepholes`, `-6502`, `-6502 --peepholes`
+- Requires `.ref` reference files in `tests/pass/` for comparison
+- Runs compiled binaries through `6502_simulator` to validate output
+- Detects specific errors: ZAP compiler errors, ca65 errors, ld65 errors, simulator errors, output mismatches
+- Negative tests in `tests/fail/` must fail to pass
+- Detailed error reporting shows which variant failed and why
 
 ## Example
 
@@ -164,6 +225,9 @@ STA _MAIN_X
 
 - `compiler.py` - Main compiler entry point
 - `parser.py` - Recursive descent parser
+- `Makefile` - Linux/Unix build system with integrated testing
+- `make.bat` - Windows batch build system
+- `tests/` - Test suite with pass/fail test cases
 - `lexer.py` / `tokenizer.py` - Lexical analysis
 - `codegen_expr.py` - 6502 code generation
 - `constfold.py` - Constant folding optimization
