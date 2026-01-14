@@ -1,10 +1,13 @@
 ; compare tests
 ; test_comparsions.zap
 
+.module TEST
+
+
 byte ^ptr = 40000   ; atari screen start with BASIC enabled
 
-const byte chtrue = $11      ; ATASCII character for TRUE result
-const byte chfalse = $10     ; ATASCII character for FALSE result
+const byte chtrue = $11      ; ATASCII character for TRUE result = 1
+const byte chfalse = $10     ; ATASCII character for FALSE result = 0
 
 proc compare1(byte a, byte b)
 

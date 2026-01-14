@@ -34,26 +34,22 @@ This extension provides syntax highlighting and custom file icons for the Zap pr
 - Decimal numbers: `123`, `0`
 - Hexadecimal numbers: `$FF`, `$1234`
 - Strings: `"Hello, World!"`
-- Constants: `TRUE`, `FALSE`
 
 ## Installation
 
+Linux
 1. Copy the `vscode-zap-syntax` folder to `~/.vscode/extensions/`
-2. Reload VS Code: Press `Ctrl+Shift+P` → "Reload Window"
-3. (Optional) Enable custom file icons:
-   - Press `Ctrl+Shift+P` → "Preferences: File Icon Theme"
-   - Select "Zap File Icons" from the list
+2. Restart VS Code
 
-See the main tutorial in `/DOC/VSCODE_INTEGRATION.md` for detailed instructions.
+Windows
+1. run install_vscode_extension.bat
+2. Restart VS Code
+
 
 ## File Icon
 
-The extension includes a custom SVG icon featuring:
-- Microchip-themed "Z" letter design
-- Circuit board traces and connection pads
-- Chip pin decorations
-- Modern blue color scheme (#1e3a5f, #4a9eff)
-- Scales perfectly at all sizes
+The extension includes a custom SVG icon
+
 
 ## Example
 

@@ -7,12 +7,10 @@
     { "include": "#preprocessor" },
     { "include": "#keywords" },
     { "include": "#storage-types" },
-    { "include": "#constants" },
     { "include": "#strings" },
     { "include": "#numbers" },
     { "include": "#operators" },
-    { "include": "#functions" },
-    { "include": "#directives" }
+    { "include": "#functions" }
   ],
   "repository": {
     "comments": {
@@ -27,7 +25,7 @@
       "patterns": [
         {
           "name": "keyword.control.preprocessor.zap",
-          "match": "\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment)\\b"
+          "match": "\\.(ifdef|ifndef|else|endif|define|undef|module|include)\\b"
         }
       ]
     },
@@ -35,7 +33,7 @@
       "patterns": [
         {
           "name": "keyword.control.zap",
-          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|DO|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|REPEAT|UNTIL|FOR|TO|STEP|BREAK|CONTINUE|STOP|RETURN|ASM)\\b"
         },
         {
           "name": "keyword.other.zap",
@@ -47,22 +45,14 @@
       "patterns": [
         {
           "name": "storage.type.zap",
-          "match": "(?i)\\b(BYTE|WORD|CARD|INT|POINTER|ARRAY)\\b"
+          "match": "(?i)\\b(BYTE|WORD)\\b"
         },
         {
           "name": "storage.modifier.zap",
-          "match": "(?i)\\b(CONST)\\b"
+          "match": "(?i)\\b(CONST|STRUCT)\\b"
         }
       ]
-    },
-    "constants": {
-      "patterns": [
-        {
-          "name": "constant.language.zap",
-          "match": "(?i)\\b(TRUE|FALSE)\\b"
-        }
-      ]
-    },
+    },    
     "strings": {
       "patterns": [
         {
@@ -87,6 +77,10 @@
         {
           "name": "constant.numeric.decimal.zap",
           "match": "\\b[0-9]+"
+        },
+        {
+            "name": "constant.numeric.binary.zap",
+            "match": "\\%[0-1]+"
         }
       ]
     },
@@ -98,7 +92,7 @@
         },
         {
           "name": "keyword.operator.comparison.zap",
-          "match": "=|#|<|>|<=|>=|<>|(?i)(AND|OR|NOT)"
+          "match": "==|<|>|<=|>=|!=|AND|OR|NOT"
         },
         {
           "name": "keyword.operator.assignment.zap",
@@ -110,15 +104,7 @@
       "patterns": [
         {
           "name": "entity.name.function.zap",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
-        }
-      ]
-    },
-    "directives": {
-      "patterns": [
-        {
-          "name": "keyword.control.directive.zap",
-          "match": "\\.(segment)\\b"
+          "match": "\\b([A-Za-z][A-Za-z0-9_]*)\\s*(?=\\()"
         }
       ]
     }
