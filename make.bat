@@ -266,8 +266,8 @@ for %%f in (tests\pass\*.zap) do (
                             echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
                             %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=tests\pass\!base!!variant_name!.txt"
-                            echo %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
-                            %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            echo %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                             if !errorlevel! equ 0 (
                                 set "ref_file=tests\pass\!base!.ref"
                                 rem check result by comparing with reference file

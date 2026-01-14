@@ -4,7 +4,7 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_cmp =_.s" -o "tests\pass\tes
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_cmp =__exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp =_.o" "tests\pass\test_cmp =__exehdr.o" -o "tests\pass\test_cmp =_.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp =_.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp =_.txt" "tests\pass\test_cmp =_.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_cmp =_.txt" "tests\pass\test_cmp =_.com" 
 Loaded tests\pass\test_cmp =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -27,7 +27,7 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_cmp--peepholes.s" -o "tests\
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_cmp--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp--peepholes.o" "tests\pass\test_cmp--peepholes_exehdr.o" -o "tests\pass\test_cmp--peepholes.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp--peepholes.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp--peepholes.txt" "tests\pass\test_cmp--peepholes.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_cmp--peepholes.txt" "tests\pass\test_cmp--peepholes.com" 
 Loaded tests\pass\test_cmp--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -50,7 +50,7 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_cmp-6502.s" -o "tests\pass\te
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_cmp-6502_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp-6502.o" "tests\pass\test_cmp-6502_exehdr.o" -o "tests\pass\test_cmp-6502.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp-6502.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp-6502.txt" "tests\pass\test_cmp-6502.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_cmp-6502.txt" "tests\pass\test_cmp-6502.com" 
 Loaded tests\pass\test_cmp-6502.com
 Start address: 0x4006
 CPU type: 6502
@@ -73,7 +73,7 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_cmp-6502_--peepholes.s" -o "t
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_cmp-6502_--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_cmp-6502_--peepholes.o" "tests\pass\test_cmp-6502_--peepholes_exehdr.o" -o "tests\pass\test_cmp-6502_--peepholes.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_cmp-6502_--peepholes.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_cmp-6502_--peepholes.txt" "tests\pass\test_cmp-6502_--peepholes.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_cmp-6502_--peepholes.txt" "tests\pass\test_cmp-6502_--peepholes.com" 
 Loaded tests\pass\test_cmp-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 6502
@@ -96,21 +96,20 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_hardware_vars =_.s" -o "test
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars =__exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars =_.o" "tests\pass\test_hardware_vars =__exehdr.o" -o "tests\pass\test_hardware_vars =_.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars =_.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars =_.txt" "tests\pass\test_hardware_vars =_.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_hardware_vars =_.txt" "tests\pass\test_hardware_vars =_.com" 
 Loaded tests\pass\test_hardware_vars =_.com
 Start address: 0x4006
 CPU type: 65C02
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 103
+CPU halted: JMP * detected at $4013
+Total cycles executed: 144
 
 Simulation completed
-Cycles executed: 103
-Final PC: 0x400C
-A=0x14 X=0x50 Y=0x00 SP=0xFF
+Cycles executed: 144
+Final PC: 0x4016
+A=0x32 X=0x33 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars =_.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -120,21 +119,20 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_hardware_vars--peepholes.s" 
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars--peepholes.o" "tests\pass\test_hardware_vars--peepholes_exehdr.o" -o "tests\pass\test_hardware_vars--peepholes.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars--peepholes.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars--peepholes.txt" "tests\pass\test_hardware_vars--peepholes.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_hardware_vars--peepholes.txt" "tests\pass\test_hardware_vars--peepholes.com" 
 Loaded tests\pass\test_hardware_vars--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 76
+CPU halted: JMP * detected at $4013
+Total cycles executed: 125
 
 Simulation completed
-Cycles executed: 76
-Final PC: 0x400C
-A=0x0A X=0x50 Y=0x00 SP=0xFF
+Cycles executed: 125
+Final PC: 0x4016
+A=0x32 X=0x33 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars--peepholes.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -144,21 +142,20 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_hardware_vars-6502.s" -o "tes
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars-6502_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars-6502.o" "tests\pass\test_hardware_vars-6502_exehdr.o" -o "tests\pass\test_hardware_vars-6502.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars-6502.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars-6502.txt" "tests\pass\test_hardware_vars-6502.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_hardware_vars-6502.txt" "tests\pass\test_hardware_vars-6502.com" 
 Loaded tests\pass\test_hardware_vars-6502.com
 Start address: 0x4006
 CPU type: 6502
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 103
+CPU halted: JMP * detected at $4013
+Total cycles executed: 144
 
 Simulation completed
-Cycles executed: 103
-Final PC: 0x400C
-A=0x14 X=0x50 Y=0x00 SP=0xFF
+Cycles executed: 144
+Final PC: 0x4016
+A=0x32 X=0x33 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars-6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -168,21 +165,20 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_hardware_vars-6502_--peephole
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_hardware_vars-6502_--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_hardware_vars-6502_--peepholes.o" "tests\pass\test_hardware_vars-6502_--peepholes_exehdr.o" -o "tests\pass\test_hardware_vars-6502_--peepholes.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_hardware_vars-6502_--peepholes.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_hardware_vars-6502_--peepholes.txt" "tests\pass\test_hardware_vars-6502_--peepholes.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_hardware_vars-6502_--peepholes.txt" "tests\pass\test_hardware_vars-6502_--peepholes.com" 
 Loaded tests\pass\test_hardware_vars-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 6502
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 76
+CPU halted: JMP * detected at $4013
+Total cycles executed: 125
 
 Simulation completed
-Cycles executed: 76
-Final PC: 0x400C
-A=0x0A X=0x50 Y=0x00 SP=0xFF
+Cycles executed: 125
+Final PC: 0x4016
+A=0x32 X=0x33 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "tests\pass\test_hardware_vars.ref" "tests\pass\test_hardware_vars-6502_--peepholes.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -192,19 +188,19 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_math_1 =_.s" -o "tests\pass\
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_math_1 =__exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1 =_.o" "tests\pass\test_math_1 =__exehdr.o" -o "tests\pass\test_math_1 =_.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1 =_.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1 =_.txt" "tests\pass\test_math_1 =_.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_math_1 =_.txt" "tests\pass\test_math_1 =_.com" 
 Loaded tests\pass\test_math_1 =_.com
 Start address: 0x4006
 CPU type: 65C02
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 2055
+CPU halted: JMP * detected at $4019
+Total cycles executed: 6626
 
 Simulation completed
-Cycles executed: 2055
-Final PC: 0x400C
-A=0x00 X=0x00 Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100110
+Cycles executed: 6626
+Final PC: 0x401C
+A=0x00 X=0x9C Y=0x01 SP=0xFF
+Status: NV-BDIZC = 00100101
 fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1 =_.txt" 
 Simulation result does not match reference 
   
@@ -216,19 +212,19 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_math_1--peepholes.s" -o "tes
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_math_1--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1--peepholes.o" "tests\pass\test_math_1--peepholes_exehdr.o" -o "tests\pass\test_math_1--peepholes.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1--peepholes.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1--peepholes.txt" "tests\pass\test_math_1--peepholes.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_math_1--peepholes.txt" "tests\pass\test_math_1--peepholes.com" 
 Loaded tests\pass\test_math_1--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 1896
+CPU halted: JMP * detected at $4019
+Total cycles executed: 6256
 
 Simulation completed
-Cycles executed: 1896
-Final PC: 0x400C
-A=0x00 X=0x00 Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100110
+Cycles executed: 6256
+Final PC: 0x401C
+A=0x00 X=0x9C Y=0x01 SP=0xFF
+Status: NV-BDIZC = 00100101
 fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1--peepholes.txt" 
 Simulation result does not match reference 
   
@@ -240,19 +236,19 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_math_1-6502.s" -o "tests\pass
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_math_1-6502_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1-6502.o" "tests\pass\test_math_1-6502_exehdr.o" -o "tests\pass\test_math_1-6502.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1-6502.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1-6502.txt" "tests\pass\test_math_1-6502.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_math_1-6502.txt" "tests\pass\test_math_1-6502.com" 
 Loaded tests\pass\test_math_1-6502.com
 Start address: 0x4006
 CPU type: 6502
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 2059
+CPU halted: JMP * detected at $4019
+Total cycles executed: 6634
 
 Simulation completed
-Cycles executed: 2059
-Final PC: 0x400C
-A=0x00 X=0x00 Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100110
+Cycles executed: 6634
+Final PC: 0x401C
+A=0x00 X=0x9C Y=0x01 SP=0xFF
+Status: NV-BDIZC = 00100101
 fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1-6502.txt" 
 Simulation result does not match reference 
   
@@ -264,19 +260,19 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_math_1-6502_--peepholes.s" -o
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_math_1-6502_--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_math_1-6502_--peepholes.o" "tests\pass\test_math_1-6502_--peepholes_exehdr.o" -o "tests\pass\test_math_1-6502_--peepholes.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_math_1-6502_--peepholes.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_math_1-6502_--peepholes.txt" "tests\pass\test_math_1-6502_--peepholes.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_math_1-6502_--peepholes.txt" "tests\pass\test_math_1-6502_--peepholes.com" 
 Loaded tests\pass\test_math_1-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 6502
 
-CPU halted: JMP * detected at $4009
-Total cycles executed: 1915
+CPU halted: JMP * detected at $4019
+Total cycles executed: 6340
 
 Simulation completed
-Cycles executed: 1915
-Final PC: 0x400C
-A=0x00 X=0x00 Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100110
+Cycles executed: 6340
+Final PC: 0x401C
+A=0x00 X=0x9C Y=0x01 SP=0xFF
+Status: NV-BDIZC = 00100101
 fc "tests\pass\test_math_1.ref" "tests\pass\test_math_1-6502_--peepholes.txt" 
 Simulation result does not match reference 
   
@@ -288,7 +284,7 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_decl =_.s" -o "tes
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl =__exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl =_.o" "tests\pass\test_variables_decl =__exehdr.o" -o "tests\pass\test_variables_decl =_.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl =_.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl =_.txt" "tests\pass\test_variables_decl =_.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_decl =_.txt" "tests\pass\test_variables_decl =_.com" 
 Loaded tests\pass\test_variables_decl =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -312,7 +308,7 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_decl--peepholes.s"
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl--peepholes.o" "tests\pass\test_variables_decl--peepholes_exehdr.o" -o "tests\pass\test_variables_decl--peepholes.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl--peepholes.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl--peepholes.txt" "tests\pass\test_variables_decl--peepholes.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_decl--peepholes.txt" "tests\pass\test_variables_decl--peepholes.com" 
 Loaded tests\pass\test_variables_decl--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -336,7 +332,7 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_decl-6502.s" -o "te
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl-6502_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl-6502.o" "tests\pass\test_variables_decl-6502_exehdr.o" -o "tests\pass\test_variables_decl-6502.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl-6502.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl-6502.txt" "tests\pass\test_variables_decl-6502.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_decl-6502.txt" "tests\pass\test_variables_decl-6502.com" 
 Loaded tests\pass\test_variables_decl-6502.com
 Start address: 0x4006
 CPU type: 6502
@@ -360,7 +356,7 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_decl-6502_--peephol
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_decl-6502_--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_decl-6502_--peepholes.o" "tests\pass\test_variables_decl-6502_--peepholes_exehdr.o" -o "tests\pass\test_variables_decl-6502_--peepholes.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_decl-6502_--peepholes.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_decl-6502_--peepholes.txt" "tests\pass\test_variables_decl-6502_--peepholes.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_decl-6502_--peepholes.txt" "tests\pass\test_variables_decl-6502_--peepholes.com" 
 Loaded tests\pass\test_variables_decl-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 6502
@@ -384,7 +380,7 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_optimiz =_.s" -o "
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz =__exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz =_.o" "tests\pass\test_variables_optimiz =__exehdr.o" -o "tests\pass\test_variables_optimiz =_.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz =_.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz =_.txt" "tests\pass\test_variables_optimiz =_.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_optimiz =_.txt" "tests\pass\test_variables_optimiz =_.com" 
 Loaded tests\pass\test_variables_optimiz =_.com
 Start address: 0x4006
 CPU type: 65C02
@@ -408,7 +404,7 @@ ca65 -I lib -t none --cpu 65c02 -g "tests\pass\test_variables_optimiz--peepholes
 ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz--peepholes.o" "tests\pass\test_variables_optimiz--peepholes_exehdr.o" -o "tests\pass\test_variables_optimiz--peepholes.com" 
 da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz--peepholes.cut" 
-6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz--peepholes.txt" "tests\pass\test_variables_optimiz--peepholes.com" 
+6502_simulator.exe --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_optimiz--peepholes.txt" "tests\pass\test_variables_optimiz--peepholes.com" 
 Loaded tests\pass\test_variables_optimiz--peepholes.com
 Start address: 0x4006
 CPU type: 65C02
@@ -432,7 +428,7 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_optimiz-6502.s" -o 
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz-6502_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz-6502.o" "tests\pass\test_variables_optimiz-6502_exehdr.o" -o "tests\pass\test_variables_optimiz-6502.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz-6502.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz-6502.txt" "tests\pass\test_variables_optimiz-6502.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_optimiz-6502.txt" "tests\pass\test_variables_optimiz-6502.com" 
 Loaded tests\pass\test_variables_optimiz-6502.com
 Start address: 0x4006
 CPU type: 6502
@@ -456,7 +452,7 @@ ca65 -I lib -t none --cpu 6502 -g "tests\pass\test_variables_optimiz-6502_--peep
 ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\test_variables_optimiz-6502_--peepholes_exehdr.o" 
 ld65 -C cfg\my_atari.cfg "tests\pass\test_variables_optimiz-6502_--peepholes.o" "tests\pass\test_variables_optimiz-6502_--peepholes_exehdr.o" -o "tests\pass\test_variables_optimiz-6502_--peepholes.com" 
 da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\test_variables_optimiz-6502_--peepholes.cut" 
-6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40040 --dump-file "tests\pass\test_variables_optimiz-6502_--peepholes.txt" "tests\pass\test_variables_optimiz-6502_--peepholes.com" 
+6502_simulator.exe --cpu 6502 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "tests\pass\test_variables_optimiz-6502_--peepholes.txt" "tests\pass\test_variables_optimiz-6502_--peepholes.com" 
 Loaded tests\pass\test_variables_optimiz-6502_--peepholes.com
 Start address: 0x4006
 CPU type: 6502
