@@ -24,3 +24,4 @@
 [x] fix wrong code generation as ORA X is
 [x] compiler defines in command line
 [ ] create scr.zap to distinguish between Atari and SBC
+[ ] STATIC keyword for local variables? - only disables check for using noninitialized variable
