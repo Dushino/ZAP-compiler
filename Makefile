@@ -108,6 +108,11 @@ tests: clean
 				else \
 					as_cpu="65c02"; \
 				fi; \
+				if echo "$$variant_flags" | grep -q -- "-6502"; then \
+					da_cpu="6502"; \
+				else \
+					da_cpu="65c02"; \
+				fi; \
 				echo "$$zapfile" >> $(TEST_REPORT); \
 				if [ -z "$$variant_flags" ]; then \
 					echo "$(ZC) \"$$zapfile\" -o \"$$output_file\"" >> $(TEST_REPORT); \
@@ -153,17 +158,8 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				if ! dd if=$$bin_file of=$$cut_file bs=6 skip=1 >/dev/null 2>&1 >> $(TEST_REPORT); then \
-					variant_errors="$$variant_errors [DD_ERROR:$$variant_name]"; \
-					variant_fail=$$((variant_fail + 1)); \
-					echo "dd command failed" >> $(TEST_REPORT); \
-					echo "" >> $(TEST_REPORT); \
-					echo "" >> $(TEST_REPORT); \
-					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
-					continue; \
-				fi; \
-				echo "$(DA) --cpu $$as_cpu --multi-pass --start-addr \$$4006 --comments 3 --hexoffs --verbose --verbose \"$$cut_file\"" >> $(TEST_REPORT); \
-				if ! $(DA) --cpu $$as_cpu --multi-pass --start-addr $$4006 --comments 3 --hexoffs --verbose --verbose $$cut_file > $$dis_file 2>&1; then \
+				echo "$(DA) --cpu $$da_cpu --multi-pass --comments 3 --hexoffs --verbose --verbose \"$$cut_file\"" >> $(TEST_REPORT); \
+				if ! $(DA) --cpu $$da_cpu --multi-pass --info cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose $$bin_file > $$dis_file 2>&1; then \
 					variant_errors="$$variant_errors [DA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "da65 disassembler failed" >> $(TEST_REPORT); \
