@@ -1,7 +1,7 @@
 # Zap Compiler - Project State
 
-**Date**: January 11, 2026  
-**Repository**: Dushino/Action-transpiler (to be renamed)  
+**Date**: January 16, 2026  
+**Repository**: Dushino/ZAP-compiler  
 **Branch**: main
 
 ## Overview
@@ -15,7 +15,6 @@ Zap is a modern compiler for the Action! programming language targeting the Atar
 #### Frontend (Lexical & Syntactic Analysis)
 - **tokenizer.py** - Lexical analyzer that converts source text into tokens
 - **token_types.py** - Token type definitions
-- **lexer.py** - Additional lexing functionality
 - **parser.py** - Recursive descent parser that builds an Abstract Syntax Tree (AST)
 - **ast_nodes.py** - AST node definitions (Program, ProcDecl, FuncDecl, AssignStmt, Parameter, etc.)
 
@@ -277,10 +276,15 @@ The compilation process follows these stages (as implemented in [compiler_pipeli
 
 ### 📝 Testing Status
 - Comprehensive test suite with source (.act) and expected assembly (.s) pairs
-- Tests cover: IF statements, WHILE loops, FOR loops, BREAK/CONTINUE
-- Automated test compilation via tests.bat
-- Focus on edge cases (constant conditions, dead code elimination)
-
+- Test structure: positive tests (`tests/pass/`) and negative tests (`tests/fail/`)
+- **Negative Tests (6)**: All ready and passing
+  - test_dup.zap, test_dup_define.zap, test_dup_func_param.zap, test_dup_local.zap, test_dup_param.zap, test_dup_param_local.zap
+- **Positive Tests**: Reference framework implemented with `.ref` files for output validation
+  - Reference files contain expected simulator memory dumps
+  - Tests auto-execute across 4 compilation variants: default, --peepholes, -6502, -6502 --peepholes
+  - Validation includes: compilation, assembly, linking, simulation, output comparison
+- Automated test runner via `make tests` or `make.bat tests`
+- Test discovery in alphabetical order (supports numeric prefixes like 001_test.zap
 ## Build & Usage
 
 ### Compiling an Action Program
@@ -338,19 +342,37 @@ Windows-specific build script for project setup.
 9. ✅ **Math runtime optimization** - Conditionally emit math routines only when mul/div/mod used
 10. ✅ **Dead global elimination** - Remove unused global variables AND their initialization code
 11. ✅ **TMP variable optimization** - Emit only used TMP0-TMP4 temps, reclaim unused ZP space
+12. ✅ **Test framework modernization** - Implemented comprehensive test suite with reference file validation and 4-variant compilation testing
 
-## Next Steps (Potential)
+## Next Steps (Priority Order)
 
-1. ✅ ~~Complete control flow code generation~~ (DONE)
-2. ✅ ~~Dead code elimination~~ (DONE - procs/funcs/locals/globals/statements)
-3. ✅ ~~Math runtime optimization~~ (DONE - conditional emission)
-4. ✅ ~~Zero-page temp optimization~~ (DONE - usage-based allocation)
-5. Complete function implementation and integration
-6. Add more comprehensive error messages and source location tracking
-7. Implement remaining pointer operations
-8. Add string literal support improvements
-9. Expand array functionality (multi-dimensional arrays)
-10. Add more example programs and documentation
-11. Optimize register allocation in expressions
-12. Add unit tests with Python test framework
-13. Performance profiling and optimization of generated assembly
+### Phase 1: Non-ZP Pointer Support (Planned)
+- [ ] Track pointer location (ZP vs BSS) in symbol table
+- [ ] Error detection for dereferencing non-ZP pointers
+- [ ] Documentation in IMPLEMENTATION_GUIDE.md
+- **Effort**: 2-4 hours
+- **Benefit**: Foundation for future pointer optimizations
+
+### Phase 2: Smart Dereferencing (After Phase 1)
+- [ ] Temp management for non-ZP pointer dereferencing
+- [ ] Load-deref-use optimization patterns
+- [ ] Test suite validation
+- **Effort**: 4-6 hours
+
+### Phase 3: Advanced Pointer Operations (After Phase 2)
+- [ ] Pointer arithmetic (ptr + offset)
+- [ ] Multi-step pointer chains
+- [ ] Performance testing and optimization
+- **Effort**: 6-8 hours
+
+### Additional Improvements
+1. Complete function implementation and integration
+2. Add more comprehensive error messages with source file locations
+3. Add string literal improvements (escape sequences, length limits)
+4. Expand array functionality (multi-dimensional arrays)
+5. Implement STRUCT support
+6. Add bitwise operators (&, |, ^, <<, >>)
+7. Add more example programs and documentation
+8. Optimize register allocation in expressions
+9. Add unit tests with Python test framework
+10. Performance profiling and optimization of generated assembly
