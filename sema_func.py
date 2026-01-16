@@ -22,7 +22,7 @@ class FuncAnalyzer:
     def analyze_decl(self, func: FuncDecl):
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
         self.func_table.define(
-            FuncSymbol(func.name, ret_sem)
+            FuncSymbol(func.name, ret_sem, len(func.params))
         )
 
     def analyze_func(self, func: FuncDecl, global_symtab: SymbolTable) -> AnalyzedFunc:

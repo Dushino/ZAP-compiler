@@ -17,10 +17,15 @@ class ProcAnalyzer:
         self.procs = procs
 
     def analyze_decl(self, proc: ProcDecl):
-        self.procs.define(ProcSymbol(proc.name))
+        self.procs.define(ProcSymbol(proc.name, len(proc.params)))
 
     def analyze_call(self, call: CallStmt):
-        self.procs.lookup(call.name)  # musí existovat
+        proc_sym = self.procs.lookup(call.name)  # musí existovat
+        if len(call.args) != proc_sym.param_count:
+            raise SemanticError(
+                f"Procedure '{call.name}' expects {proc_sym.param_count} parameters, "
+                f"but {len(call.args)} were provided"
+            )
 
     def analyze_proc(
         self,

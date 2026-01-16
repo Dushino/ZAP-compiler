@@ -62,6 +62,7 @@ class SymbolLookup(Protocol):
 @dataclass
 class ProcSymbol:
     name: str
+    param_count: int = 0
 
 
 class ProcTable:
@@ -92,6 +93,7 @@ class ScopedSymbolTable:
 class FuncSymbol:
     name: str
     ret_type: SemType
+    param_count: int = 0
 
 
 class FuncTable:
