@@ -269,10 +269,10 @@ The compilation process follows these stages (as implemented in [compiler_pipeli
   - Integration with full pipeline
 
 - **Advanced Features**
-  - Pointer operations (partial)
-  - Array operations (basic indexing works)
-  - Multi-dimensional arrays
-  - String handling
+  - Pointer operations (✅ arithmetic with type-aware scaling, ✅ subscripting, 🚧 advanced patterns)
+  - Array operations (✅ indexing, ✅ string/WORD array initialization)
+  - Multi-dimensional arrays (not yet supported)
+  - String handling (✅ BYTE arrays, ✅ WORD arrays)
 
 ### 📝 Testing Status
 - Comprehensive test suite with source (.act) and expected assembly (.s) pairs
@@ -343,6 +343,15 @@ Windows-specific build script for project setup.
 10. ✅ **Dead global elimination** - Remove unused global variables AND their initialization code
 11. ✅ **TMP variable optimization** - Emit only used TMP0-TMP4 temps, reclaim unused ZP space
 12. ✅ **Test framework modernization** - Implemented comprehensive test suite with reference file validation and 4-variant compilation testing
+13. ✅ **Parameter validation** - Compiler now enforces required parameters for PROC/FUNC calls, raises SemanticError if argument count doesn't match
+14. ✅ **WORD array string initialization** - Extended StringInit to support WORD arrays with proper 2-byte element initialization
+15. ✅ **WORD array element offsets** - Fixed array initialization to use 2-byte offsets for WORD arrays (arr[1] at +2/+3, not +1/+2)
+16. ✅ **WORD array subscripting** - Fixed `arr[index]` to multiply index by 2 FIRST before adding to base address for WORD arrays
+17. ✅ **Type-aware pointer arithmetic** - Implemented proper type scaling: `BYTE ^ptr + 1` moves 1 byte, `WORD ^ptr + 1` moves 2 bytes
+    - Detects pointer types during binary operations (ADD/SUB)
+    - Automatically scales offset values based on pointer element type
+    - Applies ASL (shift left) when pointer points to WORD (doubles offset)
+    - Works for both addition and subtraction operations
 
 ## Next Steps (Priority Order)
 

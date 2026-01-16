@@ -3,6 +3,7 @@ from typing import cast
 from constfold import fold_expr
 from constsubst import subst_const
 from symbols import Symbol, SymbolTable, SemType
+from sema_types import ExprKind
 from ast_nodes import (
     BinOp,
     BreakStmt,
@@ -110,10 +111,11 @@ class CodeGen:
 
     def _emit_dec_word(self, asm: str):
         lbl = self.new_label("DEC_WORD")
-        self.emit(f"\tDEC {asm}")
+        self.emit(f"\tLDA {asm}")
         self.emit(f"\tBNE {lbl}")
         self.emit(f"\tDEC {asm}+1")
         self.emit(f"{lbl}:")
+        self.emit(f"\tDEC {asm}")
 
     def _lda_const(self, line: str) -> int | None:
         """Return immediate value for LDA #imm or None if not a match."""
@@ -945,10 +947,12 @@ class CodeGen:
 
         self.emit("; ------------------------------")
         self.emit("; Shared byte copy routine")
-        self.emit("; Inputs: TMP0/TMP1=src, TMP2/TMP3=dst, X=len (1..255), Y=0")
+        self.emit("; Inputs: TMP0/TMP0+1=src, TMP2/TMP2+1=dst, X=len (1..255), Y=0")
         self.emit("; Clobbers: A, X, Y")
         self.emit("; Note: length must fit in one page; longer copies stay inline")
         self.emit("COPY_BYTES:")
+        self.emit("\tLDY #0")
+        self.emit("\tCPX #0")        
         self.emit("\tBEQ COPY_BYTES_DONE")
         self.emit("COPY_BYTES_LOOP:")
         self.emit("\tLDA (TMP0),Y")
@@ -1430,7 +1434,10 @@ class CodeGen:
                 self.emit("; Array variables (BSS)")
                 for sym in array_vars:
                     size = sym.array_len if sym.array_len else 1
-                    self.emit(f"{sym.asm_name()}:\t.res {size}")
+                    # Multiply by element size: WORD arrays need 2 bytes per element
+                    element_size = 2 if sym.type.base == "WORD" else 1
+                    total_size = size * element_size
+                    self.emit(f"{sym.asm_name()}:\t.res {total_size}")
 
     def gen_globals_header(self):
         self.emit("\n.segment \"CODE\"")
@@ -1485,6 +1492,7 @@ class CodeGen:
             content = sym.init.value
             str_len = len(content) + 1  # Include null terminator
             dest_var = sym.asm_name()
+            is_word = sym.type.base == "WORD"
             COPY_THRESHOLD = 8  # bytes; above this, call shared copy to save space
             
             # Optimized string copy using loop
@@ -1492,10 +1500,19 @@ class CodeGen:
             if str_len <= 3:
                 # Inline for very short strings (no string data needed)
                 for i, ch in enumerate(content.encode('ascii')):
+                    elem_offset = i * 2 if is_word else i
                     self.emit(f"\tLDA #${ch:02X}")
-                    self.emit(f"\tSTA {dest_var}+{i}")
+                    self.emit(f"\tSTA {dest_var}+{elem_offset}")
+                    if is_word:
+                        self.emit(f"\tLDX #0")
+                        self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
+                # Add null terminator
+                term_offset = len(content) * (2 if is_word else 1)
                 self.emit(f"\tLDA #0")
-                self.emit(f"\tSTA {dest_var}+{len(content)}")
+                self.emit(f"\tSTA {dest_var}+{term_offset}")
+                if is_word:
+                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tSTX {dest_var}+{term_offset}+1")
             elif str_len > COPY_THRESHOLD and str_len <= 255:
                 # Use shared copy routine for larger strings (fits in one page)
                 if content not in self.string_literals:
@@ -1508,14 +1525,16 @@ class CodeGen:
                 self.emit(f"\tLDA #<{str_label}")
                 self.emit(f"\tLDX #>{str_label}")
                 self.emit("\tSTA TMP0")
-                self.emit("\tSTX TMP1")
+                self.emit("\tSTX TMP0+1")
 
-                self.emit(f"\tLDA #<{dest_var}")
+                self.emit(f"\tLDA #<{dest_var}")        
                 self.emit(f"\tLDX #>{dest_var}")
                 self.emit("\tSTA TMP2")
-                self.emit("\tSTX TMP3")
+                self.emit("\tSTX TMP2+1")
 
-                self.emit(f"\tLDX #{str_len}")
+                # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
+                copy_len = str_len * (2 if is_word else 1)
+                self.emit(f"\tLDX #{copy_len}")
                 self.emit("\tLDY #0")
                 self.emit("\tJSR COPY_BYTES")
             else:
@@ -1526,16 +1545,33 @@ class CodeGen:
                 
                 str_label = self.string_literals[content]
                 self.emit(f"\t; Copy string \"{content[:20]}{'...' if len(content) > 20 else ''}\" ({str_len} bytes)")
-                self.emit(f"\tLDX #0")
-                copy_loop = self.new_label("STR_COPY")
-                self.emit(f"{copy_loop}:")
-                self.emit(f"\tLDA {str_label},X")
-                self.emit(f"\tSTA {dest_var},X")
-                self.emit(f"\tBEQ {copy_loop}_DONE")  # Stop at null terminator
-                self.emit(f"\tINX")
-                self.emit(f"\tCPX #{str_len}")
-                self.emit(f"\tBNE {copy_loop}")
-                self.emit(f"{copy_loop}_DONE:")
+                
+                if is_word:
+                    # For WORD arrays, each character needs to be loaded into a WORD (2 bytes)
+                    self.emit(f"\tLDX #0")
+                    copy_loop = self.new_label("STR_COPY")
+                    self.emit(f"{copy_loop}:")
+                    self.emit(f"\tLDA {str_label},X")  # Load low byte (char)
+                    self.emit(f"\tSTA {dest_var},X")   # Store to even offset
+                    self.emit(f"\tBEQ {copy_loop}_DONE")  # Stop at null terminator
+                    self.emit(f"\tLDA #0")             # High byte is 0
+                    self.emit(f"\tSTA {dest_var}+1,X")
+                    self.emit(f"\tINX")
+                    self.emit(f"\tINX")                # Increment by 2 for WORD
+                    self.emit(f"\tCPX #{str_len * 2}")
+                    self.emit(f"\tBNE {copy_loop}")
+                    self.emit(f"{copy_loop}_DONE:")
+                else:
+                    self.emit(f"\tLDX #0")
+                    copy_loop = self.new_label("STR_COPY")
+                    self.emit(f"{copy_loop}:")
+                    self.emit(f"\tLDA {str_label},X")
+                    self.emit(f"\tSTA {dest_var},X")
+                    self.emit(f"\tBEQ {copy_loop}_DONE")  # Stop at null terminator
+                    self.emit(f"\tINX")
+                    self.emit(f"\tCPX #{str_len}")
+                    self.emit(f"\tBNE {copy_loop}")
+                    self.emit(f"{copy_loop}_DONE:")
             return
 
         if isinstance(sym.init, ListInit):
@@ -1546,9 +1582,10 @@ class CodeGen:
                 # Non-constant values - use old method
                 for i, ex in enumerate(sym.init.values):
                     self.gen_expr(ex)
-                    self.emit(f"\tSTA {sym.asm_name()}+{i}")
+                    elem_offset = i * 2 if sym.type.base == "WORD" else i
+                    self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
                     if sym.type.base == "WORD":
-                        self.emit(f"\tSTX {sym.asm_name()}+{i}+1")
+                        self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
                 return
             
             # Constant array - optimize with loop copy
@@ -1564,9 +1601,10 @@ class CodeGen:
                 # Inline for very short arrays
                 for i, ex in enumerate(sym.init.values):
                     self.gen_expr(ex)
-                    self.emit(f"\tSTA {dest_var}+{i}")
+                    elem_offset = i * 2 if is_word else i
+                    self.emit(f"\tSTA {dest_var}+{elem_offset}")
                     if is_word:
-                        self.emit(f"\tSTX {dest_var}+{i}+1")
+                        self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
             else:
                 # Use loop for longer arrays
                 # Create unique key for this array data
@@ -1584,16 +1622,16 @@ class CodeGen:
                     # Shared copy routine saves space for larger initializers (<=255 bytes)
                     self.copy_bytes_needed = True
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
-                    # Source -> TMP0/TMP1
+                    # Source -> TMP0/TMP0+1
                     self.emit(f"\tLDA #<{arr_label}")
                     self.emit(f"\tLDX #>{arr_label}")
                     self.emit("\tSTA TMP0")
-                    self.emit("\tSTX TMP1")
-                    # Dest -> TMP2/TMP3
+                    self.emit("\tSTX TMP0+1")
+                    # Dest -> TMP2/TMP2+1
                     self.emit(f"\tLDA #<{dest_var}")
                     self.emit(f"\tLDX #>{dest_var}")
                     self.emit("\tSTA TMP2")
-                    self.emit("\tSTX TMP3")
+                    self.emit("\tSTX TMP2+1")
                     # Length in X (<=255), Y = 0
                     self.emit(f"\tLDX #{total_bytes}")
                     self.emit("\tLDY #0")
@@ -1721,34 +1759,46 @@ class CodeGen:
 
         # index
         self.gen_expr(expr.index)
+        
+        # For WORD arrays, multiply index by 2 FIRST before adding to base
+        if width == 2:
+            # multiply index by 2 (simple shift left: ASL shifts A left, sets C if overflow)
+            self.emit("\tASL A")
+            # If carry was set from the shift, we need to propagate it
+            carry_lbl = self.new_label("NOCARRY_SUBSCRIPT")
+            self.emit(f"\tBCC {carry_lbl}")
+            # Carry set - we'll add 1 to high byte during the add
+            self.emit(f"{carry_lbl}:")
+        
+        # Now add (multiplied) index to base address
         self.emit("\tCLC")
         self.emit("\tADC TMP0")
         self.emit("\tSTA TMP0")
-        carry_lbl = self.new_label("CARRY")
-        self.emit(f"\tBCC {carry_lbl}")
+        
+        # Handle carry into high byte
+        carry_lbl2 = self.new_label("CARRY")
+        self.emit(f"\tBCC {carry_lbl2}")
         self.emit("\tINC TMP0+1")
-        self.emit(f"{carry_lbl}:")
-
-        if width == 2:
-            # multiply by 2 (simple shift left)
-            self.emit("\tASL TMP0")
-            self.emit("\tROL TMP0+1")
+        self.emit(f"{carry_lbl2}:")
 
         if load_only:
             self.emit("\tLDY #0")
             self.emit("\tLDA (TMP0),Y")
             if width == 2:
                 self.emit("\tINY")
-                self.emit("\tLDX (TMP0),Y")
+                self.emit("\tLDA (TMP0),Y")
+                self.emit("\tTAX")
             else:
                 self.emit("\tLDX #0")
         else:
-            # RHS already in A/X
+            # RHS value in TMP2/TMP2+1 (saved before calling this method)
             self.emit("\tLDY #0")
+            self.emit("\tLDA TMP2")
             self.emit("\tSTA (TMP0),Y")
             if width == 2:
                 self.emit("\tINY")
-                self.emit("\tSTX (TMP0),Y")
+                self.emit("\tLDA TMP2+1")
+                self.emit("\tSTA (TMP0),Y")
 
     def _gen_binary(self, expr: BinaryExpr):
         t = self.tc.check(expr)
@@ -1759,20 +1809,37 @@ class CodeGen:
         left_16 = left_t.sem_type.base == "WORD"
         right_16 = right_t.sem_type.base == "WORD"
         result_16 = t.sem_type.base == "WORD"
+        
+        # Detect pointer arithmetic: determine if this is pointer +/- value
+        left_is_ptr = left_t.kind == ExprKind.ADDR
+        right_is_ptr = right_t.kind == ExprKind.ADDR
+        
+        # For pointer arithmetic, we need the element size of the pointer
+        ptr_elem_size = 1  # default
+        if left_is_ptr:
+            ptr_elem_size = 2 if left_t.sem_type.base == "WORD" else 1
+        elif right_is_ptr:
+            ptr_elem_size = 2 if right_t.sem_type.base == "WORD" else 1
+
+        # Check for constant 1 optimization BEFORE generating code
+        right_is_const_1 = isinstance(expr.right, IntLiteral) and expr.right.value == 1
+        use_inc_opt = (expr.op == BinOp.ADD and right_is_const_1 and left_is_ptr and ptr_elem_size == 1 and not result_16)
+        use_dec_opt = (expr.op == BinOp.SUB and right_is_const_1 and left_is_ptr and ptr_elem_size == 1)
 
         # Generate left operand
         self.gen_expr(expr.left)
         self.emit("\tSTA TMP0")
-        self.emit("\tSTX TMP1")
+        self.emit("\tSTX TMP0+1")
 
-        # Generate right operand
-        self.gen_expr(expr.right)
+        # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
+        if not (use_inc_opt or use_dec_opt):
+            self.gen_expr(expr.right)
         
         # Handle different operations
         if expr.op == BinOp.ADD:
-            self._gen_add(result_16)
+            self._gen_add(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt)
         elif expr.op == BinOp.SUB:
-            self._gen_sub(result_16)
+            self._gen_sub(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt)
         elif expr.op == BinOp.MUL:
             self._gen_mul(left_16, right_16, result_16)
         elif expr.op == BinOp.DIV:
@@ -1780,42 +1847,87 @@ class CodeGen:
         elif expr.op == BinOp.MOD:
             self._gen_mod(left_16, right_16, result_16)
     
-    def _gen_add(self, is_16bit: bool):
-        """Generate addition (inline)"""
+    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False):
+        """Generate addition (inline)
+        ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD)
+        use_inc: if True and ptr_elem_size == 1, use INC TMP0 for adding 1 (optimization)
+        """
+        if ptr_elem_size == 2:
+            # Pointer to WORD: scale offset by 2
+            # A (offset) needs to be multiplied by 2 before adding
+            self.emit("\tASL A")  # Multiply by 2
+            # If carry was set, we'll handle it below
+        
         if is_16bit:
             # 16-bit: (A,X) + (TMP0,TMP1) → (A,X)
-            self.emit("\tCLC")
-            self.emit("\tADC TMP0")
-            self.emit("\tTAY")
-            self.emit("\tTXA")
-            self.emit("\tADC TMP1")
-            self.emit("\tTAX")
-            self.emit("\tTYA")
+            if use_inc and ptr_elem_size == 1:
+                # Optimization: use INC for adding 1 to 16-bit pointer
+                self.emit("\tINC TMP0")
+                self.emit("\tBNE +")
+                self.emit("\tINC TMP0+1")
+                self.emit("+")
+                self.emit("\tLDA TMP0")
+                self.emit("\tLDX TMP0+1")
+            else:
+                self.emit("\tCLC")
+                self.emit("\tADC TMP0")
+                self.emit("\tTAY")
+                self.emit("\tTXA")
+                self.emit("\tADC TMP1")
+                self.emit("\tTAX")
+                self.emit("\tTYA")
         else:
             # 8-bit: A + TMP0 → A
-            self.emit("\tCLC")
-            self.emit("\tADC TMP0")
+            if use_inc and ptr_elem_size == 1:
+                # Optimization: use INC for adding 1
+                self.emit("\tINC TMP0")
+                self.emit("\tLDA TMP0")
+            else:
+                self.emit("\tCLC")
+                self.emit("\tADC TMP0")
     
-    def _gen_sub(self, is_16bit: bool):
-        """Generate subtraction (inline): TMP0 - A"""
+    def _gen_sub(self, is_16bit: bool, ptr_elem_size: int = 1, use_dec: bool = False):
+        """Generate subtraction (inline): TMP0 - A
+        ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD)
+        use_dec: if True and ptr_elem_size == 1, use DEC TMP0 for subtracting 1 (optimization)
+        """
+        if ptr_elem_size == 2:
+            # Pointer to WORD: scale offset by 2
+            # A (offset) needs to be multiplied by 2 before subtracting
+            self.emit("\tASL A")  # Multiply by 2
+        
         if is_16bit:
             # 16-bit: (TMP0,TMP1) - (A,X) → (A,X)
-            self.emit("\tSTA TMP2")
-            self.emit("\tSTX TMP2+1")
-            self.emit("\tSEC")
-            self.emit("\tLDA TMP0")
-            self.emit("\tSBC TMP2")
-            self.emit("\tTAY")
-            self.emit("\tLDA TMP1")
-            self.emit("\tSBC TMP3")
-            self.emit("\tTAX")
-            self.emit("\tTYA")
+            if use_dec and ptr_elem_size == 1:
+                # Optimization: use DEC for subtracting 1 from 16-bit pointer
+                self.emit("\tDEC TMP0")
+                self.emit("\tBNE +")
+                self.emit("\tDEC TMP0+1")
+                self.emit("+")
+                self.emit("\tLDA TMP0")
+                self.emit("\tLDX TMP0+1")
+            else:
+                self.emit("\tSTA TMP2")
+                self.emit("\tSTX TMP2+1")
+                self.emit("\tSEC")
+                self.emit("\tLDA TMP0")
+                self.emit("\tSBC TMP2")
+                self.emit("\tTAY")
+                self.emit("\tLDA TMP1")
+                self.emit("\tSBC TMP3")
+                self.emit("\tTAX")
+                self.emit("\tTYA")
         else:
             # 8-bit: TMP0 - A → A
-            self.emit("\tSTA TMP2")
-            self.emit("\tSEC")
-            self.emit("\tLDA TMP0")
-            self.emit("\tSBC TMP2")
+            if use_dec and ptr_elem_size == 1:
+                # Optimization: use DEC for subtracting 1
+                self.emit("\tDEC TMP0")
+                self.emit("\tLDA TMP0")
+            else:
+                self.emit("\tSTA TMP2")
+                self.emit("\tSEC")
+                self.emit("\tLDA TMP0")
+                self.emit("\tSBC TMP2")
     
     def _gen_mul(self, left_16: bool, right_16: bool, result_16: bool):
         """Generate multiplication (call runtime routine)"""
@@ -2087,22 +2199,56 @@ class CodeGen:
                         k = k_left
 
                     if k is not None:
+                        # For pointer arithmetic, scale by element size
+                        # WORD pointers move by 2 bytes per element, BYTE pointers by 1
+                        scale = 2 if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" else 1
+                        total_inc = k * scale
+                        
                         if is_word:
-                            for _ in range(k):
-                                self._emit_inc_word(asm)
+                            # For 16-bit values, use proper ADD instead of looping INC
+                            if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" and total_inc > 1:
+                                # Use 16-bit addition for pointer arithmetic
+                                self.emit(f"\tLDA {asm}")
+                                self.emit(f"\tCLC")
+                                self.emit(f"\tADC #{total_inc}")
+                                self.emit(f"\tSTA {asm}")
+                                lbl = self.new_label("CARRY_ADD_PTR")
+                                self.emit(f"\tBCC {lbl}")
+                                self.emit(f"\tINC {asm}+1")
+                                self.emit(f"{lbl}:")
+                            else:
+                                for _ in range(total_inc):
+                                    self._emit_inc_word(asm)
                         else:
-                            for _ in range(k):
+                            for _ in range(total_inc):
                                 self.emit(f"\tINC {asm}")
                         return
 
                 # var = var - k (k=1..3) ; only when self - const on rhs
                 if rhs.op == BinOp.SUB and is_self(rhs.left) and k_right is not None:
                     k = k_right
+                    # For pointer arithmetic, scale by element size
+                    # WORD pointers move by 2 bytes per element, BYTE pointers by 1
+                    scale = 2 if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" else 1
+                    total_dec = k * scale
+                    
                     if is_word:
-                        for _ in range(k):
-                            self._emit_dec_word(asm)
+                        # For 16-bit values, use proper SBC instead of looping DEC
+                        if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" and total_dec > 1:
+                            # Use 16-bit subtraction for pointer arithmetic
+                            self.emit(f"\tLDA {asm}")
+                            self.emit(f"\tSEC")
+                            self.emit(f"\tSBC #{total_dec}")
+                            self.emit(f"\tSTA {asm}")
+                            lbl = self.new_label("CARRY_SUB_PTR")
+                            self.emit(f"\tBCS {lbl}")
+                            self.emit(f"\tDEC {asm}+1")
+                            self.emit(f"{lbl}:")
+                        else:
+                            for _ in range(total_dec):
+                                self._emit_dec_word(asm)
                     else:
-                        for _ in range(k):
+                        for _ in range(total_dec):
                             self.emit(f"\tDEC {asm}")
                     return
 
@@ -2195,7 +2341,17 @@ class CodeGen:
         # vygeneruj RHS
         self.gen_expr(rhs)
 
+        # Handle type widening: if RHS is smaller than LHS, extend with zeros
+        # This is needed when assigning a BYTE to a WORD target
+        if (rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer and
+            lhs_t.sem_type.base == "WORD"):
+            if self.is_65c02:
+                self.emit("\tLDX #0")  # Clear X for BYTE to WORD conversion
+            else:
+                self.emit("\tLDX #0")
+
         if isinstance(lhs, Identifier):
+
             sym = self.current_symtab.lookup(lhs.name)
 
             if sym.is_const:
@@ -2234,6 +2390,9 @@ class CodeGen:
             return
 
         if isinstance(lhs, SubscriptExpr):
+            # Save RHS value to temps before subscript calculation
+            self.emit("\tSTA TMP2")
+            self.emit("\tSTX TMP2+1")
             self._gen_subscript(lhs, load_only=False)
             return
 
