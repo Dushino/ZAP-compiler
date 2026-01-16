@@ -18,7 +18,7 @@
 
 ### Global variables are used when name duplicates global variable
 
-Consider this example:
+Consider following example:
 
 '''
 byte var1
@@ -34,7 +34,8 @@ Inside the procedure there is no way how to reach global variable var1. Local va
 
 ### Procedure parameter is procedure's local varible
 
-Consider this example:
+Consider following example:
+
 '''
 proc test1(byte var1)
     byte var1
@@ -46,7 +47,8 @@ This leads to compilation error, because var1 as parameter is the same as locall
 
 ### Local variables are (almost) static
 
-Consider this example:
+Consider following example:
+
 '''
 proc test1()
     byte var1
@@ -65,7 +67,6 @@ However, there is no ZAP language built-in system how to initialize them when up
 procedure parameter saying it is first call:
 
 '''
-
 ; One possibility to initialize on 1st run:
 byte first = 1
 
