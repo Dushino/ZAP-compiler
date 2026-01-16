@@ -89,20 +89,21 @@ tests: clean
 	echo ""; \
 	echo "Testing files that SHOULD PASS..."; \
 	echo "------------------------------------------"; \
-	for zapfile in $$(ls -1 tests/pass/*.zap 2>/dev/null | sort); do \
+	for zapfile in $$(find tests/pass -name '*.zap' -type f 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
-			ref_file="tests/pass/$${base}.ref"; \
+			dir=$$(dirname $$zapfile); \
+			ref_file="$${dir}/$${base}.ref"; \
 			variant_pass=0; variant_fail=0; variant_errors=""; \
 			for variant_flags in "" "--peepholes" "-6502" "-6502 --peepholes"; do \
 				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/'); \
-				output_file="tests/pass/$${base}$${variant_name}.s"; \
-				obj_file="tests/pass/$${base}$${variant_name}.o"; \
-				exehdr_obj="tests/pass/$${base}$${variant_name}_exehdr.o"; \
-				bin_file="tests/pass/$${base}$${variant_name}.com"; \
-				cut_file="tests/pass/$${base}$${variant_name}.cut"; \
-				dis_file="tests/pass/$${base}$${variant_name}.dis65"; \
-				txt_file="tests/pass/$${base}$${variant_name}.txt"; \
+				output_file="$${dir}/$${base}$${variant_name}.s"; \
+				obj_file="$${dir}/$${base}$${variant_name}.o"; \
+				exehdr_obj="$${dir}/$${base}$${variant_name}_exehdr.o"; \
+				bin_file="$${dir}/$${base}$${variant_name}.com"; \
+				cut_file="$${dir}/$${base}$${variant_name}.cut"; \
+				dis_file="$${dir}/$${base}$${variant_name}.dis65"; \
+				txt_file="$${dir}/$${base}$${variant_name}.txt"; \
 				if echo "$$variant_flags" | grep -q -- "-6502"; then \
 					as_cpu="6502"; \
 				else \
@@ -218,11 +219,12 @@ tests: clean
 	echo ""; \
 	echo "Testing files that SHOULD FAIL..."; \
 	echo "------------------------------------------"; \
-	for zapfile in $$(ls -1 tests/fail/*.zap 2>/dev/null | sort); do \
+	for zapfile in $$(find tests/fail -name '*.zap' -type f 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
+			dir=$$(dirname $$zapfile); \
 			printf "%-30s" "$$base.zap: "; \
-			if $(ZC) -6502 $$zapfile -o tests/fail/$$base.s >/dev/null 2>&1; then \
+			if $(ZC) -6502 $$zapfile -o $${dir}/$${base}.s >/dev/null 2>&1; then \
 				echo "✗ FAIL (expected to fail but passed)"; \
 				error_count=$$((error_count + 1)); \
 			else \
