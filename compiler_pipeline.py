@@ -213,11 +213,11 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
             ctx["proc_calls"].clear()
             ctx["func_calls"].clear()
 
-    # Filter globals to only used (referenced) or fixed-address
+    # Filter globals to only used (referenced) or fixed-address or have initializers
     global_symtab._symbols = {
         name: sym
         for name, sym in global_symtab._symbols.items()
-        if getattr(sym, "proc_name", "") != "" or name in referenced_globals or name in fixed_globals
+        if getattr(sym, "proc_name", "") != "" or name in referenced_globals or name in fixed_globals or getattr(sym, "init", None) is not None
     }
 
     # Filter procs/funcs

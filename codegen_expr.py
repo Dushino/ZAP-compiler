@@ -1448,8 +1448,8 @@ class CodeGen:
 
     def gen_init(self, sym: Symbol):
         # Skip unused globals (locals handled elsewhere)
-        # Exception: always initialize fixed-address variables (hardware ports)
-        if sym.proc_name == "" and sym.name not in self.used_globals and sym.address is None:
+        # Exception: always initialize fixed-address variables (hardware ports) and variables with initializers
+        if sym.proc_name == "" and sym.name not in self.used_globals and sym.address is None and sym.init is None:
             return
         if sym.is_const:
             return

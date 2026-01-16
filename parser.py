@@ -441,7 +441,23 @@ class Parser:
         if self.cur.type == TOK_NUMBER:
             val = self.cur.value
             self.advance()
-            return IntLiteral(int(val, 0))
+            
+            # Check for consecutive character literals: 'a''b' for word values
+            # When parsing 'a', check if next token is also 'b' (TOK_NUMBER with value < 256)
+            first_val = int(val, 0)
+            if (self.cur.type == TOK_NUMBER and 
+                0 <= first_val <= 255 and 
+                self.pos < len(self.tokens) - 1):
+                # Peek at the next number to see if it's also a character literal range
+                next_val = int(self.cur.value, 0)
+                if 0 <= next_val <= 255:
+                    # This looks like 'a''b' - combine into word value
+                    # Format: low byte in 'a', high byte in 'b'
+                    self.advance()
+                    combined_val = first_val | (next_val << 8)
+                    return IntLiteral(combined_val)
+            
+            return IntLiteral(first_val)
 
         if self.cur.type == TOK_IDENT:
             name = self.cur.value
