@@ -174,7 +174,6 @@ class Tokenizer:
                     buf.append(c)
                     self._advance(1)
                 self._emit(TOK_STRING, self.sline, self.scol, "".join(buf))
-                print(f'Got string {"".join(buf)}')
                 continue
 
             # $<hex>
