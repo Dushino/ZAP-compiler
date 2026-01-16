@@ -26,22 +26,11 @@ proc proc2(byte a1)
     gvar2 = var2
 end
 
-; more parameters
-proc proc3(byte a1, word a2, byte ^a3)
-    byte var1
-    word var2
-
-    var1 = 3
-    var2 = 2050
-    gvar1 = var1
-    gvar2 = var2
-end
 
 ; main -----------------------------------------
 proc main()
     proc1()
-    proc2()
-    proc3()
+    proc2(1)    
 
 end
 
