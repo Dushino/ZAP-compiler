@@ -13,6 +13,7 @@
             "python": true,
             "ca65": true,
             "makefile": true
-        }
+        },
+        "editor.fontSize": 17
     }
 }
