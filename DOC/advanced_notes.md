@@ -20,7 +20,7 @@
 
 Consider following example:
 
-```zap
+```python
 byte var1
 
 
@@ -36,7 +36,7 @@ Inside the procedure there is no way how to reach global variable var1. Local va
 
 Consider following example:
 
-```zap
+```python
 proc test1(byte var1)
     byte var1
 
@@ -49,7 +49,7 @@ This leads to compilation error, because var1 as parameter is the same as locall
 
 Consider following example:
 
-```zap
+```python
 proc test1()
     byte var1
 
@@ -66,7 +66,7 @@ Local variable is declared on dedicated memory space and there is no ZAP way how
 However, there is no ZAP language built-in system how to initialize them when upon first procedure call. So you need global variable or
 procedure parameter saying it is first call:
 
-```zap
+```python
 ; One possibility to initialize on 1st run:
 byte first = 1
 
@@ -124,12 +124,12 @@ You might find useful knowledge about internal naming system. It is good to know
   - You can use TMP<number> in your code and it will not inerefere with internal TMP<number> variables.
 - Local variable names is structure this way:
 
-```
+```python
 internal_name = _<PROC_name>_<declared_local_variable_name>
 ```
 
 For example:
-```zap
+```python
 proc Test1()
     byte a1
 end
@@ -152,7 +152,7 @@ Local variable a1 is internally named as _TEST1_A1.
 before you leade ASM block.
 
 For example:
-```zap
+```python
 proc pgm_init()
     ASM
         .segment "FONT"         ; properly aligned in ld65 configuration file
@@ -168,6 +168,14 @@ end
 - Describe how to share identifiers declard in ZAP in ASM blocks
 - Describe how to use labels from ASM blocks in ZAP code
 - Export and import symbols from/to whole ZAP program. Use case: ZAP program is part of bigger package.
+- Introduce ZAP to github:
+Add to GitHub Linguist (Recommended for long-term)
+You could submit your ZAP language definition to the GitHub Linguist project. This would get ZAP officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.
+
+Steps:
+- Format your language definition according to Linguist's requirements
+- Submit a PR to the Linguist repository with your language definition
+- Once merged, GitHub will automatically highlight ZAP code blocks
 
 
 
