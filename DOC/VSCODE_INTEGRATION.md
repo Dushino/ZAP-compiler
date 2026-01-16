@@ -24,16 +24,9 @@ VS Code uses TextMate grammars for syntax highlighting. This tutorial covers:
    - Type "Reload Window" and press Enter
    - Or restart VS Code
 
-3. **Enable the file icon theme (optional but recommended):**
-   - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
-   - Type "Preferences: File Icon Theme"
-   - Select "Zap File Icons" from the list
-   - This will show the custom microchip-Z icon for .zap files
-
-4. **Test the extension:**
+3. **Test the extension:**
    - Open any `.zap` file
    - Syntax highlighting should now be active
-   - Custom file icon should appear in the file explorer
 
 ### Method 2: Create Symbolic Link (Best for Active Development)
 
@@ -56,9 +49,6 @@ vscode-zap-syntax/
 ├── language-configuration.json      # Language features (brackets, comments)
 ├── syntaxes/
 │   └── zap.tmLanguage.json         # Syntax highlighting rules
-├── icons/
-│   ├── zap-icon.svg                # File icon (microchip-Z design)
-│   └── zap-icon-theme.json         # Icon theme configuration
 ├── README.md                        # Extension documentation
 └── .vscodeignore                   # Files to exclude when packaging
 ```
@@ -218,22 +208,6 @@ The colors are determined by your VS Code theme and the scope names. The main sc
 | `keyword.operator` | White/Gray | Operators |
 | `entity.name.function` | Yellow | Function names |
 | `keyword.control.preprocessor` | Purple | Preprocessor directives |
-
-## File Icon
-
-The extension includes a custom file icon for .zap files featuring a microchip-themed "Z" design:
-- **Style**: Modern microchip aesthetic with circuit traces
-- **Colors**: Blue tones (#1e3a5f background, #4a9eff accents)
-- **Format**: SVG (scales perfectly at all sizes)
-- **Location**: `icons/zap-icon.svg`
-
-The icon includes:
-- Microchip pin decorations on the sides
-- Subtle circuit board traces in the background
-- Connection pads at corners
-- Modern flat design that works in both light and dark themes
-
-To enable the icon theme, select "Zap File Icons" in VS Code's File Icon Theme picker.
 
 ### Override Colors in VS Code Settings
 
