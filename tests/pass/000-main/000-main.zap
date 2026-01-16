@@ -1,6 +1,7 @@
-; empty project with main only
+; main procedure test
 
 ; main -----------------------------------------
 proc main()
+
 end
 
