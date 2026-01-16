@@ -104,6 +104,7 @@ tests: clean
 				cut_file="$${dir}/$${base}$${variant_name}.cut"; \
 				dis_file="$${dir}/$${base}$${variant_name}.dis65"; \
 				txt_file="$${dir}/$${base}$${variant_name}.txt"; \
+				sim_config_file="$${dir}/$${base}.json"; \
 				if echo "$$variant_flags" | grep -q -- "-6502"; then \
 					as_cpu="6502"; \
 				else \
@@ -169,8 +170,8 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file \"$$txt_file\" \"$$bin_file\"" >> $(TEST_REPORT); \
-				if $(SIM) --cpu $$as_cpu --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file $$txt_file $$bin_file >> $(TEST_REPORT) 2>&1; then \
+				echo "if $(SIM) --cpu $$as_cpu --config $$sim_config_file --verbose --dump-file $$txt_file $$bin_file >> $(TEST_REPORT)" 2>&1 >> $(TEST_REPORT); \
+				if $(SIM) --cpu $$as_cpu --config $$sim_config_file --verbose --dump-file $$txt_file $$bin_file >> $(TEST_REPORT) 2>&1; then \
 					:; \
 				else \
 					variant_errors="$$variant_errors [SIM_ERROR:$$variant_name]"; \
