@@ -422,6 +422,24 @@ class CodeGen:
                     # Initialize register_used
                     register_used = False
                     
+                    # Quick check: if next non-comment/non-label instruction is a branch,
+                    # the load is used to set flags for the branch condition
+                    for k in range(i + 1, min(i + 2, len(self.code))):
+                        peek = self.code[k].strip().upper()
+                        if not peek or peek.endswith(":") or peek.startswith(";"):
+                            continue
+                        # If next instruction is a branch, the load sets the flags for it
+                        if peek.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BPL ", "BMI ", "BVC ", "BVS ")):
+                            register_used = True
+                            break
+                        # Stop at first meaningful instruction
+                        break
+                    
+                    if register_used:
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
                     # Quick check: if next non-comment/non-label instruction is a store with indirect addressing, keep the load
                     for k in range(i + 1, min(i + 5, len(self.code))):
                         peek = self.code[k].strip().upper()
