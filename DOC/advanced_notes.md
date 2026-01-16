@@ -20,7 +20,7 @@
 
 Consider following example:
 
-```python`
+```
 byte var1
 
 
@@ -36,7 +36,7 @@ Inside the procedure there is no way how to reach global variable var1. Local va
 
 Consider following example:
 
-```python`
+```
 proc test1(byte var1)
     byte var1
 
@@ -49,7 +49,7 @@ This leads to compilation error, because var1 as parameter is the same as locall
 
 Consider following example:
 
-```python`
+```
 proc test1()
     byte var1
 
@@ -66,7 +66,7 @@ Local variable is declared on dedicated memory space and there is no ZAP way how
 However, there is no ZAP language built-in system how to initialize them when upon first procedure call. So you need global variable or
 procedure parameter saying it is first call:
 
-```python`
+```
 ; One possibility to initialize on 1st run:
 byte first = 1
 
@@ -124,12 +124,12 @@ You might find useful knowledge about internal naming system. It is good to know
   - You can use TMP<number> in your code and it will not inerefere with internal TMP<number> variables.
 - Local variable names is structure this way:
 
-```python`
+```
 internal_name = _<PROC_name>_<declared_local_variable_name>
 ```
 
 For example:
-```python`
+```
 proc Test1()
     byte a1
 end
@@ -145,14 +145,14 @@ Local variable a1 is internally named as _TEST1_A1.
 - You can not use END in your assembler code for anything as it is understood as END for ASM in ZAP language.
 - If you change segment (see .segment directive in ca65 documentation), it is your responsibility to properly change segment back into 
 
-```asm`
+```
 .segment "CODE"
 ```
 
 before you leade ASM block.
 
 For example:
-```python
+```
 proc pgm_init()
     ASM
         .segment "FONT"         ; properly aligned in ld65 configuration file
@@ -163,6 +163,9 @@ proc pgm_init()
     END
 end
 ```
+*Warning!*
+Do not forget to call pgm_init from other procedure. Otherwise it will be optimized and not included. In fact, there is no code inside the procedure, just RTS generated in "CODE" segment in the example above.
+
 
 ### ToDo
 - Describe how to share identifiers declard in ZAP in ASM blocks
