@@ -38,9 +38,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="false"
-     inkscape:zoom="11.426482"
-     inkscape:cx="5.075928"
-     inkscape:cy="38.332008"
+     inkscape:zoom="7.9771205"
+     inkscape:cx="-12.598531"
+     inkscape:cy="40.741518"
      inkscape:window-width="1920"
      inkscape:window-height="1151"
      inkscape:window-x="0"
@@ -49,31 +49,19 @@
      inkscape:current-layer="svg56" />
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:34.4825px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ee4227;fill-opacity:1;stroke-width:1.17555"
-     x="3.5653985"
-     y="31.205915"
-     id="text2783-3"
-     transform="scale(1.180979,0.8467551)"><tspan
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.5958px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#006666;fill-opacity:1;stroke-width:0.974861"
+     x="5.2906361"
+     y="29.075068"
+     id="text2783-7"
+     transform="scale(1.1791479,0.84807003)"><tspan
        sodipodi:role="line"
-       id="tspan2781-6"
-       x="3.5653985"
-       y="31.205915"
-       style="fill:#ee4227;fill-opacity:1;stroke-width:1.17555">Z</tspan></text>
+       id="tspan2781-5"
+       x="5.2906361"
+       y="29.075068"
+       style="fill:#006666;fill-opacity:1;stroke-width:0.974861">Z</tspan></text>
   <!-- Background rounded square -->
   <!-- Circuit traces background -->
   <!-- Main Z letter with circuit style -->
   <!-- Chip pins decoration -->
   <!-- Subtle highlight for depth -->
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:28.5958px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;opacity:1;fill:#000000;fill-opacity:1;stroke-width:0.974861"
-     x="5.2906361"
-     y="29.075068"
-     id="text2783"
-     transform="scale(1.1791479,0.84807003)"><tspan
-       sodipodi:role="line"
-       id="tspan2781"
-       x="5.2906361"
-       y="29.075068"
-       style="fill:#000000;fill-opacity:1;stroke-width:0.974861">Z</tspan></text>
 </svg>
