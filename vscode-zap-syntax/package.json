@@ -34,13 +34,6 @@
         "scopeName": "source.zap",
         "path": "./syntaxes/zap.tmLanguage.json"
       }
-    ],
-    "iconThemes": [
-      {
-        "id": "zap-icons",
-        "label": "Zap File Icons",
-        "path": "./icons/zap-icon-theme.json"
-      }
     ]
   }
 }

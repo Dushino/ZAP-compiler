@@ -7,10 +7,12 @@
     { "include": "#preprocessor" },
     { "include": "#keywords" },
     { "include": "#storage-types" },
+    { "include": "#constants" },
     { "include": "#strings" },
     { "include": "#numbers" },
     { "include": "#operators" },
-    { "include": "#functions" }
+    { "include": "#functions" },
+    { "include": "#directives" }
   ],
   "repository": {
     "comments": {
@@ -25,7 +27,7 @@
       "patterns": [
         {
           "name": "keyword.control.preprocessor.zap",
-          "match": "\\.(ifdef|ifndef|else|endif|define|undef|module|include)\\b"
+          "match": "\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment)\\b"
         }
       ]
     },
@@ -33,11 +35,11 @@
       "patterns": [
         {
           "name": "keyword.control.zap",
-          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|REPEAT|UNTIL|FOR|TO|STEP|BREAK|CONTINUE|STOP|RETURN|ASM)\\b"
+          "match": "\\b(IF|THEN|ELSE|ELSEIF|FI|WHILE|DO|OD|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
         },
         {
           "name": "keyword.other.zap",
-          "match": "(?i)\\b(PROC|FUNC|END)\\b"
+          "match": "\\b(PROC|FUNC|END)\\b"
         }
       ]
     },
@@ -45,14 +47,22 @@
       "patterns": [
         {
           "name": "storage.type.zap",
-          "match": "(?i)\\b(BYTE|WORD)\\b"
+          "match": "\\b(BYTE|WORD|CARD|INT|POINTER|ARRAY)\\b"
         },
         {
           "name": "storage.modifier.zap",
-          "match": "(?i)\\b(CONST|STRUCT)\\b"
+          "match": "\\b(CONST)\\b"
         }
       ]
-    },    
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.zap",
+          "match": "\\b(TRUE|FALSE)\\b"
+        }
+      ]
+    },
     "strings": {
       "patterns": [
         {
@@ -77,10 +87,6 @@
         {
           "name": "constant.numeric.decimal.zap",
           "match": "\\b[0-9]+"
-        },
-        {
-            "name": "constant.numeric.binary.zap",
-            "match": "\\%[0-1]+"
         }
       ]
     },
@@ -88,11 +94,11 @@
       "patterns": [
         {
           "name": "keyword.operator.arithmetic.zap",
-          "match": "\\+|-|\\*|/|(?i)MOD|&|\\||\\^|<<|>>"
+          "match": "\\+|-|\\*|/|MOD|&|\\||\\^|<<|>>"
         },
         {
           "name": "keyword.operator.comparison.zap",
-          "match": "==|<|>|<=|>=|!=|AND|OR|NOT"
+          "match": "=|#|<|>|<=|>=|<>|AND|OR|NOT"
         },
         {
           "name": "keyword.operator.assignment.zap",
@@ -104,7 +110,15 @@
       "patterns": [
         {
           "name": "entity.name.function.zap",
-          "match": "\\b([A-Za-z][A-Za-z0-9_]*)\\s*(?=\\()"
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.zap",
+          "match": "\\.(segment)\\b"
         }
       ]
     }

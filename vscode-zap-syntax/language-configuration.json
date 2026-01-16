@@ -11,17 +11,19 @@
     { "open": "{", "close": "}" },
     { "open": "[", "close": "]" },
     { "open": "(", "close": ")" },
+    { "open": "'", "close": "'" },
     { "open": "\"", "close": "\"", "notIn": ["string"] }
   ],
   "surroundingPairs": [
     ["{", "}"],
     ["[", "]"],
     ["(", ")"],
-    ["\"", "\""]
+    ["\"", "\""],
+    ["'", "'"]
   ],
   "folding": {
     "markers": {
-      "start": "^\\s*PROC|FUNC",
+      "start": "^\\s*PROC|FUNC|IF|ELSE|ELSEIF|WHILE",
       "end": "^\\s*RETURN|END"
     }
   }
