@@ -40,7 +40,7 @@ Steps:
 [x] Collapse redundant reloads after load-immediate: LDA #imm followed soon by LDA #same_imm with no A-clobber in between → drop the second load.
 [x] Elide redundant stores: STA zp followed by STA zp with no A changes in between → drop the second (already partly handled; keep excluding fixed addresses and temps in deref setup).
 [x] Remove no-op arithmetic on zero: CLC/SEC immediately followed by ADC #0 or SBC #0 → drop the add/sub.
-[ ] Simplify branches to the next line: BEQ next_label where next_label is the very next instruction → drop the branch (or replace with NOP).
+[x] Simplify branches to the next line: BEQ next_label where next_label is the very next instruction → drop the branch (or replace with NOP).
 [ ] Collapse load-then-compare with zero: LDA zp + CMP #0 → LDA zp + ORA #0 or just LDA zp plus branch on status if your condition was only zero/non-zero; for CMP #0 used before BEQ/BNE, you can drop the CMP and branch on the prior load’s Z flag if untouched.
 [ ] Short-circuit store/load pairs: STA zp followed immediately by LDA zp with no flags dependence between → drop the load.
 [ ] Remove useless increments/decrements of zero-page temps when not used: e.g., INC TMPx followed by overwrite of TMPx before any read.

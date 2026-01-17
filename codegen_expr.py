@@ -870,6 +870,31 @@ class CodeGen:
                         i += 2
                         continue
 
+                # Drop branches that target the very next instruction (ignoring blank/comment lines)
+                branch_mnems = ("BEQ", "BNE", "BCC", "BCS", "BMI", "BPL", "BVC", "BVS")
+                cur_raw = self.code[i].strip()
+                cur_upper = cur_raw.upper()
+                if any(cur_upper.startswith(m + " ") for m in branch_mnems):
+                    parts = cur_raw.split(maxsplit=1)
+                    if len(parts) == 2:
+                        target_label = parts[1].strip()
+                        j = i + 1
+                        while j < len(self.code):
+                            look_raw = self.code[j]
+                            look = look_raw.strip()
+                            if not look or look.startswith(";"):
+                                j += 1
+                                continue
+                            if look.endswith(":") and look[:-1].strip() == target_label:
+                                # Next meaningful line is the target label → drop branch and process label next
+                                i = j
+                                break
+                            # Found a different instruction/label first → keep branch
+                            j = -1
+                            break
+                        if j == i:
+                            continue
+
                 # Drop TXA…TAX and TYA…TAY round-trips when flags are not observed
                 cur_upper = cur
                 if cur_upper in ("TXA", "TYA"):
