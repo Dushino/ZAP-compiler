@@ -36,8 +36,8 @@ Steps:
 - Submit a PR to the Linguist repository with your language definition
 - Once merged, GitHub will automatically highlight ZAP! code blocks
 
-[ ] Remove dead transfers: TXA/TAX or TYA/TAY back-to-back when the register value isn’t used in between.
-[ ] Collapse redundant reloads after load-immediate: LDA #imm followed soon by LDA #same_imm with no A-clobber in between → drop the second load.
+[x] Remove dead transfers: TXA/TAX or TYA/TAY back-to-back when the register value isn’t used in between.
+[x] Collapse redundant reloads after load-immediate: LDA #imm followed soon by LDA #same_imm with no A-clobber in between → drop the second load.
 [ ] Elide redundant stores: STA zp followed by STA zp with no A changes in between → drop the second (already partly handled; keep excluding fixed addresses and temps in deref setup).
 [ ] Remove no-op arithmetic on zero: CLC/SEC immediately followed by ADC #0 or SBC #0 → drop the add/sub.
 [ ] Simplify branches to the next line: BEQ next_label where next_label is the very next instruction → drop the branch (or replace with NOP).

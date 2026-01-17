@@ -308,6 +308,36 @@ class CodeGen:
                         optimized.append(self.code[i])
                         i += 1
                         continue
+
+                # Drop repeated LDA #imm when nothing in between clobbers A or N/Z flags
+                if curU.startswith("LDA #"):
+                    cur_val = self._lda_const(cur)
+                    if cur_val is not None:
+                        j = i + 1
+                        seen_clobber = False
+                        while j < len(self.code) and j < i + 20:
+                            look_raw = self.code[j]
+                            look = look_raw.strip()
+                            lookU = look.upper()
+                            if not look or look.endswith(":") or look.startswith(";"):
+                                j += 1
+                                continue
+                            # Stop on control flow changes
+                            if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                break
+                            # Stop on branches (flags are observed)
+                            if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                                break
+                            # If anything sets flags or touches A, abort
+                            if self._sets_nz_flags(look):
+                                seen_clobber = True
+                                break
+                            if lookU.startswith("LDA #"):
+                                look_val = self._lda_const(look_raw)
+                                if look_val is not None and look_val == cur_val and not seen_clobber:
+                                    skip_indices.add(j)
+                                break
+                            j += 1
                 
                 # Check if current instruction is a load (LDA/LDX/LDY) that will be stored to fixed-address or temps
                 # If so, never optimize away the load. Look ahead up to 5 instructions to find the store.
