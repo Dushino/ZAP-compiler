@@ -501,6 +501,60 @@ class CodeGen:
                                         skip_indices.add(j)
                                         break
                                 j += 1
+                
+                # Elide spaced redundant STX when X is unchanged between
+                if curU.startswith("STX "):
+                    cur_parts = cur.split(maxsplit=1)
+                    if len(cur_parts) == 2:
+                        cur_operand = cur_parts[1].strip()
+                        cur_operand_upper = cur_operand.upper()
+                        if not self._is_fixed_address(cur_operand) and "TMP" not in cur_operand_upper and "(" not in cur_operand_upper:
+                            j = i + 1
+                            while j < len(self.code) and j < i + 20:
+                                look_raw = self.code[j]
+                                look = look_raw.strip()
+                                lookU = look.upper()
+                                if not look or look.endswith(":") or look.startswith(";"):
+                                    j += 1
+                                    continue
+                                if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                    break
+                                # Stop if X is clobbered (LDX, TAX, INX, DEX, PLX)
+                                if any(lookU.startswith(op) or lookU == op for op in ["LDX ", "TAX", "INX", "DEX", "PLX"]):
+                                    break
+                                if lookU.startswith("STX "):
+                                    look_parts = look.split(maxsplit=1)
+                                    if len(look_parts) == 2 and look_parts[1].strip().upper() == cur_operand_upper:
+                                        skip_indices.add(j)
+                                        break
+                                j += 1
+                
+                # Elide spaced redundant STY when Y is unchanged between
+                if curU.startswith("STY "):
+                    cur_parts = cur.split(maxsplit=1)
+                    if len(cur_parts) == 2:
+                        cur_operand = cur_parts[1].strip()
+                        cur_operand_upper = cur_operand.upper()
+                        if not self._is_fixed_address(cur_operand) and "TMP" not in cur_operand_upper and "(" not in cur_operand_upper:
+                            j = i + 1
+                            while j < len(self.code) and j < i + 20:
+                                look_raw = self.code[j]
+                                look = look_raw.strip()
+                                lookU = look.upper()
+                                if not look or look.endswith(":") or look.startswith(";"):
+                                    j += 1
+                                    continue
+                                if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                    break
+                                # Stop if Y is clobbered (LDY, TAY, INY, DEY, PLY)
+                                if any(lookU.startswith(op) or lookU == op for op in ["LDY ", "TAY", "INY", "DEY", "PLY"]):
+                                    break
+                                if lookU.startswith("STY "):
+                                    look_parts = look.split(maxsplit=1)
+                                    if len(look_parts) == 2 and look_parts[1].strip().upper() == cur_operand_upper:
+                                        skip_indices.add(j)
+                                        break
+                                j += 1
 
             # Remove orphaned register loads (LDA/LDX/LDY) when register is never used
             # Scan forward until RTS/JMP/JSR or until register is used/overwritten
