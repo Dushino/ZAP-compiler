@@ -42,7 +42,7 @@ Steps:
 [x] Remove no-op arithmetic on zero: CLC/SEC immediately followed by ADC #0 or SBC #0 → drop the add/sub.
 [x] Simplify branches to the next line: BEQ next_label where next_label is the very next instruction → drop the branch (or replace with NOP).
 [x] Collapse load-then-compare with zero: LDA zp + CMP #0 → LDA zp plus branch on status if your condition was only zero/non-zero; for CMP #0 used before BEQ/BNE, you can drop the CMP and branch on the prior load's Z flag if untouched.
-[ ] Short-circuit store/load pairs: STA zp followed immediately by LDA zp with no flags dependence between → drop the load.
+[x] Short-circuit store/load pairs: STA zp followed immediately by LDA zp with no flags dependence between → drop the load.
 [ ] Remove useless increments/decrements of zero-page temps when not used: e.g., INC TMPx followed by overwrite of TMPx before any read.
 [ ] Optimize 16-bit INC/DEC by small constants: sequence of multiple INC zp/INC zp+1 pairs can be replaced by a short add routine if constants are small (k≤3) or consolidate into CLC/ADC #k when low-byte is in A and X has high-byte.
 [ ] Fold identical conditional jumps: BEQ L1 followed by JMP L1 (same target) → just BEQ L1.

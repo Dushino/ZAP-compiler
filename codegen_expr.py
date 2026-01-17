@@ -981,6 +981,116 @@ class CodeGen:
                                 skip_indices.add(cmp_index)
                             break
                 
+                # Short-circuit STA addr + LDA addr: drop LDA when A value not clobbered in between
+                # Pattern: STA addr followed by LDA addr (same operand) with no A-clobber between
+                if curU.startswith("STA "):
+                    sta_parts = cur.split(maxsplit=1)
+                    if len(sta_parts) == 2:
+                        sta_operand = sta_parts[1].strip()
+                        sta_operand_upper = sta_operand.upper()
+                        # Skip if storing to fixed-address or temps (side effects)
+                        if not self._is_fixed_address(sta_operand) and "TMP" not in sta_operand_upper and "(" not in sta_operand_upper:
+                            j = i + 1
+                            a_clobbered = False
+                            lda_index = -1
+                            while j < len(self.code) and j < i + 10:
+                                look_raw = self.code[j]
+                                look = look_raw.strip()
+                                lookU = look.upper()
+                                if not look or look.endswith(":") or look.startswith(";"):
+                                    j += 1
+                                    continue
+                                # Stop at control flow barriers
+                                if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                    break
+                                # Detect LDA addr (same operand as STA)
+                                if lookU.startswith("LDA "):
+                                    lda_parts = lookU.split(maxsplit=1)
+                                    if len(lda_parts) == 2 and lda_parts[1].strip() == sta_operand_upper:
+                                        # Found matching LDA after STA
+                                        if not a_clobbered:
+                                            lda_index = j
+                                    break
+                                # Check if A is clobbered
+                                if self._clobbers_a(look):
+                                    a_clobbered = True
+                                    break
+                                j += 1
+                            
+                            # If matching LDA found with A unchanged, drop the LDA
+                            if lda_index != -1:
+                                skip_indices.add(lda_index)
+                
+                # Short-circuit STX addr + LDX addr: drop LDX when X value not clobbered in between
+                if curU.startswith("STX "):
+                    stx_parts = cur.split(maxsplit=1)
+                    if len(stx_parts) == 2:
+                        stx_operand = stx_parts[1].strip()
+                        stx_operand_upper = stx_operand.upper()
+                        if not self._is_fixed_address(stx_operand) and "TMP" not in stx_operand_upper and "(" not in stx_operand_upper:
+                            j = i + 1
+                            x_clobbered = False
+                            ldx_index = -1
+                            while j < len(self.code) and j < i + 10:
+                                look_raw = self.code[j]
+                                look = look_raw.strip()
+                                lookU = look.upper()
+                                if not look or look.endswith(":") or look.startswith(";"):
+                                    j += 1
+                                    continue
+                                if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                    break
+                                # Detect LDX addr (same operand as STX)
+                                if lookU.startswith("LDX "):
+                                    ldx_parts = lookU.split(maxsplit=1)
+                                    if len(ldx_parts) == 2 and ldx_parts[1].strip() == stx_operand_upper:
+                                        if not x_clobbered:
+                                            ldx_index = j
+                                    break
+                                # Check if X is clobbered (LDX, TAX, INX, DEX, PLX)
+                                if any(lookU.startswith(op) or lookU == op for op in ["LDX ", "TAX", "INX", "DEX", "PLX"]):
+                                    x_clobbered = True
+                                    break
+                                j += 1
+                            
+                            if ldx_index != -1:
+                                skip_indices.add(ldx_index)
+                
+                # Short-circuit STY addr + LDY addr: drop LDY when Y value not clobbered in between
+                if curU.startswith("STY "):
+                    sty_parts = cur.split(maxsplit=1)
+                    if len(sty_parts) == 2:
+                        sty_operand = sty_parts[1].strip()
+                        sty_operand_upper = sty_operand.upper()
+                        if not self._is_fixed_address(sty_operand) and "TMP" not in sty_operand_upper and "(" not in sty_operand_upper:
+                            j = i + 1
+                            y_clobbered = False
+                            ldy_index = -1
+                            while j < len(self.code) and j < i + 10:
+                                look_raw = self.code[j]
+                                look = look_raw.strip()
+                                lookU = look.upper()
+                                if not look or look.endswith(":") or look.startswith(";"):
+                                    j += 1
+                                    continue
+                                if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                    break
+                                # Detect LDY addr (same operand as STY)
+                                if lookU.startswith("LDY "):
+                                    ldy_parts = lookU.split(maxsplit=1)
+                                    if len(ldy_parts) == 2 and ldy_parts[1].strip() == sty_operand_upper:
+                                        if not y_clobbered:
+                                            ldy_index = j
+                                    break
+                                # Check if Y is clobbered (LDY, TAY, INY, DEY, PLY)
+                                if any(lookU.startswith(op) or lookU == op for op in ["LDY ", "TAY", "INY", "DEY", "PLY"]):
+                                    y_clobbered = True
+                                    break
+                                j += 1
+                            
+                            if ldy_index != -1:
+                                skip_indices.add(ldy_index)
+                
                 # Optimize TAY ... TYA STA addr → STA addr ... (when A is modified between but not used)
                 # Pattern: TAY, (instructions that modify A), TYA, STA addr
                 # Can be replaced with: STA addr, (instructions without TYA)
