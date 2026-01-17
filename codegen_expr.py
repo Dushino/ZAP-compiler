@@ -1201,6 +1201,43 @@ class CodeGen:
                             if ldy_index != -1:
                                 skip_indices.add(ldy_index)
                 
+                # Drop useless INC/DEC of temps when overwritten before any read
+                # Pattern: INC TMPx / DEC TMPx followed by STA TMPx before TMPx is read
+                cur_strip = self.code[i].strip()
+                cur_upper = cur_strip.upper()
+                inc_op = self._inc_operand(cur_upper)
+                dec_op = self._dec_operand(cur_upper)
+                if (inc_op or dec_op) and "TMP" in (inc_op or dec_op).upper():
+                    temp_name = (inc_op or dec_op).upper()
+                    j = i + 1
+                    is_useless = False
+                    while j < len(self.code) and j < i + 20:
+                        look = self.code[j].strip()
+                        lookU = look.upper()
+                        if not look or look.endswith(":") or look.startswith(";"):
+                            j += 1
+                            continue
+                        # Stop at control flow boundaries
+                        if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                            break
+                        # Check if temp is read (LDA TMPx, CMP TMPx, ADC TMPx, etc.)
+                        if any(op in lookU for op in ["LDA ", "LDX ", "LDY ", "CMP ", "CPX ", "CPY ", "ORA ", "AND ", "EOR ", "ADC ", "SBC ", "BIT "]):
+                            if temp_name in lookU:
+                                # Temp is read; INC/DEC is not useless
+                                break
+                        # Check if temp is written (STA TMPx, STX TMPx, etc.) without prior read
+                        if any(op in lookU for op in ["STA ", "STX ", "STY ", "STZ "]):
+                            if temp_name in lookU:
+                                # Temp overwritten before any read; INC/DEC is useless
+                                is_useless = True
+                                break
+                        j += 1
+                    
+                    # If INC/DEC is useless (overwritten before read), skip it
+                    if is_useless:
+                        i += 1
+                        continue
+                
                 # Optimize TAY ... TYA STA addr → STA addr ... (when A is modified between but not used)
                 # Pattern: TAY, (instructions that modify A), TYA, STA addr
                 # Can be replaced with: STA addr, (instructions without TYA)
