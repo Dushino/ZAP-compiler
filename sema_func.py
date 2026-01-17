@@ -15,15 +15,29 @@ class AnalyzedFunc:
 
 
 class FuncAnalyzer:
-    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker):
+    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None):
         self.func_table = func_table
         self.expr_tc = expr_tc
+        self.debug = debug_info or {}
 
     def analyze_decl(self, func: FuncDecl):
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
-        self.func_table.define(
-            FuncSymbol(func.name, ret_sem, len(func.params))
-        )
+        try:
+            self.func_table.define(
+                FuncSymbol(func.name, ret_sem, len(func.params))
+            )
+        except SemanticError as e:
+            info = self.debug.get("proc_src", {}).get(func.name)
+            if info:
+                if len(info) == 3:
+                    fname, line, _text = info
+                    col = 1
+                else:
+                    fname, line, col, _text = info
+                err = SemanticError(e.message, line=line, col=col)
+                err.filename = fname
+                raise err
+            raise
 
     def analyze_func(self, func: FuncDecl, global_symtab: SymbolTable) -> AnalyzedFunc:
         # lokály (stejně jako u PROC)
@@ -66,14 +80,48 @@ class FuncAnalyzer:
         for stmt in func.body:
             if isinstance(stmt, ReturnStmt):
                 has_return = True
-                et = self.expr_tc.check(stmt.expr)
+                # Type-check return expression; attach location if error occurs
+                try:
+                    et = self.expr_tc.check(stmt.expr)
+                except SemanticError as e:
+                    info = self.debug.get("stmt_src", {}).get(id(stmt))
+                    if info:
+                        if len(info) == 3:
+                            fname, line, _text = info
+                            col = 1
+                        else:
+                            fname, line, col, _text = info
+                        err = SemanticError(e.message, line=line, col=col)
+                        err.filename = fname
+                        raise err
+                    raise
                 if et.sem_type.base != ret_sem.base:
+                    info = self.debug.get("stmt_src", {}).get(id(stmt))
+                    if info:
+                        if len(info) == 3:
+                            fname, line, _text = info
+                            col = 1
+                        else:
+                            fname, line, col, _text = info
+                        err = SemanticError("RETURN type mismatch", line=line, col=col)
+                        err.filename = fname
+                        raise err
                     raise SemanticError("RETURN type mismatch")
 
         # restore previous symbol table
         self.expr_tc.symtab = prev_symtab
 
         if not has_return:
+            info = self.debug.get("proc_src", {}).get(func.name)
+            if info:
+                if len(info) == 3:
+                    fname, line, _text = info
+                    col = 1
+                else:
+                    fname, line, col, _text = info
+                err = SemanticError("FUNC must have RETURN", line=line, col=col)
+                err.filename = fname
+                raise err
             raise SemanticError("FUNC must have RETURN")
 
         return AnalyzedFunc(

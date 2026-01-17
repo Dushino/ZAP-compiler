@@ -121,7 +121,7 @@ tests: clean
 				else \
 					echo "$(ZC) $$variant_flags \"$$zapfile\" -o \"$$output_file\"" >> $(TEST_REPORT); \
 				fi; \
-				if ! $(ZC) $$variant_flags $$zapfile -o $$output_file >/dev/null 2>&1 >> $(TEST_REPORT); then \
+				if ! $(ZC) $$variant_flags $$zapfile -o $$output_file >> $(TEST_REPORT) 2>&1; then \
 					variant_errors="$$variant_errors [ZAP_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ZAP compiler failed" >> $(TEST_REPORT); \
@@ -131,7 +131,7 @@ tests: clean
 					continue; \
 				fi; \
 				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g \"$$output_file\" -o \"$$obj_file\"" >> $(TEST_REPORT); \
-				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >/dev/null 2>&1 >> $(TEST_REPORT); then \
+				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >> $(TEST_REPORT) 2>&1; then \
 					variant_errors="$$variant_errors [CA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ca65 assembler failed" >> $(TEST_REPORT); \
@@ -141,7 +141,7 @@ tests: clean
 					continue; \
 				fi; \
 				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o \"$$exehdr_obj\"" >> $(TEST_REPORT); \
-				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >/dev/null 2>&1 >> $(TEST_REPORT); then \
+				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >> $(TEST_REPORT) 2>&1; then \
 					variant_errors="$$variant_errors [CA65_ERROR:exehdr-$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ca65 assembler failed on exehdr" >> $(TEST_REPORT); \
@@ -151,7 +151,7 @@ tests: clean
 					continue; \
 				fi; \
 				echo "$(LD) -C cfg/my_atari.cfg \"$$obj_file\" \"$$exehdr_obj\" -o \"$$bin_file\"" >> $(TEST_REPORT); \
-				if ! $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >/dev/null 2>&1 >> $(TEST_REPORT); then \
+				if ! $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >> $(TEST_REPORT) 2>&1; then \
 					variant_errors="$$variant_errors [LD65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ld65 linker failed" >> $(TEST_REPORT); \
@@ -225,7 +225,8 @@ tests: clean
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
 			printf "%-30s" "$$base.zap: "; \
-			if $(ZC) -6502 $$zapfile -o $${dir}/$${base}.s >/dev/null 2>&1; then \
+			# Also log compiler output for should-fail tests to the report \
+			if $(ZC) -6502 $$zapfile -o $${dir}/$${base}.s >> $(TEST_REPORT) 2>&1; then \
 				echo "✗ FAIL (expected to fail but passed)"; \
 				error_count=$$((error_count + 1)); \
 			else \

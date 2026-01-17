@@ -64,6 +64,16 @@ class CodeGen:
         # Track fixed-address variables (hardware registers) - never optimize these
         self.fixed_address_labels: set[str] = set()
 
+    def tc_check(self, expr):
+        # Wrapper to attach source location to type-checker errors
+        try:
+            return self.tc.check(expr)
+        except SemanticError as e:
+            # If error lacks position, attach current statement info
+            if getattr(e, 'line', None) is None and self.current_stmt_info:
+                self._raise_error(e.message)
+            raise
+
     def new_label(self, prefix):
         self.label_id += 1
         return f"{prefix}_{self.label_id}"
@@ -1694,13 +1704,13 @@ class CodeGen:
     def emit_src_comment_for_local(self, proc_name: str, var_name: str):
         info = self.local_decl_src.get((proc_name, var_name))
         if info:
-            fname, line, text = info
+            fname, line, col, text = info
             self.emit(f"; {fname} {line}: {text}")
 
     def emit_src_comment_for_global(self, var_name: str):
         info = self.global_decl_src.get(var_name)
         if info:
-            fname, line, text = info
+            fname, line, col, text = info
             self.emit(f"; {fname} {line}: {text}")
 
     def _raise_error(self, msg: str):
@@ -1722,7 +1732,7 @@ class CodeGen:
         self.emit(f"\tLDX #>{sym_name}")
 
     def _gen_literal(self, expr: IntLiteral):
-        t = self.tc.check(expr)
+        t = self.tc_check(expr)
         val = expr.value
         self.emit(f"\tLDA #{val & 0xFF}")
         # self.emit(f'; {t}')
@@ -1731,7 +1741,7 @@ class CodeGen:
 
 
     def _gen_identifier(self, expr: Identifier):
-        t = self.tc.check(expr)
+        t = self.tc_check(expr)
         sym = self.current_symtab.lookup(expr.name)
 
         if sym.is_const:
@@ -1767,7 +1777,7 @@ class CodeGen:
             self.emit("\tLDX #0")
 
     def _gen_deref(self, expr: DerefExpr):
-        t = self.tc.check(expr)
+        t = self.tc_check(expr)
 
         # 1) vygeneruj adresu pointeru → A/X
         self.gen_expr(expr.pointer)
@@ -1842,9 +1852,9 @@ class CodeGen:
                 self.emit("\tSTA (TMP0),Y")
 
     def _gen_binary(self, expr: BinaryExpr):
-        t = self.tc.check(expr)
-        left_t = self.tc.check(expr.left)
-        right_t = self.tc.check(expr.right)
+        t = self.tc_check(expr)
+        left_t = self.tc_check(expr.left)
+        right_t = self.tc_check(expr.right)
         
         # Determine operand sizes
         left_16 = left_t.sem_type.base == "WORD"
@@ -2141,7 +2151,7 @@ class CodeGen:
                 for i in range(n):
                     pname, width = specs[i]
                     arg = expr.args[i]
-                    arg_type = self.tc.check(arg)
+                    arg_type = self.tc_check(arg)
                     self.gen_expr(arg)
                     asm = f"_{expr.name}_{pname}"
                     if width == 1:
@@ -2177,8 +2187,8 @@ class CodeGen:
         rhs = subst_const(rhs, cast(SymbolTable, self.current_symtab))
         rhs = fold_expr(rhs)
 
-        lhs_t = self.tc.check(lhs)
-        rhs_t = self.tc.check(rhs)
+        lhs_t = self.tc_check(lhs)
+        rhs_t = self.tc_check(rhs)
 
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr)):
@@ -2570,7 +2580,7 @@ class CodeGen:
                 for i in range(n):
                     pname, width = specs[i]
                     arg = stmt.args[i]
-                    arg_type = self.tc.check(arg)
+                    arg_type = self.tc_check(arg)
                     # evaluate arg into A/(X)
                     self.gen_expr(arg)
                     asm = f"_{stmt.name}_{pname}"
@@ -2731,8 +2741,8 @@ class CodeGen:
             self.tc.symtab = prev_tc_symtab
 
     def _gen_relational(self, expr: BinaryExpr):
-        left_t = self.tc.check(expr.left)
-        right_t = self.tc.check(expr.right)
+        left_t = self.tc_check(expr.left)
+        right_t = self.tc_check(expr.right)
         is_16bit = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
 
         # Try a fast 8-bit compare when the right operand is a simple byte value
@@ -2866,8 +2876,8 @@ class CodeGen:
 
         This avoids boolean materialization and keeps conditional branches within range by funneling through local labels.
         """
-        left_t = self.tc.check(cond.left)
-        right_t = self.tc.check(cond.right)
+        left_t = self.tc_check(cond.left)
+        right_t = self.tc_check(cond.right)
         is_16bit = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
 
         cmp_lo = "TMP0"

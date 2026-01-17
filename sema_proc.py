@@ -13,19 +13,45 @@ class AnalyzedProc:
 
 
 class ProcAnalyzer:
-    def __init__(self, procs: ProcTable):
+    def __init__(self, procs: ProcTable, debug_info: dict | None = None):
         self.procs = procs
+        self.debug = debug_info or {}
 
     def analyze_decl(self, proc: ProcDecl):
-        self.procs.define(ProcSymbol(proc.name, len(proc.params)))
+        try:
+            self.procs.define(ProcSymbol(proc.name, len(proc.params)))
+        except SemanticError as e:
+            # Attach location of PROC header
+            info = self.debug.get("proc_src", {}).get(proc.name)
+            if info:
+                if len(info) == 3:
+                    fname, line, _text = info
+                    col = 1
+                else:
+                    fname, line, col, _text = info
+                err = SemanticError(e.message, line=line, col=col)
+                err.filename = fname
+                raise err
+            raise
 
     def analyze_call(self, call: CallStmt):
         proc_sym = self.procs.lookup(call.name)  # musí existovat
         if len(call.args) != proc_sym.param_count:
-            raise SemanticError(
+            msg = (
                 f"Procedure '{call.name}' expects {proc_sym.param_count} parameters, "
                 f"but {len(call.args)} were provided"
             )
+            info = self.debug.get("stmt_src", {}).get(id(call))
+            if info:
+                if len(info) == 3:
+                    fname, line, _text = info
+                    col = 1
+                else:
+                    fname, line, col, _text = info
+                err = SemanticError(msg, line=line, col=col)
+                err.filename = fname
+                raise err
+            raise SemanticError(msg)
 
     def analyze_proc(
         self,

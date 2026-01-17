@@ -364,19 +364,31 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     for d in program.decls:
         decl_an.analyze(d)
     
+    # --- debug info ---
+    debug = getattr(program, "debug", None) or {}
+
     # Check for collisions with .define symbols
     if defined_symbols:
-        for name in global_symtab._symbols:
+        for name in list(global_symtab._symbols.keys()):
             if name in defined_symbols:
                 from errors import SemanticError
+                info = debug.get("global_decl_src", {}).get(name)
+                if info:
+                    fname, line, col, _text = info
+                    e = SemanticError(f"Variable '{name}' conflicts with .define symbol", line=line, col=col)
+                    e.filename = fname
+                    src_lines = debug.get("source_lines")
+                    if src_lines:
+                        e.source_text = "\n".join(src_lines)
+                    raise e
                 raise SemanticError(f"Variable '{name}' conflicts with .define symbol")
 
     # --- expression type checker ---
     expr_tc = ExprTypeChecker(global_symtab, func_table)
 
     # --- procedures and functions ---
-    proc_an = ProcAnalyzer(proc_table)
-    func_an = FuncAnalyzer(func_table, expr_tc)
+    proc_an = ProcAnalyzer(proc_table, debug_info=debug)
+    func_an = FuncAnalyzer(func_table, expr_tc, debug_info=debug)
     analyzed_procs = []
     analyzed_funcs = []
     
@@ -387,20 +399,56 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             # Check for collision with existing global variables
             if p.name in global_symtab._symbols:
                 from errors import SemanticError
+                info = debug.get("proc_src", {}).get(p.name)
+                if info:
+                    fname, line, col, _text = info
+                    e = SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=line, col=col)
+                    e.filename = fname
+                    src_lines = debug.get("source_lines")
+                    if src_lines:
+                        e.source_text = "\n".join(src_lines)
+                    raise e
                 raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable")
             # Check for collision with .define symbols
             if defined_symbols and p.name in defined_symbols:
                 from errors import SemanticError
+                info = debug.get("proc_src", {}).get(p.name)
+                if info:
+                    fname, line, col, _text = info
+                    e = SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=line, col=col)
+                    e.filename = fname
+                    src_lines = debug.get("source_lines")
+                    if src_lines:
+                        e.source_text = "\n".join(src_lines)
+                    raise e
                 raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol")
         elif isinstance(p, FuncDecl):
             func_an.analyze_decl(p)
             # Check for collision with existing global variables
             if p.name in global_symtab._symbols:
                 from errors import SemanticError
+                info = debug.get("proc_src", {}).get(p.name)
+                if info:
+                    fname, line, col, _text = info
+                    e = SemanticError(f"Function '{p.name}' conflicts with existing variable", line=line, col=col)
+                    e.filename = fname
+                    src_lines = debug.get("source_lines")
+                    if src_lines:
+                        e.source_text = "\n".join(src_lines)
+                    raise e
                 raise SemanticError(f"Function '{p.name}' conflicts with existing variable")
             # Check for collision with .define symbols
             if defined_symbols and p.name in defined_symbols:
                 from errors import SemanticError
+                info = debug.get("proc_src", {}).get(p.name)
+                if info:
+                    fname, line, col, _text = info
+                    e = SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=line, col=col)
+                    e.filename = fname
+                    src_lines = debug.get("source_lines")
+                    if src_lines:
+                        e.source_text = "\n".join(src_lines)
+                    raise e
                 raise SemanticError(f"Function '{p.name}' conflicts with .define symbol")
     
     # Ensure main() procedure exists (required for initialization code)

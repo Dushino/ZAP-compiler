@@ -189,13 +189,17 @@ class ModuleSystem:
                 line = None
                 col = None
                 if info:
-                    _, line, text = info
-                    if text:
-                        idx = text.upper().find(name)
-                        if idx != -1:
-                            col = idx + 1
-                    if col is None:
-                        col = 1
+                    if len(info) == 4:
+                        _, line, col, text = info
+                    else:
+                        # Fallback for 3-tuple (shouldn't happen with new parser)
+                        _, line, text = info
+                        if text:
+                            idx = text.upper().find(name)
+                            if idx != -1:
+                                col = idx + 1
+                        if col is None:
+                            col = 1
                 err = SemanticError(msg, line=line, col=col)
                 if source_text:
                     setattr(err, "source_text", source_text)

@@ -18,8 +18,9 @@ class Parser:
         self.current_proc_name: str | None = None
         # Statement source: id(node) -> (filename, line, col, line_text)
         self.stmt_src: dict[int, tuple[str, int, int, str]] = {}
-        self.local_decl_src: dict[tuple[str, str], tuple[str, int, str]] = {}
-        self.global_decl_src: dict[str, tuple[str, int, str]] = {}
+        # Declaration source: (filename, line, col, line_text)
+        self.local_decl_src: dict[tuple[str, str], tuple[str, int, int, str]] = {}
+        self.global_decl_src: dict[str, tuple[str, int, int, str]] = {}
         # Proc/Func source: name -> (filename, line, col, line_text)
         self.proc_src: dict[str, tuple[str, int, int, str]] = {}
         self.param_src: dict[tuple[str, str], tuple[str, int, str]] = {}
@@ -317,9 +318,9 @@ class Parser:
             # record declaration source
             line_text = self.source_lines[decl_line-1] if 1 <= decl_line <= len(self.source_lines) else ""
             if self.current_proc_name:
-                self.local_decl_src[(self.current_proc_name, name)] = (self.filename, decl_line, line_text)
+                self.local_decl_src[(self.current_proc_name, name)] = (self.filename, decl_line, decl_col, line_text)
             else:
-                self.global_decl_src[name] = (self.filename, decl_line, line_text)
+                self.global_decl_src[name] = (self.filename, decl_line, decl_col, line_text)
             return Declarator(name, array_size, address, init, decl_line, decl_col)
 
         declarators = [parse_declarator()]

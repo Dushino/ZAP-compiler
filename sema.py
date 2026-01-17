@@ -57,23 +57,28 @@ class DeclarationAnalyzer:
             address_val = eval_const_expr(d.address)
 
         if is_array:
-            sz_val = eval_const_expr(d.array_size)
+            try:
+                sz_val = eval_const_expr(d.array_size)
+            except SemanticError as e:
+                raise SemanticError(e.message, line=d.line, col=d.col)
             if sz_val == -1:
                 # [] → infer size
                 array_len = None
             elif sz_val <= 0:
-                raise SemanticError("Array size must be positive")
+                raise SemanticError("Array size must be positive", line=d.line, col=d.col)
             else:
                 array_len = sz_val
 
         # const pravidla
         if decl.is_const:
             if d.address is not None:
-                raise SemanticError("CONST cannot have address")
+                raise SemanticError("CONST cannot have address", line=d.line, col=d.col)
             if not isinstance(d.initializer, ExprInit):
-                raise SemanticError("CONST must have expression initializer")
-
-            val = eval_const_expr(d.initializer.expr)
+                raise SemanticError("CONST must have expression initializer", line=d.line, col=d.col)
+            try:
+                val = eval_const_expr(d.initializer.expr)
+            except SemanticError as e:
+                raise SemanticError(e.message, line=d.line, col=d.col)
 
             sym = Symbol(
                 name=d.name,
@@ -91,7 +96,7 @@ class DeclarationAnalyzer:
                 self.symtab.define(sym)
             except SemanticError as e:
                 # Re-raise with better context for constants
-                raise SemanticError(f"Constant '{d.name}': {e.message}")
+                raise SemanticError(f"Constant '{d.name}': {e.message}", line=d.line, col=d.col)
             return
 
 
@@ -101,27 +106,27 @@ class DeclarationAnalyzer:
                 if array_len is None:
                     array_len = len(d.initializer.values)
                 elif array_len != len(d.initializer.values):
-                    raise SemanticError("Array initializer size mismatch")
+                    raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
 
             elif isinstance(d.initializer, StringInit):
                 if sem_type.base.lower() != "byte":
-                    raise SemanticError("String only allowed for byte array")
+                    raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
                 if array_len is None:
                     array_len = len(d.initializer.value) + 1
 
             elif d.initializer is not None:
-                raise SemanticError("Invalid array initializer")
+                raise SemanticError("Invalid array initializer", line=d.line, col=d.col)
 
             if array_len is None:
-                raise SemanticError("Array size required")
+                raise SemanticError("Array size required", line=d.line, col=d.col)
 
         # skalární proměnná
         else:
             if isinstance(d.initializer, ListInit):
-                raise SemanticError("List initializer for scalar")
+                raise SemanticError("List initializer for scalar", line=d.line, col=d.col)
 
             if isinstance(d.initializer, StringInit):
-                raise SemanticError("String initializer for scalar")
+                raise SemanticError("String initializer for scalar", line=d.line, col=d.col)
 
         sym = Symbol(
             name=d.name,
@@ -140,5 +145,5 @@ class DeclarationAnalyzer:
             self.symtab.define(sym)
         except SemanticError as e:
             # Re-raise with better context
-            raise SemanticError(f"{e.message}")
+            raise SemanticError(f"{e.message}", line=d.line, col=d.col)
 
