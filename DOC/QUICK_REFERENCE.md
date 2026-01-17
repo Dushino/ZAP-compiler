@@ -10,7 +10,7 @@ Pointers at fixed addresses outside zero page (like `byte ^DLIST @560`) can't be
 | Operation | Works? | Issue |
 |-----------|--------|-------|
 | Declare fixed-address pointer | ✅ | Symbolic only (`DLIST = $0560`) |
-| Assign non-ZP pointer to ZP pointer | ❌ | No support |
+| Assign non-ZP pointer to ZP pointer | ✅ | Works normally |
 | Dereference ZP pointer | ✅ | Works normally |
 | Dereference non-ZP pointer | ❌ | Fails: must be in ZP |
 
