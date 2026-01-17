@@ -25,3 +25,13 @@
 [x] compiler defines in command line
 [ ] create scr.zap to distinguish between Atari and SBC
 [ ] STATIC keyword for local variables? - only disables check for using noninitialized variable
+[ ]  Describe how to share identifiers declard in ZAP! in ASM blocks
+[ ]  Describe how to use labels from ASM blocks in ZAP! code
+[ ]  Export and import symbols from/to whole ZAP! program. Use case: ZAP! program is part of bigger package.
+[ ]  Introduce ZAP! to github:
+[ ] Add to GitHub Linguist (Recommended for long-term)
+You could submit your ZAP! language definition to the GitHub Linguist project. This would get ZAP1 officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.
+Steps:
+- Format your language definition according to Linguist's requirements
+- Submit a PR to the Linguist repository with your language definition
+- Once merged, GitHub will automatically highlight ZAP! code blocks
