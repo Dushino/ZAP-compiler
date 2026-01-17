@@ -64,9 +64,13 @@ class ExprTypeChecker:
             rt = self.check(expr.right)
             op = expr.op
 
-            # žádné operace s LVALUE
-            if lt.kind == ExprKind.LVALUE or rt.kind == ExprKind.LVALUE:
-                raise SemanticError("Invalid use of lvalue in expression")
+            # Convert LVALUE to VALUE when used in expression context (reading)
+            # LVALUE means "location that can be written to", but when used in
+            # an expression, we're reading from it (e.g., ptr^ + 1 or arr[i] + 1)
+            if lt.kind == ExprKind.LVALUE:
+                lt = ExprType(lt.sem_type, ExprKind.VALUE)
+            if rt.kind == ExprKind.LVALUE:
+                rt = ExprType(rt.sem_type, ExprKind.VALUE)
 
             # aritmetika
             if op in {
@@ -106,6 +110,9 @@ class ExprTypeChecker:
         # unární OP
         if isinstance(expr, UnaryExpr):
             t = self.check(expr.expr)
+            # Convert LVALUE to VALUE when reading (e.g., !ptr^ or -ptr^)
+            if t.kind == ExprKind.LVALUE:
+                t = ExprType(t.sem_type, ExprKind.VALUE)
             if t.kind != ExprKind.VALUE:
                 raise SemanticError("Logical NOT requires value")
             return ExprType(SemType("BYTE", False), ExprKind.VALUE)

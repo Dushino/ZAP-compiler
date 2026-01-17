@@ -171,8 +171,16 @@ class CodeGen:
 
     def peephole_optimize(self):
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
+        # Disable peephole optimization if code uses PHA/PLA (stack-based temp preservation)
+        # PHA/PLA sequences are too complex for safe optimization
+        has_pha_pla = any("PHA" in line.upper() or "PLA" in line.upper() for line in self.code)
+        if has_pha_pla:
+            # Return code unoptimized - PHA/PLA sections are too risky to optimize
+            return
+        
         optimized: list[str] = []
         skip_indices = set()  # Track which indices to skip
+        
         i = 0
         while i < len(self.code):
             # Check if this instruction should be skipped (marked as redundant)
@@ -189,6 +197,7 @@ class CodeGen:
             # Remove duplicate consecutive stores to same location
             #   STA addr ; STA addr  → STA addr
             #   STX TMP1 ; STX TMP1  → STX TMP1
+            # BUT: Never optimize stores/loads involving TMP0-TMP4 (used for pointer arithmetic)
             # NEVER optimize stores to fixed-address (hardware) variables
             if i + 1 < len(self.code):
                 cur = self.code[i].strip()
@@ -203,8 +212,8 @@ class CodeGen:
                         cur_parts = curU.split(maxsplit=1)
                         if len(cur_parts) == 2:
                             cur_operand = cur_parts[1].strip()
-                            # Skip optimization for fixed-address variables
-                            if not self._is_fixed_address(cur_operand):
+                            # Skip optimization for fixed-address variables AND temp registers
+                            if not self._is_fixed_address(cur_operand) and not any(tmp in cur_operand for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4"]):
                                 # Duplicate store - skip the second one
                                 optimized.append(self.code[i])
                                 i += 2
@@ -287,7 +296,7 @@ class CodeGen:
                         i += 1
                         continue
                 
-                # Check if current instruction is a load (LDA/LDX/LDY) that will be stored to fixed-address
+                # Check if current instruction is a load (LDA/LDX/LDY) that will be stored to fixed-address or temps
                 # If so, never optimize away the load. Look ahead up to 5 instructions to find the store.
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
                     # Determine which register and corresponding store instruction
@@ -298,20 +307,21 @@ class CodeGen:
                     else:  # LDY
                         store_prefix = "STY "
                     
-                    # Look ahead to see if this register is stored to a fixed-address variable
+                    # Look ahead to see if this register is stored to a fixed-address variable or temporary
                     protect_load = False
                     for lookahead_i in range(i + 1, min(i + 6, len(self.code))):
                         lookahead = self.code[lookahead_i].strip().upper()
                         # Skip comments and labels
                         if not lookahead or lookahead.endswith(":") or lookahead.startswith(";"):
                             continue
-                        # Check if this is a store of the loaded register to fixed-address
+                        # Check if this is a store of the loaded register to fixed-address or temp register
                         if lookahead.startswith(store_prefix):
                             lookahead_parts = lookahead.split(maxsplit=1)
                             if len(lookahead_parts) == 2:
                                 lookahead_operand = lookahead_parts[1].strip()
-                                if self._is_fixed_address(lookahead_operand):
-                                    # Protect the load - it's needed for the fixed-address store
+                                # Protect the load if storing to fixed-address OR temp registers (used for indirect addressing)
+                                if self._is_fixed_address(lookahead_operand) or lookahead_operand in ("TMP0", "TMP0+1", "TMP1", "TMP1+1", "TMP2", "TMP2+1", "TMP3", "TMP3+1", "TMP4", "TMP4+1"):
+                                    # Protect the load - it's needed for the store
                                     protect_load = True
                                     break
                         # Stop if we encounter an instruction that modifies the register
@@ -1792,8 +1802,14 @@ class CodeGen:
 
         # 4) WORD? načti HIGH byte
         if t.sem_type.base == "WORD":
+            # For WORD, we need both low and high bytes
+            # Low byte is in A, but we need to load high byte into X
+            # Save low byte, load high byte, then restore low byte to A
+            self.emit("\tPHA")  # Save low byte on stack
             self.emit("\tINY")
-            self.emit("\tLDX (TMP0),Y")
+            self.emit("\tLDA (TMP0),Y")  # Load high byte
+            self.emit("\tTAX")  # Transfer high byte to X
+            self.emit("\tPLA")  # Restore low byte to A
 
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool):
         # only support array identifiers
@@ -2073,18 +2089,25 @@ class CodeGen:
             self.emit("\tJSR MOD16")
 
     def _gen_logical(self, expr: BinaryExpr):
+        # TMP4 used to combine A/X when testing word values
+        self.used_temps.add("TMP4")
         if expr.op == BinOp.LAND:
             lbl_false = self.new_label("LAND_FALSE")
             lbl_end   = self.new_label("LAND_END")
 
             # lhs
             self.gen_expr(expr.left)
-            self.emit("\tORA X")
+            # Merge low(A) and high(X) to test non-zero
+            self.emit("\tSTA TMP4")
+            self.emit("\tTXA")
+            self.emit("\tORA TMP4")
             self.emit(f"\tBEQ {lbl_false}")   # lhs == 0 → false
 
             # rhs
             self.gen_expr(expr.right)
-            self.emit("\tORA X")
+            self.emit("\tSTA TMP4")
+            self.emit("\tTXA")
+            self.emit("\tORA TMP4")
             self.emit(f"\tBEQ {lbl_false}")   # rhs == 0 → false
 
             # true
@@ -2105,12 +2128,16 @@ class CodeGen:
 
             # lhs
             self.gen_expr(expr.left)
-            self.emit("\tORA X")
+            self.emit("\tSTA TMP4")
+            self.emit("\tTXA")
+            self.emit("\tORA TMP4")
             self.emit(f"\tBNE {lbl_true}")   # lhs != 0 → true
 
             # rhs
             self.gen_expr(expr.right)
-            self.emit("\tORA X")
+            self.emit("\tSTA TMP4")
+            self.emit("\tTXA")
+            self.emit("\tORA TMP4")
             self.emit(f"\tBNE {lbl_true}")   # rhs != 0 → true
 
             # false
@@ -2639,8 +2666,12 @@ class CodeGen:
                 return
 
             # Default path: evaluate condition to boolean and branch on zero
+            self.used_temps.add("TMP4")
             self.gen_expr(cond)
-            self.emit("\tORA X")    # WORD-safe
+            # Merge A/X to test non-zero (WORD-safe)
+            self.emit("\tSTA TMP4")
+            self.emit("\tTXA")
+            self.emit("\tORA TMP4")
             self.emit(f"\tBEQ {lbl_else}")
 
             for s in stmt.then_body:
@@ -2672,8 +2703,11 @@ class CodeGen:
             if isinstance(cond, BinaryExpr) and cond.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
                 self._emit_relational_branch(cond, lbl_true=lbl_body, lbl_false=lbl_end)
             else:
+                self.used_temps.add("TMP4")
                 self.gen_expr(cond)
-                self.emit("\tORA X")
+                self.emit("\tSTA TMP4")
+                self.emit("\tTXA")
+                self.emit("\tORA TMP4")
                 self.emit(f"\tBEQ {lbl_end}")
 
             self.emit(f"{lbl_body}:")
