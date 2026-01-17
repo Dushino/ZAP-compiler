@@ -182,6 +182,24 @@ class CodeGen:
         }
         return opcode in nz_ops
 
+    def _clobbers_a(self, line: str) -> bool:
+        """Return True if instruction changes accumulator contents."""
+        stripped = line.strip().upper()
+        if not stripped or stripped.endswith(":") or stripped.startswith(";"):
+            return False
+        parts = stripped.split()
+        if not parts:
+            return False
+        op = parts[0]
+        # Ops that always write A
+        if op in {"LDA", "PLA", "ADC", "SBC", "ORA", "AND", "EOR"}:
+            return True
+        # Accumulator shifts/rotates
+        if op in {"ASL", "LSR", "ROL", "ROR"}:
+            # memory form has an operand; accumulator form often has none or "A"
+            return len(parts) == 1 or parts[1] == "A"
+        return False
+
     def peephole_optimize(self):
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
         # Disable peephole optimization if code uses PHA/PLA (stack-based temp preservation)
@@ -454,6 +472,35 @@ class CodeGen:
                             optimized.append(self.code[i])
                             i += 1
                             continue
+
+                # Elide spaced redundant STA when A is unchanged between
+                if curU.startswith("STA "):
+                    cur_parts = cur.split(maxsplit=1)
+                    if len(cur_parts) == 2:
+                        cur_operand = cur_parts[1].strip()
+                        cur_operand_upper = cur_operand.upper()
+                        # Skip temps and fixed addresses and indirect operands
+                        if not self._is_fixed_address(cur_operand) and "TMP" not in cur_operand_upper and "(" not in cur_operand_upper:
+                            j = i + 1
+                            while j < len(self.code) and j < i + 20:
+                                look_raw = self.code[j]
+                                look = look_raw.strip()
+                                lookU = look.upper()
+                                if not look or look.endswith(":") or look.startswith(";"):
+                                    j += 1
+                                    continue
+                                # Barriers: calls/returns/long jumps
+                                if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                    break
+                                # Stop if A is clobbered before we find the next store
+                                if self._clobbers_a(look):
+                                    break
+                                if lookU.startswith("STA "):
+                                    look_parts = look.split(maxsplit=1)
+                                    if len(look_parts) == 2 and look_parts[1].strip().upper() == cur_operand_upper:
+                                        skip_indices.add(j)
+                                        break
+                                j += 1
 
             # Remove orphaned register loads (LDA/LDX/LDY) when register is never used
             # Scan forward until RTS/JMP/JSR or until register is used/overwritten
