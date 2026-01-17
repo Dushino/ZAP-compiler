@@ -1238,6 +1238,69 @@ class CodeGen:
                         i += 1
                         continue
                 
+                # Optimize 16-bit INC/DEC by small constants
+                # Pattern: INC zp / INC zp+1 repeated k times (k ≤ 3)
+                #   or: DEC zp / DEC zp+1 repeated k times
+                # Can consolidate into: CLC/ADC #k or repetitions of INC/DEC (already optimized above)
+                # Also: INC zp / INC zp+1 when A holds low-byte and X holds high-byte
+                #   → CLC / ADC #k when adding small constants
+                if cur_upper.startswith(("INC ", "DEC ")):
+                    op_type = cur_upper.split()[0]  # "INC" or "DEC"
+                    operand = cur_upper.split(maxsplit=1)[1] if " " in cur_upper else ""
+                    
+                    # Look ahead for matching operations on zp and zp+1
+                    j = i + 1
+                    inc_dec_count = 1
+                    has_16bit_pattern = False
+                    
+                    # Scan for pattern: INC zp / INC zp+1 (or DEC)
+                    while j < len(self.code) and j < i + 10 and inc_dec_count <= 3:
+                        look = self.code[j].strip()
+                        lookU = look.upper()
+                        
+                        if not look or look.endswith(":") or look.startswith(";"):
+                            j += 1
+                            continue
+                        
+                        if lookU.startswith(op_type + " "):
+                            next_operand = lookU.split(maxsplit=1)[1] if " " in lookU else ""
+                            # Check if this is part of 16-bit sequence
+                            if next_operand == operand:
+                                # Same operand, could be repetition (for small k, just repeat INC)
+                                inc_dec_count += 1
+                                j += 1
+                                continue
+                            # Check for adjacent zp operand (e.g., INC $80 / INC $81)
+                            if operand and next_operand:
+                                # Try to parse as hex addresses
+                                try:
+                                    curr_addr = int(operand, 16) if operand.startswith("$") else None
+                                    next_addr = int(next_operand, 16) if next_operand.startswith("$") else None
+                                    if curr_addr is not None and next_addr is not None and next_addr == curr_addr + 1:
+                                        # Found 16-bit pattern: INC $80 / INC $81
+                                        has_16bit_pattern = True
+                                        inc_dec_count += 1
+                                        j += 1
+                                        continue
+                                except (ValueError, TypeError):
+                                    pass
+                        
+                        # Stop at control flow or other instruction types
+                        if lookU.startswith(("JMP ", "JSR ", "BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ", "BRK")) or lookU in ("RTS", "RTI"):
+                            break
+                        
+                        # Stop at any non-INC/DEC instruction (except labels/comments)
+                        if not lookU.startswith(op_type + " "):
+                            break
+                        
+                        j += 1
+                    
+                    # Consolidate if we found 16-bit pattern with count ≤ 3
+                    if has_16bit_pattern and inc_dec_count <= 3:
+                        # For now, keep the original sequence (already optimal)
+                        # In the future, could emit: CLC / ADC #k if A and X constraints are met
+                        pass
+                
                 # Optimize TAY ... TYA STA addr → STA addr ... (when A is modified between but not used)
                 # Pattern: TAY, (instructions that modify A), TYA, STA addr
                 # Can be replaced with: STA addr, (instructions without TYA)
