@@ -1394,6 +1394,23 @@ class CodeGen:
                     i += 4
                     continue
 
+            # Fold identical conditional jump followed by same-target JMP
+            # Pattern: BEQ L1 ; JMP L1  → JMP L1 (safe, preserves semantics)
+            # Branch range cannot be reliably computed here; prefer keeping JMP only.
+            if i + 1 < len(self.code):
+                cur_line = self.code[i].strip().upper()
+                nxt_line = self.code[i + 1].strip().upper()
+                if cur_line.startswith("BEQ ") and nxt_line.startswith("JMP "):
+                    cur_parts = cur_line.split(maxsplit=1)
+                    nxt_parts = nxt_line.split(maxsplit=1)
+                    cur_label = cur_parts[1] if len(cur_parts) == 2 else ""
+                    nxt_label = nxt_parts[1] if len(nxt_parts) == 2 else ""
+                    if cur_label and cur_label == nxt_label:
+                        # Replace pair with single JMP to preserve behavior
+                        optimized.append(self.code[i + 1])
+                        i += 2
+                        continue
+
             optimized.append(self.code[i])
             i += 1
 

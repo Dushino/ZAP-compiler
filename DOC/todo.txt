@@ -45,5 +45,5 @@ Steps:
 [x] Short-circuit store/load pairs: STA zp followed immediately by LDA zp with no flags dependence between → drop the load.
 [x] Remove useless increments/decrements of zero-page temps when not used: e.g., INC TMPx followed by overwrite of TMPx before any read.
 [x] Optimize 16-bit INC/DEC by small constants: sequence of multiple INC zp/INC zp+1 pairs can be replaced by a short add routine if constants are small (k≤3) or consolidate into CLC/ADC #k when low-byte is in A and X has high-byte.
-[ ] Fold identical conditional jumps: BEQ L1 followed by JMP L1 (same target) → just BEQ L1.
+[x] Fold identical conditional jumps: BEQ L1 followed by JMP L1 (same target) → prefer a single JMP L1 for safety unless branch distance is provably in range.
 [ ] Merge consecutive PHA/PLA around untouched A: PHA … PLA where A is not modified in between → remove both (but be conservative; skip if interrupts or unknown calls inside).
