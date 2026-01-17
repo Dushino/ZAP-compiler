@@ -24,7 +24,10 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
 
     except CompileError as e:
         if e.line is not None:
-            print_error(src, e.line, e.col, e.message)
+            # Prefer attached source text if provided
+            src_text = e.source_text or src
+            fname = getattr(e, "filename", None) or getattr(parser, "filename", None)
+            print_error(src_text, e.line, e.col, e.message, filename=fname)
         else:
             print(f"Error: {e.message}", file=sys.stderr)
         sys.exit(1)
@@ -56,7 +59,8 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
             except Exception:
                 src = None
         if e.line is not None and src is not None:
-            print_error(src, e.line, e.col, e.message)
+            fname = getattr(e, "filename", None) or filepath
+            print_error(src, e.line, e.col, e.message, filename=fname)
         else:
             print(f"Error: {e.message}", file=sys.stderr)
         sys.exit(1)

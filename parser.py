@@ -16,10 +16,12 @@ class Parser:
         self.pos = 0
         # Debug maps
         self.current_proc_name: str | None = None
-        self.stmt_src: dict[int, tuple[str, int, str]] = {}
+        # Statement source: id(node) -> (filename, line, col, line_text)
+        self.stmt_src: dict[int, tuple[str, int, int, str]] = {}
         self.local_decl_src: dict[tuple[str, str], tuple[str, int, str]] = {}
         self.global_decl_src: dict[str, tuple[str, int, str]] = {}
-        self.proc_src: dict[str, tuple[str, int, str]] = {}
+        # Proc/Func source: name -> (filename, line, col, line_text)
+        self.proc_src: dict[str, tuple[str, int, int, str]] = {}
         self.param_src: dict[tuple[str, str], tuple[str, int, str]] = {}
 
     def advance(self):
@@ -87,13 +89,14 @@ class Parser:
 
     def parse_proc(self):
         start_line = self.cur.line
+        start_col = self.cur.col
         self.expect(TOK_KEYWORD, "PROC")
         name = self.cur.value
         self.expect(TOK_IDENT)
 
         # record proc source info
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-        self.proc_src[name] = (self.filename, start_line, line_text)
+        self.proc_src[name] = (self.filename, start_line, start_col, line_text)
         self.current_proc_name = name
 
         locals = []
@@ -142,6 +145,7 @@ class Parser:
 
     def parse_func(self):
         start_line = self.cur.line
+        start_col = self.cur.col
         self.expect(TOK_KEYWORD, "FUNC")
         
         # return type
@@ -194,7 +198,7 @@ class Parser:
         body.append(ReturnStmt(ret_expr))
 
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-        self.proc_src[name] = (self.filename, start_line, line_text)
+        self.proc_src[name] = (self.filename, start_line, start_col, line_text)
 
         return FuncDecl(name, TypeNode(ret_type_tok.value, ret_is_pointer), params, locals, body)
 
@@ -358,6 +362,7 @@ class Parser:
 
     def parse_assign(self):
         start_line = self.cur.line
+        start_col = self.cur.col
         lhs = self.parse_lvalue()
 
         # defensive: if after lvalue we see '(', treat as a call statement
@@ -380,7 +385,7 @@ class Parser:
         rhs = self.parse_expr()
         node = AssignStmt(lhs, rhs)
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-        self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+        self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
     def parse_term(self):
@@ -504,6 +509,7 @@ class Parser:
             
     def parse_if(self):
         start_line = self.cur.line
+        start_col = self.cur.col
         self.expect(TOK_KEYWORD, "IF")
         cond = self.parse_expr()
         self.expect(TOK_KEYWORD, "THEN")        
@@ -549,12 +555,13 @@ class Parser:
         self.expect(TOK_KEYWORD, "ENDIF")
         node = root_if
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-        self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+        self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
 
     def parse_while(self):
         start_line = self.cur.line
+        start_col = self.cur.col
         self.expect(TOK_KEYWORD, "WHILE")
         cond = self.parse_expr()
 
@@ -565,11 +572,12 @@ class Parser:
         self.expect(TOK_KEYWORD, "END")
         node = WhileStmt(cond, body)
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-        self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+        self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
     def parse_for(self):
         start_line = self.cur.line
+        start_col = self.cur.col
         self.expect(TOK_KEYWORD, "FOR")
 
         # i
@@ -598,7 +606,7 @@ class Parser:
         self.expect(TOK_IDENT)
         node = ForStmt(var, start, end, step, body)
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-        self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+        self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
 
@@ -647,9 +655,10 @@ class Parser:
                     if self.cur.type not in (TOK_KEYWORD,):
                         expr = self.parse_expr()
                 node = ReturnStmt(expr)
-                start_line = self.cur.line  # line after reading RETURN token; approximate
-                line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-                self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+                ret_line = self.cur.line
+                ret_col = self.cur.col
+                line_text = self.source_lines[ret_line-1] if 1 <= ret_line <= len(self.source_lines) else ""
+                self.stmt_src[id(node)] = (self.filename, ret_line, ret_col, line_text)
                 return node
 
         # Call statement: IDENT(...)

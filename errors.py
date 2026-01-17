@@ -6,6 +6,9 @@ class CompileError(Exception):
         self.message = message
         self.line = line
         self.col = col
+        # Optional extra context
+        self.filename = None
+        self.source_text = None
 
 
 class SyntaxError(CompileError):
@@ -19,9 +22,14 @@ class SemanticError(CompileError):
 class TokenizerError(CompileError):
     pass
 
-def print_error(src, line, col, msg):
+def print_error(src, line, col, msg, filename: str | None = None):
     lines = src.splitlines()
-    print(f"Error at line {line}, column {col}:")
-    print(lines[line-1])
-    print(" " * (col-1) + "^")
-    print(msg)
+    where = f"{filename}:{line}:{col}" if filename else f"line {line}, column {col}"
+    # Print message and location
+    print(f"Error: {msg}")
+    print(f" at {where}")
+    # Show offending line with caret
+    if 1 <= line <= len(lines):
+        print(lines[line-1])
+        if col is not None and col >= 1:
+            print(" " * (col-1) + "^")

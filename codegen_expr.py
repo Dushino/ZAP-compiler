@@ -58,7 +58,9 @@ class CodeGen:
         self.local_decl_src = self.debug.get("local_decl_src", {})
         self.global_decl_src = self.debug.get("global_decl_src", {})
         self.proc_src = self.debug.get("proc_src", {})
-        self.file_lines = self.debug.get("file_lines", {})
+        self.source_lines = self.debug.get("source_lines", [])
+        # Track current statement source info for error reporting
+        self.current_stmt_info: tuple[str, int, int, str] | None = None
         # Track fixed-address variables (hardware registers) - never optimize these
         self.fixed_address_labels: set[str] = set()
 
@@ -1387,7 +1389,7 @@ class CodeGen:
             self.emit("; Pointer variables")
             for sym in pointers:
                 if zp_offset + 2 > ZEROPAGE_SIZE:
-                    raise SemanticError(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
+                    self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
                 self.emit(f"{sym.asm_name()}:\t.res 2")
                 zp_offset += 2
         
@@ -1679,7 +1681,14 @@ class CodeGen:
     def emit_src_comment_for_stmt(self, stmt):
         info = self.stmt_src.get(id(stmt))
         if info:
-            fname, line, text = info
+            # Support both 3-tuple and 4-tuple forms
+            if len(info) == 3:
+                fname, line, text = info
+                col = 1
+                self.current_stmt_info = (fname, line, col, text)
+            else:
+                fname, line, col, text = info
+                self.current_stmt_info = (fname, line, col, text)
             self.emit(f"; {fname} {line}: {text}")
 
     def emit_src_comment_for_local(self, proc_name: str, var_name: str):
@@ -1693,6 +1702,20 @@ class CodeGen:
         if info:
             fname, line, text = info
             self.emit(f"; {fname} {line}: {text}")
+
+    def _raise_error(self, msg: str):
+        # Attach line/col and source text for better error output
+        from errors import SemanticError
+        if self.current_stmt_info:
+            fname, line, col, _ = self.current_stmt_info
+            e = SemanticError(msg, line=line, col=col)
+            # Provide full source text when available
+            if self.source_lines:
+                e.source_text = "\n".join(self.source_lines)
+            e.filename = fname
+            raise e
+        else:
+            raise SemanticError(msg)
 
     def _load_sym_addr(self, sym_name: str):
         self.emit(f"\tLDA #<{sym_name}")
@@ -1713,7 +1736,7 @@ class CodeGen:
 
         if sym.is_const:
             if sym.const_value is None:
-                raise SemanticError(f"Constant '{sym.name}' has no value")
+                self._raise_error(f"Constant '{sym.name}' has no value")
             # Use the symbol's declared type, not the inferred literal type
             val = sym.const_value
             self.emit(f"\tLDA #{val & 0xFF}")
@@ -1765,7 +1788,7 @@ class CodeGen:
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool):
         # only support array identifiers
         if not isinstance(expr.array, Identifier):
-            raise SemanticError("Subscript array must be identifier")
+            self._raise_error("Subscript array must be identifier")
 
         sym = self.current_symtab.lookup(expr.array.name)
         width = 2 if sym.type.base == "WORD" else 1
@@ -2159,7 +2182,7 @@ class CodeGen:
 
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr)):
-            raise SemanticError("Left side of assignment is not assignable")
+            self._raise_error("Left side of assignment is not assignable")
 
         if lhs_t.kind == ExprKind.LVALUE:
             # RHS LVALUE means we're reading from that location (convert to VALUE semantically)
@@ -2168,7 +2191,7 @@ class CodeGen:
                 rhs_t = ExprType(rhs_t.sem_type, ExprKind.VALUE)
             
             if rhs_t.kind != ExprKind.VALUE:
-                raise SemanticError("Cannot assign address to lvalue")
+                self._raise_error("Cannot assign address to lvalue")
 
             # Allow implicit narrowing (WORD to BYTE) - just truncate low byte
             # This is common in low-level code (e.g., ptr^ = word_counter)
@@ -2176,7 +2199,7 @@ class CodeGen:
         # Allow ADDR = ADDR for pointer assignments
         if lhs_t.kind == ExprKind.ADDR and lhs_t.sem_type.is_pointer:
             if rhs_t.kind != ExprKind.ADDR and rhs_t.kind != ExprKind.VALUE:
-                raise SemanticError("Cannot assign to pointer")
+                self._raise_error("Cannot assign to pointer")
             # Type compatibility for pointers (WORD base for all pointers)
             # No further checks needed since pointers are always WORD-sized
 
@@ -2373,7 +2396,7 @@ class CodeGen:
             sym = self.current_symtab.lookup(lhs.name)
 
             if sym.is_const:
-                raise SemanticError("Cannot assign to const")
+                self._raise_error("Cannot assign to const")
 
             asm = sym.asm_name()
             if sym.type.base == "BYTE" and not sym.type.is_pointer:
@@ -2501,7 +2524,10 @@ class CodeGen:
         # Emit procedure source comment
         pinfo = self.proc_src.get(proc.ast.name)
         if pinfo:
-            fname, line, text = pinfo
+            if len(pinfo) == 3:
+                fname, line, text = pinfo
+            else:
+                fname, line, _col, text = pinfo
             self.emit(f"; {fname} {line}: {text}")
         self.emit("; -- Procedure " + proc.ast.name + " --")
         self.emit(f"{proc.ast.name}:")
@@ -2654,14 +2680,14 @@ class CodeGen:
         
         if isinstance(stmt, BreakStmt):
             if not self.loop_stack:
-                raise SemanticError("BREAK outside of loop")
+                self._raise_error("BREAK outside of loop")
             _, end_label = self.loop_stack[-1]
             self.emit(f"\tJMP {end_label}")
             return
 
         if isinstance(stmt, ContinueStmt):
             if not self.loop_stack:
-                raise SemanticError("CONTINUE outside of loop")
+                self._raise_error("CONTINUE outside of loop")
             start_label, _ = self.loop_stack[-1]
             self.emit(f"\tJMP {start_label}")
             return

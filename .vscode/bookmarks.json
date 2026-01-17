@@ -29,6 +29,16 @@
 					"label": ""
 				}
 			]
+		},
+		{
+			"path": "DOC/advanced_notes.md",
+			"bookmarks": [
+				{
+					"line": 226,
+					"column": 0,
+					"label": ""
+				}
+			]
 		}
 	]
 }
