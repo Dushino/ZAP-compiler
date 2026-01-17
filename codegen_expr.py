@@ -931,6 +931,56 @@ class CodeGen:
                                 i = j + 1
                                 continue
                 
+                # Collapse LDA zp + CMP #0 when followed by BEQ/BNE (Z flag comparison)
+                # LDA sets Z flag; CMP #0 is redundant before BEQ/BNE
+                if curU.startswith("LDA ") and not curU.startswith("LDA #"):
+                    # Look ahead for CMP #0 with no Z-flag clobber in between
+                    j = i + 1
+                    cmp_index = -1
+                    z_clobbered = False
+                    while j < len(self.code) and j < i + 10:
+                        look_raw = self.code[j]
+                        look = look_raw.strip()
+                        lookU = look.upper()
+                        if not look or look.endswith(":") or look.startswith(";"):
+                            j += 1
+                            continue
+                        # Stop at branch (uncertain control flow)
+                        if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                            break
+                        # Stop at calls/returns
+                        if lookU.startswith(("JSR ", "JMP ")) or lookU in ("RTS", "RTI"):
+                            break
+                        # Detect CMP #0 (decimal 0 or $00)
+                        if lookU.startswith("CMP #"):
+                            imm_str = lookU.split("#", 1)[1].strip()
+                            if imm_str in {"0", "$0", "$00"}:
+                                if not z_clobbered:
+                                    cmp_index = j
+                            break
+                        # Check if Z is clobbered
+                        if self._sets_nz_flags(look):
+                            z_clobbered = True
+                            break
+                        j += 1
+                    
+                    # If CMP #0 found and next instruction is BEQ/BNE, drop the CMP
+                    if cmp_index != -1:
+                        k = cmp_index + 1
+                        while k < len(self.code):
+                            next_raw = self.code[k]
+                            next_inst = next_raw.strip().upper()
+                            if not next_inst or next_inst.startswith(";"):
+                                k += 1
+                                continue
+                            if next_inst.endswith(":"):
+                                k += 1
+                                continue
+                            # Next meaningful instruction is a Z-flag branch
+                            if next_inst.startswith(("BEQ ", "BNE ")):
+                                skip_indices.add(cmp_index)
+                            break
+                
                 # Optimize TAY ... TYA STA addr → STA addr ... (when A is modified between but not used)
                 # Pattern: TAY, (instructions that modify A), TYA, STA addr
                 # Can be replaced with: STA addr, (instructions without TYA)
