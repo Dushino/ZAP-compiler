@@ -202,11 +202,79 @@ class CodeGen:
 
     def peephole_optimize(self):
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
-        # Disable peephole optimization if code uses PHA/PLA (stack-based temp preservation)
-        # PHA/PLA sequences are too complex for safe optimization
+        # If code uses PHA/PLA, apply a very conservative fold for adjacent PHA…PLA
+        # then skip other peepholes to avoid unsafe changes around stack-based temps.
         has_pha_pla = any("PHA" in line.upper() or "PLA" in line.upper() for line in self.code)
         if has_pha_pla:
-            # Return code unoptimized - PHA/PLA sections are too risky to optimize
+            new_code: list[str] = []
+            i = 0
+            while i < len(self.code):
+                cur = self.code[i].strip()
+                curU = cur.upper()
+                if curU == "PHA":
+                    # Look ahead for a matching PLA with no A writes or risky ops in between
+                    j = i + 1
+                    pla_index = -1
+                    safe_block = True
+                    while j < len(self.code):
+                        look = self.code[j].strip()
+                        lookU = look.upper()
+                        if not look or look.endswith(":") or look.startswith(";"):
+                            j += 1
+                            continue
+                        # Stop at control flow boundaries or other stack ops
+                        if lookU.startswith(("JSR ", "JMP ")) or lookU in ("RTS", "RTI", "BRK"):
+                            safe_block = False
+                            break
+                        # Stack-sensitive ops in between make this unsafe
+                        if lookU in ("PHA", "PLA", "PHP", "PLP", "TSX", "TXS"):
+                            safe_block = False
+                            break
+                        # Any instruction that writes A makes it unsafe
+                        if self._clobbers_a(look):
+                            safe_block = False
+                            break
+                        # Branches change flow; be conservative and stop
+                        if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                            safe_block = False
+                            break
+                        if lookU == "PLA":
+                            pla_index = j
+                            break
+                        # Any other real instruction between PHA and PLA → not a simple spill pair
+                        safe_block = False
+                        break
+
+                    if pla_index != -1 and safe_block:
+                        # Ensure PLA's N/Z flags are not observed before being overwritten
+                        flags_safe = False
+                        k = pla_index + 1
+                        while k < len(self.code):
+                            nxt = self.code[k].strip()
+                            nxtU = nxt.upper()
+                            if not nxt or nxt.endswith(":") or nxt.startswith(";"):
+                                k += 1
+                                continue
+                            # If a flags-setting op occurs before any branch/control, PLA's flags are not observed
+                            if self._sets_nz_flags(nxt):
+                                flags_safe = True
+                                break
+                            # If a branch/control occurs first, flags may be observed → unsafe
+                            if nxtU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ", "JSR ", "JMP ")) or nxtU in ("RTS", "RTI", "BRK"):
+                                break
+                            # Any other real instruction that doesn't set flags yet → continue scanning
+                            k += 1
+
+                        if flags_safe:
+                            # Drop both PHA and PLA
+                            i = pla_index + 1
+                            continue
+
+                # Default: emit current line
+                new_code.append(self.code[i])
+                i += 1
+
+            self.code = new_code
             return
         
         optimized: list[str] = []
