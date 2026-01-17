@@ -829,6 +829,36 @@ class CodeGen:
                     i += 2
                     continue
 
+                # Drop no-op ADC/SBC #0 immediately after CLC/SEC when flags are safely overwritten
+                if curU in ("CLC", "SEC") and nxtU.startswith(("ADC #", "SBC #")):
+                    # Require literal zero (decimal or $00)
+                    imm_str = nxtU.split("#", 1)[1].strip() if "#" in nxtU else ""
+                    is_zero = imm_str in {"0", "$0", "$00"}
+                    if is_zero:
+                        k = i + 2
+                        safe = False
+                        while k < len(self.code) and k < i + 20:
+                            look = self.code[k].strip()
+                            lookU = look.upper()
+                            if not look or look.endswith(":") or look.startswith(";"):
+                                k += 1
+                                continue
+                            # Unsafe if a branch appears before flags are recomputed
+                            if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                                break
+                            # Safe once an arithmetic op that sets NZVC appears
+                            if lookU.startswith(("ADC ", "SBC ")):
+                                safe = True
+                                break
+                            # Stop scanning at control-flow boundaries
+                            if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                break
+                            k += 1
+                        if safe:
+                            optimized.append(self.code[i])
+                            i += 2
+                            continue
+
                 # Tail call optimization: JSR followed by RTS → JMP
                 cur = self.code[i].strip().upper()
                 nxt = self.code[i + 1].strip().upper()
