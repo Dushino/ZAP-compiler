@@ -169,6 +169,19 @@ class CodeGen:
         label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
         return label in self.fixed_address_labels
 
+    def _sets_nz_flags(self, line: str) -> bool:
+        """Return True if instruction overwrites N/Z so earlier flags cannot be observed."""
+        stripped = line.strip().upper()
+        if not stripped or stripped.endswith(":") or stripped.startswith(";"):
+            return False
+        opcode = stripped.split()[0]
+        nz_ops = {
+            "ADC", "AND", "ASL", "BIT", "CMP", "CPX", "CPY", "DEC", "DEX", "DEY",
+            "EOR", "INC", "INX", "INY", "LDA", "LDX", "LDY", "LSR", "ORA", "PLA",
+            "PLX", "PLY", "ROL", "ROR", "SBC", "TAX", "TAY", "TSX", "TXA", "TYA",
+        }
+        return opcode in nz_ops
+
     def peephole_optimize(self):
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
         # Disable peephole optimization if code uses PHA/PLA (stack-based temp preservation)
@@ -749,6 +762,42 @@ class CodeGen:
                         optimized.append(f"\tJMP {target[1]}")
                         i += 2
                         continue
+
+                # Drop TXA…TAX and TYA…TAY round-trips when flags are not observed
+                cur_upper = cur
+                if cur_upper in ("TXA", "TYA"):
+                    j = i + 1
+                    between_non_exec: list[str] = []
+                    while j < len(self.code):
+                        cand_raw = self.code[j]
+                        cand_strip = cand_raw.strip()
+                        cand_upper = cand_strip.upper()
+                        if not cand_strip or cand_strip.endswith(":") or cand_strip.startswith(";"):
+                            between_non_exec.append(self.code[j])
+                            j += 1
+                            continue
+                        break
+                    if j < len(self.code):
+                        if (cur_upper == "TXA" and cand_upper == "TAX") or (cur_upper == "TYA" and cand_upper == "TAY"):
+                            k = j + 1
+                            while k < len(self.code):
+                                after_raw = self.code[k].strip()
+                                after_upper = after_raw.upper()
+                                if not after_raw or after_raw.endswith(":") or after_raw.startswith(";"):
+                                    k += 1
+                                    continue
+                                break
+                            safe_to_drop = False
+                            if k >= len(self.code):
+                                safe_to_drop = True
+                            else:
+                                after_upper = self.code[k].strip().upper()
+                                if not after_upper.startswith(("BEQ ", "BNE ", "BMI ", "BPL ", "PHP")):
+                                    safe_to_drop = self._sets_nz_flags(after_upper)
+                            if safe_to_drop:
+                                optimized.extend(between_non_exec)
+                                i = j + 1
+                                continue
                 
                 # Optimize TAY ... TYA STA addr → STA addr ... (when A is modified between but not used)
                 # Pattern: TAY, (instructions that modify A), TYA, STA addr
