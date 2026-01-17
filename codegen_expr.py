@@ -357,6 +357,62 @@ class CodeGen:
                                 break
                             j += 1
                 
+                # Drop repeated LDX #imm when nothing in between clobbers X or N/Z flags
+                if curU.startswith("LDX #"):
+                    cur_val = self._lda_const(cur)  # Reuse immediate extraction logic
+                    if cur_val is not None:
+                        j = i + 1
+                        seen_clobber = False
+                        while j < len(self.code) and j < i + 20:
+                            look_raw = self.code[j]
+                            look = look_raw.strip()
+                            lookU = look.upper()
+                            if not look or look.endswith(":") or look.startswith(";"):
+                                j += 1
+                                continue
+                            if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                break
+                            if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                                break
+                            # Check if X or N/Z clobbered
+                            if self._sets_nz_flags(look) or any(lookU.startswith(op) or lookU == op for op in ["LDX ", "TAX", "INX", "DEX", "PLX"]):
+                                seen_clobber = True
+                                break
+                            if lookU.startswith("LDX #"):
+                                look_val = self._lda_const(look_raw)
+                                if look_val is not None and look_val == cur_val and not seen_clobber:
+                                    skip_indices.add(j)
+                                break
+                            j += 1
+                
+                # Drop repeated LDY #imm when nothing in between clobbers Y or N/Z flags
+                if curU.startswith("LDY #"):
+                    cur_val = self._lda_const(cur)  # Reuse immediate extraction logic
+                    if cur_val is not None:
+                        j = i + 1
+                        seen_clobber = False
+                        while j < len(self.code) and j < i + 20:
+                            look_raw = self.code[j]
+                            look = look_raw.strip()
+                            lookU = look.upper()
+                            if not look or look.endswith(":") or look.startswith(";"):
+                                j += 1
+                                continue
+                            if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
+                                break
+                            if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                                break
+                            # Check if Y or N/Z clobbered
+                            if self._sets_nz_flags(look) or any(lookU.startswith(op) or lookU == op for op in ["LDY ", "TAY", "INY", "DEY", "PLY"]):
+                                seen_clobber = True
+                                break
+                            if lookU.startswith("LDY #"):
+                                look_val = self._lda_const(look_raw)
+                                if look_val is not None and look_val == cur_val and not seen_clobber:
+                                    skip_indices.add(j)
+                                break
+                            j += 1
+                
                 # Check if current instruction is a load (LDA/LDX/LDY) that will be stored to fixed-address or temps
                 # If so, never optimize away the load. Look ahead up to 5 instructions to find the store.
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
