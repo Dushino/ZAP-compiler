@@ -9,14 +9,14 @@ byte result06 @40010
 byte result07 @40012
 byte result08 @40014
 
-byte result11 @40016
-byte result12 @40018
-byte result13 @40020
-byte result14 @40022
-byte result15 @40024
-byte result16 @40026
-byte result17 @40028
-byte result18 @40030
+word result11 @40016
+word result12 @40018
+word result13 @40020
+word result14 @40022
+word result15 @40024
+word result16 @40026
+word result17 @40028
+word result18 @40030
 
 
 ; byte - byte
@@ -51,6 +51,20 @@ return doubleww(doubleww(x))
 proc main()
     result01 = doublebb($ab)    ; $156 -> $56
     result02 = quadbb($ab)      ; $2ac -> $ac
+    result03 = doublebw($1234)  ; $2468 -> $68
+    result04 = quadbw($1234)    ; $48d0 -> $d0
+    result05 = doublewb($1234)  ; $68
+    result06 = quadwb($1234)    ; $d0
+    result07 = doubleww($1234)  ; $68
+    result08 = quadww($1234)    ; $d0
 
+    result11 = doublebb($ab)    ; $156 -> $56
+    result12 = quadbb($ab)      ; $2ac -> $ac
+    result13 = doublebw($1234)  ; $2468 -> $68
+    result14 = quadbw($1234)    ; $48d0 -> $d0
+    result15 = doublewb($1234)  ; $68
+    result16 = quadwb($1234)    ; $d0
+    result17 = doubleww($1234)  ; $2468
+    result18 = quadww($1234)    ; $48d0
 
 end
