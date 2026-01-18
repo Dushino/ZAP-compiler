@@ -2750,7 +2750,7 @@ class CodeGen:
         
         # Handle different operations
         if expr.op == BinOp.ADD:
-            self._gen_add(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt)
+            self._gen_add(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt, right_16)
         elif expr.op == BinOp.SUB:
             self._gen_sub(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt)
         elif expr.op == BinOp.MUL:
@@ -2770,10 +2770,13 @@ class CodeGen:
         elif expr.op == BinOp.RSHIFT:
             self._gen_rshift(result_16)
     
-    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False):
+    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True):
         """Generate addition (inline)
         ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD)
         use_inc: if True and ptr_elem_size == 1, use INC TMP0 for adding 1 (optimization)
+        right_16: whether the right operand is 16-bit (if False, X may not be valid)
+        
+        NOTE: For 16-bit operations, right operand should be in A/X when called
         """
         if ptr_elem_size == 2:
             # Pointer to WORD: scale offset by 2
@@ -2792,13 +2795,34 @@ class CodeGen:
                 self.emit("\tLDA TMP0")
                 self.emit("\tLDX TMP0+1")
             else:
-                self.emit("\tCLC")
-                self.emit("\tADC TMP0")
-                self.emit("\tTAY")
-                self.emit("\tTXA")
-                self.emit("\tADC TMP0+1")
-                self.emit("\tTAX")
-                self.emit("\tTYA")
+                # For BYTE operands, the high byte is always 0
+                # For WORD operands, we need to use X correctly
+                if not right_16:
+                    # BYTE operand: high byte is 0, don't rely on X
+                    # Save only the low byte and use 0 for high byte
+                    self.emit("\tSTA TMP3")
+                    self.emit("\tLDA TMP3")    # Restore low byte
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")     # Add low bytes
+                    self.emit("\tTAY")
+                    self.emit("\tLDA #0")       # High byte is 0
+                    self.emit("\tADC TMP0+1")   # Add high bytes with carry
+                    self.emit("\tTAX")
+                    self.emit("\tTYA")
+                else:
+                    # WORD operand: both bytes are in A/X
+                    # Save right operand (A,X) to TMP3/TMP4
+                    self.emit("\tSTA TMP3")
+                    self.emit("\tSTX TMP3+1")
+                    # Now do the addition with proper handling
+                    self.emit("\tLDA TMP3")    # Restore low byte of right operand
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")     # Add low bytes
+                    self.emit("\tTAY")
+                    self.emit("\tLDA TMP3+1")   # Get high byte of right operand
+                    self.emit("\tADC TMP0+1")   # Add high bytes with carry
+                    self.emit("\tTAX")
+                    self.emit("\tTYA")
         else:
             # 8-bit: A + TMP0 → A
             if use_inc and ptr_elem_size == 1:
@@ -3458,19 +3482,18 @@ class CodeGen:
                                 self.emit(f"\tSTA {asm}")
                                 return
 
-        # Fast path: store immediate into dereferenced ZP pointer without temps
-        if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
-            ptr_sym = self.current_symtab.lookup(lhs.pointer.name)
-            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
-                if isinstance(rhs, IntLiteral) and lhs_t.sem_type.base == "BYTE":
-                    val = rhs.value & 0xFF
-                    self.emit(f"\tLDA #${val:02X}")
-                    if self.is_65c02:
-                        self.emit(f"\tSTA ({ptr_sym.asm_name()})")
-                    else:
-                        self.emit("\tLDY #0")
-                        self.emit(f"\tSTA ({ptr_sym.asm_name()}),Y")
-                    return
+        # Fast path: store immediate into dereferenced pointer without temps
+        # NOTE: Can only use this for ZP (zero-page) pointers since we need Y index for indirect addressing
+        # For now, disable this optimization to ensure Y is always used for compatibility
+        # if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
+        #     ptr_sym = self.current_symtab.lookup(lhs.pointer.name)
+        #     if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+        #         if isinstance(rhs, IntLiteral) and lhs_t.sem_type.base == "BYTE":
+        #             val = rhs.value & 0xFF
+        #             self.emit(f"\tLDA #${val:02X}")
+        #             self.emit("\tLDY #0")
+        #             self.emit(f"\tSTA ({ptr_sym.asm_name()}),Y")
+        #             return
 
         # vygeneruj RHS
         self.gen_expr(rhs)
