@@ -27,8 +27,9 @@ class ExprTypeChecker:
         if isinstance(expr, Identifier):
             sym = self.symtab.lookup(expr.name)
             if sym.is_array:
+                # Array addresses are 16-bit pointers even if they point to BYTE
                 return ExprType(
-                    SemType(sym.type.base, False),
+                    SemType(sym.type.base, True),  # is_pointer = True!
                     ExprKind.ADDR
                 )
 

@@ -369,13 +369,20 @@ class CodeGen:
                 nxtU = nxt.upper()
                 # Drop consecutive LDA/LDX/LDY when the next meaningful instruction overwrites the same register
                 # NEVER optimize loads from fixed-address (hardware) variables - reads may have side effects
+                # ALSO NEVER optimize loads from pointer variables - they're critical for dereferencing
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
-                    # Extract operand and check if it's a fixed address
+                    # Extract operand and check if it's a fixed address or pointer variable
                     cur_parts = curU.split(maxsplit=1)
                     cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
                     
                     # Skip optimization for fixed-address variables
                     if self._is_fixed_address(cur_operand):
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
+                    # Skip optimization for pointer variables - they're critical and the result of computation
+                    if "_PTR" in cur_operand:
                         optimized.append(self.code[i])
                         i += 1
                         continue
@@ -426,14 +433,25 @@ class CodeGen:
                                 # But don't mark as redundant if it's a fixed-address variable
                                 # Also don't mark as redundant if there's a label (branch target) in between
                                 # ALSO: don't mark as redundant if memory operand was modified (DEC, INC, ASL, LSR, ROL, ROR)
+                                # CRITICAL: don't mark as redundant if the register was stored to memory between loads
+                                # because the register value might be needed for other purposes
                                 if not self._is_fixed_address(look_operand) and not label_between:
                                     # Check if operand was modified between loads
                                     memory_modified = False
+                                    register_stored = False
                                     for k in range(i + 1, j):
                                         if self._modifies_memory_operand(self.code[k], cur_operand):
                                             memory_modified = True
                                             break
-                                    if not memory_modified:
+                                        # Check if register was stored to ANY location (STX, STY, STA)
+                                        # If so, don't assume register value is preserved
+                                        stored_to = self.code[k].strip().upper()
+                                        if (checking_a and stored_to.startswith("STA ")) or \
+                                           (checking_x and stored_to.startswith("STX ")) or \
+                                           (checking_y and stored_to.startswith("STY ")):
+                                            register_stored = True
+                                            break
+                                    if not memory_modified and not register_stored:
                                         redundant_load = True
                                         redundant_at = j
                             break  # Stop at any load of the same register, redundant or not
@@ -443,9 +461,18 @@ class CodeGen:
                         j += 1
                     
                     if redundant_load and not jsr_seen:
-                        # Keep first load, mark redundant load for skipping
-                        # Intermediate instructions (including comments/labels) will be processed in subsequent iterations
-                        skip_indices.add(redundant_at)
+                        # Check if the redundant load is from a pointer variable - if so, keep it anyway
+                        # because pointer variables need to be loaded fresh for dereference operations
+                        look_at_redundant = self.code[redundant_at].strip().upper() if redundant_at >= 0 else ""
+                        redundant_parts = look_at_redundant.split(maxsplit=1)
+                        redundant_operand = redundant_parts[1].strip() if len(redundant_parts) == 2 else ""
+                        
+                        if "_PTR" not in redundant_operand:
+                            # Not a pointer variable load, so it's safe to mark as redundant
+                            # Keep first load, mark redundant load for skipping
+                            skip_indices.add(redundant_at)
+                        
+                        # Always add the first load to optimized
                         optimized.append(self.code[i])
                         i += 1
                         continue
@@ -756,6 +783,13 @@ class CodeGen:
                     load_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
                     load_operand_upper = load_operand.upper()
                     
+                    # Never optimize loads from pointer variables - they're the result of prior computation
+                    # and removing them can break subsequent uses like dereferencing
+                    if "_PTR" in load_operand_upper or "_PTR2" in load_operand_upper:
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
                     # Never optimize loads from temp registers - they're often used for return values and intermediate calculations
                     if any(tmp in load_operand_upper for tmp in ["TMP0", "TMP1", "TMP2", "TMP3"]):
                         optimized.append(self.code[i])
@@ -872,7 +906,7 @@ class CodeGen:
                             break
                         
                         if not next_is_return:
-                            i += 1
+
                             continue
 
             # Drop dead stores that are overwritten before any read (small window)
@@ -917,7 +951,32 @@ class CodeGen:
                         j += 1
                     # Only remove dead store if preceded by simple load (LDA/LDX/LDY immediate)
                     # Don't remove if it's the result of computation (checked via previous instruction)
+                    # ALSO: Don't remove STA TMP if immediately followed by STX TMP+1 (16-bit store pair)
                     if overwritten and not used:
+                        # Check if this is a 16-bit store pair (STA TMP; STX TMP+1)
+                        is_16bit_pair = False
+                        if operand_upper.startswith("TMP"):
+                            # Check if next meaningful instruction is STX TMP+1
+                            for k in range(i + 1, min(i + 5, len(self.code))):
+                                nxt_check = self.code[k].strip().upper()
+                                if not nxt_check or nxt_check.endswith(":"):
+                                    continue
+                                # Check if it's STX to TMP+1
+                                if nxt_check.startswith("STX "):
+                                    parts_check = nxt_check.split(maxsplit=1)
+                                    if len(parts_check) == 2:
+                                        opnd_check = parts_check[1].strip().upper()
+                                        # Check if this is storing to the +1 location
+                                        if opnd_check == operand_upper + "+1":
+                                            is_16bit_pair = True
+                                break
+                        
+                        if is_16bit_pair:
+                            # Keep both halves of the 16-bit store
+                            optimized.append(self.code[i])
+                            i += 1
+                            continue
+                        
                         # Check if this is result of computation (previous instruction modifies accumulator)
                         if i > 0:
                             prev = self.code[i - 1].strip().upper()
@@ -2719,9 +2778,10 @@ class CodeGen:
         right_t = self.tc_check(expr.right)
         
         # Determine operand sizes
-        left_16 = left_t.sem_type.base == "WORD"
-        right_16 = right_t.sem_type.base == "WORD"
-        result_16 = t.sem_type.base == "WORD"
+        # IMPORTANT: Pointers are always 16-bit, even if pointing to BYTE
+        left_16 = left_t.sem_type.base == "WORD" or (left_t.kind == ExprKind.ADDR and left_t.sem_type.is_pointer)
+        right_16 = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
+        result_16 = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
         
         # Detect pointer arithmetic: determine if this is pointer +/- value
         left_is_ptr = left_t.kind == ExprKind.ADDR
