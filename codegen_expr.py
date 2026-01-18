@@ -1810,27 +1810,29 @@ class CodeGen:
 
         def emit_mul16_8():
             self.emit("; MUL16_8: 16x8=16 multiply")
-            self.emit("; Input: TMP0,TMP1 (multiplicand), TMP2 (multiplier)")
+            self.emit("; Input: TMP0,TMP0+1 (multiplicand), TMP2 (multiplier)")
             self.emit("; Output: A=low, X=high")
             self.emit("MUL16_8:")
             self.emit("\tLDA TMP0")
-            self.emit("\tSTA TMP3")
-            self.emit("\tLDA TMP1")
+            self.emit("\tSTA TMP1")           # Save low multiplicand in TMP1
+            self.emit("\tLDA TMP0+1")
             self.emit("\tPHA")
             self.emit("\tLDA TMP2")
+            self.emit("\tPHA")                # Save multiplier on stack
+            self.emit("\tLDA TMP1")           # Restore low multiplicand
             self.emit("\tSTA TMP0")
-            self.emit("\tLDA TMP3")
+            self.emit("\tJSR MUL8")          # First: TMP0(low multiplicand) * TMP2(multiplier)
+            self.emit("\tSTA TMP1")           # Save low byte of result in TMP1 (safe from MUL8)
+            self.emit("\tSTX TMP1+1")         # Save high byte of result in TMP1+1
+            self.emit("\tPLA")                # Restore multiplier
             self.emit("\tSTA TMP2")
-            self.emit("\tJSR MUL8")
-            self.emit("\tSTA TMP3")
-            self.emit("\tSTX TMP0")
-            self.emit("\tPLA")
-            self.emit("\tSTA TMP2")
-            self.emit("\tJSR MUL8")
+            self.emit("\tPLA")                # Restore high multiplicand
+            self.emit("\tSTA TMP0")
+            self.emit("\tJSR MUL8")          # Second: TMP0(high multiplicand) * TMP2(multiplier)
             self.emit("\tCLC")
-            self.emit("\tADC TMP0")
-            self.emit("\tTAX")
-            self.emit("\tLDA TMP3")
+            self.emit("\tADC TMP1+1")         # Add high byte from first product (carry)
+            self.emit("\tTAX")                # X = final high byte
+            self.emit("\tLDA TMP1")           # A = low byte from first multiplication
             self.emit("\tRTS")
 
         def emit_mul16():
@@ -2679,7 +2681,7 @@ class CodeGen:
             # If carry was set, we'll handle it below
         
         if is_16bit:
-            # 16-bit: (A,X) + (TMP0,TMP1) → (A,X)
+            # 16-bit: (A,X) + (TMP0,TMP0+1) → (A,X)
             if use_inc and ptr_elem_size == 1:
                 # Optimization: use INC for adding 1 to 16-bit pointer
                 self.emit("\tINC TMP0")
@@ -2693,7 +2695,7 @@ class CodeGen:
                 self.emit("\tADC TMP0")
                 self.emit("\tTAY")
                 self.emit("\tTXA")
-                self.emit("\tADC TMP1")
+                self.emit("\tADC TMP0+1")
                 self.emit("\tTAX")
                 self.emit("\tTYA")
         else:
@@ -2717,7 +2719,7 @@ class CodeGen:
             self.emit("\tASL A")  # Multiply by 2
         
         if is_16bit:
-            # 16-bit: (TMP0,TMP1) - (A,X) → (A,X)
+            # 16-bit: (TMP0,TMP0+1) - (A,X) → (A,X)
             if use_dec and ptr_elem_size == 1:
                 # Optimization: use DEC for subtracting 1 from 16-bit pointer
                 self.emit("\tDEC TMP0")
@@ -2733,8 +2735,8 @@ class CodeGen:
                 self.emit("\tLDA TMP0")
                 self.emit("\tSBC TMP2")
                 self.emit("\tTAY")
-                self.emit("\tLDA TMP1")
-                self.emit("\tSBC TMP3")
+                self.emit("\tLDA TMP0+1")
+                self.emit("\tSBC TMP2+1")
                 self.emit("\tTAX")
                 self.emit("\tTYA")
         else:
@@ -2760,8 +2762,9 @@ class CodeGen:
         else:
             self.math_routines_needed.add("MUL16")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # TMP0,TMP1 = left operand (already stored)
+        # TMP0,TMP0+1 = left operand (already stored via gen_expr)
         # A,X = right operand (in registers)
+        
         # Store right operand
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
@@ -3361,8 +3364,10 @@ class CodeGen:
 
         # Handle type widening: if RHS is smaller than LHS, extend with zeros
         # This is needed when assigning a BYTE to a WORD target
+        # BUT: Don't clear X if the RHS is a multiply (MUL8 returns 16-bit result in A,X)
+        is_mul = isinstance(rhs, BinaryExpr) and rhs.op == BinOp.MUL
         if (rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer and
-            lhs_t.sem_type.base == "WORD"):
+            lhs_t.sem_type.base == "WORD" and not is_mul):
             if self.is_65c02:
                 self.emit("\tLDX #0")  # Clear X for BYTE to WORD conversion
             else:
