@@ -13,6 +13,8 @@ from ast_nodes import (
     DerefExpr,
     SubscriptExpr,
     BinaryExpr,
+    UnaryExpr,
+    UnOp,
     Expr, ExprInit, ListInit, StringInit, CallExpr,
     CallStmt, AssignStmt,
     IfStmt, ReturnStmt, WhileStmt, ForStmt,
@@ -168,6 +170,41 @@ class CodeGen:
         label = label.split('+')[0].strip()    # Remove +1
         label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
         return label in self.fixed_address_labels
+
+    def _modifies_memory_operand(self, line: str, operand: str) -> bool:
+        """Return True if instruction modifies a specific memory operand.
+        
+        Instructions like DEC, INC, ASL, LSR, ROL, ROR can modify memory directly.
+        """
+        stripped = line.strip().upper()
+        if not stripped or stripped.endswith(":") or stripped.startswith(";"):
+            return False
+        
+        # Normalize the operand to uppercase for comparison
+        operand_upper = operand.upper()
+        
+        # Instructions that modify memory: DEC, INC, ASL, LSR, ROL, ROR
+        memory_mod_ops = {"DEC", "INC", "ASL", "LSR", "ROL", "ROR"}
+        parts = stripped.split(maxsplit=1)
+        if not parts:
+            return False
+        
+        opcode = parts[0]
+        if opcode not in memory_mod_ops:
+            return False
+        
+        # Check if operand matches
+        if len(parts) == 2:
+            instr_operand = parts[1].strip()
+            # Compare operands, considering A form vs memory form
+            if opcode in {"ASL", "LSR", "ROL", "ROR"}:
+                # These can be A form (no operand or "A") or memory form
+                if instr_operand == "A" or instr_operand == operand_upper:
+                    return opcode != "A"  # Return False for accumulator form
+            # DEC and INC always modify memory
+            return instr_operand == operand_upper
+        
+        return False
 
     def _sets_nz_flags(self, line: str) -> bool:
         """Return True if instruction overwrites N/Z so earlier flags cannot be observed."""
@@ -385,9 +422,17 @@ class CodeGen:
                             if look_operand == cur_operand:  # Only redundant if operands match
                                 # But don't mark as redundant if it's a fixed-address variable
                                 # Also don't mark as redundant if there's a label (branch target) in between
+                                # ALSO: don't mark as redundant if memory operand was modified (DEC, INC, ASL, LSR, ROL, ROR)
                                 if not self._is_fixed_address(look_operand) and not label_between:
-                                    redundant_load = True
-                                    redundant_at = j
+                                    # Check if operand was modified between loads
+                                    memory_modified = False
+                                    for k in range(i + 1, j):
+                                        if self._modifies_memory_operand(self.code[k], cur_operand):
+                                            memory_modified = True
+                                            break
+                                    if not memory_modified:
+                                        redundant_load = True
+                                        redundant_at = j
                             break  # Stop at any load of the same register, redundant or not
                         # Continue scanning if register not modified yet
                         if reg_used:
@@ -550,8 +595,9 @@ class CodeGen:
                         op1 = curU[len(st) + 1:].strip()
                         op2 = nxtU[len(ld) + 1:].strip()
                         if op1 == op2:
-                            # Skip optimization for fixed-address variables
-                            if not self._is_fixed_address(op1):
+                            # Skip optimization for fixed-address variables AND temp registers
+                            # Temp registers must never have store/load pairs optimized away
+                            if not self._is_fixed_address(op1) and "TMP" not in op1.upper():
                                 optimized.append(self.code[i])
                                 i += 2
                                 matched = True
@@ -1287,12 +1333,30 @@ class CodeGen:
                 
                 # Drop useless INC/DEC of temps when overwritten before any read
                 # Pattern: INC TMPx / DEC TMPx followed by STA TMPx before TMPx is read
+                # BUT: Never drop DEC/INC if immediately followed by a branch (the flags matter!)
                 cur_strip = self.code[i].strip()
                 cur_upper = cur_strip.upper()
                 inc_op = self._inc_operand(cur_upper)
                 dec_op = self._dec_operand(cur_upper)
                 if (inc_op or dec_op) and "TMP" in (inc_op or dec_op).upper():
                     temp_name = (inc_op or dec_op).upper()
+                    
+                    # Check if next non-comment instruction is a branch (if so, DEC/INC sets flags for it)
+                    next_is_branch = False
+                    for peek_i in range(i + 1, min(i + 3, len(self.code))):
+                        peek_line = self.code[peek_i].strip().upper()
+                        if not peek_line or peek_line.startswith(";"):
+                            continue
+                        if peek_line.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
+                            next_is_branch = True
+                        break
+                    
+                    # Don't optimize DEC/INC if they're followed by a branch
+                    if next_is_branch:
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
                     j = i + 1
                     is_useless = False
                     while j < len(self.code) and j < i + 20:
@@ -2565,6 +2629,16 @@ class CodeGen:
             self._gen_div(left_16, right_16, result_16)
         elif expr.op == BinOp.MOD:
             self._gen_mod(left_16, right_16, result_16)
+        elif expr.op == BinOp.BAND:
+            self._gen_bitwise_and(result_16)
+        elif expr.op == BinOp.BOR:
+            self._gen_bitwise_or(result_16)
+        elif expr.op == BinOp.BXOR:
+            self._gen_bitwise_xor(result_16)
+        elif expr.op == BinOp.LSHIFT:
+            self._gen_lshift(result_16)
+        elif expr.op == BinOp.RSHIFT:
+            self._gen_rshift(result_16)
     
     def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False):
         """Generate addition (inline)
@@ -2740,6 +2814,190 @@ class CodeGen:
             # 16%16 = 16
             self.emit("\tJSR MOD16")
 
+    def _gen_bitwise_and(self, result_16: bool):
+        """Generate bitwise AND: TMP0 & A (or TMP0/TMP0+1 & A/X for 16-bit)"""
+        if result_16:
+            # 16-bit AND: (TMP0,TMP0+1) & (A,X) → (A,X)
+            self.emit("\tAND TMP0")
+            self.emit("\tTAY")
+            self.emit("\tTXA")
+            self.emit("\tAND TMP0+1")
+            self.emit("\tTAX")
+            self.emit("\tTYA")
+        else:
+            # 8-bit AND: TMP0 & A → A
+            self.emit("\tAND TMP0")
+
+    def _gen_bitwise_or(self, result_16: bool):
+        """Generate bitwise OR: TMP0 | A (or TMP0/TMP0+1 | A/X for 16-bit)"""
+        if result_16:
+            # 16-bit OR: (TMP0,TMP0+1) | (A,X) → (A,X)
+            self.emit("\tORA TMP0")
+            self.emit("\tTAY")
+            self.emit("\tTXA")
+            self.emit("\tORA TMP0+1")
+            self.emit("\tTAX")
+            self.emit("\tTYA")
+        else:
+            # 8-bit OR: TMP0 | A → A
+            self.emit("\tORA TMP0")
+
+    def _gen_bitwise_xor(self, result_16: bool):
+        """Generate bitwise XOR: TMP0 ^ A (or TMP0/TMP0+1 ^ A/X for 16-bit)"""
+        if result_16:
+            # 16-bit XOR: (TMP0,TMP0+1) ^ (A,X) → (A,X)
+            self.emit("\tEOR TMP0")
+            self.emit("\tTAY")
+            self.emit("\tTXA")
+            self.emit("\tEOR TMP0+1")
+            self.emit("\tTAX")
+            self.emit("\tTYA")
+        else:
+            # 8-bit XOR: TMP0 ^ A → A
+            self.emit("\tEOR TMP0")
+
+    def _gen_lshift(self, result_16: bool):
+        """Generate left shift: TMP0 << A (shift count in A)"""
+        self.used_temps.add("TMP2")
+        self.used_temps.add("TMP3")
+        # Shift count is in A
+        if result_16:
+            # 16-bit shift left (TMP0,TMP0+1) << A → (A,X)
+            self.emit("\tSTA TMP2")    # Store shift count
+            self.emit("\tLDA TMP0")    # Load low byte into A
+            self.emit("\tLDX TMP0+1")  # Load high byte into X
+            
+            lbl_loop = self.new_label("LSHIFT_LOOP")
+            lbl_end = self.new_label("LSHIFT_END")
+            self.emit(f"\tLDA TMP2")   # Load shift count
+            self.emit(f"\tBEQ {lbl_end}")
+            self.emit(f"{lbl_loop}:")
+            self.emit("\tLDA TMP0")    # Load low byte
+            self.emit("\tASL A")       # Shift left
+            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tLDA TMP0+1")  # Load high byte
+            self.emit("\tROL A")       # Rotate with carry
+            self.emit("\tSTA TMP0+1")  # Store back
+            self.emit("\tDEC TMP2")    # Decrement shift count
+            self.emit(f"\tBNE {lbl_loop}")
+            self.emit(f"{lbl_end}:")
+            self.emit("\tLDA TMP0")    # Result low byte
+            self.emit("\tLDX TMP0+1")  # Result high byte
+        else:
+            # 8-bit shift left: TMP0 << A → A
+            self.emit("\tSTA TMP2")    # Store shift count
+            self.emit("\tLDA TMP0")    # Load value
+            
+            lbl_loop = self.new_label("LSHIFT8_LOOP")
+            lbl_end = self.new_label("LSHIFT8_END")
+            self.emit(f"\tLDA TMP2")   # Load shift count
+            self.emit(f"\tBEQ {lbl_end}")
+            self.emit(f"{lbl_loop}:")
+            self.emit("\tLDA TMP0")    # Load value
+            self.emit("\tASL A")       # Shift left
+            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tDEC TMP2")    # Decrement counter
+            self.emit(f"\tBNE {lbl_loop}")
+            self.emit(f"{lbl_end}:")
+            self.emit("\tLDA TMP0")    # Load result
+
+    def _gen_rshift(self, result_16: bool):
+        """Generate right shift: TMP0 >> A (shift count in A)"""
+        self.used_temps.add("TMP2")
+        self.used_temps.add("TMP3")
+        # Shift count is in A
+        if result_16:
+            # 16-bit shift right (TMP0,TMP0+1) >> A → (A,X)
+            self.emit("\tSTA TMP2")    # Store shift count
+            self.emit("\tLDA TMP0")    # Load low byte into A
+            self.emit("\tLDX TMP0+1")  # Load high byte into X
+            
+            lbl_loop = self.new_label("RSHIFT_LOOP")
+            lbl_end = self.new_label("RSHIFT_END")
+            self.emit(f"\tLDA TMP2")   # Load shift count
+            self.emit(f"\tBEQ {lbl_end}")
+            self.emit(f"{lbl_loop}:")
+            self.emit("\tLDA TMP0+1")  # Load high byte
+            self.emit("\tLSR A")       # Shift right
+            self.emit("\tSTA TMP0+1")  # Store back
+            self.emit("\tLDA TMP0")    # Load low byte
+            self.emit("\tROR A")       # Rotate right with carry
+            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tDEC TMP2")    # Decrement shift count
+            self.emit(f"\tBNE {lbl_loop}")
+            self.emit(f"{lbl_end}:")
+            self.emit("\tLDA TMP0")    # Result low byte
+            self.emit("\tLDX TMP0+1")  # Result high byte
+        else:
+            # 8-bit shift right: TMP0 >> A → A
+            self.emit("\tSTA TMP2")    # Store shift count
+            self.emit("\tLDA TMP0")    # Load value
+            
+            lbl_loop = self.new_label("RSHIFT8_LOOP")
+            lbl_end = self.new_label("RSHIFT8_END")
+            self.emit(f"\tLDA TMP2")   # Load shift count
+            self.emit(f"\tBEQ {lbl_end}")
+            self.emit(f"{lbl_loop}:")
+            self.emit("\tLDA TMP0")    # Load value
+            self.emit("\tLSR A")       # Shift right
+            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tDEC TMP2")    # Decrement counter
+            self.emit(f"\tBNE {lbl_loop}")
+            self.emit(f"{lbl_end}:")
+            self.emit("\tLDA TMP0")    # Load result
+
+    def _gen_unary(self, expr: UnaryExpr):
+        """Generate code for unary operators (!, ~)"""
+        operand_t = self.tc_check(expr.expr)
+        
+        if expr.op == UnOp.BNOT:  # Bitwise NOT (~)
+            # Generate operand, then apply EOR #$FF to invert bits
+            self.gen_expr(expr.expr)
+            
+            result_16 = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
+            
+            if result_16:
+                # For WORD: invert both bytes
+                # A has low byte, X has high byte
+                self.emit("\tEOR #$FF")      # Invert low byte
+                self.emit("\tSTA TMP0")      # Save low byte
+                self.emit("\tTXA")           # Move high byte to A
+                self.emit("\tEOR #$FF")      # Invert high byte
+                self.emit("\tTAX")           # Move back to X
+                self.emit("\tLDA TMP0")      # Restore low byte
+            else:
+                # For BYTE: invert just A
+                self.emit("\tEOR #$FF")
+        
+        elif expr.op == UnOp.NOT:  # Logical NOT (!)
+            # Generate operand and test it
+            self.gen_expr(expr.expr)
+            lbl_zero = self.new_label("NOT_ZERO")
+            lbl_end = self.new_label("NOT_END")
+            
+            result_16 = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
+            
+            if result_16:
+                # Test if A or X is nonzero
+                self.emit("\tSTA TMP4")
+                self.emit("\tTXA")
+                self.emit("\tORA TMP4")
+                self.emit(f"\tBNE {lbl_zero}")
+                # Value was zero, result is 1
+                self.emit("\tLDA #$01")
+                self.emit(f"\tBRA {lbl_end}")
+                self.emit(f"{lbl_zero}:")
+                self.emit("\tLDA #$00")
+                self.emit(f"{lbl_end}:")
+            else:
+                # Test A only
+                self.emit(f"\tBNE {lbl_zero}")
+                self.emit("\tLDA #$01")
+                self.emit(f"\tBRA {lbl_end}")
+                self.emit(f"{lbl_zero}:")
+                self.emit("\tLDA #$00")
+                self.emit(f"{lbl_end}:")
+
     def _gen_logical(self, expr: BinaryExpr):
         # TMP4 used to combine A/X when testing word values
         self.used_temps.add("TMP4")
@@ -2858,6 +3116,9 @@ class CodeGen:
                 self._gen_relational(expr)
             else:
                 self._gen_binary(expr)
+
+        elif isinstance(expr, UnaryExpr):
+            self._gen_unary(expr)
 
     def gen_assign(self, lhs: Expr, rhs: Expr):
         # Apply constant substitution and folding to RHS

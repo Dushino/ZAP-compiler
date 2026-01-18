@@ -102,7 +102,7 @@ class ExprTypeChecker:
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
             # bitové
-            if op in {BinOp.BAND, BinOp.BOR}:
+            if op in {BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LSHIFT, BinOp.RSHIFT}:
                 if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
                     raise SemanticError("Bitwise operator requires values")
                 return ExprType(promote(lt.sem_type, rt.sem_type), ExprKind.VALUE)
@@ -110,11 +110,17 @@ class ExprTypeChecker:
         # unární OP
         if isinstance(expr, UnaryExpr):
             t = self.check(expr.expr)
-            # Convert LVALUE to VALUE when reading (e.g., !ptr^ or -ptr^)
+            # Convert LVALUE to VALUE when reading (e.g., !ptr^ or -ptr^ or ~ptr^)
             if t.kind == ExprKind.LVALUE:
                 t = ExprType(t.sem_type, ExprKind.VALUE)
             if t.kind != ExprKind.VALUE:
-                raise SemanticError("Logical NOT requires value")
+                raise SemanticError("Unary operator requires value")
+            
+            # For bitwise NOT (~), preserve the operand type
+            if expr.op.value == "~":
+                return ExprType(t.sem_type, ExprKind.VALUE)
+            
+            # For logical NOT (!), return BYTE
             return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
         # funkce

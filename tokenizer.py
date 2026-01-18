@@ -17,10 +17,10 @@ PREPROC         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifnde
                    ".segment"}
 TYPES           = {"byte", "word"}
 TYPEMOD         = {"const", "struct"}
-SINGLE_OPS      = set("+-*/%><[]&")
-TWO_CHAR_OPS    = {"==","!=","<=",">=","&&","||"}
+SINGLE_OPS      = set("+-*/%><[]&|~^")
+TWO_CHAR_OPS    = {"==","!=","<=",">=","&&","||","<<",">>"}
 DELIMIN         = {","}
-PTR             = {"^"}
+PTR             = set()
 SQB             = {"[","]"}
 
 @dataclass

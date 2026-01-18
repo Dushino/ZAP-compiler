@@ -146,6 +146,9 @@ class BinOp(Enum):
 
     BAND = "&"
     BOR  = "|"
+    BXOR = "^"
+    LSHIFT = "<<"
+    RSHIFT = ">>"
     LAND = "&&"
     LOR  = "||"
 
@@ -162,6 +165,7 @@ class BinaryExpr(Expr):
 
 class UnOp(Enum):
     NOT = "!"
+    BNOT = "~"  # Bitwise NOT
 
 
 @dataclass(frozen=True)

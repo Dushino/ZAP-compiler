@@ -68,6 +68,9 @@ def fold_expr(expr: Expr) -> Expr:
 def _eval_unary(op: UnOp, v: int) -> IntLiteral:
     if op == UnOp.NOT:
         return IntLiteral(0 if v else 1)
+    if op == UnOp.BNOT:
+        # Bitwise NOT - invert all 16 bits
+        return IntLiteral((~v) & 0xFFFF)
 
     raise SemanticError(f"Unsupported unary op in constant fold: {op}")
 

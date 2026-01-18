@@ -32,6 +32,13 @@ class Parser:
         else:
             self.cur = Token(TOK_EOF, "", self.cur.line, self.cur.col)
 
+    def _peek_next(self):
+        """Peek at the token after the current one without advancing"""
+        next_pos = self.pos + 1
+        if next_pos < len(self.tokens):
+            return self.tokens[next_pos]
+        return None
+
     def expect(self, kind, value=None):
         if self.cur.type != kind:
             raise SyntaxError(
@@ -153,7 +160,7 @@ class Parser:
         ret_type_tok = self.cur
         self.expect(TOK_TYPE)
         ret_is_pointer = False
-        if self.cur.type == TOK_PTR:
+        if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
             ret_is_pointer = True
             self.advance()
         
@@ -209,7 +216,7 @@ class Parser:
         self.expect(TOK_TYPE)
         
         is_pointer = False
-        if self.cur.type == TOK_PTR:
+        if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
             is_pointer = True
             self.advance()
         
@@ -241,7 +248,7 @@ class Parser:
         self.expect(TOK_TYPE)
 
         is_pointer = False
-        if self.cur.type == TOK_PTR:
+        if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
             is_pointer = True
             self.advance()
 
@@ -353,7 +360,7 @@ class Parser:
                     self.error("Expected ']' after subscript")
                 node = SubscriptExpr(node, idx)
                 continue
-            if self.cur.type == TOK_PTR:
+            if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
                 self.advance()
                 node = DerefExpr(node)
                 continue
@@ -399,12 +406,74 @@ class Parser:
         return node
 
 
-    def parse_logic_and(self):
+    def parse_shift(self):
+        node = self.parse_add()
+        while self.cur.type == TOK_OP and self.cur.value in ("<<", ">>"):
+            op = BinOp(self.cur.value)
+            self.advance()
+            rhs = self.parse_add()
+            node = BinaryExpr(node, op, rhs)
+        return node
+
+
+    def parse_add(self):
+        node = self.parse_term()
+        while self.cur.type == TOK_OP and self.cur.value in ("+", "-"):
+            op = BinOp(self.cur.value)
+            self.advance()
+            rhs = self.parse_term()
+            node = BinaryExpr(node, op, rhs)
+        return node
+
+
+    def parse_rel(self):
+        node = self.parse_shift()
+        while self.cur.type == TOK_OP and self.cur.value in (
+            "==", "!=", "<", "<=", ">", ">="
+        ):
+            op = BinOp(self.cur.value)
+            self.advance()
+            rhs = self.parse_shift()
+            node = BinaryExpr(node, op, rhs)
+        return node
+
+
+    def parse_bitwise_and(self):
         node = self.parse_rel()
+        while self.cur.type == TOK_OP and self.cur.value == "&":
+            op = BinOp.BAND
+            self.advance()
+            rhs = self.parse_rel()
+            node = BinaryExpr(node, op, rhs)
+        return node
+
+
+    def parse_bitwise_xor(self):
+        node = self.parse_bitwise_and()
+        while self.cur.type == TOK_OP and self.cur.value == "^":
+            op = BinOp.BXOR
+            self.advance()
+            rhs = self.parse_bitwise_and()
+            node = BinaryExpr(node, op, rhs)
+        return node
+
+
+    def parse_bitwise_or(self):
+        node = self.parse_bitwise_xor()
+        while self.cur.type == TOK_OP and self.cur.value == "|":
+            op = BinOp.BOR
+            self.advance()
+            rhs = self.parse_bitwise_xor()
+            node = BinaryExpr(node, op, rhs)
+        return node
+
+
+    def parse_logic_and(self):
+        node = self.parse_bitwise_or()
         while self.cur.type == TOK_OP and self.cur.value == "&&":
             op = BinOp.LAND
             self.advance()
-            rhs = self.parse_rel()
+            rhs = self.parse_bitwise_or()
             node = BinaryExpr(node, op, rhs)
         return node
 
@@ -421,29 +490,15 @@ class Parser:
     def parse_expr(self):
         return self.parse_logic_or()
 
-    def parse_rel(self):
-        node = self.parse_add()
-        while self.cur.type == TOK_OP and self.cur.value in (
-            "==", "!=", "<", "<=", ">", ">="
-        ):
-            op = BinOp(self.cur.value)
-            self.advance()
-            rhs = self.parse_add()
-            node = BinaryExpr(node, op, rhs)
-        return node
-
-
-    def parse_add(self):
-        node = self.parse_term()
-        while self.cur.type == TOK_OP and self.cur.value in ("+", "-"):
-            op = BinOp(self.cur.value)
-            self.advance()
-            rhs = self.parse_term()
-            node = BinaryExpr(node, op, rhs)
-        return node
-    
-
     def parse_factor(self):
+        # Handle unary operators (prefix)
+        if self.cur.type == TOK_OP and self.cur.value == "~":
+            op_line = self.cur.line
+            op_col = self.cur.col
+            self.advance()
+            operand = self.parse_factor()  # Recursive call for nested unary operators
+            return UnaryExpr(UnOp.BNOT, operand)
+        
         if self.cur.type == TOK_NUMBER:
             val = self.cur.value
             self.advance()
@@ -492,7 +547,23 @@ class Parser:
                         self.error("Expected ']' after subscript")
                     node = SubscriptExpr(node, idx)
                     continue
+                # For caret: only treat as postfix dereference if next token cannot start an expression
+                # If it could be an expression (IDENT, NUMBER, LBRACE, etc.), then it's likely binary XOR
                 if self.cur.type == TOK_PTR:
+                    self.advance()
+                    node = DerefExpr(node)
+                    continue
+                # Check for caret as postfix dereference
+                # Only consume it if the next token is NOT an identifier or number (which would indicate binary XOR)
+                if self.cur.type == TOK_OP and self.cur.value == "^":
+                    # Look ahead to see if this might be binary XOR
+                    next_tok = self._peek_next()
+                    # If next token is IDENT or NUMBER on the SAME line, it's likely binary XOR
+                    # If it's on a different line, it's the start of a new statement, so ^ is postfix deref
+                    if next_tok and next_tok.type in (TOK_IDENT, TOK_NUMBER) and next_tok.line == self.cur.line:
+                        # This is likely binary XOR (a ^ b), don't consume the ^
+                        break
+                    # Otherwise treat as postfix dereference
                     self.advance()
                     node = DerefExpr(node)
                     continue
