@@ -744,6 +744,17 @@ class CodeGen:
                 loads_y = cur.startswith("LDY ")
                 
                 if loads_a or loads_x or loads_y:
+                    # Extract the operand being loaded
+                    cur_parts = cur.split(maxsplit=1)
+                    load_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    load_operand_upper = load_operand.upper()
+                    
+                    # Never optimize loads from temp registers - they're often used for return values and intermediate calculations
+                    if any(tmp in load_operand_upper for tmp in ["TMP0", "TMP1", "TMP2", "TMP3"]):
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+                    
                     # Determine which register and what constitutes "use"
                     if loads_a:
                         # A is used by: STA, PHA, arithmetic (ADC, SBC, AND, OR, EOR, CMP), TAX, TAY
@@ -815,7 +826,11 @@ class CodeGen:
                             continue
                         
                         # Stop at control flow boundaries (register state becomes uncertain)
-                        if check.startswith("JSR ") or check.startswith("JMP ") or check == "RTS" or check == "RTI":
+                        # RTS is special - if we reach RTS, the register contains a return value and MUST be kept
+                        if check == "RTS" or check == "RTI":
+                            register_used = True
+                            break
+                        if check.startswith("JSR ") or check.startswith("JMP "):
                             break
                         
                         # Check if register is used
@@ -834,9 +849,21 @@ class CodeGen:
                             break
                     
                     # If register is never used, skip the load instruction
+                    # BUT: Never skip if the very next instruction is RTS (return value loading)
                     if not register_used:
-                        i += 1
-                        continue
+                        # Double-check: is the next instruction RTS or RTI?
+                        next_is_return = False
+                        for check_return in range(i + 1, min(i + 3, len(self.code))):
+                            peek_return = self.code[check_return].strip().upper()
+                            if not peek_return or peek_return.startswith(";"):
+                                continue
+                            if peek_return in ("RTS", "RTI"):
+                                next_is_return = True
+                            break
+                        
+                        if not next_is_return:
+                            i += 1
+                            continue
 
             # Drop dead stores that are overwritten before any read (small window)
             cur_strip = self.code[i].strip()
@@ -1857,7 +1884,7 @@ class CodeGen:
 
         def emit_div16_8():
             self.emit("; DIV16_8: 16/8=16 divide")
-            self.emit("; Input: TMP0,TMP1 (dividend), TMP2 (divisor)")
+            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=low, X=high")
             self.emit("DIV16_8:")
             self._stz("TMP3")
@@ -1865,7 +1892,7 @@ class CodeGen:
             self.emit("\tCLC")
             self.emit("DIV16_8_LOOP:")
             self.emit("\tROL TMP0")
-            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP0+1")
             self.emit("\tROL TMP3")
             self.emit("\tLDA TMP3")
             self.emit("\tCMP TMP2")
@@ -1876,9 +1903,9 @@ class CodeGen:
             self.emit("\tDEX")
             self.emit("\tBNE DIV16_8_LOOP")
             self.emit("\tROL TMP0")
-            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP0+1")
             self.emit("\tLDA TMP0")
-            self.emit("\tLDX TMP1")
+            self.emit("\tLDX TMP0+1")
             self.emit("\tRTS")
 
         def emit_div8_16():
@@ -1901,7 +1928,7 @@ class CodeGen:
 
         def emit_div16():
             self.emit("; DIV16: 16/16=16 divide")
-            self.emit("; Input: TMP0,TMP1 (dividend), TMP2,TMP3 (divisor)")
+            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=low, X=high")
             self.emit("DIV16:")
             self._stz("TMP2+2")
@@ -1910,7 +1937,7 @@ class CodeGen:
             self.emit("\tCLC")
             self.emit("DIV16_LOOP:")
             self.emit("\tROL TMP0")
-            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP0+1")
             self.emit("\tROL TMP2+2")
             self.emit("\tROL TMP2+3")
             self.emit("\tLDA TMP2+2")
@@ -1928,9 +1955,9 @@ class CodeGen:
             self.emit("\tDEX")
             self.emit("\tBNE DIV16_LOOP")
             self.emit("\tROL TMP0")
-            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP0+1")
             self.emit("\tLDA TMP0")
-            self.emit("\tLDX TMP1")
+            self.emit("\tLDX TMP0+1")
             self.emit("\tRTS")
 
         def emit_mod8():
@@ -1955,7 +1982,7 @@ class CodeGen:
 
         def emit_mod16_8():
             self.emit("; MOD16_8: 16%8=8 modulo")
-            self.emit("; Input: TMP0,TMP1 (dividend), TMP2 (divisor)")
+            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=remainder, X=0")
             self.emit("MOD16_8:")
             self._stz("TMP3")
@@ -1963,7 +1990,7 @@ class CodeGen:
             self.emit("\tCLC")
             self.emit("MOD16_8_LOOP:")
             self.emit("\tROL TMP0")
-            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP0+1")
             self.emit("\tROL TMP3")
             self.emit("\tLDA TMP3")
             self.emit("\tCMP TMP2")
@@ -1998,7 +2025,7 @@ class CodeGen:
 
         def emit_mod16():
             self.emit("; MOD16: 16%16=16 modulo")
-            self.emit("; Input: TMP0,TMP1 (dividend), TMP2,TMP3 (divisor)")
+            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=low, X=high")
             self.emit("MOD16:")
             self._stz("TMP2+2")
@@ -2007,7 +2034,7 @@ class CodeGen:
             self.emit("\tCLC")
             self.emit("MOD16_LOOP:")
             self.emit("\tROL TMP0")
-            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP0+1")
             self.emit("\tROL TMP2+2")
             self.emit("\tROL TMP2+3")
             self.emit("\tLDA TMP2+2")
@@ -2767,7 +2794,7 @@ class CodeGen:
         else:
             self.math_routines_needed.add("DIV16")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # TMP0,TMP1 = dividend
+        # TMP0,TMP0+1 = dividend
         # A,X = divisor
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
@@ -2796,7 +2823,7 @@ class CodeGen:
         else:
             self.math_routines_needed.add("MOD16")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # TMP0,TMP1 = dividend
+        # TMP0,TMP0+1 = dividend
         # A,X = divisor
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
