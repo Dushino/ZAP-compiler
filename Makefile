@@ -31,6 +31,8 @@ APPBIN 		:= $(APPBINDIR)/$(APPNAME)
 LIBDIR      =  lib
 TEST_REPORT_FILE = tests_report.txt
 TEST_REPORT = tests/$(TEST_REPORT_FILE)
+PASS_ROOT ?= tests/pass
+FAIL_ROOT ?= tests/fail
 
 ATARI_CPU = 6502
 ATARI_AS_OPTS = -I $(LIBDIR) -t none --cpu $(ATARI_CPU) -g
@@ -40,7 +42,7 @@ SBC_AS_OPTS  = -I $(LIBDIR) -t none --cpu $(SBC_CPU) -g
 
 
 # Rules
-.PHONY:	all clean sbc atari tests
+.PHONY:	all clean sbc atari tests test
 
 
 all: atari 
@@ -83,13 +85,13 @@ tests: clean
 	@echo "=========================================="
 	@echo "Running ZAP Compiler Test Suite"
 	@echo "=========================================="
-	@mkdir -p tests/pass tests/fail
+	@mkdir -p $(PASS_ROOT) $(FAIL_ROOT)
 	@rm -f $(TEST_REPORT)
 	@pass_count=0; fail_count=0; error_count=0; \
 	echo ""; \
 	echo "Testing files that SHOULD PASS..."; \
 	echo "------------------------------------------"; \
-	for zapfile in $$(find tests/pass -name '*.zap' -type f 2>/dev/null | sort); do \
+	for zapfile in $$(find $(PASS_ROOT) -name '*.zap' -type f 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
@@ -220,7 +222,7 @@ tests: clean
 	echo ""; \
 	echo "Testing files that SHOULD FAIL..."; \
 	echo "------------------------------------------"; \
-	for zapfile in $$(find tests/fail -name '*.zap' -type f 2>/dev/null | sort); do \
+	for zapfile in $$(find $(FAIL_ROOT) -name '*.zap' -type f 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
@@ -250,6 +252,26 @@ tests: clean
 		echo "❌ $$error_count test(s) behaved incorrectly"; \
 		exit 1; \
 	fi
+
+
+# Single-directory test run: e.g. `make test ./pass/015-for-loop`
+# Additional goal after `test` is treated as directory under tests/.
+ifeq ($(filter test,$(MAKECMDGOALS)),test)
+TEST_PATH_RAW := $(firstword $(filter-out test,$(MAKECMDGOALS)))
+TEST_SUBDIR := $(patsubst tests/%,%,$(patsubst ./%,%,$(TEST_PATH_RAW)))
+
+# Prevent make from treating the extra argument as a real target
+ifneq ($(strip $(TEST_PATH_RAW)),)
+.PHONY: $(TEST_PATH_RAW)
+$(TEST_PATH_RAW):
+	@:
+endif
+
+test: PASS_ROOT := $(if $(TEST_SUBDIR),tests/$(TEST_SUBDIR),tests/pass)
+test: FAIL_ROOT := $(if $(TEST_SUBDIR),tests/$(TEST_SUBDIR),tests/fail)
+endif
+
+test: tests
 
 
 
