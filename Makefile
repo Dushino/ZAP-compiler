@@ -268,7 +268,7 @@ $(TEST_PATH_RAW):
 endif
 
 test: PASS_ROOT := $(if $(TEST_SUBDIR),tests/$(TEST_SUBDIR),tests/pass)
-test: FAIL_ROOT := $(if $(TEST_SUBDIR),tests/$(TEST_SUBDIR),tests/fail)
+test: FAIL_ROOT := $(if $(TEST_SUBDIR),tests/.empty_fail,tests/fail)
 endif
 
 test: tests
