@@ -46,7 +46,6 @@ class FuncAnalyzer:
         
         # add parameters to local symbol table
         for param in func.params:
-            from symbols import SemType, Symbol
             sem_type = SemType(param.type.base, param.type.is_pointer)
             sym = Symbol(
                 name=param.name,
@@ -96,17 +95,26 @@ class FuncAnalyzer:
                         raise err
                     raise
                 if et.sem_type.base != ret_sem.base:
-                    info = self.debug.get("stmt_src", {}).get(id(stmt))
-                    if info:
-                        if len(info) == 3:
-                            fname, line, _text = info
-                            col = 1
-                        else:
-                            fname, line, col, _text = info
-                        err = SemanticError("RETURN type mismatch", line=line, col=col)
-                        err.filename = fname
-                        raise err
-                    raise SemanticError("RETURN type mismatch")
+                    # Allow implicit narrowing from WORD to BYTE (use lower byte)
+                    # Allow implicit widening from BYTE to WORD (zero-extend)
+                    if (ret_sem.base == "BYTE" and et.sem_type.base == "WORD") or \
+                       (ret_sem.base == "WORD" and et.sem_type.base == "BYTE"):
+                        # This is allowed - implicit conversion
+                        pass
+                    else:
+                        # Type mismatch - report error with context
+                        info = self.debug.get("stmt_src", {}).get(id(stmt))
+                        if info:
+                            if len(info) == 3:
+                                fname, line, _text = info
+                                col = 1
+                            else:
+                                fname, line, col, _text = info
+                            msg = f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}"
+                            err = SemanticError(msg, line=line, col=col)
+                            err.filename = fname
+                            raise err
+                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}")
 
         # restore previous symbol table
         self.expr_tc.symtab = prev_symtab

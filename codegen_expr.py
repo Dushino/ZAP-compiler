@@ -65,6 +65,8 @@ class CodeGen:
         self.current_stmt_info: tuple[str, int, int, str] | None = None
         # Track fixed-address variables (hardware registers) - never optimize these
         self.fixed_address_labels: set[str] = set()
+        # Track current function return type for narrowing WORD to BYTE
+        self.current_func_return_type: str | None = None
 
     def tc_check(self, expr):
         # Wrapper to attach source location to type-checker errors
@@ -3577,8 +3579,12 @@ class CodeGen:
             return
 
         if isinstance(stmt, ReturnStmt):
-            # vyhodnoť výraz → A/(X)
+            # Generate the return expression
             self.gen_expr(stmt.expr)
+            
+            # If function expects BYTE but expression is WORD, use only lower byte (A register already has it)
+            # X register will be ignored on return
+            
             self.emit("\tRTS")
             return
         
@@ -3698,8 +3704,11 @@ class CodeGen:
     def gen_func(self, func: AnalyzedFunc):
         prev_symtab = self.current_symtab
         prev_tc_symtab = getattr(self.tc, "symtab", None)
+        prev_func_return_type = self.current_func_return_type
+        
         self.current_symtab = cast(SymbolTable, func.symtab)
         self.tc.symtab = func.symtab
+        self.current_func_return_type = func.ast.ret_type.base  # Set return type for this function
 
         self.emit("; -- Function " + func.ast.name + " --")
         self.emit(f"{func.ast.name}:")
@@ -3718,6 +3727,7 @@ class CodeGen:
         self.current_symtab = prev_symtab
         if prev_tc_symtab is not None:
             self.tc.symtab = prev_tc_symtab
+        self.current_func_return_type = prev_func_return_type
 
     def _gen_relational(self, expr: BinaryExpr):
         left_t = self.tc_check(expr.left)
