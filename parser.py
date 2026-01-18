@@ -612,6 +612,9 @@ class Parser:
 
 
     def parse_stmt(self):
+        if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
+            self.error("Local variable declarations must be placed before the first statement in a procedure")
+
         # blokové terminátory NESMÍ být parsovány jako statement
         if self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "ENDIF", "ELSE"):
             self.error(f"Unexpected block terminator {self.cur.value}")

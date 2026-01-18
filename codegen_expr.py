@@ -345,6 +345,7 @@ class CodeGen:
                     j = i + 1
                     jsr_seen = False
                     reg_used = False
+                    label_between = False
                     # Determine which register we're checking
                     checking_a = curU.startswith("LDA ")
                     checking_x = curU.startswith("LDX ")
@@ -353,7 +354,12 @@ class CodeGen:
                     while j < len(self.code) and j < i + 20:  # Limit lookahead
                         look = self.code[j].strip()
                         lookU = look.upper()
-                        if not look or lookU.endswith(":") or lookU.startswith(";"):
+                        if not look or lookU.startswith(";"):
+                            j += 1
+                            continue
+                        # Check for label (branch target) - this is a boundary
+                        if lookU.endswith(":"):
+                            label_between = True
                             j += 1
                             continue
                         # Stop at barriers
@@ -378,7 +384,8 @@ class CodeGen:
                             look_operand = look_parts[1].strip() if len(look_parts) == 2 else ""
                             if look_operand == cur_operand:  # Only redundant if operands match
                                 # But don't mark as redundant if it's a fixed-address variable
-                                if not self._is_fixed_address(look_operand):
+                                # Also don't mark as redundant if there's a label (branch target) in between
+                                if not self._is_fixed_address(look_operand) and not label_between:
                                     redundant_load = True
                                     redundant_at = j
                             break  # Stop at any load of the same register, redundant or not
@@ -1175,9 +1182,12 @@ class CodeGen:
                                 look_raw = self.code[j]
                                 look = look_raw.strip()
                                 lookU = look.upper()
-                                if not look or look.endswith(":") or look.startswith(";"):
+                                if not look or look.startswith(";"):
                                     j += 1
                                     continue
+                                # Stop at labels (branch targets - register state undefined)
+                                if look.endswith(":"):
+                                    break
                                 # Stop at control flow barriers
                                 if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
                                     break
@@ -1213,9 +1223,12 @@ class CodeGen:
                                 look_raw = self.code[j]
                                 look = look_raw.strip()
                                 lookU = look.upper()
-                                if not look or look.endswith(":") or look.startswith(";"):
+                                if not look or look.startswith(";"):
                                     j += 1
                                     continue
+                                # Stop at labels (branch targets - register state undefined)
+                                if look.endswith(":"):
+                                    break
                                 if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
                                     break
                                 # Detect LDX addr (same operand as STX)
@@ -1248,9 +1261,12 @@ class CodeGen:
                                 look_raw = self.code[j]
                                 look = look_raw.strip()
                                 lookU = look.upper()
-                                if not look or look.endswith(":") or look.startswith(";"):
+                                if not look or look.startswith(";"):
                                     j += 1
                                     continue
+                                # Stop at labels (branch targets - register state undefined)
+                                if look.endswith(":"):
+                                    break
                                 if lookU.startswith(("JSR ", "JMP ", "BRK")) or lookU in ("RTS", "RTI"):
                                     break
                                 # Detect LDY addr (same operand as STY)
