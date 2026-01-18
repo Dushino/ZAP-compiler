@@ -14,6 +14,8 @@
             "ca65": true,
             "makefile": true
         },
-        "editor.fontSize": 17
+        "editor.fontSize": 17,
+        "chat.editing.autoAcceptDelay": 60,
+        "chat.agent.maxRequests": 50
     }
 }
