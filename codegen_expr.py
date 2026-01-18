@@ -45,6 +45,7 @@ class CodeGen:
         self.array_literals = {}   # Maps array data tuple to label name
         self.array_id = 0
         self.copy_bytes_needed = False
+        self.strcpy_needed = False  # Flag to emit STRCPY subroutine
         self.math_routines_needed: set[str] = set()
         self.is_65c02 = is_65c02
         self.used_globals = used_globals or set()
@@ -1717,6 +1718,7 @@ class CodeGen:
         # Ensure runtime helpers and data live in CODE segment
         self.emit("\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
+        self._gen_strcpy_routine()
         self._gen_string_data()
         self._gen_math_routines()
         self.emit("__END:")
@@ -1748,6 +1750,53 @@ class CodeGen:
         self.emit("COPY_BYTES_DONE:")
         self.emit("\tRTS\n")
     
+    def _gen_strcpy_routine(self):
+        """Generate STRCPY subroutine for string copying.
+        
+        Only emitted if strcpy_needed flag is set.
+        
+        Inputs:
+        - TMP0/TMP0+1: source address (pointer)
+        - TMP2/TMP2+1: destination address (pointer) 
+        - A: max copy length (0-255 bytes, excluding null terminator)
+        
+        Copies bytes from source to destination until:
+        - Null terminator found in source, OR
+        - Max length reached
+        
+        Always null-terminates the destination.
+        
+        Clobbers: A, X, Y
+        """
+        if not self.strcpy_needed:
+            return
+        
+        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
+        
+        self.emit("; ------------------------------")
+        self.emit("; String copy routine")
+        self.emit("; Inputs: TMP0/TMP0+1=src addr, TMP2/TMP2+1=dst addr, A=max_len")
+        self.emit("; Clobbers: A, X, Y")
+        self.emit("; Always null-terminates destination")
+        self.emit("; ------------------------------")
+        self.emit("STRCPY:")
+        self.emit("\tSTA TMP3")          # Store max length in TMP3
+        self.emit("\tLDX #0")            # Initialize byte counter
+        self.emit("\tLDY #0")            # Initialize index for indirect addressing
+        self.emit("STRCPY_LOOP:")
+        self.emit("\tCPX TMP3")          # Check if we've copied max_len bytes
+        self.emit("\tBEQ STRCPY_DONE")   # If so, done (will add null terminator)
+        self.emit("\tLDA (TMP0),Y")      # Load byte from source
+        self.emit("\tSTA (TMP2),Y")      # Store byte to destination
+        self.emit("\tBEQ STRCPY_DONE")   # If null terminator, done
+        self.emit("\tINX")               # Increment byte counter
+        self.emit("\tINY")               # Increment byte index
+        self.emit("\tBNE STRCPY_LOOP")   # Loop until page boundary (256 bytes max)
+        self.emit("STRCPY_DONE:")
+        self.emit("\tLDA #0")            # Load null terminator
+        self.emit("\tSTA (TMP2),Y")      # Store null terminator at destination
+        self.emit("\tRTS\n")
+    
     def _gen_string_data(self):
         """Generate string literal data in code segment"""
         if not self.string_literals and not self.array_literals:
@@ -1775,6 +1824,69 @@ class CodeGen:
                 self.emit(f"\t.byte " + ", ".join(f"${val:02X}" for val in data_tuple))
         
         self.emit("")
+    
+    def _gen_string_copy(self, dst_sym, src_sym):
+        """Generate code to call STRCPY subroutine.
+        
+        Sets up parameters and calls shared STRCPY subroutine which copies
+        bytes from source to destination until null terminator or max length.
+        
+        Parameters:
+        - TMP0/TMP0+1: source address (pointer)
+        - TMP2/TMP2+1: destination address (pointer)
+        - A: destination max length (minus 1 for null terminator)
+        """
+        self.strcpy_needed = True  # Mark that STRCPY routine is needed
+        
+        src_asm = src_sym.asm_name()
+        dst_asm = dst_sym.asm_name()
+        dst_len = dst_sym.array_len or 0
+        
+        # Set up source address in TMP0
+        if src_sym.address is not None:
+            # Fixed address - load as immediate
+            addr = src_sym.address
+            self.emit(f"\tLDA #{addr & 0xFF}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA #{(addr >> 8) & 0xFF}")
+            self.emit("\tSTA TMP0+1")
+        else:
+            # Variable - address is the variable itself (for arrays in ZP or data)
+            self.emit(f"\tLDA #{0}")  # Low byte of source address
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA #{0}")  # High byte
+            self.emit("\tSTA TMP0+1")
+            # Actually, for simple arrays, just use the variable name as pointer
+            # Load address of source array
+            self.emit(f"\tLDA #<{src_asm}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA #>{src_asm}")
+            self.emit("\tSTA TMP0+1")
+        
+        # Set up destination address in TMP2
+        if dst_sym.address is not None:
+            addr = dst_sym.address
+            self.emit(f"\tLDA #{addr & 0xFF}")
+            self.emit("\tSTA TMP2")
+            self.emit(f"\tLDA #{(addr >> 8) & 0xFF}")
+            self.emit("\tSTA TMP2+1")
+        else:
+            self.emit(f"\tLDA #<{dst_asm}")
+            self.emit("\tSTA TMP2")
+            self.emit(f"\tLDA #>{dst_asm}")
+            self.emit("\tSTA TMP2+1")
+        
+        # Set max length in A (dst_len - 1 to reserve space for null terminator)
+        if dst_len > 0:
+            max_len = dst_len - 1
+            self.emit(f"\tLDA #{max_len}")
+        else:
+            # No length limit (risky, but copy up to 255 bytes)
+            self.emit("\tLDA #255")
+        
+        # Call STRCPY routine
+        self.emit("\tJSR STRCPY")
+
     
     def _gen_math_routines(self):
         """Generate runtime math routines for *, /, %"""
@@ -2094,7 +2206,7 @@ class CodeGen:
         temps = set(self.used_temps)
         code = self.code if code is None else code
 
-        if self.copy_bytes_needed or self.math_routines_needed:
+        if self.copy_bytes_needed or self.math_routines_needed or self.strcpy_needed:
             temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
 
         for line in code:
@@ -3165,6 +3277,18 @@ class CodeGen:
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr)):
             self._raise_error("Left side of assignment is not assignable")
+
+        # Special case: array-to-array assignment (string copy)
+        # str3 = str2 -> copy str2 content into str3 until NUL or max length
+        if isinstance(lhs, Identifier) and isinstance(rhs, Identifier):
+            lhs_sym = self.current_symtab.lookup(lhs.name)
+            rhs_sym = self.current_symtab.lookup(rhs.name)
+            
+            if lhs_sym.is_array and rhs_sym.is_array and \
+               lhs_t.sem_type.base == "BYTE" and rhs_t.sem_type.base == "BYTE":
+                # This is a byte array to byte array copy
+                self._gen_string_copy(lhs_sym, rhs_sym)
+                return
 
         if lhs_t.kind == ExprKind.LVALUE:
             # RHS LVALUE means we're reading from that location (convert to VALUE semantically)
