@@ -45,7 +45,7 @@ class CodeGen:
         self.array_literals = {}   # Maps array data tuple to label name
         self.array_id = 0
         self.copy_bytes_needed = False
-        self.strcpy_needed = False  # Flag to emit STRCPY subroutine
+        self.arrcpy_needed = False  # Flag to emit ARRCPY subroutine
         self.math_routines_needed: set[str] = set()
         self.is_65c02 = is_65c02
         self.used_globals = used_globals or set()
@@ -410,11 +410,11 @@ class CodeGen:
                         if lookU.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BPL ", "BMI ", "BVC ", "BVS ")):
                             break
                         # Check if register is used/modified (excluding stores which preserve the value)
-                        if checking_a and any(op in lookU for op in ["PHA", "ADC ", "SBC ", "ORA ", "AND ", "EOR ", "CMP ", "TAX", "TAY"]):
+                        if checking_a and any(op in lookU for op in ["STA ", "PHA", "ADC ", "SBC ", "ORA ", "AND ", "EOR ", "CMP ", "TAX", "TAY"]):
                             reg_used = True
-                        if checking_x and any(op in lookU for op in ["INX", "DEX", "CPX ", "TXA", "TXS"]):
+                        if checking_x and any(op in lookU for op in ["STX ", "INX", "DEX", "CPX ", "TXA", "TXS"]):
                             reg_used = True
-                        if checking_y and any(op in lookU for op in ["INY", "DEY", "CPY ", "TYA"]):
+                        if checking_y and any(op in lookU for op in ["STY ", "INY", "DEY", "CPY ", "TYA"]):
                             reg_used = True
                         # Check if same register is reloaded with SAME operand
                         if (checking_a and lookU.startswith("LDA ")) or \
@@ -477,6 +477,10 @@ class CodeGen:
                                 look_val = self._lda_const(look_raw)
                                 if look_val is not None and look_val == cur_val and not seen_clobber:
                                     skip_indices.add(j)
+                                break
+                            # Check if A is clobbered (includes stores that use A)
+                            if self._clobbers_a(look):
+                                seen_clobber = True
                                 break
                             j += 1
                 
@@ -830,10 +834,13 @@ class CodeGen:
                         
                         # Stop at control flow boundaries (register state becomes uncertain)
                         # RTS is special - if we reach RTS, the register contains a return value and MUST be kept
+                        # JSR and JMP also consume the register value, so consider them as "uses"
                         if check == "RTS" or check == "RTI":
                             register_used = True
                             break
                         if check.startswith("JSR ") or check.startswith("JMP "):
+                            # JSR/JMP consume register state - treat as a use
+                            register_used = True
                             break
                         
                         # Check if register is used
@@ -1718,7 +1725,7 @@ class CodeGen:
         # Ensure runtime helpers and data live in CODE segment
         self.emit("\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
-        self._gen_strcpy_routine()
+        self._gen_arrcpy_routine()
         self._gen_string_data()
         self._gen_math_routines()
         self.emit("__END:")
@@ -1750,52 +1757,47 @@ class CodeGen:
         self.emit("COPY_BYTES_DONE:")
         self.emit("\tRTS\n")
     
-    def _gen_strcpy_routine(self):
-        """Generate STRCPY subroutine for string copying.
+    def _gen_arrcpy_routine(self):
+        """Generate ARRCPY subroutine for array copying.
         
-        Only emitted if strcpy_needed flag is set.
+        Only emitted if arrcpy_needed flag is set.
         
         Inputs:
         - TMP0/TMP0+1: source address (pointer)
         - TMP2/TMP2+1: destination address (pointer) 
-        - A: max copy length (0-255 bytes, excluding null terminator)
+        - A: number of bytes to copy (0-255)
         
-        Copies bytes from source to destination until:
-        - Null terminator found in source, OR
-        - Max length reached
-        
-        Always null-terminates the destination.
+        Copies exactly A bytes from source to destination, regardless of content.
+        This implements array copy semantics (not C-string copy).
         
         Clobbers: A, X, Y
         """
-        if not self.strcpy_needed:
+        if not self.arrcpy_needed:
             return
         
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
         
         self.emit("; ------------------------------")
-        self.emit("; String copy routine")
-        self.emit("; Inputs: TMP0/TMP0+1=src addr, TMP2/TMP2+1=dst addr, A=max_len")
+        self.emit("; Array copy routine (ARRCPY)")
+        self.emit("; Inputs: TMP0/TMP0+1=src addr, TMP2/TMP2+1=dst addr, A=length")
+        self.emit("; Copies exactly A bytes regardless of content")
         self.emit("; Clobbers: A, X, Y")
-        self.emit("; Always null-terminates destination")
         self.emit("; ------------------------------")
-        self.emit("STRCPY:")
-        self.emit("\tSTA TMP3")          # Store max length in TMP3
+        self.emit("ARRCPY:")
+        self.emit("\tSTA TMP3")          # Store length in TMP3
         self.emit("\tLDX #0")            # Initialize byte counter
         self.emit("\tLDY #0")            # Initialize index for indirect addressing
-        self.emit("STRCPY_LOOP:")
-        self.emit("\tCPX TMP3")          # Check if we've copied max_len bytes
-        self.emit("\tBEQ STRCPY_DONE")   # If so, done (will add null terminator)
+        self.emit("ARRCPY_LOOP:")
+        self.emit("\tCPX TMP3")          # Check if we've copied all bytes
+        self.emit("\tBEQ ARRCPY_DONE")   # If so, done
         self.emit("\tLDA (TMP0),Y")      # Load byte from source
         self.emit("\tSTA (TMP2),Y")      # Store byte to destination
-        self.emit("\tBEQ STRCPY_DONE")   # If null terminator, done
         self.emit("\tINX")               # Increment byte counter
         self.emit("\tINY")               # Increment byte index
-        self.emit("\tBNE STRCPY_LOOP")   # Loop until page boundary (256 bytes max)
-        self.emit("STRCPY_DONE:")
-        self.emit("\tLDA #0")            # Load null terminator
-        self.emit("\tSTA (TMP2),Y")      # Store null terminator at destination
+        self.emit("\tBNE ARRCPY_LOOP")   # Loop until page boundary (256 bytes max)
+        self.emit("ARRCPY_DONE:")
         self.emit("\tRTS\n")
+
     
     def _gen_string_data(self):
         """Generate string literal data in code segment"""
@@ -1826,9 +1828,9 @@ class CodeGen:
         self.emit("")
     
     def _gen_string_copy(self, dst_sym, src_sym):
-        """Generate code to call STRCPY subroutine.
+        """Generate code to call ARRCPY subroutine.
         
-        Sets up parameters and calls shared STRCPY subroutine which copies
+        Sets up parameters and calls shared ARRCPY subroutine which copies
         bytes from source to destination until null terminator or max length.
         
         Parameters:
@@ -1836,7 +1838,7 @@ class CodeGen:
         - TMP2/TMP2+1: destination address (pointer)
         - A: destination max length (minus 1 for null terminator)
         """
-        self.strcpy_needed = True  # Mark that STRCPY routine is needed
+        self.arrcpy_needed = True  # Mark that ARRCPY routine is needed
         
         src_asm = src_sym.asm_name()
         dst_asm = dst_sym.asm_name()
@@ -1876,16 +1878,15 @@ class CodeGen:
             self.emit(f"\tLDA #>{dst_asm}")
             self.emit("\tSTA TMP2+1")
         
-        # Set max length in A (dst_len - 1 to reserve space for null terminator)
+        # Set copy length in A (full array length, not minus 1)
         if dst_len > 0:
-            max_len = dst_len - 1
-            self.emit(f"\tLDA #{max_len}")
+            self.emit(f"\tLDA #{dst_len}")
         else:
             # No length limit (risky, but copy up to 255 bytes)
             self.emit("\tLDA #255")
         
-        # Call STRCPY routine
-        self.emit("\tJSR STRCPY")
+        # Call ARRCPY routine
+        self.emit("\tJSR ARRCPY")
 
     
     def _gen_math_routines(self):
@@ -2206,7 +2207,7 @@ class CodeGen:
         temps = set(self.used_temps)
         code = self.code if code is None else code
 
-        if self.copy_bytes_needed or self.math_routines_needed or self.strcpy_needed:
+        if self.copy_bytes_needed or self.math_routines_needed or self.arrcpy_needed:
             temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
 
         for line in code:
@@ -2412,65 +2413,51 @@ class CodeGen:
                 if is_word:
                     self.emit(f"\tLDX #0")
                     self.emit(f"\tSTX {dest_var}+{term_offset}+1")
-            elif str_len > COPY_THRESHOLD and str_len <= 255:
-                # Use shared copy routine for larger strings (fits in one page)
-                if content not in self.string_literals:
-                    self.string_id += 1
-                    self.string_literals[content] = f"STR_DATA_{self.string_id}"
-                str_label = self.string_literals[content]
-                self.copy_bytes_needed = True
-
-                # Set source and destination pointers
-                self.emit(f"\tLDA #<{str_label}")
-                self.emit(f"\tLDX #>{str_label}")
-                self.emit("\tSTA TMP0")
-                self.emit("\tSTX TMP0+1")
-
-                self.emit(f"\tLDA #<{dest_var}")        
-                self.emit(f"\tLDX #>{dest_var}")
-                self.emit("\tSTA TMP2")
-                self.emit("\tSTX TMP2+1")
-
-                # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
-                copy_len = str_len * (2 if is_word else 1)
-                self.emit(f"\tLDX #{copy_len}")
-                self.emit("\tLDY #0")
-                self.emit("\tJSR COPY_BYTES")
             else:
-                # Use loop for longer strings - get or create label
+                # Use ARRCPY routine for larger strings (fits in one page)
                 if content not in self.string_literals:
                     self.string_id += 1
                     self.string_literals[content] = f"STR_DATA_{self.string_id}"
-                
                 str_label = self.string_literals[content]
-                self.emit(f"\t; Copy string \"{content[:20]}{'...' if len(content) > 20 else ''}\" ({str_len} bytes)")
                 
-                if is_word:
-                    # For WORD arrays, each character needs to be loaded into a WORD (2 bytes)
-                    self.emit(f"\tLDX #0")
-                    copy_loop = self.new_label("STR_COPY")
-                    self.emit(f"{copy_loop}:")
-                    self.emit(f"\tLDA {str_label},X")  # Load low byte (char)
-                    self.emit(f"\tSTA {dest_var},X")   # Store to even offset
-                    self.emit(f"\tBEQ {copy_loop}_DONE")  # Stop at null terminator
-                    self.emit(f"\tLDA #0")             # High byte is 0
-                    self.emit(f"\tSTA {dest_var}+1,X")
-                    self.emit(f"\tINX")
-                    self.emit(f"\tINX")                # Increment by 2 for WORD
-                    self.emit(f"\tCPX #{str_len * 2}")
-                    self.emit(f"\tBNE {copy_loop}")
-                    self.emit(f"{copy_loop}_DONE:")
+                # BYTE arrays: use ARRCPY for all sizes > COPY_THRESHOLD
+                if not is_word and str_len <= 255:
+                    self.arrcpy_needed = True
+                    
+                    # Set source and destination pointers
+                    self.emit(f"\tLDA #<{str_label}")
+                    self.emit(f"\tLDX #>{str_label}")
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+                    
+                    self.emit(f"\tLDA #<{dest_var}")        
+                    self.emit(f"\tLDX #>{dest_var}")
+                    self.emit("\tSTA TMP2")
+                    self.emit("\tSTX TMP2+1")
+                    
+                    # Copy full array length (str_len includes null terminator)
+                    self.emit(f"\tLDA #{str_len}")
+                    self.emit("\tJSR ARRCPY")
                 else:
-                    self.emit(f"\tLDX #0")
-                    copy_loop = self.new_label("STR_COPY")
-                    self.emit(f"{copy_loop}:")
-                    self.emit(f"\tLDA {str_label},X")
-                    self.emit(f"\tSTA {dest_var},X")
-                    self.emit(f"\tBEQ {copy_loop}_DONE")  # Stop at null terminator
-                    self.emit(f"\tINX")
-                    self.emit(f"\tCPX #{str_len}")
-                    self.emit(f"\tBNE {copy_loop}")
-                    self.emit(f"{copy_loop}_DONE:")
+                    # WORD arrays or very large arrays: use COPY_BYTES for now
+                    self.copy_bytes_needed = True
+                    
+                    # Set source and destination pointers
+                    self.emit(f"\tLDA #<{str_label}")
+                    self.emit(f"\tLDX #>{str_label}")
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+
+                    self.emit(f"\tLDA #<{dest_var}")        
+                    self.emit(f"\tLDX #>{dest_var}")
+                    self.emit("\tSTA TMP2")
+                    self.emit("\tSTX TMP2+1")
+
+                    # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
+                    copy_len = str_len * (2 if is_word else 1)
+                    self.emit(f"\tLDX #{copy_len}")
+                    self.emit("\tLDY #0")
+                    self.emit("\tJSR COPY_BYTES")
             return
 
         if isinstance(sym.init, ListInit):
