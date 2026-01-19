@@ -247,49 +247,16 @@ if exist "tests.txt" del /Q "tests.txt" 2>nul
 if not "%2"=="" (
     rem Single directory mode - use non-recursive for loop
     for %%f in ("!PASS_DIRS!\*.zap") do (
-        set "base=%%~nf"
+    set "base=%%~nf"
+    set "fullname=%%~nxf"
+    
+    rem Skip .zaplib files (library files, not test programs)
+    if not "!fullname:zaplib=!"=="!fullname!" (
+        rem Skip this file - it's a .zaplib file
+    ) else (
         set "variant_pass=0"
         set "variant_fail=0"
         set "testdir=!PASS_DIRS!"
-
-        rem Test all variants: default, -6502
-if %%v equ 0 (
-            set "variant_flags="
-            set "variant_name=_default"
-        ) else (
-            set "variant_flags=-6502"
-            set "variant_name=_6502"
-        )
-        set "output_file=!testdir!\!base!!variant_name!.s"
-        set "obj_file=!testdir!\!base!!variant_name!.o"
-        
-        rem Determine CPU type
-        set "as_cpu=65c02"
-        echo !variant_flags! | findstr /C:"-6502" >nul 2>&1
-        if !errorlevel! equ 0 set "as_cpu=6502"
-        
-        rem Output result for this test
-        set "result_msg=!base!.zap: "
-        set "spaces=                              "
-        set "padded_msg=!result_msg!!spaces!"
-        set "padded_msg=!padded_msg:~0,30!"
-        
-        if !variant_fail! equ 0 (
-            echo !padded_msg!PASS ^(all 2 variants^)
-            set /a pass_count+=1
-        ) else (
-            echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
-            set /a error_count+=1
-        )
-    )
-) else (
-    rem Full recursive directory mode
-    for /R "tests\pass" %%f in (*.zap) do (
-    set "base=%%~nf"
-    set "variant_pass=0"
-    set "variant_fail=0"
-    set "testdir=%%~dpf"
-    set "testdir=!testdir:~0,-1!"
 
     rem Test all variants: default, -6502
     for %%v in (0 1) do (
@@ -397,6 +364,131 @@ if %%v equ 0 (
     ) else (
         echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
         set /a error_count+=1
+    )
+    )
+    )
+) else (
+    rem Full recursive directory mode
+    for /R "tests\pass" %%f in (*.zap) do (
+    set "base=%%~nf"
+    set "fullname=%%~nxf"
+    
+    rem Skip .zaplib files (library files, not test programs)
+    if not "!fullname:zaplib=!"=="!fullname!" (
+        rem Skip this file - it's a .zaplib file
+    ) else (
+        set "variant_pass=0"
+        set "variant_fail=0"
+        set "testdir=%%~dpf"
+        set "testdir=!testdir:~0,-1!"
+
+    rem Test all variants: default, -6502
+    for %%v in (0 1) do (
+        if %%v equ 0 (
+            set "variant_flags="
+            set "variant_name=_default"
+        ) else (
+            set "variant_flags=-6502"
+            set "variant_name=_6502"
+        )
+        set "output_file=!testdir!\!base!!variant_name!.s"
+        set "obj_file=!testdir!\!base!!variant_name!.o"
+        
+        rem Determine CPU type
+        set "as_cpu=65c02"
+        echo !variant_flags! | findstr /C:"-6502" >nul 2>&1
+        if !errorlevel! equ 0 set "as_cpu=6502"
+        
+        echo %%f >> tests.txt
+
+        rem Compile ZAP file
+        if "!variant_flags!"=="" (
+            echo %ZC% "%%f" -o "!output_file!" >> tests.txt
+            %ZC% "%%f" -o "!output_file!" >nul 2>&1
+        ) else (
+            echo %ZC% !variant_flags! "%%f" -o "!output_file!" >> tests.txt
+            %ZC% !variant_flags! "%%f" -o "!output_file!" >nul 2>&1 >> tests.txt
+        )
+        
+        if !errorlevel! equ 0 (
+            rem Assemble to object (only if assembler is available)
+            if !AS_AVAILABLE! equ 1 (
+                echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >> tests.txt
+                %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >nul 2>&1 >> tests.txt
+                if !errorlevel! equ 0 (
+                    rem Create Atari binary with header
+                    set "exehdr_obj=!testdir!\!base!!variant_name!_exehdr.o"
+                    set "bin_file=!testdir!\!base!!variant_name!.com"
+                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
+                    %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >nul 2>&1
+                    if !errorlevel! equ 0 (
+                        echo %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >> tests.txt
+                        %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >nul 2>&1
+                        if !errorlevel! equ 0 (
+                            rem Create cut binary (skip 6-byte header) for disassembly
+                            set "cut_file=!testdir!\!base!!variant_name!.cut"
+                            set "dis_file=!testdir!\!base!!variant_name!.dis65"
+                            set "cfg_file=!testdir!\!base!.json"
+                            powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
+                            echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
+                            %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
+                            set "txt_file=!testdir!\!base!!variant_name!.txt"
+                            echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            if !errorlevel! equ 0 (
+                                set "ref_file=!testdir!\!base!.ref"
+                                rem check result by comparing with reference file
+                                echo fc "!ref_file!" "!txt_file!" >> tests.txt
+                                fc "!ref_file!" "!txt_file!" 2>nul > nul
+                                if !errorlevel! equ 0 (
+                                    set /a variant_pass+=1
+                                ) else (
+                                    set /a variant_fail+=1
+                                    echo Simulation result does not match reference >> tests.txt
+                                )                                
+                            ) else (
+                                set /a variant_fail+=1
+                                echo Simulation failed >> tests.txt
+                            )
+                        ) else (
+                            set /a variant_fail+=1
+                            echo Linker failed >> tests.txt
+                        )
+                    ) else (
+                        set /a variant_fail+=1
+                        echo Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
+                    )
+                ) else (
+                    set /a variant_fail+=1
+                    echo Assembler failed on "!output_file!" >> tests.txt
+                )
+            ) else (
+                rem Just count compilation success
+                set /a variant_fail+=1
+                echo ca65 not found, compilation failed.
+            )
+        ) else (
+            set /a variant_fail+=1
+            echo ZAP compiler failed >> tests.txt
+        )
+        echo:  >> tests.txt
+        echo:  >> tests.txt
+        echo --------------------------------------------------------------- >> tests.txt        
+    )
+    
+    rem Output result for this test
+    set "result_msg=!base!.zap: "
+    set "spaces=                              "
+    set "padded_msg=!result_msg!!spaces!"
+    set "padded_msg=!padded_msg:~0,30!"
+    
+    if !variant_fail! equ 0 (
+        echo !padded_msg!PASS ^(all 2 variants^)
+        set /a pass_count+=1
+    ) else (
+        echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
+        set /a error_count+=1
+    )
     )
     )
 )
