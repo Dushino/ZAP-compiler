@@ -346,6 +346,26 @@ class Parser:
         
         return Parameter(TypeNode(type_tok.value, is_pointer), name, is_array, name_line, name_col)
 
+    def parse_init_value(self):
+        """Parse an initializer value: either a nested list { ... } or an expression."""
+        if self.cur.type == TOK_LCURLY:
+            # Nested list initializer
+            self.advance()
+            values = []
+            if self.cur.type != TOK_RCURLY:
+                values.append(self.parse_init_value())
+                while self.cur.type == TOK_DELIM and self.cur.value == ',':
+                    self.advance()
+                    # Allow trailing comma
+                    if self.cur.type == TOK_RCURLY:
+                        break
+                    values.append(self.parse_init_value())
+            self.expect(TOK_RCURLY)
+            return ListInit(values)
+        else:
+            # Regular expression
+            return self.parse_expr()
+
     def parse_declaration(self):
         is_const = False
 
@@ -418,10 +438,13 @@ class Parser:
                         self.advance()
                         values = []
                         if self.cur.type != TOK_RCURLY:
-                            values.append(self.parse_expr())
+                            values.append(self.parse_init_value())
                             while self.cur.type == TOK_DELIM and self.cur.value == ',':
                                 self.advance()
-                                values.append(self.parse_expr())
+                                # Allow trailing comma
+                                if self.cur.type == TOK_RCURLY:
+                                    break
+                                values.append(self.parse_init_value())
                         self.expect(TOK_RCURLY)
                         init = ListInit(values)
                         continue

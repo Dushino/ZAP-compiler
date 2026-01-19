@@ -44,7 +44,7 @@ class ExprInit(InitValue):
 
 @dataclass(frozen=True)
 class ListInit(InitValue):
-    values: List["Expr"]
+    values: List["Expr | InitValue"]  # Can contain expressions or nested initializers
 
     def __repr__(self) -> str:
         vals = ", ".join(repr(v) for v in self.values)

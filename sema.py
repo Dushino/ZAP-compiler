@@ -190,10 +190,29 @@ class DeclarationAnalyzer:
         # inicializace pole
         if is_array:
             if isinstance(d.initializer, ListInit):
-                if array_len is None:
-                    array_len = len(d.initializer.values)
-                elif array_len != len(d.initializer.values):
-                    raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                # Check if this is a struct array with nested initializers
+                is_struct_array = sem_type.is_struct and sem_type.struct_info is not None
+                
+                if is_struct_array:
+                    # For struct arrays, each element should be a nested list matching the struct field count
+                    num_fields = len(sem_type.struct_info.fields)
+                    for i, val in enumerate(d.initializer.values):
+                        if isinstance(val, ListInit):
+                            if len(val.values) != num_fields:
+                                raise SemanticError(f"Struct initializer has {len(val.values)} values, expected {num_fields}", line=d.line, col=d.col)
+                        else:
+                            raise SemanticError(f"Struct array element {i} must be a list initializer", line=d.line, col=d.col)
+                    
+                    if array_len is None:
+                        array_len = len(d.initializer.values)
+                    elif array_len != len(d.initializer.values):
+                        raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                else:
+                    # Regular (non-struct) array
+                    if array_len is None:
+                        array_len = len(d.initializer.values)
+                    elif array_len != len(d.initializer.values):
+                        raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
 
             elif isinstance(d.initializer, StringInit):
                 if sem_type.base.lower() != "byte":

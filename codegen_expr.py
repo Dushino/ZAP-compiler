@@ -2549,6 +2549,98 @@ class CodeGen:
             return
 
         if isinstance(sym.init, ListInit):
+            # Check if this is a struct array with nested initializers
+            is_struct_array = sym.type.is_struct and sym.type.struct_info is not None
+            
+            if is_struct_array:
+                # Handle struct array with nested initializers
+                # Flatten nested lists into a single sequence of values
+                flattened_values = []
+                for struct_init in sym.init.values:
+                    if isinstance(struct_init, ListInit):
+                        flattened_values.extend(struct_init.values)
+                    else:
+                        raise RuntimeError(f"Expected ListInit for struct element, got {type(struct_init)}")
+                
+                # Now treat as a regular constant array of bytes/words
+                is_const_array = all(isinstance(ex, IntLiteral) for ex in flattened_values)
+                struct_size = sym.type.struct_info.size
+                
+                if not is_const_array:
+                    # Non-constant values
+                    for i, ex in enumerate(flattened_values):
+                        self.gen_expr(ex)
+                        # Calculate offset: (struct_index * struct_size) + field_offset
+                        field_offset = i % struct_size
+                        struct_index = i // struct_size
+                        base_offset = struct_index * struct_size + field_offset
+                        
+                        elem_offset = base_offset * 2 if sym.type.base == "WORD" else base_offset
+                        self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
+                        if sym.type.base == "WORD":
+                            self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
+                    return
+                
+                # Constant struct array - optimize with loop copy
+                values = [ex.value for ex in flattened_values if isinstance(ex, IntLiteral)]
+                array_len = len(values)
+                is_word = sym.type.base == "WORD"
+                dest_var = sym.asm_name()
+                
+                # Generate as regular array initialization
+                COPY_THRESHOLD = 8
+                
+                if array_len <= 2:
+                    # Inline for very short arrays
+                    for i, ex in enumerate(flattened_values):
+                        self.gen_expr(ex)
+                        elem_offset = i * 2 if is_word else i
+                        self.emit(f"\tSTA {dest_var}+{elem_offset}")
+                        if is_word:
+                            self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
+                else:
+                    # Use loop for longer arrays
+                    data_key = (tuple(values), is_word)
+                    if data_key not in self.array_literals:
+                        self.array_id += 1
+                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    
+                    arr_label = self.array_literals[data_key]
+                    elem_size = 2 if is_word else 1
+                    total_bytes = array_len * elem_size
+                    use_shared = total_bytes > COPY_THRESHOLD and total_bytes <= 255
+
+                    if use_shared:
+                        self.copy_bytes_needed = True
+                        self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
+                        self.emit(f"\tLDA #<{arr_label}")
+                        self.emit(f"\tLDX #>{arr_label}")
+                        self.emit("\tSTA TMP0")
+                        self.emit("\tSTX TMP0+1")
+                        self.emit(f"\tLDA #<{dest_var}")
+                        self.emit(f"\tLDX #>{dest_var}")
+                        self.emit("\tSTA TMP2")
+                        self.emit("\tSTX TMP2+1")
+                        self.emit(f"\tLDX #{total_bytes}")
+                        self.emit("\tLDY #0")
+                        self.emit("\tJSR COPY_BYTES")
+                    else:
+                        self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
+                        self.emit(f"\tLDX #0")
+                        copy_loop = self.new_label("ARR_COPY")
+                        self.emit(f"{copy_loop}:")
+                        self.emit(f"\tLDA {arr_label},X")
+                        self.emit(f"\tSTA {dest_var},X")
+                        if is_word:
+                            self.emit(f"\tLDA {arr_label}+1,X")
+                            self.emit(f"\tSTA {dest_var}+1,X")
+                            self.emit(f"\tINX")
+                        self.emit(f"\tINX")
+                        self.emit(f"\tCPX #{total_bytes}")
+                        self.emit(f"\tBNE {copy_loop}")
+                return
+            
+            # Regular (non-struct) array
             # Check if all values are constant integers
             is_const_array = all(isinstance(ex, IntLiteral) for ex in sym.init.values)
             
