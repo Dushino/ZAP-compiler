@@ -175,8 +175,15 @@ class ExprTypeChecker:
             if not field_info:
                 raise SemanticError(f"Struct '{base_type_name}' has no field '{expr.field}'")
             
-            # Return field type as LVALUE (it can be read from or written to)
+            # Create field type, preserving struct information if the field is a struct
             field_sem_type = SemType(field_info.base_type, field_info.is_pointer)
+            
+            # If field is a nested struct, look it up and create SemType with struct_info
+            if field_info.base_type.upper() in self.struct_registry._structs:
+                nested_struct = self.struct_registry.lookup(field_info.base_type.upper())
+                field_sem_type = SemType(field_info.base_type, field_info.is_pointer, 
+                                        is_struct=True, struct_info=nested_struct)
+            
             return ExprType(field_sem_type, ExprKind.LVALUE)
 
         # chyba

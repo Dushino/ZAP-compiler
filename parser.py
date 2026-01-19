@@ -170,13 +170,19 @@ class Parser:
         # Parse field list until END
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
             # Parse: type IDENT [ address_spec ]
-            # type
-            if self.cur.type != TOK_TYPE:
+            # type (either built-in like byte/word, or a struct name)
+            if self.cur.type == TOK_TYPE:
+                # Built-in type (byte, word)
+                type_name = self.cur.value
+                type_tok = self.cur
+                self.advance()
+            elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+                # Struct type (nested struct)
+                type_name = self.cur.value
+                type_tok = self.cur
+                self.advance()
+            else:
                 self.error(f"Expected type in struct field, got {self.cur.type} {self.cur.value}")
-            
-            type_name = self.cur.value
-            type_tok = self.cur
-            self.advance()
             
             is_pointer = False
             if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):

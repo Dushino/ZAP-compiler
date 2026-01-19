@@ -2549,22 +2549,33 @@ class CodeGen:
             return
 
         if isinstance(sym.init, ListInit):
-            # Check if this is a struct array with nested initializers
-            is_struct_array = sym.type.is_struct and sym.type.struct_info is not None
+            # Check if this is a struct (array or single)
+            is_struct_type = sym.type.is_struct and sym.type.struct_info is not None
             
-            if is_struct_array:
-                # Handle struct array with nested initializers
-                # Flatten nested lists into a single sequence of values
+            if is_struct_type:
+                struct_size = sym.type.struct_info.size
                 flattened_values = []
-                for struct_init in sym.init.values:
-                    if isinstance(struct_init, ListInit):
-                        flattened_values.extend(struct_init.values)
-                    else:
-                        raise RuntimeError(f"Expected ListInit for struct element, got {type(struct_init)}")
+                
+                if sym.is_array:
+                    # Struct array: each element should be a ListInit
+                    # Flatten nested lists into a single sequence of values
+                    for struct_init in sym.init.values:
+                        if isinstance(struct_init, ListInit):
+                            flattened_values.extend(struct_init.values)
+                        else:
+                            raise RuntimeError(f"Expected ListInit for struct element, got {type(struct_init)}")
+                else:
+                    # Single struct: recursively flatten any nested ListInit values
+                    for field_init in sym.init.values:
+                        if isinstance(field_init, ListInit):
+                            # Nested struct field - flatten it
+                            flattened_values.extend(field_init.values)
+                        else:
+                            # Scalar field
+                            flattened_values.append(field_init)
                 
                 # Now treat as a regular constant array of bytes/words
                 is_const_array = all(isinstance(ex, IntLiteral) for ex in flattened_values)
-                struct_size = sym.type.struct_info.size
                 
                 if not is_const_array:
                     # Non-constant values
@@ -2931,6 +2942,44 @@ class CodeGen:
                 self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")
 
+    def _calculate_nested_field_offset(self, expr: FieldAccess) -> tuple:
+        """Calculate total offset for potentially nested field access.
+        
+        Returns: (total_offset, base_expr)
+        
+        For example:
+          - o1.md.in.a returns (offset_to_a_in_Outer, o1)
+          - arr[i].md.in.a returns (offset_to_a_in_Outer, arr[i])
+        """
+        total_offset = 0
+        
+        # Walk down the chain of field accesses to calculate total offset
+        current_expr = expr
+        while isinstance(current_expr, FieldAccess):
+            # Get the type of the struct we're accessing
+            parent_type = self.tc_check(current_expr.object).sem_type
+            
+            if not parent_type.is_struct or parent_type.struct_info is None:
+                raise Exception(f"Field access on non-struct type: {parent_type.base}")
+            
+            struct_info = parent_type.struct_info
+            
+            # Find this field's offset in the parent struct
+            field_info = None
+            for f in struct_info.fields:
+                if f.name == current_expr.field:
+                    field_info = f
+                    break
+            
+            if field_info is None:
+                raise Exception(f"Field '{current_expr.field}' not found in struct '{struct_info.name}'")
+            
+            total_offset += field_info.offset
+            current_expr = current_expr.object
+        
+        # current_expr is now the base (Identifier, SubscriptExpr, or other)
+        return (total_offset, current_expr)
+
     def _gen_field_access(self, expr: FieldAccess, load_only: bool):
         """Generate code for struct field access (obj.field or ptr^.field).
         
@@ -3058,6 +3107,60 @@ class CodeGen:
                     self.emit("\tPLA")
                 else:
                     self.emit("\tLDX #0")
+            elif isinstance(expr.object, FieldAccess):
+                # Nested field access: obj.field1.field2... (e.g., xs.pt.x or o1.md.in.a)
+                # Calculate total offset by traversing the entire chain
+                total_offset, base_expr = self._calculate_nested_field_offset(expr.object)
+                
+                # Add the final field offset
+                total_offset += field_offset
+                
+                # Now generate code based on what the base is
+                if isinstance(base_expr, Identifier):
+                    # Base case: simple variable
+                    sym = self.current_symtab.lookup(base_expr.name)
+                    base_asm = sym.asm_name()
+                    
+                    # Load field value from total offset
+                    field_asm = base_asm
+                    if total_offset > 0:
+                        field_asm = f"{base_asm}+{total_offset}"
+                    
+                    self.emit(f"\tLDA {field_asm}")
+                    
+                    if field_width == 2:
+                        self.emit(f"\tLDX {field_asm}+1")
+                    else:
+                        self.emit("\tLDX #0")
+                        
+                elif isinstance(base_expr, SubscriptExpr):
+                    # Array subscript case: arr[i].field1.field2.x
+                    self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
+                    
+                    # Add total offset to address
+                    if total_offset > 0:
+                        self.emit(f"\tCLC")
+                        self.emit(f"\tLDA TMP0")
+                        self.emit(f"\tADC #{total_offset}")
+                        self.emit(f"\tSTA TMP0")
+                        self.emit(f"\tBCC NOCARRY_NESTEDFIELD_{id(expr)}")
+                        self.emit(f"\tINC TMP0+1")
+                        self.emit(f"NOCARRY_NESTEDFIELD_{id(expr)}:")
+                    
+                    # Load field value via indirect addressing
+                    self.emit("\tLDY #0")
+                    self.emit("\tLDA (TMP0),Y")
+                    
+                    if field_width == 2:
+                        self.emit("\tPHA")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tTAX")
+                        self.emit("\tPLA")
+                    else:
+                        self.emit("\tLDX #0")
+                else:
+                    self._raise_error("Nested field access base must be identifier or array subscript")
             else:
                 self._raise_error("Direct field access only supported on struct variables or array elements")
         
@@ -3094,6 +3197,52 @@ class CodeGen:
                     self.emit(f"\tINY")
                     self.emit(f"\tLDA TMP2+1")
                     self.emit(f"\tSTA (TMP0),Y")
+            elif isinstance(expr.object, FieldAccess):
+                # Nested field access store: obj.field1.field2... = value
+                # Calculate total offset by traversing the entire chain
+                total_offset, base_expr = self._calculate_nested_field_offset(expr.object)
+                
+                # Add the final field offset
+                total_offset += field_offset
+                
+                if isinstance(base_expr, Identifier):
+                    # Base case: simple variable
+                    sym = self.current_symtab.lookup(base_expr.name)
+                    base_asm = sym.asm_name()
+                    field_asm = base_asm if total_offset == 0 else f"{base_asm}+{total_offset}"
+                    
+                    self.emit(f"\tLDA TMP2")
+                    self.emit(f"\tSTA {field_asm}")
+                    
+                    if field_width == 2:
+                        self.emit(f"\tLDA TMP2+1")
+                        self.emit(f"\tSTA {field_asm}+1")
+                        
+                elif isinstance(base_expr, SubscriptExpr):
+                    # Array subscript case: arr[i].field1.field2... = value
+                    self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
+                    
+                    # Add total offset to address
+                    if total_offset > 0:
+                        self.emit(f"\tCLC")
+                        self.emit(f"\tLDA TMP0")
+                        self.emit(f"\tADC #{total_offset}")
+                        self.emit(f"\tSTA TMP0")
+                        self.emit(f"\tBCC NOCARRY_NESTEDFIELD_STORE_{id(expr)}")
+                        self.emit(f"\tINC TMP0+1")
+                        self.emit(f"NOCARRY_NESTEDFIELD_STORE_{id(expr)}:")
+                    
+                    # Store field value via indirect addressing
+                    self.emit("\tLDY #0")
+                    self.emit(f"\tLDA TMP2")
+                    self.emit(f"\tSTA (TMP0),Y")
+                    
+                    if field_width == 2:
+                        self.emit(f"\tINY")
+                        self.emit(f"\tLDA TMP2+1")
+                        self.emit(f"\tSTA (TMP0),Y")
+                else:
+                    self._raise_error("Nested field access base must be identifier or array subscript")
 
     def _gen_binary(self, expr: BinaryExpr):
         t = self.tc_check(expr)

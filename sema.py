@@ -63,9 +63,12 @@ class StructAnalyzer:
                 width = 1
             elif field_type == "WORD":
                 width = 2
+            elif field_type in self.registry._structs:
+                # Nested struct type
+                nested_struct = self.registry._structs[field_type]
+                width = nested_struct.size
             else:
-                # Might be a struct name - will need to look up
-                # For now, we don't support nested structs in MVP
+                # Unknown type
                 raise SemanticError(f"Unsupported field type '{field_type}' in struct")
 
             if is_pointer:
@@ -229,7 +232,9 @@ class DeclarationAnalyzer:
         # skalární proměnná
         else:
             if isinstance(d.initializer, ListInit):
-                raise SemanticError("List initializer for scalar", line=d.line, col=d.col)
+                # ListInit is allowed for struct types for nested initialization
+                if not sem_type.is_struct:
+                    raise SemanticError("List initializer for scalar", line=d.line, col=d.col)
 
             if isinstance(d.initializer, StringInit):
                 raise SemanticError("String initializer for scalar", line=d.line, col=d.col)

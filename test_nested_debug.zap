@@ -1,0 +1,18 @@
+; Debug: Simple assignment to check parsing
+
+struct Point
+    byte X
+    byte Y
+end
+
+struct Container
+    Point p
+    byte flag
+end
+
+Container c1 @40000
+
+proc main()
+    byte x
+    x = 1
+end
