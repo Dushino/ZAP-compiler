@@ -10,14 +10,15 @@ Start address: 0x4006
 CPU type: 65C02
 
 CPU halted: JMP * detected at $4015
-Total cycles executed: 89
+Total cycles executed: 18956
 
 Simulation completed
-Cycles executed: 89
+Cycles executed: 18956
 Final PC: 0x4018
 A=0x41 X=0x9C Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100100
+Status: NV-BDIZC = 00100101
 fc "tests\pass\024-module\024-module.ref" "tests\pass\024-module\024-module_default.txt" 
+Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -33,14 +34,15 @@ Start address: 0x4006
 CPU type: 6502
 
 CPU halted: JMP * detected at $4019
-Total cycles executed: 93
+Total cycles executed: 18966
 
 Simulation completed
-Cycles executed: 93
+Cycles executed: 18966
 Final PC: 0x401C
 A=0x41 X=0x9C Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100100
+Status: NV-BDIZC = 00100101
 fc "tests\pass\024-module\024-module.ref" "tests\pass\024-module\024-module_6502.txt" 
+Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         

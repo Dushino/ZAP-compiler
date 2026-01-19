@@ -2,14 +2,21 @@
 
 .module "lib_utils"
 
-byte XPOS = 0
-byte YPOS = 0
-byte ^scrptr = 40000
+.include "lib_test.zaplib"
 
-proc putc(byte zn)
-    scrptr^ = zn
-    scrptr = scrptr + 1
+
+proc cls()
+    byte i
+
+    scrptr = 40000
+    for i = 0 to 1999
+        putc(1)
+    next i
+    
+    scrptr = 40000
+    XPOS = 0
+    YPOS = 0
+    putc(2)
 end
-
 
     

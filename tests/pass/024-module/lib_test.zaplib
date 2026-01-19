@@ -1,0 +1,15 @@
+; lib-test.zap
+
+.module "lib_test"
+
+byte XPOS = 0
+byte YPOS = 0
+byte ^scrptr = 40000
+
+proc putc(byte zn)
+    scrptr^ = zn
+    scrptr = scrptr + 1
+end
+
+
+    
