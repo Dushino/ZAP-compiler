@@ -2279,7 +2279,7 @@ class CodeGen:
         return temps
 
     def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None):
-        temp_sizes = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 1}
+        temp_sizes = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 2}
         temps_in_use = self._detect_temp_usage(code)
 
         self.emit(".segment \"ZEROPAGE\"")
