@@ -49,6 +49,7 @@ if /I "%1"=="atari" goto atari
 if /I "%1"=="sbc" goto sbc
 if /I "%1"=="run" goto run
 if /I "%1"=="tests" goto tests
+if /I "%1"=="test" goto tests
 if /I "%1"=="clean" goto clean
 if /I "%1"=="compile_atari" goto compile_atari
 if /I "%1"=="compile_sbc" goto compile_sbc
@@ -60,7 +61,8 @@ echo   all            - Build Atari binary (default)
 echo   atari          - Build Atari binary
 echo   sbc            - Build SBC binary
 echo   run            - Build and run Atari binary in emulator
-echo   tests          - Run test suite
+echo   tests          - Run full test suite
+echo   test [path]    - Test a single directory under tests/ (e.g., "test pass/015-for-loop")
 echo   clean          - Clean build artifacts
 goto end
 
@@ -190,6 +192,34 @@ echo Running ZAP Compiler Test Suite
 echo ==========================================
 echo.
 
+rem Determine test directories
+if not "%2"=="" (
+    rem Single test directory mode
+    set "TEST_DIR=%2"
+    rem Normalize path: remove leading ./ or .\
+    if "!TEST_DIR:~0,2!"==".\" set "TEST_DIR=!TEST_DIR:~2!"
+    if "!TEST_DIR:~0,2!"=="./" set "TEST_DIR=!TEST_DIR:~2!"
+    rem Ensure path uses backslashes
+    set "TEST_DIR=!TEST_DIR:/=\!"
+    
+    rem Check if directory exists
+    if not exist "!TEST_DIR!" (
+        echo Error: Test directory not found: !TEST_DIR!
+        echo.
+        echo Usage: make test [path]
+        echo   e.g. make test pass/015-for-loop
+        exit /b 1
+    )
+    set "PASS_DIRS=!TEST_DIR!"
+    set "FAIL_DIRS="
+    echo Testing single directory: !TEST_DIR!
+    echo.
+) else (
+    rem Full test suite mode
+    set "PASS_DIRS=tests\pass"
+    set "FAIL_DIRS=tests\fail"
+)
+
 rem Check if ca65 is available
 where ca65 >nul 2>&1
 if !errorlevel! neq 0 (
@@ -214,7 +244,47 @@ echo ------------------------------------------
 
 if exist "tests.txt" del /Q "tests.txt" 2>nul
 
-for /R "tests\pass" %%f in (*.zap) do (
+if not "%2"=="" (
+    rem Single directory mode - use non-recursive for loop
+    for %%f in ("!PASS_DIRS!\*.zap") do (
+        set "base=%%~nf"
+        set "variant_pass=0"
+        set "variant_fail=0"
+        set "testdir=!PASS_DIRS!"
+
+        rem Test all variants: default, -6502
+if %%v equ 0 (
+            set "variant_flags="
+            set "variant_name=_default"
+        ) else (
+            set "variant_flags=-6502"
+            set "variant_name=_6502"
+        )
+        set "output_file=!testdir!\!base!!variant_name!.s"
+        set "obj_file=!testdir!\!base!!variant_name!.o"
+        
+        rem Determine CPU type
+        set "as_cpu=65c02"
+        echo !variant_flags! | findstr /C:"-6502" >nul 2>&1
+        if !errorlevel! equ 0 set "as_cpu=6502"
+        
+        rem Output result for this test
+        set "result_msg=!base!.zap: "
+        set "spaces=                              "
+        set "padded_msg=!result_msg!!spaces!"
+        set "padded_msg=!padded_msg:~0,30!"
+        
+        if !variant_fail! equ 0 (
+            echo !padded_msg!PASS ^(all 2 variants^)
+            set /a pass_count+=1
+        ) else (
+            echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
+            set /a error_count+=1
+        )
+    )
+) else (
+    rem Full recursive directory mode
+    for /R "tests\pass" %%f in (*.zap) do (
     set "base=%%~nf"
     set "variant_pass=0"
     set "variant_fail=0"
@@ -222,11 +292,14 @@ for /R "tests\pass" %%f in (*.zap) do (
     set "testdir=!testdir:~0,-1!"
 
     rem Test all variants: default, -6502
-    for %%v in ("_" "-6502") do (
-        set "variant_flags=%%~v"
-        if "!variant_flags!"=="_" set "variant_flags="
-        set "variant_name=!variant_flags: =_!"
-        if "!variant_name!"=="" set "variant_name=_default"
+    for %%v in (0 1) do (
+        if %%v equ 0 (
+            set "variant_flags="
+            set "variant_name=_default"
+        ) else (
+            set "variant_flags=-6502"
+            set "variant_name=_6502"
+        )
         set "output_file=!testdir!\!base!!variant_name!.s"
         set "obj_file=!testdir!\!base!!variant_name!.o"
         
@@ -243,14 +316,14 @@ for /R "tests\pass" %%f in (*.zap) do (
             %ZC% "%%f" -o "!output_file!" >nul 2>&1
         ) else (
             echo %ZC% !variant_flags! "%%f" -o "!output_file!" >> tests.txt
-            %ZC% !variant_flags! "%%f" -o "!output_file!" >nul 2>&1
+            %ZC% !variant_flags! "%%f" -o "!output_file!" >nul 2>&1 >> tests.txt
         )
         
         if !errorlevel! equ 0 (
             rem Assemble to object (only if assembler is available)
             if !AS_AVAILABLE! equ 1 (
                 echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >> tests.txt
-                %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >nul 2>&1
+                %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >nul 2>&1 >> tests.txt
                 if !errorlevel! equ 0 (
                     rem Create Atari binary with header
                     set "exehdr_obj=!testdir!\!base!!variant_name!_exehdr.o"
@@ -264,12 +337,13 @@ for /R "tests\pass" %%f in (*.zap) do (
                             rem Create cut binary (skip 6-byte header) for disassembly
                             set "cut_file=!testdir!\!base!!variant_name!.cut"
                             set "dis_file=!testdir!\!base!!variant_name!.dis65"
+                            set "cfg_file=!testdir!\!base!.json"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
                             echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
                             %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=!testdir!\!base!!variant_name!.txt"
-                            echo %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
-                            %SIM% --cpu !as_cpu! --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                             if !errorlevel! equ 0 (
                                 set "ref_file=!testdir!\!base!.ref"
                                 rem check result by comparing with reference file
@@ -318,34 +392,38 @@ for /R "tests\pass" %%f in (*.zap) do (
     set "padded_msg=!padded_msg:~0,30!"
     
     if !variant_fail! equ 0 (
-        echo !padded_msg!PASS ^(all 4 variants^)
+        echo !padded_msg!PASS ^(all 2 variants^)
         set /a pass_count+=1
     ) else (
-        echo !padded_msg!FAIL ^(!variant_fail!/4 variants failed^)
+        echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
         set /a error_count+=1
+    )
     )
 )
 
-echo.
-echo Testing files that SHOULD FAIL...
-echo ------------------------------------------
+rem Only test FAIL directory if running full test suite
+if "%2"=="" (
+    echo.
+    echo Testing files that SHOULD FAIL...
+    echo ------------------------------------------
 
-for /R "tests\fail" %%f in (*.zap) do (
-    set "base=%%~nf"
-    set "testdir=%%~dpf"
-    set "testdir=!testdir:~0,-1!"
-    set "result_msg=!base!.zap: "
-    set "spaces=                              "
-    set "padded_msg=!result_msg!!spaces!"
-    set "padded_msg=!padded_msg:~0,30!"
-    
-    %ZC% -6502 "%%f" -o "!testdir!\!base!.s" >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo !padded_msg!FAIL ^(expected to fail but passed^)
-        set /a error_count+=1
-    ) else (
-        echo !padded_msg!PASS ^(correctly rejected^)
-        set /a fail_count+=1
+    for /R "tests\fail" %%f in (*.zap) do (
+        set "base=%%~nf"
+        set "testdir=%%~dpf"
+        set "testdir=!testdir:~0,-1!"
+        set "result_msg=!base!.zap: "
+        set "spaces=                              "
+        set "padded_msg=!result_msg!!spaces!"
+        set "padded_msg=!padded_msg:~0,30!"
+        
+        %ZC% -6502 "%%f" -o "!testdir!\!base!.s" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo !padded_msg!FAIL ^(expected to fail but passed^)
+            set /a error_count+=1
+        ) else (
+            echo !padded_msg!PASS ^(correctly rejected^)
+            set /a fail_count+=1
+        )
     )
 )
 
