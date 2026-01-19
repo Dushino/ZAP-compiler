@@ -2777,6 +2777,8 @@ class CodeGen:
                 carry_lbl = self.new_label("NOCARRY_MULT")
                 self.emit(f"\tBCC {carry_lbl}")
                 self.emit(f"{carry_lbl}:")
+                # For indices that fit in a byte, X should be 0 after ASL
+                self.emit("\tLDX #0")
             else:
                 # General case: multiply by width using addition loop
                 # Index is in A, multiply by width
