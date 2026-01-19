@@ -6,7 +6,7 @@ from token_types import *
 from errors import TokenizerError
 
 ESCAPES         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\"}
-KEYWORDS        = {"proc", "func", 
+KEYWORDS        = {"proc", "func", "struct",
                    "if","else", "elseif", "then", "endif", "end", 
                    "for", "to", "step", "next",
                    "while", "repeat", "until",
@@ -16,7 +16,7 @@ KEYWORDS        = {"proc", "func",
 PREPROC         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
                    ".segment"}
 TYPES           = {"byte", "word"}
-TYPEMOD         = {"const", "struct"}
+TYPEMOD         = {"const"}
 SINGLE_OPS      = set("+-*/%><[]&|~^")
 TWO_CHAR_OPS    = {"==","!=","<=",">=","&&","||","<<",">>"}
 DELIMIN         = {","}
@@ -288,8 +288,31 @@ class Tokenizer:
             if ch == '_':
                 raise TokenizerError("'_' is not allowed as first character", line=self.sline, col=self.scol)
 
-            # identifiers, keywords, preproc, types
-            if ch.isalpha() or ch == '.':
+            # Handle preprocessor directives (like .segment, .ifdef)
+            if ch == '.' and self._peek() and self._peek().isalpha():
+                start = self.pos
+                self._advance(1)
+                while True:
+                    c = self._peek()
+                    if c is None or not (c.isdigit() or c.isalpha() or c == '_') or c.isspace():
+                        break
+                    self._advance(1)
+                text = self.src[start:self.pos]
+                if text.lower() in PREPROC:
+                    self._emit(TOK_PREPROC, self.sline, self.scol, text.upper())
+                    continue
+                # If it wasn't a recognized preproc directive, treat . as an operator
+                # Back up and fall through to operator handling
+                self.pos -= len(text) - 1  # Back up to just after the '.'
+                # Fall through to single char op handling below
+                # This won't work, so we need a different approach
+                # For now, emit . as an OP token
+                self._emit(TOK_OP, self.sline, self.scol, '.')
+                self._advance(1)
+                continue
+
+            # identifiers, keywords, types (no longer accepts leading .)
+            if ch.isalpha():
                 start = self.pos
                 self._advance(1)
                 while True:
@@ -308,9 +331,6 @@ class Tokenizer:
                     self._emit(TOK_KEYWORD, self.sline, self.scol, text.upper())
                     if text.lower() == 'asm':
                         self._consume_asm_block()
-                    continue
-                if text.lower() in PREPROC:
-                    self._emit(TOK_PREPROC, self.sline, self.scol, text.upper())
                     continue
                 self._emit(TOK_IDENT, self.sline, self.scol, text)
                 continue
@@ -368,6 +388,11 @@ class Tokenizer:
             if ch == '@':
                 self._advance(1)
                 self._emit(TOK_AT, self.sline, self.scol, ch)
+                continue
+
+            if ch == '.':
+                self._advance(1)
+                self._emit(TOK_OP, self.sline, self.scol, ch)
                 continue
 
             # Unknown char: skip

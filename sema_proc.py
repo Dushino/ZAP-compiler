@@ -13,9 +13,10 @@ class AnalyzedProc:
 
 
 class ProcAnalyzer:
-    def __init__(self, procs: ProcTable, debug_info: dict | None = None):
+    def __init__(self, procs: ProcTable, debug_info: dict | None = None, struct_registry=None):
         self.procs = procs
         self.debug = debug_info or {}
+        self.struct_registry = struct_registry
 
     def analyze_decl(self, proc: ProcDecl):
         try:
@@ -80,7 +81,7 @@ class ProcAnalyzer:
             )
             local_symtab.define(sym)
 
-        decl_an = DeclarationAnalyzer(local_symtab)
+        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry)
         for d in proc.locals:
             decl_an.analyze(d)
 

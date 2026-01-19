@@ -2,7 +2,7 @@ from symbols import SemType, SemType, SymbolLookup, FuncTable
 from sema import SemanticError
 from sema_types import ExprKind, ExprType
 from ast_nodes import IntLiteral, Identifier, DerefExpr, CallExpr
-from ast_nodes import BinaryExpr, UnaryExpr, BinOp, SubscriptExpr
+from ast_nodes import BinaryExpr, UnaryExpr, BinOp, SubscriptExpr, FieldAccess
 
 
 def promote(a: SemType, b: SemType) -> SemType:
@@ -12,9 +12,10 @@ def promote(a: SemType, b: SemType) -> SemType:
 
 
 class ExprTypeChecker:
-    def __init__(self, symtab: SymbolLookup, func_table: FuncTable):
+    def __init__(self, symtab: SymbolLookup, func_table: FuncTable, struct_registry=None):
         self.symtab = symtab
         self.func_table = func_table
+        self.struct_registry = struct_registry
 
     def check(self, expr) -> ExprType:
         if isinstance(expr, IntLiteral):
@@ -28,8 +29,14 @@ class ExprTypeChecker:
             sym = self.symtab.lookup(expr.name)
             if sym.is_array:
                 # Array addresses are 16-bit pointers even if they point to BYTE
+                # But preserve struct information
                 return ExprType(
-                    SemType(sym.type.base, True),  # is_pointer = True!
+                    SemType(
+                        base=sym.type.base,
+                        is_pointer=True,
+                        is_struct=sym.type.is_struct,
+                        struct_info=sym.type.struct_info
+                    ),
                     ExprKind.ADDR
                 )
 
@@ -55,10 +62,14 @@ class ExprTypeChecker:
             if arr_t.kind != ExprKind.ADDR:
                 raise SemanticError("Subscript requires array address")
             # array element is LVALUE of base type
-            return ExprType(
-                SemType(arr_t.sem_type.base, False),
-                ExprKind.LVALUE
+            # Preserve is_struct and struct_info from array element type
+            elem_type = SemType(
+                base=arr_t.sem_type.base,
+                is_pointer=False,
+                is_struct=arr_t.sem_type.is_struct,
+                struct_info=arr_t.sem_type.struct_info
             )
+            return ExprType(elem_type, ExprKind.LVALUE)
 
         if isinstance(expr, BinaryExpr):
             lt = self.check(expr.left)
@@ -133,6 +144,40 @@ class ExprTypeChecker:
                     f"but {len(expr.args)} were provided"
                 )
             return ExprType(fs.ret_type, ExprKind.VALUE)
+
+        # struct field access: obj.field or ptr^.field
+        if isinstance(expr, FieldAccess):
+            if not self.struct_registry:
+                raise SemanticError("Struct registry not available")
+            
+            # Check the object type
+            obj_type = self.check(expr.object)
+            
+            # For deref field access (ptr^.field), object must be pointer
+            if expr.is_deref:
+                if obj_type.kind != ExprKind.ADDR or not obj_type.sem_type.is_pointer:
+                    raise SemanticError("Cannot use ^. on non-pointer")
+                base_type_name = obj_type.sem_type.base
+            else:
+                # For direct field access (obj.field), object must be struct value or lvalue
+                # (e.g., arr[0].field where arr[0] is LVALUE)
+                if obj_type.kind not in (ExprKind.VALUE, ExprKind.LVALUE):
+                    raise SemanticError("Field access requires struct value or pointer")
+                base_type_name = obj_type.sem_type.base
+            
+            # Look up struct definition
+            struct_info = self.struct_registry.lookup(base_type_name.upper())
+            if not struct_info:
+                raise SemanticError(f"'{base_type_name}' is not a defined struct")
+            
+            # Look up field
+            field_info = struct_info.get_field(expr.field.upper())
+            if not field_info:
+                raise SemanticError(f"Struct '{base_type_name}' has no field '{expr.field}'")
+            
+            # Return field type as LVALUE (it can be read from or written to)
+            field_sem_type = SemType(field_info.base_type, field_info.is_pointer)
+            return ExprType(field_sem_type, ExprKind.LVALUE)
 
         # chyba
         raise SemanticError(

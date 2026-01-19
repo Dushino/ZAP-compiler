@@ -15,10 +15,11 @@ class AnalyzedFunc:
 
 
 class FuncAnalyzer:
-    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None):
+    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None, struct_registry=None):
         self.func_table = func_table
         self.expr_tc = expr_tc
         self.debug = debug_info or {}
+        self.struct_registry = struct_registry
 
     def analyze_decl(self, func: FuncDecl):
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
@@ -61,7 +62,7 @@ class FuncAnalyzer:
             )
             local_symtab.define(sym)
         
-        decl_an = DeclarationAnalyzer(local_symtab)
+        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry)
         for d in func.locals:
             decl_an.analyze(d)
 

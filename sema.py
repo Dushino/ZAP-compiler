@@ -1,18 +1,32 @@
 ﻿# 
 
-from symbols import SemType, Symbol, SymbolTable
+from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
 from errors import *
 from ast_nodes import IntLiteral, Identifier, DerefExpr, BinaryExpr, BinOp
 from ast_nodes import ListInit, StringInit, ExprInit
-from ast_nodes import Declaration, Declarator
+from ast_nodes import Declaration, Declarator, StructDef, StructField
 
 
-def eval_const_expr(expr):
+def eval_const_expr(expr, symtab=None):
     if isinstance(expr, IntLiteral):
         return expr.value
+    
+    # Handle identifiers - look up const variables
+    if isinstance(expr, Identifier):
+        if symtab is None:
+            raise SemanticError("Constant expression required")
+        sym = symtab.lookup(expr.name)
+        if sym is None:
+            raise SemanticError(f"Undefined identifier: {expr.name}")
+        if not sym.is_const:
+            raise SemanticError(f"'{expr.name}' is not a const")
+        if sym.const_value is None:
+            raise SemanticError(f"'{expr.name}' const has no value")
+        return sym.const_value
+    
     if isinstance(expr, BinaryExpr):
-        left = eval_const_expr(expr.left)
-        right = eval_const_expr(expr.right)
+        left = eval_const_expr(expr.left, symtab)
+        right = eval_const_expr(expr.right, symtab)
         if expr.op == BinOp.ADD:
             return left + right
         elif expr.op == BinOp.SUB:
@@ -28,14 +42,87 @@ def eval_const_expr(expr):
     raise SemanticError("Constant expression required")
 
 
+class StructAnalyzer:
+    """Analyzes and registers struct definitions"""
+    def __init__(self, struct_registry: StructRegistry):
+        self.registry = struct_registry
+
+    def analyze(self, struct_def: StructDef):
+        """Analyze a struct definition and register it"""
+        # Calculate field offsets
+        fields: list[StructFieldInfo] = []
+        current_offset = 0
+
+        for field_ast in struct_def.fields:
+            # Get field type
+            field_type = field_ast.type.base.upper()
+            is_pointer = field_ast.type.is_pointer
+
+            # Get field width
+            if field_type == "BYTE":
+                width = 1
+            elif field_type == "WORD":
+                width = 2
+            else:
+                # Might be a struct name - will need to look up
+                # For now, we don't support nested structs in MVP
+                raise SemanticError(f"Unsupported field type '{field_type}' in struct")
+
+            if is_pointer:
+                width = 2  # All pointers are 16-bit
+
+            # Evaluate fixed address if present
+            fixed_addr = None
+            if field_ast.address is not None:
+                try:
+                    fixed_addr = eval_const_expr(field_ast.address)
+                except SemanticError as e:
+                    raise SemanticError(f"Invalid field address: {e.message}")
+
+            # Create field info
+            field_info = StructFieldInfo(
+                name=field_ast.name.upper(),
+                base_type=field_type,
+                is_pointer=is_pointer,
+                offset=current_offset,
+                fixed_address=fixed_addr
+            )
+            fields.append(field_info)
+            current_offset += width
+
+        # Create and register struct
+        struct_info = StructInfo(
+            name=struct_def.name.upper(),
+            fields=fields,
+            size=current_offset
+        )
+
+        try:
+            self.registry.define(struct_info)
+        except SemanticError as e:
+            raise SemanticError(f"Struct definition error: {e.message}")
+
+
 class DeclarationAnalyzer:
-    def __init__(self, symtab: SymbolTable):
+    def __init__(self, symtab: SymbolTable, struct_registry=None):
         self.symtab = symtab
+        self.struct_registry = struct_registry
 
     def analyze(self, decl: Declaration):
+        # Check if this is a struct type or a built-in type
+        base_name = decl.type.base.upper()
+        is_struct = False
+        struct_info = None
+        
+        if self.struct_registry and self.struct_registry.is_defined(base_name):
+            is_struct = True
+            struct_info = self.struct_registry.lookup(base_name)
+        
         sem_type = SemType(
             base=decl.type.base,
-            is_pointer=decl.type.is_pointer
+            is_pointer=decl.type.is_pointer,
+            is_struct=is_struct,
+            struct_info=struct_info
         )
 
         for d in decl.declarators:
@@ -54,11 +141,11 @@ class DeclarationAnalyzer:
         address_val = None
 
         if d.address is not None:
-            address_val = eval_const_expr(d.address)
+            address_val = eval_const_expr(d.address, self.symtab)
 
         if is_array:
             try:
-                sz_val = eval_const_expr(d.array_size)
+                sz_val = eval_const_expr(d.array_size, self.symtab)
             except SemanticError as e:
                 raise SemanticError(e.message, line=d.line, col=d.col)
             if sz_val == -1:
@@ -76,7 +163,7 @@ class DeclarationAnalyzer:
             if not isinstance(d.initializer, ExprInit):
                 raise SemanticError("CONST must have expression initializer", line=d.line, col=d.col)
             try:
-                val = eval_const_expr(d.initializer.expr)
+                val = eval_const_expr(d.initializer.expr, self.symtab)
             except SemanticError as e:
                 raise SemanticError(e.message, line=d.line, col=d.col)
 

@@ -1,22 +1,83 @@
 ﻿from dataclasses import dataclass
-from typing import Optional, Protocol
+from typing import Optional, Protocol, List
 from errors import SemanticError
 
 
 @dataclass(frozen=True)
+class StructFieldInfo:
+    """Information about a struct field"""
+    name: str
+    base_type: str        # "byte", "word", or struct name
+    is_pointer: bool
+    offset: int           # Byte offset from struct start
+    fixed_address: Optional[int] = None  # If field has @address
+
+    @property
+    def width(self) -> int:
+        """Width of this field in bytes"""
+        if self.is_pointer:
+            return 2
+        if self.base_type == "byte":
+            return 1
+        if self.base_type == "word":
+            return 2
+        # For struct types, will be calculated by StructRegistry
+        return 0  # Will be looked up
+
+
+@dataclass(frozen=True)
+class StructInfo:
+    """Information about a defined struct"""
+    name: str
+    fields: List[StructFieldInfo]
+    size: int  # Total size in bytes
+
+    def get_field(self, field_name: str) -> Optional[StructFieldInfo]:
+        """Get field by name"""
+        for f in self.fields:
+            if f.name.upper() == field_name.upper():
+                return f
+        return None
+
+
+class StructRegistry:
+    """Registry for struct definitions"""
+    def __init__(self):
+        self._structs: dict[str, StructInfo] = {}
+
+    def define(self, struct_info: StructInfo):
+        """Register a struct definition"""
+        if struct_info.name.upper() in self._structs:
+            raise SemanticError(f"Struct '{struct_info.name}' already defined")
+        self._structs[struct_info.name.upper()] = struct_info
+
+    def lookup(self, name: str) -> Optional[StructInfo]:
+        """Look up a struct by name"""
+        return self._structs.get(name.upper())
+
+    def is_defined(self, name: str) -> bool:
+        """Check if a struct is defined"""
+        return name.upper() in self._structs
+
+
+@dataclass(frozen=True)
 class SemType:
-    base: str            # "byte", "word"
-    is_pointer: bool     # ^
+    base: str            # "byte", "word", or struct name
+    is_pointer: bool     # ^ (pointer)
+    is_struct: bool = False  # True if base is a struct name
+    struct_info: Optional[StructInfo] = None  # Struct metadata if is_struct=True
 
     @property
     def width(self) -> int:
         if self.is_pointer:
             return 2
+        if self.is_struct and self.struct_info:
+            return self.struct_info.size
         if self.base == "byte":
             return 1
         if self.base == "word":
             return 2
-        raise ValueError(self.base)
+        raise ValueError(f"Unknown type: {self.base}")
 
 
 @dataclass

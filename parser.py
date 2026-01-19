@@ -7,12 +7,18 @@ from errors import SyntaxError
 class Parser:
     def __init__(self, source: str, filename: str | None = None):
         self.filename = filename or "<input.act>"
+        # Remove BOM if present (can be \ufeff or UTF-8 BOM misinterpreted as 'ï»¿')
+        if source.startswith('\ufeff'):
+            source = source[1:]
+        elif source.startswith('ï»¿'):
+            # UTF-8 BOM misinterpreted by non-UTF-8-aware decoder
+            source = source[3:]
         self.source = source
         self.source_lines = source.splitlines()
         self.tok = Tokenizer(source)
         self.tok.tokenize()
         self.tokens = self.tok._getTokens()        
-        self.cur = self.tokens[0]
+        self.cur = self.tokens[0] if self.tokens else None
         self.pos = 0
         # Debug maps
         self.current_proc_name: str | None = None
@@ -24,6 +30,8 @@ class Parser:
         # Proc/Func source: name -> (filename, line, col, line_text)
         self.proc_src: dict[str, tuple[str, int, int, str]] = {}
         self.param_src: dict[tuple[str, str], tuple[str, int, str]] = {}
+        # Struct names for type checking in parse_declaration
+        self.struct_names: set[str] = set()
 
     def advance(self):
         self.pos += 1
@@ -66,6 +74,28 @@ class Parser:
         decls = []
         procs = []
 
+        # FIRST PASS: Collect struct names
+        # This allows us to recognize struct names as types in declarations
+        temp_pos = self.pos
+        temp_cur = self.cur
+        while self.cur.type != TOK_EOF:
+            if self.cur.type == TOK_KEYWORD and self.cur.value == "STRUCT":
+                self.advance()  # skip "struct"
+                if self.cur.type == TOK_IDENT:
+                    self.struct_names.add(self.cur.value.upper())
+                # Skip to end of struct
+                while self.cur.type != TOK_EOF and not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
+                    self.advance()
+                if self.cur.type == TOK_KEYWORD:
+                    self.advance()  # skip "end"
+            else:
+                self.advance()
+        
+        # RESET to beginning
+        self.pos = temp_pos
+        self.cur = temp_cur
+
+        # SECOND PASS: Parse everything
         while self.cur.type != TOK_EOF:
             if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".SEGMENT":
                 # Parse .segment directive at top level
@@ -75,14 +105,44 @@ class Parser:
                 segment_name = self.cur.value
                 self.advance()
                 procs.append(SegmentDirective(segment_name))
+            elif self.cur.type == TOK_OP and self.cur.value == ".":
+                # Handle . followed by IDENT (preprocessor directive like .include)
+                self.advance()
+                if self.cur.type == TOK_IDENT:
+                    directive = self.cur.value.upper()
+                    self.advance()
+                    if directive == "INCLUDE":
+                        if self.cur.type != TOK_STRING:
+                            self.error("Expected string after .include")
+                        # Skip .include directives for now
+                        self.advance()
+                    elif directive == "SEGMENT":
+                        if self.cur.type != TOK_STRING:
+                            self.error("Expected string after .segment")
+                        segment_name = self.cur.value
+                        self.advance()
+                        procs.append(SegmentDirective(segment_name))
+                    else:
+                        # Unknown directive, skip it
+                        pass
+                else:
+                    self.error("Expected identifier after '.'")
+            elif self.cur.type == TOK_KEYWORD and self.cur.value == "STRUCT":
+                procs.append(self.parse_struct_def())
             elif self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
+                decls.append(self.parse_declaration())
+            elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+                # Struct type declaration at top level
                 decls.append(self.parse_declaration())
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "PROC":
                 procs.append(self.parse_proc())
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "FUNC":
                 procs.append(self.parse_func())
+            elif self.cur.type == TOK_IDENT:
+                # Skip stray identifiers (like BOM misinterpreted as 'Ï')
+                self.advance()
             else:
-                self.error("Expected declaration, PROC, or FUNC")
+                self.error("Expected declaration, PROC, FUNC, or STRUCT")
         program = Program(decls, procs)
         program.debug = {
             "stmt_src": self.stmt_src,
@@ -93,6 +153,59 @@ class Parser:
             "filename": self.filename,
         }
         return program
+
+
+    def parse_struct_def(self):
+        """Parse struct definition: struct Name field_list end"""
+        start_line = self.cur.line
+        start_col = self.cur.col
+        self.expect(TOK_KEYWORD, "STRUCT")
+        
+        struct_name = self.cur.value
+        self.expect(TOK_IDENT)
+        
+        fields = []
+        seen_names: set[str] = set()
+        
+        # Parse field list until END
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
+            # Parse: type IDENT [ address_spec ]
+            # type
+            if self.cur.type != TOK_TYPE:
+                self.error(f"Expected type in struct field, got {self.cur.type} {self.cur.value}")
+            
+            type_name = self.cur.value
+            type_tok = self.cur
+            self.advance()
+            
+            is_pointer = False
+            if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+                is_pointer = True
+                self.advance()
+            
+            field_type = TypeNode(type_name, is_pointer)
+            
+            # field name
+            field_name = self.cur.value
+            if field_name.startswith('_'):
+                self.error("Field names cannot start with underscore")
+            self.expect(TOK_IDENT)
+            
+            if field_name in seen_names:
+                raise SyntaxError(f"Duplicate field '{field_name}' in struct '{struct_name}'", 
+                                line=self.cur.line, col=self.cur.col)
+            seen_names.add(field_name)
+            
+            # Parse optional address spec
+            field_addr = None
+            if self.cur.type == TOK_AT:
+                self.advance()
+                field_addr = self.parse_expr()
+            
+            fields.append(StructField(field_type, field_name, field_addr))
+        
+        self.expect(TOK_KEYWORD, "END")
+        return StructDef(struct_name, fields)
 
 
     def parse_proc(self):
@@ -129,7 +242,7 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
 
-        while self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
+        while self.cur.type in (TOK_TYPE, TOK_TYPEMOD) or (self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names):
             decl = self.parse_declaration()
             for d in decl.declarators:
                 if d.name in seen_names:
@@ -189,7 +302,7 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
         
-        while self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
+        while self.cur.type in (TOK_TYPE, TOK_TYPEMOD) or (self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names):
             decl = self.parse_declaration()
             for d in decl.declarators:
                 if d.name in seen_names:
@@ -243,9 +356,16 @@ class Parser:
             is_const = True
             self.advance()
 
-        # type
+        # type (built-in or struct name)
         type_tok = self.cur
-        self.expect(TOK_TYPE)
+        if self.cur.type == TOK_TYPE:
+            # Built-in type (byte, word)
+            self.expect(TOK_TYPE)
+        elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+            # Struct type
+            self.advance()
+        else:
+            self.expect(TOK_TYPE)
 
         is_pointer = False
         if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
@@ -364,6 +484,16 @@ class Parser:
                 self.advance()
                 node = DerefExpr(node)
                 continue
+            # Handle field access: obj.field
+            if self.cur.type == TOK_OP and self.cur.value == ".":
+                self.advance()
+                if self.cur.type != TOK_IDENT:
+                    self.error("Expected field name after '.'")
+                field_name = self.cur.value
+                self.advance()
+                node = FieldAccess(node, field_name, is_deref=False)
+                continue
+            # Handle pointer field access: ptr^.field (handled as ptr^ then field)
             break
 
         return node
@@ -567,6 +697,26 @@ class Parser:
                     self.advance()
                     node = DerefExpr(node)
                     continue
+                # Field access: obj.field or ptr^.field
+                if self.cur.type == TOK_OP and self.cur.value == ".":
+                    self.advance()
+                    field_name = self.cur.value
+                    self.expect(TOK_IDENT)
+                    node = FieldAccess(node, field_name, is_deref=False)
+                    continue
+                # Deref + field access: ptr^.field
+                # Check if this is ptr^.field pattern
+                if self.cur.type == TOK_PTR:
+                    # Look ahead to see if . follows
+                    next_tok = self._peek_next()
+                    if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
+                        self.advance()  # consume ^
+                        self.advance()  # consume .
+                        field_name = self.cur.value
+                        self.expect(TOK_IDENT)
+                        node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
+                        continue
+                    # Otherwise this is just postfix deref (already handled above)
                 break
             return node
 

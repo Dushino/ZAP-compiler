@@ -2,7 +2,7 @@
 from typing import cast
 from constfold import fold_expr
 from constsubst import subst_const
-from symbols import Symbol, SymbolTable, SemType
+from symbols import Symbol, SymbolTable, SemType, StructRegistry
 from sema_types import ExprKind
 from ast_nodes import (
     BinOp,
@@ -18,7 +18,7 @@ from ast_nodes import (
     Expr, ExprInit, ListInit, StringInit, CallExpr,
     CallStmt, AssignStmt,
     IfStmt, ReturnStmt, WhileStmt, ForStmt,
-    AsmBlock
+    AsmBlock, FieldAccess
 )
 from sema_expr import ExprTypeChecker
 from sema_types import ExprKind, ExprType
@@ -32,12 +32,13 @@ class CodeGen:
     label_id = 0
     loop_stack = []
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int]]] | None = None, func_param_specs: dict[str, list[tuple[str, int]]] | None = None, pruned_procs: list[str] | None = None):
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int]]] | None = None, func_param_specs: dict[str, list[tuple[str, int]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None):
         # global symbol table (globals)
         self.global_symtab: SymbolTable = symtab
         # currently active table (can be scoped for PROC/FUNC)
         self.current_symtab: SymbolTable = symtab
-        self.tc = type_checker   
+        self.tc = type_checker
+        self.struct_registry = struct_registry or StructRegistry()
         self.code: list[str] = []
         self.for_id = 0
         self.string_literals = {}  # Maps string content to label name
@@ -2372,11 +2373,20 @@ class CodeGen:
             for sym in zp_word_vars:
                 self.emit(f"{sym.asm_name()}:\t.res 2")
         
+        # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
+        struct_vars = [s for s in all_vars 
+                       if not s.is_const and s.address is None 
+                       and not s.type.is_pointer and not s.is_array
+                       and s.type.is_struct]
+        
+        bss_struct_vars = struct_vars  # All struct vars go to BSS
+
+        
         # Step 4: ALL ARRAYS must go to BSS segment (always)
         array_vars = [s for s in all_vars if not s.is_const and s.address is None and s.is_array]
         
-        # Switch to BSS for overflow and arrays
-        if bss_byte_vars or bss_word_vars or array_vars:
+        # Switch to BSS for overflow, struct vars, and arrays
+        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars:
             self.emit("\n.segment \"BSS\"")
             
             if bss_byte_vars:
@@ -2389,14 +2399,33 @@ class CodeGen:
                 for sym in bss_word_vars:
                     self.emit(f"{sym.asm_name()}:\t.res 2")
             
+            if bss_struct_vars:
+                self.emit("; Struct variables (BSS)")
+                for sym in bss_struct_vars:
+                    if sym.type.is_struct and sym.type.struct_info:
+                        struct_size = sym.type.struct_info.size
+                        self.emit(f"{sym.asm_name()}:\t.res {struct_size}")
+                    else:
+                        # Fallback (shouldn't happen if is_struct is correct)
+                        self.emit(f"{sym.asm_name()}:\t.res 1")
+            
             if array_vars:
                 self.emit("; Array variables (BSS)")
                 for sym in array_vars:
                     size = sym.array_len if sym.array_len else 1
-                    # Multiply by element size: WORD arrays need 2 bytes per element
-                    element_size = 2 if sym.type.base == "WORD" else 1
+                    # Calculate element size based on type
+                    if sym.type.is_struct and sym.type.struct_info:
+                        # Struct arrays: multiply by struct size
+                        element_size = sym.type.struct_info.size
+                    elif sym.type.base == "WORD":
+                        # WORD arrays: 2 bytes per element
+                        element_size = 2
+                    else:
+                        # BYTE arrays: 1 byte per element
+                        element_size = 1
                     total_size = size * element_size
                     self.emit(f"{sym.asm_name()}:\t.res {total_size}")
+
 
     def gen_globals_header(self):
         self.emit("\n.segment \"CODE\"")
@@ -2716,42 +2745,78 @@ class CodeGen:
             self.emit("\tTAX")  # Transfer high byte to X
             self.emit("\tPLA")  # Restore low byte to A
 
-    def _gen_subscript(self, expr: SubscriptExpr, load_only: bool):
+    def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False):
         # only support array identifiers
         if not isinstance(expr.array, Identifier):
             self._raise_error("Subscript array must be identifier")
 
         sym = self.current_symtab.lookup(expr.array.name)
-        width = 2 if sym.type.base == "WORD" else 1
+        
+        # Calculate element width based on array element type
+        if sym.type.is_struct and sym.type.struct_info:
+            width = sym.type.struct_info.size
+        elif sym.type.base == "WORD":
+            width = 2
+        else:
+            width = 1
 
         # base address -> TMP0/TMP0+1
         self._load_sym_addr(sym.asm_name())
         self.emit("\tSTA TMP0")
         self.emit("\tSTX TMP0+1")
 
-        # index
+        # index -> calculate scaled offset
         self.gen_expr(expr.index)
         
-        # For WORD arrays, multiply index by 2 FIRST before adding to base
-        if width == 2:
-            # multiply index by 2 (simple shift left: ASL shifts A left, sets C if overflow)
-            self.emit("\tASL A")
-            # If carry was set from the shift, we need to propagate it
-            carry_lbl = self.new_label("NOCARRY_SUBSCRIPT")
-            self.emit(f"\tBCC {carry_lbl}")
-            # Carry set - we'll add 1 to high byte during the add
-            self.emit(f"{carry_lbl}:")
+        # Multiply index by element width and store result
+        if width > 1:
+            if width == 2:
+                # Optimization: use ASL to multiply by 2
+                self.emit("\tASL A")
+                # Handle carry from multiplication
+                carry_lbl = self.new_label("NOCARRY_MULT")
+                self.emit(f"\tBCC {carry_lbl}")
+                self.emit(f"{carry_lbl}:")
+            else:
+                # General case: multiply by width using addition loop
+                # Index is in A, multiply by width
+                self.emit("\tSTA TMP3")  # Save index to TMP3
+                self.emit("\tLDA #0")
+                self.emit("\tSTA TMP4")  # TMP4 = result (low byte)
+                self.emit("\tLDA #0")
+                self.emit("\tSTA TMP4+1")  # TMP4+1 = result (high byte)
+                
+                # Multiply: TMP4 = TMP3 * width
+                # Using repeated addition: result = 0; for i in range(width): result += index
+                for i in range(width):
+                    self.emit("\tCLC")
+                    self.emit("\tLDA TMP3")
+                    self.emit("\tADC TMP4")
+                    self.emit("\tSTA TMP4")
+                    multiply_carry_lbl = self.new_label("MULT_CARRY")
+                    self.emit(f"\tBCC {multiply_carry_lbl}")
+                    self.emit("\tINC TMP4+1")
+                    self.emit(f"{multiply_carry_lbl}:")
+                
+                # Load result back to A/X
+                self.emit("\tLDA TMP4")
+                self.emit("\tLDX TMP4+1")
+        else:
+            self.emit("\tLDX #0")
         
-        # Now add (multiplied) index to base address
+        # Now A/X contains (scaled) index, add to base address in TMP0
         self.emit("\tCLC")
         self.emit("\tADC TMP0")
         self.emit("\tSTA TMP0")
         
-        # Handle carry into high byte
-        carry_lbl2 = self.new_label("CARRY")
-        self.emit(f"\tBCC {carry_lbl2}")
-        self.emit("\tINC TMP0+1")
-        self.emit(f"{carry_lbl2}:")
+        # Now add X (high byte of scaled index) to TMP0+1 with carry from low byte addition
+        self.emit("\tTXA")
+        self.emit("\tADC TMP0+1")
+        self.emit("\tSTA TMP0+1")
+        
+        # If only calculating address, stop here - TMP0 has the address
+        if calc_addr_only:
+            return
 
         if load_only:
             self.emit("\tLDY #0")
@@ -2772,6 +2837,170 @@ class CodeGen:
                 self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")
 
+    def _gen_field_access(self, expr: FieldAccess, load_only: bool):
+        """Generate code for struct field access (obj.field or ptr^.field).
+        
+        For direct field access (obj.field):
+          - Load field value from struct instance using offset
+          
+        For pointer field access (ptr^.field):
+          - Dereference pointer to get object address
+          - Load field from that address using offset
+        """
+        t = self.tc_check(expr)
+        field_type = t.sem_type
+        
+        # Get struct info
+        struct_type = self.tc_check(expr.object).sem_type
+        if not struct_type.is_struct:
+            self._raise_error("Object is not a struct")
+        
+        struct_info = struct_type.struct_info
+        if struct_info is None:
+            self._raise_error(f"Struct '{struct_type.base}' not found")
+        
+        # Find field info
+        field_info = None
+        for f in struct_info.fields:
+            if f.name == expr.field:
+                field_info = f
+                break
+        
+        if field_info is None:
+            self._raise_error(f"Field '{expr.field}' not found in struct '{struct_info.name}'")
+        
+        field_offset = field_info.offset
+        field_width = 2 if field_info.base_type == "WORD" else 1
+        
+        if expr.is_deref:
+            # ptr^.field - dereference the pointer first
+            # 1) Generate pointer expression -> A/X
+            self.gen_expr(expr.object)
+            
+            # 2) Store pointer address
+            self.emit("\tSTA TMP0")
+            self.emit("\tSTX TMP0+1")
+            
+            # 3) Load field value from dereferenced location
+            if field_offset == 0:
+                # Field at offset 0: just load directly
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
+                
+                if field_width == 2:
+                    # Load high byte
+                    self.emit("\tPHA")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tTAX")
+                    self.emit("\tPLA")
+            else:
+                # Field at offset > 0: add offset to pointer first
+                self.emit(f"\tLDA #${field_offset:02X}")
+                self.emit("\tCLC")
+                self.emit("\tADC TMP0")
+                self.emit("\tSTA TMP0")
+                self.emit(f"\tBCC NOCARRY_FIELD_DEREF_{id(expr)}")
+                self.emit("\tINC TMP0+1")
+                self.emit(f"NOCARRY_FIELD_DEREF_{id(expr)}:")
+                
+                # Load field value
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
+                
+                if field_width == 2:
+                    self.emit("\tPHA")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tTAX")
+                    self.emit("\tPLA")
+        else:
+            # obj.field - direct field access
+            # obj can be: Identifier or SubscriptExpr (array[index])
+            
+            if isinstance(expr.object, Identifier):
+                # Simple variable: Point p1; p1.x = ...
+                sym = self.current_symtab.lookup(expr.object.name)
+                base_asm = sym.asm_name()
+                
+                # Calculate field address
+                field_asm = base_asm
+                if field_offset > 0:
+                    field_asm = f"{base_asm}+{field_offset}"
+                
+                # Load field value
+                self.emit(f"\tLDA {field_asm}")
+                
+                if field_width == 2:
+                    self.emit(f"\tLDX {field_asm}+1")
+                else:
+                    # BYTE field -> X = 0
+                    self.emit("\tLDX #0")
+                    
+            elif isinstance(expr.object, SubscriptExpr):
+                # Array subscript: Point arr[i]; arr[i].x = ...
+                # 1) Generate the address of arr[i] into TMP0/TMP0+1 (no loading)
+                self._gen_subscript(expr.object, load_only=True, calc_addr_only=True)
+                
+                # 2) Add field offset to the address
+                if field_offset > 0:
+                    self.emit(f"\tCLC")
+                    self.emit(f"\tLDA TMP0")
+                    self.emit(f"\tADC #{field_offset}")
+                    self.emit(f"\tSTA TMP0")
+                    self.emit(f"\tBCC NOCARRY_ARRFIELD_{id(expr)}")
+                    self.emit(f"\tINC TMP0+1")
+                    self.emit(f"NOCARRY_ARRFIELD_{id(expr)}:")
+                
+                # 3) Load field value via indirect addressing
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
+                
+                if field_width == 2:
+                    self.emit("\tPHA")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tTAX")
+                    self.emit("\tPLA")
+                else:
+                    self.emit("\tLDX #0")
+            else:
+                self._raise_error("Direct field access only supported on struct variables or array elements")
+        
+        # If storing field (not load_only), RHS should be in TMP2/TMP2+1
+        if not load_only:
+            self.emit("\tLDY #0")
+            if expr.is_deref:
+                # Store through pointer (TMP0 already has address)
+                self.emit("\tLDA TMP2")
+                self.emit("\tSTA (TMP0),Y")
+                
+                if field_width == 2:
+                    self.emit("\tINY")
+                    self.emit("\tLDA TMP2+1")
+                    self.emit("\tSTA (TMP0),Y")
+            elif isinstance(expr.object, Identifier):
+                # Direct store to simple variable
+                sym = self.current_symtab.lookup(expr.object.name)
+                base_asm = sym.asm_name()
+                field_asm = base_asm if field_offset == 0 else f"{base_asm}+{field_offset}"
+                
+                self.emit(f"\tLDA TMP2")
+                self.emit(f"\tSTA {field_asm}")
+                
+                if field_width == 2:
+                    self.emit(f"\tLDA TMP2+1")
+                    self.emit(f"\tSTA {field_asm}+1")
+            elif isinstance(expr.object, SubscriptExpr):
+                # Direct store to array element (TMP0 already has address)
+                self.emit(f"\tLDA TMP2")
+                self.emit(f"\tSTA (TMP0),Y")
+                
+                if field_width == 2:
+                    self.emit(f"\tINY")
+                    self.emit(f"\tLDA TMP2+1")
+                    self.emit(f"\tSTA (TMP0),Y")
+
     def _gen_binary(self, expr: BinaryExpr):
         t = self.tc_check(expr)
         left_t = self.tc_check(expr.left)
@@ -2790,9 +3019,15 @@ class CodeGen:
         # For pointer arithmetic, we need the element size of the pointer
         ptr_elem_size = 1  # default
         if left_is_ptr:
-            ptr_elem_size = 2 if left_t.sem_type.base == "WORD" else 1
+            if left_t.sem_type.is_struct and left_t.sem_type.struct_info:
+                ptr_elem_size = left_t.sem_type.struct_info.size
+            else:
+                ptr_elem_size = 2 if left_t.sem_type.base == "WORD" else 1
         elif right_is_ptr:
-            ptr_elem_size = 2 if right_t.sem_type.base == "WORD" else 1
+            if right_t.sem_type.is_struct and right_t.sem_type.struct_info:
+                ptr_elem_size = right_t.sem_type.struct_info.size
+            else:
+                ptr_elem_size = 2 if right_t.sem_type.base == "WORD" else 1
 
         # Check for constant 1 optimization BEFORE generating code
         right_is_const_1 = isinstance(expr.right, IntLiteral) and expr.right.value == 1
@@ -2832,17 +3067,34 @@ class CodeGen:
     
     def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True):
         """Generate addition (inline)
-        ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD)
+        ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD, or struct size)
         use_inc: if True and ptr_elem_size == 1, use INC TMP0 for adding 1 (optimization)
         right_16: whether the right operand is 16-bit (if False, X may not be valid)
         
         NOTE: For 16-bit operations, right operand should be in A/X when called
         """
-        if ptr_elem_size == 2:
-            # Pointer to WORD: scale offset by 2
-            # A (offset) needs to be multiplied by 2 before adding
-            self.emit("\tASL A")  # Multiply by 2
-            # If carry was set, we'll handle it below
+        if ptr_elem_size > 1:
+            # Pointer arithmetic with element size > 1
+            # Need to multiply offset by element size
+            if ptr_elem_size == 2:
+                # Optimization: use ASL to multiply by 2
+                self.emit("\tASL A")  # Multiply by 2
+            else:
+                # General case: multiply by ptr_elem_size
+                self.emit("\tSTA TMP3")  # Save offset
+                self.emit("\tLDA #0")
+                self.emit("\tSTA TMP4")
+                # Multiply TMP3 by ptr_elem_size
+                for i in range(ptr_elem_size - 1):
+                    self.emit("\tCLC")
+                    self.emit("\tLDA TMP3")
+                    self.emit("\tADC TMP4")
+                    self.emit("\tSTA TMP4")
+                    if self.emit("\tBCC +"):  # Check for carry
+                        self.emit("\tINC TMP4+1")
+                    self.emit("+")
+                self.emit("\tLDA TMP4")
+                self.emit("\tLDX TMP4+1")
         
         if is_16bit:
             # 16-bit: (A,X) + (TMP0,TMP0+1) → (A,X)
@@ -3290,6 +3542,8 @@ class CodeGen:
             self._gen_deref(expr)
         elif isinstance(expr, SubscriptExpr):
             self._gen_subscript(expr, load_only=True)
+        elif isinstance(expr, FieldAccess):
+            self._gen_field_access(expr, load_only=True)
         elif isinstance(expr, CallExpr):
             # Emit source comment for function call if available
             info = self.stmt_src.get(id(expr))
@@ -3346,7 +3600,7 @@ class CodeGen:
         rhs_t = self.tc_check(rhs)
 
         # typová kompatibilita                
-        if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr)):
+        if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr, FieldAccess)):
             self._raise_error("Left side of assignment is not assignable")
 
         # Special case: array-to-array assignment (string copy)
@@ -3613,6 +3867,13 @@ class CodeGen:
             self.emit("\tSTA TMP2")
             self.emit("\tSTX TMP2+1")
             self._gen_subscript(lhs, load_only=False)
+            return
+
+        if isinstance(lhs, FieldAccess):
+            # Save RHS value to temps before field access calculation
+            self.emit("\tSTA TMP2")
+            self.emit("\tSTX TMP2+1")
+            self._gen_field_access(lhs, load_only=False)
             return
 
         raise NotImplementedError(type(lhs))
@@ -4139,15 +4400,19 @@ class CodeGen:
                     return
                 if cond.op == BinOp.LE:
                     lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_chk_hi = self.new_label("LE_CHK_HI")
+                    # Compare low byte first
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBEQ {lbl_chk_hi}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    # Low bytes equal, check high byte
+                    self.emit(f"{lbl_chk_hi}:")
                     self.emit(f"\tLDX {asm}+1")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
                     self.emit(f"\tBEQ {lbl_true}")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
-                    self.emit(f"\tLDA {asm}")
-                    self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBCC {lbl_true}")
-                    self.emit(f"\tBEQ {lbl_true}")                    
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
@@ -4238,14 +4503,17 @@ class CodeGen:
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.LE:
                 lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                lbl_chk_hi = self.new_label("LE_CHK_HI")
                 # Compare low byte first
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBCC {lbl_true}")
-                self.emit(f"\tBEQ {lbl_true}")
+                self.emit(f"\tBEQ {lbl_chk_hi}")
                 self.emit(f"\tBNE {lbl_else_tmp}")
-                # Low byte greater, check high byte
+                # Low bytes equal, check high byte
+                self.emit(f"{lbl_chk_hi}:")
                 self.emit(f"\tCPX {cmp_hi}")
                 self.emit(f"\tBCC {lbl_true}")
+                self.emit(f"\tBEQ {lbl_true}")
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GT:

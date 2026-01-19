@@ -95,6 +95,29 @@ class Declaration(ASTNode):
         return f"{c}Declaration({self.type}: {decls})"
 
 
+@dataclass(frozen=True)
+class StructField(ASTNode):
+    """Struct field definition"""
+    type: TypeNode
+    name: str
+    address: Optional["Expr"] = None    # None = no fixed address
+
+    def __repr__(self) -> str:
+        addr_str = f" @{self.address}" if self.address else ""
+        return f"StructField({self.type} {self.name}{addr_str})"
+
+
+@dataclass(frozen=True)
+class StructDef(ASTNode):
+    """Struct type definition"""
+    name: str
+    fields: List[StructField]
+
+    def __repr__(self) -> str:
+        fields_str = ", ".join(repr(f) for f in self.fields)
+        return f"struct {self.name} {{ {fields_str} }}"
+
+
 class Expr(ASTNode):
     pass
 
@@ -129,6 +152,18 @@ class SubscriptExpr(Expr):
 
     def __repr__(self):
         return f"{self.array}[{self.index}]"
+
+
+@dataclass(frozen=True)
+class FieldAccess(Expr):
+    """Struct field access: obj.field or ptr^.field"""
+    object: Expr
+    field: str
+    is_deref: bool = False    # True if via pointer dereference (ptr^.field)
+
+    def __repr__(self):
+        op = "^." if self.is_deref else "."
+        return f"{self.object}{op}{self.field}"
 
 class BinOp(Enum):
     ADD = "+"

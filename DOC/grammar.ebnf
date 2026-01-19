@@ -9,6 +9,7 @@ top_level       ::= declaration
                   | segment_directive
                   | proc_decl
                   | func_decl
+                  | struct_decl
                   | module_decl
                   | include_decl ;
 
@@ -19,7 +20,7 @@ segment_directive ::= ".segment" STRING ;
 (* ============ TYPES ============ *)
 type            ::= base_type [ "^" ] ;
 
-base_type       ::= "byte" | "word" ;
+base_type       ::= "byte" | "word" | STRUCT_NAME ;
 
 (* ============ DECLARATIONS ============ *)
 declaration     ::= [ "const" ] type declarator_list ;
@@ -40,6 +41,11 @@ initializer     ::= "=" expression             (* scalar init *)
 
 array_init      ::= "{" [ init_list ] "}" ;
 init_list       ::= expression { "," expression } ;
+
+(* ============ STRUCT DEFINITIONS ============ *)
+struct_decl     ::= "struct" IDENT struct_body "end" ;
+struct_body     ::= { struct_field } ;
+struct_field    ::= type IDENT [ address_spec ] ;
 
 (* ============ PROCEDURES ============ *)
 proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" proc_body "end" ;
@@ -130,7 +136,9 @@ primary         ::= NUMBER                      (* decimal, $hex (0x..), binary 
                   | IDENT
                   | IDENT "(" [ expr_list ] ")" (* function call *)
                   | IDENT "[" expression "]"    (* array subscript *)
+                  | IDENT "." IDENT              (* struct field access *)
                   | IDENT "^"                   (* pointer dereference *)
+                  | IDENT "^" "." IDENT        (* deref + field access *)
                   | "(" expression ")" ;
 
 expr_list       ::= expression { "," expression } ;

@@ -1,7 +1,7 @@
 from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl
-from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl, SegmentDirective
-from symbols import SymbolTable, ProcTable, FuncTable
-from sema import DeclarationAnalyzer
+from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl, SegmentDirective, StructDef
+from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry
+from sema import DeclarationAnalyzer, StructAnalyzer
 from sema_expr import ExprTypeChecker
 from sema_proc import ProcAnalyzer
 from sema_func import FuncAnalyzer
@@ -228,7 +228,7 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
 def _walk_expr_locals(expr, used: set[str], local_symtab):
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
-        SubscriptExpr, CallExpr
+        SubscriptExpr, CallExpr, FieldAccess
     )
 
     if isinstance(expr, IntLiteral):
@@ -260,6 +260,10 @@ def _walk_expr_locals(expr, used: set[str], local_symtab):
     if isinstance(expr, SubscriptExpr):
         _walk_expr_locals(expr.array, used, local_symtab)
         _walk_expr_locals(expr.index, used, local_symtab)
+        return
+
+    if isinstance(expr, FieldAccess):
+        _walk_expr_locals(expr.object, used, local_symtab)
         return
 
 
@@ -354,9 +358,16 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     global_symtab = SymbolTable()
     proc_table = ProcTable()
     func_table = FuncTable()
+    struct_registry = StructRegistry()
+
+    # --- struct definitions (must be first) ---
+    struct_an = StructAnalyzer(struct_registry)
+    for item in program.procs:
+        if isinstance(item, StructDef):
+            struct_an.analyze(item)
 
     # --- declarations ---    
-    decl_an = DeclarationAnalyzer(global_symtab)
+    decl_an = DeclarationAnalyzer(global_symtab, struct_registry)
     for d in program.decls:
         decl_an.analyze(d)
     
@@ -380,11 +391,11 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 raise SemanticError(f"Variable '{name}' conflicts with .define symbol")
 
     # --- expression type checker ---
-    expr_tc = ExprTypeChecker(global_symtab, func_table)
+    expr_tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
 
     # --- procedures and functions ---
-    proc_an = ProcAnalyzer(proc_table, debug_info=debug)
-    func_an = FuncAnalyzer(func_table, expr_tc, debug_info=debug)
+    proc_an = ProcAnalyzer(proc_table, debug_info=debug, struct_registry=struct_registry)
+    func_an = FuncAnalyzer(func_table, expr_tc, debug_info=debug, struct_registry=struct_registry)
     analyzed_procs = []
     analyzed_funcs = []
     
@@ -467,7 +478,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # --- codegen ---   
     # reuse func_table from analysis (already has all functions registered)
-    tc = ExprTypeChecker(global_symtab, func_table)
+    tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
     pruned_procs, pruned_funcs, used_globals, removed_procs = prune_unused(
         program, analyzed_procs, analyzed_funcs, global_symtab
     )
@@ -506,6 +517,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         proc_param_specs=proc_param_specs,
         func_param_specs=func_param_specs,
         pruned_procs=removed_procs,
+        struct_registry=struct_registry,
     )
 
     # Populate fixed-address labels EARLY (before code generation) to protect hardware variables
