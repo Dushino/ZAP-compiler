@@ -8,7 +8,7 @@ byte ^DLIST @560        ; Pointer at fixed address 560 (outside zero page)
 byte ^ptr25 = DLIST     ; Trying to assign this pointer value
 ```
 
-The ZAP compiler currently **requires all pointers to be in zero page** because:
+The ZAP! compiler currently **requires all pointers to be in zero page** because:
 - The 6502 indirect addressing mode `(ptr),Y` only works with zero-page pointers
 - The compiler hard-codes this assumption in three key places:
   1. **Memory allocation** forces all pointers to ZP (or fails with exhaustion error)

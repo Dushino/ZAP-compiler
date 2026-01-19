@@ -30,7 +30,7 @@ VS Code uses TextMate grammars for syntax highlighting. This tutorial covers:
 
 ### Method 2: Create Symbolic Link (Best for Active Development)
 
-If you're actively developing the Zap compiler and want syntax changes to update automatically:
+If you're actively developing the ZAP! compiler and want syntax changes to update automatically:
 
 ```bash
 # Create a symbolic link instead of copying

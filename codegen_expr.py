@@ -3944,7 +3944,7 @@ class CodeGen:
 
                 if sym.is_array or sym.address is not None:
                     return None
-                if sym.type.is_pointer or sym.type.base not in {"BYTE", "CHAR"}:
+                if sym.type.is_pointer or sym.type.base != "BYTE":
                     return None
                 if sym.is_volatile:
                     return None
@@ -4080,7 +4080,7 @@ class CodeGen:
 
                 if sym.is_array or sym.address is not None:
                     return None
-                if sym.type.is_pointer or sym.type.base not in {"BYTE", "CHAR"}:
+                if sym.type.is_pointer or sym.type.base != "BYTE":
                     return None
                 if sym.is_volatile:
                     return None

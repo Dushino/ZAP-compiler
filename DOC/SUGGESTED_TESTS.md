@@ -1,4 +1,4 @@
-# Suggested Additional Tests for ZAP Compiler
+# Suggested Additional Tests for ZAP! Compiler
 
 Based on current compiler capabilities and the grammar, here are gaps in test coverage with recommended test files:
 

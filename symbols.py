@@ -5,14 +5,14 @@ from errors import SemanticError
 
 @dataclass(frozen=True)
 class SemType:
-    base: str            # "byte", "word", "char"
+    base: str            # "byte", "word"
     is_pointer: bool     # ^
 
     @property
     def width(self) -> int:
         if self.is_pointer:
             return 2
-        if self.base == "byte" or self.base == "char":
+        if self.base == "byte":
             return 1
         if self.base == "word":
             return 2

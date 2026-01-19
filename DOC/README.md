@@ -1,8 +1,8 @@
-# ⚡ Zap Compiler
+# ⚡ ZAP! Compiler
 
-**A modern, optimizing compiler for the Zap! programming language**
+**A modern, optimizing compiler for the ZAP! programming language**
 
-Zap compiles Zap! source code into optimized 6502 assembly for Atari 8-bit computers and other 6502-based systems.
+ZAP! compiles ZAP! source code into optimized 6502 assembly for Atari 8-bit computers and other 6502-based systems.
 
 ## Features
 
@@ -197,7 +197,7 @@ Tests are scanned **alphabetically**, allowing you to name tests as `001_filenam
 - Tests all 4 variants: default, `--peepholes`, `-6502`, `-6502 --peepholes`
 - Requires `.ref` reference files in `tests/pass/` for comparison
 - Runs compiled binaries through `6502_simulator` to validate output
-- Detects specific errors: ZAP compiler errors, ca65 errors, ld65 errors, simulator errors, output mismatches
+- Detects specific errors: ZAP! compiler errors, ca65 errors, ld65 errors, simulator errors, output mismatches
 - Negative tests in `tests/fail/` must fail to pass
 - Detailed error reporting shows which variant failed and why
 

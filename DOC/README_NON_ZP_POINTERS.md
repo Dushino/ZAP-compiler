@@ -2,7 +2,7 @@
 
 ## Overview
 
-This package contains a comprehensive analysis of the non-zero-page pointer problem in the ZAP compiler and a detailed implementation roadmap.
+This package contains a comprehensive analysis of the non-zero-page pointer problem in the ZAP! compiler and a detailed implementation roadmap.
 
 **Problem**: Pointers at fixed addresses outside zero page (like `byte ^DLIST @560`) cannot be used effectively because the compiler assumes all pointers must be in zero page for dereferencing.
 

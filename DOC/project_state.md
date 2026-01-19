@@ -1,12 +1,14 @@
-# Zap Compiler - Project State
+# ZAP! Compiler - Project State
 
-**Date**: January 16, 2026  
+**Date**: January 19, 2026  
 **Repository**: Dushino/ZAP-compiler  
 **Branch**: main
 
 ## Overview
 
-Zap is a modern compiler for the Action! programming language targeting the Atari 8-bit platform and other 6502-based systems. The compiler features advanced optimizations including constant folding, dead code elimination, and algebraic simplification. It compiles Action! source code (.act files) into optimized 6502 assembly (.s files).
+ZAP! is a modern, optimizing compiler for the ZAP! programming language targeting the Atari 8-bit platform and other 6502-based systems. The compiler features advanced optimizations including constant folding, dead code elimination, algebraic simplification, jump threading, and label cleanup. It compiles ZAP! source code (.zap files) into optimized 6502 assembly (.s files).
+
+The language provides high-level constructs for 8-bit systems programming while maintaining control over low-level details, making it ideal for Atari 8-bit development and other retro computing platforms.
 
 ## Project Structure
 

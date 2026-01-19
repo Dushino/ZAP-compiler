@@ -1,6 +1,6 @@
 # Action Module System
 
-The Zap compiler supports multi-file compilation using `.module` and `.include` directives.
+The ZAP! compiler supports multi-file compilation using `.module` and `.include` directives.
 
 ## Directives
 

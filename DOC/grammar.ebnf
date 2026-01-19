@@ -1,6 +1,12 @@
+(* ZAP! Language Grammar - EBNF Notation *)
+(* Updated: January 2026 *)
+(* Lexical tokens: IDENT, NUMBER, STRING, TOK_ASM_BLOCK *)
+(* Comments: beginning with ; until end of line *)
+
 program         ::= { top_level } ;
 
 top_level       ::= declaration
+                  | segment_directive
                   | proc_decl
                   | func_decl
                   | module_decl
@@ -8,11 +14,14 @@ top_level       ::= declaration
 
 module_decl     ::= ".module" STRING ;
 include_decl    ::= ".include" STRING ;
+segment_directive ::= ".segment" STRING ;
 
+(* ============ TYPES ============ *)
 type            ::= base_type [ "^" ] ;
 
-base_type       ::= "byte" | "word" | "char" ;
+base_type       ::= "byte" | "word" ;
 
+(* ============ DECLARATIONS ============ *)
 declaration     ::= [ "const" ] type declarator_list ;
 
 declarator_list ::= declarator { "," declarator } ;
@@ -23,7 +32,7 @@ declarator      ::= IDENT
                     [ initializer ] ;
 
 array_spec      ::= "[" [ NUMBER ] "]" ;
-address_spec    ::= "@" NUMBER ;               (* NUMBER may be decimal, $hex, 0xhex *)
+address_spec    ::= "@" NUMBER ;               (* NUMBER may be decimal, $hex, 0xhex, 0b... *)
 
 initializer     ::= "=" expression             (* scalar init *)
                   | "=" STRING                 (* byte[] string init, NUL-terminated *)
@@ -32,63 +41,126 @@ initializer     ::= "=" expression             (* scalar init *)
 array_init      ::= "{" [ init_list ] "}" ;
 init_list       ::= expression { "," expression } ;
 
-proc_decl       ::= "PROC" IDENT "(" [ param_list ] ")" block "END" ;
+(* ============ PROCEDURES ============ *)
+proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" proc_body "end" ;
 
-func_decl       ::= "FUNC" type IDENT "(" [ param_list ] ")" block "RETURN" expression ;
+proc_body       ::= { local_decl } { statement } ;
 
+(* ============ FUNCTIONS ============ *)
+func_decl       ::= "func" type IDENT "(" [ param_list ] ")" func_body "end" ;
+
+func_body       ::= { local_decl } { statement } "return" expression ;
+
+(* ============ PARAMETERS ============ *)
 param_list      ::= param { "," param } ;
-param           ::= type IDENT [ "[]" ] ;      (* array parameters *)
+param           ::= type IDENT ;
 
-block           ::= { statement } ;
+(* ============ STATEMENTS ============ *)
+local_decl      ::= [ "const" ] type declarator_list ;
 
-statement       ::= declaration
-                  | assignment
+statement       ::= assignment
+                  | call_stmt
                   | if_stmt
                   | while_stmt
                   | for_stmt
                   | break_stmt
                   | return_stmt
+                  | asm_stmt
+                  | segment_directive
                   | expr_stmt ;
 
-if_stmt         ::= "IF" expression "THEN" block
-                    { "ELSE" block }
-                    "ENDIF" ;
-
-while_stmt      ::= "WHILE" expression block "END" ;
-
-for_stmt        ::= "FOR" IDENT "=" expression "TO" expression
-                    block
-                    "NEXT" IDENT ;
-
-break_stmt      ::= "BREAK" ;
-return_stmt     ::= "RETURN" [ expression ] ;
-
 assignment      ::= lvalue "=" expression ;
+
+call_stmt       ::= IDENT "(" [ expr_list ] ")" ;
+
+if_stmt         ::= "if" expression "then" { statement }
+                    { "else" { statement } }
+                    "endif" ;
+
+while_stmt      ::= "while" expression { statement } "end" ;
+
+for_stmt        ::= "for" IDENT "=" expression "to" expression
+                    [ "step" expression ]
+                    { statement }
+                    "next" IDENT ;
+
+break_stmt      ::= "break" ;
+
+return_stmt     ::= "return" [ expression ] ;
+
+asm_stmt        ::= "asm" ASM_BLOCK "end" ;
+
 expr_stmt       ::= expression ;
 
+(* ============ L-VALUES ============ *)
 lvalue          ::= IDENT
                   | IDENT "^"
                   | IDENT "[" expression "]" ;
 
+(* ============ EXPRESSIONS ============ *)
+(* Operator precedence (lowest to highest):
+   1. ||  (logical OR)
+   2. &&  (logical AND)
+   3. ==, !=
+   4. <, >, <=, >=
+   5. +, -
+   6. *, /, %
+   7. -, !  (unary)
+   8. primary (highest)
+*)
+
 expression      ::= logical_or ;
+
 logical_or      ::= logical_and { "||" logical_and } ;
+
 logical_and     ::= equality { "&&" equality } ;
 
 equality        ::= comparison { ("==" | "!=") comparison } ;
+
 comparison      ::= term { ("<" | ">" | "<=" | ">=") term } ;
+
 term            ::= factor { ("+" | "-") factor } ;
+
 factor          ::= unary { ("*" | "/" | "%") unary } ;
+
 unary           ::= [ "-" | "!" ] primary ;
 
-primary         ::= NUMBER                      (* decimal, $hex, 0xhex, %bin, 0b, and character literals 'x' *)
-                  | STRING                      (* string literal in expressions and in inits *)
+primary         ::= NUMBER                      (* decimal, $hex (0x..), binary (%...) *)
+                  | STRING                      (* "..." string literal *)
                   | IDENT
-                  | IDENT "(" [ expr_list ] ")"
-                  | IDENT "[" expression "]"
-                  | IDENT "^"
+                  | IDENT "(" [ expr_list ] ")" (* function call *)
+                  | IDENT "[" expression "]"    (* array subscript *)
+                  | IDENT "^"                   (* pointer dereference *)
                   | "(" expression ")" ;
 
 expr_list       ::= expression { "," expression } ;
+
+(* ============ LEXICAL ELEMENTS ============ *)
+(* 
+   IDENT           - Starts with a-z A-Z, followed by a-z A-Z 0-9 _
+   NUMBER          - Decimal: 0-9+, Hex: $0-9A-F or 0x0-9A-F, Binary: %0-1 or 0b0-1
+                     Character literals 'x' are converted to numeric values during tokenization
+   STRING          - "..." with NUL terminator, supports escape sequences
+   ASM_BLOCK       - Inline 6502 assembly code
+   Comments        - ; until end of line
+*)
+
+(* ============ NOTES ============ *)
+(*
+   - All identifiers are case-insensitive internally (converted to uppercase)
+   - String literals preserve case
+   - Character literals ('x') are converted to numeric values at tokenization time
+   - Pointer types use ^ operator (e.g., byte ^ptr)
+   - Fixed-address variables use @ specifier (e.g., byte x @$2000)
+   - Procedures end with END, functions end with END (implicit return)
+   - FOR loops require NEXT statement with loop variable
+   - WHILE loops terminate with END
+   - IF statements use IF-THEN-ELSE-ENDIF structure (ELSE is optional)
+   - Module system: .module marks a file as importable, .include loads dependencies
+   - .segment directive controls code/data segment placement (ca65 compatible)
+   - ASM blocks embed raw 6502 assembly code
+*)
+
 
 
 

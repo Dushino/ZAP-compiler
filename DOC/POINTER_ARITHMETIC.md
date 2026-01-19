@@ -4,7 +4,7 @@
 January 16, 2026
 
 ## Overview
-Successfully implemented type-aware pointer arithmetic in the ZAP compiler. The compiler now correctly scales pointer offsets based on the element type of the pointer.
+Successfully implemented type-aware pointer arithmetic in the ZAP! compiler. The compiler now correctly scales pointer offsets based on the element type of the pointer.
 
 ## Implementation Details
 

@@ -22,7 +22,7 @@ class SegmentDirective(ASTNode):
 
 @dataclass(frozen=True)
 class TypeNode(ASTNode):
-    base: str            # "byte", "word", "char"
+    base: str            # "byte", "word"
     is_pointer: bool     # True pokud ^
 
     def __repr__(self) -> str:
