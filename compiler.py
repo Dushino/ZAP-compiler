@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Optional, Set
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peepholes: bool = False) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
         src = src[1:]
@@ -20,7 +20,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         
         parser = Parser(src, filename="<input.zap>")
         program = parser.parse_program()
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peepholes=enable_peepholes)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
 
     except CompileError as e:
         if e.line is not None:
@@ -33,7 +33,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peepholes: bool = False) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
     """Compile a file with module support"""
     try:
         # Get base directory for resolving includes
@@ -46,7 +46,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         program, defined_symbols = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peepholes=enable_peepholes)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
     
     except CompileError as e:
         # Prefer attached source text (e.g., preprocessed/cleaned) if available
@@ -73,7 +73,6 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     target_6502 = False
     out_file = None
-    enable_peepholes = False
     predefined_symbols = set()
 
     # Simple CLI parsing to support -6502, -o <file>, and -D <symbol>
@@ -85,14 +84,10 @@ if __name__ == "__main__":
             target_6502 = True
             i += 1
             continue
-        if a == "--peepholes":
-            enable_peepholes = True
-            i += 1
-            continue
         if a == "-o":
             if i + 1 >= len(args):
                 print("Error: -o requires an output filename")
-                print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
+                print("Usage: python compiler.py [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             out_file = args[i + 1]
             i += 2
@@ -100,7 +95,7 @@ if __name__ == "__main__":
         if a == "-D":
             if i + 1 >= len(args):
                 print("Error: -D requires a symbol name")
-                print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
+                print("Usage: python compiler.py [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             predefined_symbols.add(args[i + 1].upper())
             i += 2
@@ -114,7 +109,7 @@ if __name__ == "__main__":
         i += 1
 
     if src_file is None:
-        print("Usage: python compiler.py [-6502] [--peepholes] [-D <symbol>] [-o <output.s>] <source.act>")
+        print("Usage: python compiler.py [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
         sys.exit(1)
 
     # Compile program
@@ -123,7 +118,6 @@ if __name__ == "__main__":
         target_6502=target_6502,
         predefined_symbols=predefined_symbols,
         command_line=command_line,
-        enable_peepholes=enable_peepholes,
     )
 
     # Write to file if requested, else print to stdout

@@ -15,10 +15,6 @@ from label_cleanup import cleanup_labels
 from collections import deque
 from typing import Optional, Set
 
-# Global switch to disable all peephole-level optimizations without removing code.
-# This is set dynamically by compiler.py based on --peepholes flag
-DISABLE_PEEPHOLE_OPTIMIZATIONS = True
-
 
 def _walk_expr(expr, ctx, global_symtab):
     from ast_nodes import (
@@ -353,7 +349,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         af.locals = prune_one(af.ast.body, af.locals, af.symtab.local, af.ast.params)
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peepholes: bool = False) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
     proc_table = ProcTable()
@@ -586,17 +582,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             if af:
                 cg.gen_func(af)
 
-    # Peephole before inserting vars/footer (run until stable)
-    if enable_peepholes:
-        max_iterations = 10  # Guard against infinite loops
-        for iteration in range(max_iterations):
-            prev_code = cg.code[:]
-            cg.peephole_optimize()
-            if cg.code == prev_code:
-                break  # Converged - no more changes
-    else:
-        # Keep code legal even with peepholes disabled
-        cg.legalize_illegal_ops()
+    # Keep code legal
+    cg.legalize_illegal_ops()
 
     # Build variable block (now that dynamic temps are known)
     vars_block = cg.gen_vars_block(analyzed_procs, analyzed_funcs)
@@ -610,24 +597,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     cg.gen_file_footer()
 
-    if enable_peepholes:
-        # Run peephole optimization until stable
-        max_iterations = 10
-        for iteration in range(max_iterations):
-            prev_code = cg.code[:]
-            cg.peephole_optimize()
-            if cg.code == prev_code:
-                break
-
-        while True:
-            new_code1 = jump_threading(cg.code)
-            new_code2 = cleanup_labels(new_code1)
-
-            if new_code2 == cg.code:
-                break
-            cg.code = new_code2
-    else:
-        # Keep code legal even with peepholes disabled
-        cg.legalize_illegal_ops()
+    # Keep code legal
+    cg.legalize_illegal_ops()
     return "\n".join(cg.code)
 

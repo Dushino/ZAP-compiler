@@ -170,7 +170,7 @@ if not exist "%APPOBJDIR%" mkdir "%APPOBJDIR%"
 if not exist "%APPBINDIR%" mkdir "%APPBINDIR%"
 
 echo Compiling ZAP source to assembly...
-%ZC% --peepholes %APPSRC1% -o %APPSRC%
+%ZC% %APPSRC1% -o %APPSRC%
 if errorlevel 1 exit /b 1
 
 echo Assembling to object file...
@@ -221,8 +221,8 @@ for /R "tests\pass" %%f in (*.zap) do (
     set "testdir=%%~dpf"
     set "testdir=!testdir:~0,-1!"
 
-    rem Test all 4 variants: default, --peepholes, -6502, -6502 --peepholes
-    for %%v in ("_" "--peepholes" "-6502" "-6502 --peepholes") do (
+    rem Test all variants: default, -6502
+    for %%v in ("_" "-6502") do (
         set "variant_flags=%%~v"
         if "!variant_flags!"=="_" set "variant_flags="
         set "variant_name=!variant_flags: =_!"

@@ -62,8 +62,7 @@ atari: compile_atari
 
 compile_atari: 
 	@mkdir -p $(APPSRC2DIR) $(APPOBJDIR) $(APPBINDIR)	
-	$(ZC) -6502 $(APPSRC1) -o $(APPSRC)		
-#	$(ZC) -6502 --peepholes $(APPSRC1) -o $(APPSRC)	
+	$(ZC) -6502 $(APPSRC1) -o $(APPSRC)
 	$(AS) $(ATARI_AS_OPTS) $(APPSRC) -o $(APPOBJ)
 
 
@@ -76,8 +75,7 @@ sbc: compile_sbc
 
 compile_sbc: 
 	@mkdir -p $(APPSRC2DIR) $(APPOBJDIR) $(APPBINDIR)	
-#	$(ZC) $(APPSRC1) -o $(APPSRC)	
-	$(ZC) --peepholes $(APPSRC1) -o $(APPSRC)	
+	$(ZC) $(APPSRC1) -o $(APPSRC)
 	$(AS) $(SBC_AS_OPTS) $(APPSRC) -o $(APPOBJ)
 
 
@@ -97,8 +95,8 @@ tests: clean
 			dir=$$(dirname $$zapfile); \
 			ref_file="$${dir}/$${base}.ref"; \
 			variant_pass=0; variant_fail=0; variant_errors=""; \
-			for variant_flags in "" "--peepholes" "-6502" "-6502 --peepholes"; do \
-				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/'); \
+			for variant_flags in "" "-6502"; do \
+				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/' | sed 's/^-/_/'); \
 				output_file="$${dir}/$${base}$${variant_name}.s"; \
 				obj_file="$${dir}/$${base}$${variant_name}.o"; \
 				exehdr_obj="$${dir}/$${base}$${variant_name}_exehdr.o"; \
