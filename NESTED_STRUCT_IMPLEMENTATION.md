@@ -136,9 +136,17 @@ end
 
 ### ✓ Multi-Level Nesting (Arbitrary Depth)
 ```zap
-struct Inner { byte A end
-struct Middle { Inner in end
-struct Outer { Middle md end
+struct Inner 
+    byte A 
+end
+
+struct Middle
+    Inner in 
+end
+
+struct Outer
+    Middle md 
+end
 
 Outer o @40000
 proc main()
