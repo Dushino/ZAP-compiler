@@ -19,8 +19,8 @@ proc main()
     p1.y = 2
 
     for i = 0 to 2
-        p2[i].x = i+1
-        p2[i].y = (i+1)*2
-        p2[i].z = i
+        p2[i].x = i*3        
+        p2[i].y = i*3+1
+        p2[i].z = i*3+2
     next i
 end
