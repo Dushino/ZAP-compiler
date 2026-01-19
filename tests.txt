@@ -1,47 +1,47 @@
-tests\pass\024-module\024-module.zap 
-python compiler.py "tests\pass\024-module\024-module.zap" -o "tests\pass\024-module\024-module_default.s" 
-ca65 -I lib -t none --cpu 65c02 -g "tests\pass\024-module\024-module_default.s" -o "tests\pass\024-module\024-module_default.o" 
-ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\024-module\024-module_default_exehdr.o" 
-ld65 -C cfg\my_atari.cfg "tests\pass\024-module\024-module_default.o" "tests\pass\024-module\024-module_default_exehdr.o" -o "tests\pass\024-module\024-module_default.com" 
-da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\024-module\024-module_default.cut" 
-6502_simulator.exe --cpu 65c02 --config tests\pass\024-module\024-module.json --verbose --dump-file "tests\pass\024-module\024-module_default.txt" "tests\pass\024-module\024-module_default.com" 
-Loaded tests\pass\024-module\024-module_default.com
+tests\pass\025-deep-expr\025-deep-expr.zap 
+python compiler.py "tests\pass\025-deep-expr\025-deep-expr.zap" -o "tests\pass\025-deep-expr\025-deep-expr_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\025-deep-expr\025-deep-expr_default.s" -o "tests\pass\025-deep-expr\025-deep-expr_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "tests\pass\025-deep-expr\025-deep-expr_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\025-deep-expr\025-deep-expr_default.o" "tests\pass\025-deep-expr\025-deep-expr_default_exehdr.o" -o "tests\pass\025-deep-expr\025-deep-expr_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\025-deep-expr\025-deep-expr_default.cut" 
+6502_simulator.exe --cpu 65c02 --config tests\pass\025-deep-expr\025-deep-expr.json --verbose --dump-file "tests\pass\025-deep-expr\025-deep-expr_default.txt" "tests\pass\025-deep-expr\025-deep-expr_default.com" 
+Loaded tests\pass\025-deep-expr\025-deep-expr_default.com
 Start address: 0x4006
 CPU type: 65C02
 
-CPU halted: JMP * detected at $4015
-Total cycles executed: 18956
+CPU halted: JMP * detected at $4009
+Total cycles executed: 116
 
 Simulation completed
-Cycles executed: 18956
-Final PC: 0x4018
-A=0x41 X=0x9C Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100101
-fc "tests\pass\024-module\024-module.ref" "tests\pass\024-module\024-module_default.txt" 
+Cycles executed: 116
+Final PC: 0x400C
+A=0x01 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "tests\pass\025-deep-expr\025-deep-expr.ref" "tests\pass\025-deep-expr\025-deep-expr_default.txt" 
 Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
-tests\pass\024-module\024-module.zap 
-python compiler.py -6502 "tests\pass\024-module\024-module.zap" -o "tests\pass\024-module\024-module_6502.s" 
-ca65 -I lib -t none --cpu 6502 -g "tests\pass\024-module\024-module_6502.s" -o "tests\pass\024-module\024-module_6502.o" 
-ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\024-module\024-module_6502_exehdr.o" 
-ld65 -C cfg\my_atari.cfg "tests\pass\024-module\024-module_6502.o" "tests\pass\024-module\024-module_6502_exehdr.o" -o "tests\pass\024-module\024-module_6502.com" 
-da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\024-module\024-module_6502.cut" 
-6502_simulator.exe --cpu 6502 --config tests\pass\024-module\024-module.json --verbose --dump-file "tests\pass\024-module\024-module_6502.txt" "tests\pass\024-module\024-module_6502.com" 
-Loaded tests\pass\024-module\024-module_6502.com
+tests\pass\025-deep-expr\025-deep-expr.zap 
+python compiler.py -6502 "tests\pass\025-deep-expr\025-deep-expr.zap" -o "tests\pass\025-deep-expr\025-deep-expr_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\025-deep-expr\025-deep-expr_6502.s" -o "tests\pass\025-deep-expr\025-deep-expr_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "tests\pass\025-deep-expr\025-deep-expr_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\025-deep-expr\025-deep-expr_6502.o" "tests\pass\025-deep-expr\025-deep-expr_6502_exehdr.o" -o "tests\pass\025-deep-expr\025-deep-expr_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "tests\pass\025-deep-expr\025-deep-expr_6502.cut" 
+6502_simulator.exe --cpu 6502 --config tests\pass\025-deep-expr\025-deep-expr.json --verbose --dump-file "tests\pass\025-deep-expr\025-deep-expr_6502.txt" "tests\pass\025-deep-expr\025-deep-expr_6502.com" 
+Loaded tests\pass\025-deep-expr\025-deep-expr_6502.com
 Start address: 0x4006
 CPU type: 6502
 
-CPU halted: JMP * detected at $4019
-Total cycles executed: 18966
+CPU halted: JMP * detected at $4009
+Total cycles executed: 116
 
 Simulation completed
-Cycles executed: 18966
-Final PC: 0x401C
-A=0x41 X=0x9C Y=0x00 SP=0xFF
-Status: NV-BDIZC = 00100101
-fc "tests\pass\024-module\024-module.ref" "tests\pass\024-module\024-module_6502.txt" 
+Cycles executed: 116
+Final PC: 0x400C
+A=0x01 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "tests\pass\025-deep-expr\025-deep-expr.ref" "tests\pass\025-deep-expr\025-deep-expr_6502.txt" 
 Simulation result does not match reference 
   
   
