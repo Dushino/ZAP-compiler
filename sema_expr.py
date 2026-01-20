@@ -66,15 +66,26 @@ class ExprTypeChecker:
             # For multi-dimensional arrays, partial subscripting returns ADDR (pointer to next dimension)
             # Only final subscript returns LVALUE (actual element)
             
-            # Detect if array base is a direct identifier (indicating this might be first subscript of multi-dim)
-            is_direct_array = isinstance(expr.array, Identifier)
+            # Helper function to count subscript depth and find base array
+            def get_subscript_info(sub_expr):
+                """Returns (base_identifier, subscript_depth)"""
+                depth = 0
+                current = sub_expr
+                while isinstance(current, SubscriptExpr):
+                    depth += 1
+                    current = current.array
+                if isinstance(current, Identifier):
+                    return current.name, depth
+                return None, depth
             
-            if is_direct_array:
-                # First subscript on array - check if array is multi-dimensional
+            base_name, current_depth = get_subscript_info(expr)
+            
+            if base_name:
+                # We found the base array identifier - check its dimensions
                 try:
-                    arr_sym = self.symtab.lookup(expr.array.name)
-                    if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > 1:
-                        # Multi-dimensional array - first subscript returns ADDR (pointer to next dimension)
+                    arr_sym = self.symtab.lookup(base_name)
+                    if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > current_depth:
+                        # More dimensions remain after this subscript - return ADDR
                         elem_type = SemType(
                             base=arr_t.sem_type.base,
                             is_pointer=True,  # Returns a pointer to next dimension

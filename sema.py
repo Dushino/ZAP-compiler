@@ -387,7 +387,8 @@ class DeclarationAnalyzer:
             elif d.initializer is not None:
                 raise SemanticError("Invalid array initializer", line=d.line, col=d.col)
 
-            if array_len is None:
+            # Check if array size is specified (either array_len for 1D or array_dims for multi-dimensional)
+            if array_len is None and (not array_dims or None in array_dims):
                 raise SemanticError("Array size required", line=d.line, col=d.col)
 
         # skalární proměnná

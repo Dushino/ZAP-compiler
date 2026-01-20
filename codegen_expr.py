@@ -353,7 +353,7 @@ class CodeGen:
                         if len(cur_parts) == 2:
                             cur_operand = cur_parts[1].strip()
                             # Skip optimization for fixed-address variables AND temp registers
-                            if not self._is_fixed_address(cur_operand) and not any(tmp in cur_operand for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4"]):
+                            if not self._is_fixed_address(cur_operand) and not any(tmp in cur_operand for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]):
                                 # Duplicate store - skip the second one
                                 optimized.append(self.code[i])
                                 i += 2
@@ -592,7 +592,7 @@ class CodeGen:
                             if len(lookahead_parts) == 2:
                                 lookahead_operand = lookahead_parts[1].strip()
                                 # Protect the load if storing to fixed-address OR temp registers (used for indirect addressing)
-                                if self._is_fixed_address(lookahead_operand) or lookahead_operand in ("TMP0", "TMP0+1", "TMP1", "TMP1+1", "TMP2", "TMP2+1", "TMP3", "TMP3+1", "TMP4", "TMP4+1"):
+                                if self._is_fixed_address(lookahead_operand) or lookahead_operand in ("TMP0", "TMP0+1", "TMP1", "TMP1+1", "TMP2", "TMP2+1", "TMP3", "TMP3+1", "TMP4", "TMP4+1", "TMP5", "TMP5+1"):
                                     # Protect the load - it's needed for the store
                                     protect_load = True
                                     break
@@ -792,7 +792,7 @@ class CodeGen:
                         continue
                     
                     # Never optimize loads from temp registers - they're often used for return values and intermediate calculations
-                    if any(tmp in load_operand_upper for tmp in ["TMP0", "TMP1", "TMP2", "TMP3"]):
+                    if any(tmp in load_operand_upper for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]):
                         optimized.append(self.code[i])
                         i += 1
                         continue
@@ -2266,7 +2266,7 @@ class CodeGen:
 
     def _detect_temp_usage(self, code: list[str] | None = None) -> set[str]:
         """Scan generated code for temp usage and combine with flagged temps."""
-        temp_names = {"TMP0", "TMP1", "TMP2", "TMP3", "TMP4"}
+        temp_names = {"TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
         temps = set(self.used_temps)
         code = self.code if code is None else code
 
@@ -2282,12 +2282,12 @@ class CodeGen:
         return temps
 
     def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None):
-        temp_sizes = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 2}
+        temp_sizes = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 2, "TMP5": 2}
         temps_in_use = self._detect_temp_usage(code)
 
         self.emit(".segment \"ZEROPAGE\"")
         self.emit("; System variables")
-        for name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4"]:
+        for name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
             if name in temps_in_use:
                 size = temp_sizes[name]
                 self.emit(f"{name}:\t.res {size}")
@@ -2931,11 +2931,7 @@ class CodeGen:
             strides.insert(0, stride)
             stride *= dims[i]
         
-        # First, save RHS value if this is a store operation
-        if not load_only:
-            self.gen_expr(indices[-1])  # Evaluate RHS
-            self.emit("\tSTA TMP2")
-            self.emit("\tSTX TMP2+1")
+        # Note: RHS value is already in TMP2/TMP2+1 (saved by gen_assign before calling this method)
         
         # Calculate total offset for address: TMP4/TMP4+1 will accumulate
         self.emit("\tLDA #0")
@@ -2943,17 +2939,14 @@ class CodeGen:
         self.emit("\tSTA TMP4+1")
         
         # Add each index * stride to offset
-        # We only need to process indices[:-1] for store, or all for load
-        indices_to_process = indices[:-1] if not load_only else indices
-        
-        for idx_expr, stride_val in zip(indices_to_process, strides):
+        for idx_expr, stride_val in zip(indices, strides):
             # Evaluate index expression -> A
             self.gen_expr(idx_expr)
             
             # Multiply index by stride
             if stride_val == 1:
                 # No multiplication needed - A already has index
-                pass
+                self.emit("\tLDX #0")  # Clear high byte
             elif stride_val == 2:
                 # Multiply by 2: ASL
                 self.emit("\tASL A")
@@ -2966,10 +2959,10 @@ class CodeGen:
                 self.emit("\tLDX #0")
             else:
                 # General multiplication (non-power-of-2)
-                # Save A (index) to TMP1
-                self.emit("\tSTA TMP1")
+                # Save A (index) to a temporary (use TMP5 to avoid conflicts)
+                self.emit("\tSTA TMP5")
                 
-                # Multiply TMP1 * stride -> A:X using repeated addition
+                # Multiply TMP5 * stride -> A:X using repeated addition
                 self.emit("\tLDA #0")
                 self.emit("\tSTA TMP3")  # TMP3 = result low byte
                 self.emit("\tLDA #0")
@@ -2977,7 +2970,7 @@ class CodeGen:
                 
                 for _ in range(stride_val):
                     self.emit("\tCLC")
-                    self.emit("\tLDA TMP1")
+                    self.emit("\tLDA TMP5")
                     self.emit("\tADC TMP3")
                     self.emit("\tSTA TMP3")
                     carry_lbl = self.new_label("STRIDE_CARRY")
@@ -3014,57 +3007,16 @@ class CodeGen:
         if calc_addr_only:
             return
         
-        # Handle final index for complete address (only for store operations)
-        if not load_only and len(indices) > 1:
-            # Get last index and its stride
-            last_idx = indices[-1]
-            last_stride = strides[-1]
-            
-            self.gen_expr(last_idx)
-            
-            # Multiply by last stride
-            if last_stride == 1:
-                pass
-            elif last_stride == 2:
-                self.emit("\tASL A")
-                self.emit("\tLDX #0")
-            elif last_stride & (last_stride - 1) == 0:
-                shifts = (last_stride - 1).bit_length()
-                for _ in range(shifts):
-                    self.emit("\tASL A")
-                self.emit("\tLDX #0")
-            else:
-                self.emit("\tSTA TMP1")
-                self.emit("\tLDA #0")
-                self.emit("\tSTA TMP3")
-                self.emit("\tLDX #0")
-                for _ in range(last_stride):
-                    self.emit("\tCLC")
-                    self.emit("\tLDA TMP1")
-                    self.emit("\tADC TMP3")
-                    self.emit("\tSTA TMP3")
-                    carry_lbl = self.new_label("STRIDE_FINAL_CARRY")
-                    self.emit(f"\tBCC {carry_lbl}")
-                    self.emit("\tINX")
-                    self.emit(f"{carry_lbl}:")
-                self.emit("\tLDA TMP3")
-            
-            # Add to TMP0
-            self.emit("\tCLC")
-            self.emit("\tADC TMP0")
-            self.emit("\tSTA TMP0")
-            self.emit("\tTXA")
-            self.emit("\tADC TMP0+1")
-            self.emit("\tSTA TMP0+1")
-        
         # Load or store element at TMP0
         if load_only:
             self.emit("\tLDY #0")
             self.emit("\tLDA (TMP0),Y")
             if element_width == 2:
+                self.emit("\tPHA")  # Save low byte
                 self.emit("\tINY")
                 self.emit("\tLDA (TMP0),Y")
-                self.emit("\tTAX")
+                self.emit("\tTAX")  # X = high byte
+                self.emit("\tPLA")  # A = low byte (restored)
             else:
                 self.emit("\tLDX #0")
         else:
@@ -3160,9 +3112,11 @@ class CodeGen:
             self.emit("\tLDY #0")
             self.emit("\tLDA (TMP0),Y")
             if element_width == 2:
+                self.emit("\tPHA")  # Save low byte
                 self.emit("\tINY")
                 self.emit("\tLDA (TMP0),Y")
-                self.emit("\tTAX")
+                self.emit("\tTAX")  # X = high byte
+                self.emit("\tPLA")  # A = low byte (restored)
             else:
                 self.emit("\tLDX #0")
         else:
