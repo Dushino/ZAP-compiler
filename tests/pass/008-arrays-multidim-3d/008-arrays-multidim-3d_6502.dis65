@@ -1,0 +1,1503 @@
+; da65 V2.19 - Git 034f73a
+; Created:    2026-01-20 16:32:22
+; Input file: C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.cut
+; Page:       1
+
+
+        .setcpu "6502"
+
+; ----------------------------------------------------------------------------
+; ----------------------------------------------------------------------------
+        lda     #$00                            ; 4006 A9 00
+        sta     $9C40                           ; 4008 8D 40 9C
+        lda     #$00                            ; 400B A9 00
+        sta     $9C41                           ; 400D 8D 41 9C
+        jsr     L4016                           ; 4010 20 16 40
+L4013:  jmp     L4013                           ; 4013 4C 13 40
+
+; ----------------------------------------------------------------------------
+L4016:  lda     #$01                            ; 4016 A9 01
+        sta     $86                             ; 4018 85 86
+        stx     $87                             ; 401A 86 87
+        lda     #$00                            ; 401C A9 00
+        sta     $8C                             ; 401E 85 8C
+        sta     $8D                             ; 4020 85 8D
+        lda     #$00                            ; 4022 A9 00
+        sta     $8E                             ; 4024 85 8E
+        lda     #$00                            ; 4026 A9 00
+        sta     $8A                             ; 4028 85 8A
+        lda     #$00                            ; 402A A9 00
+        ldx     #$00                            ; 402C A2 00
+        clc                                     ; 402E 18
+        lda     $8E                             ; 402F A5 8E
+        adc     $8A                             ; 4031 65 8A
+        sta     $8A                             ; 4033 85 8A
+        bcc     L4038                           ; 4035 90 01
+        inx                                     ; 4037 E8
+L4038:  clc                                     ; 4038 18
+        lda     $8E                             ; 4039 A5 8E
+        adc     $8A                             ; 403B 65 8A
+        sta     $8A                             ; 403D 85 8A
+        bcc     L4042                           ; 403F 90 01
+        inx                                     ; 4041 E8
+L4042:  clc                                     ; 4042 18
+        lda     $8E                             ; 4043 A5 8E
+        adc     $8A                             ; 4045 65 8A
+        sta     $8A                             ; 4047 85 8A
+        bcc     L404C                           ; 4049 90 01
+        inx                                     ; 404B E8
+L404C:  clc                                     ; 404C 18
+        lda     $8E                             ; 404D A5 8E
+        adc     $8A                             ; 404F 65 8A
+        sta     $8A                             ; 4051 85 8A
+        bcc     L4056                           ; 4053 90 01
+        inx                                     ; 4055 E8
+L4056:  clc                                     ; 4056 18
+        lda     $8E                             ; 4057 A5 8E
+        adc     $8A                             ; 4059 65 8A
+        sta     $8A                             ; 405B 85 8A
+        bcc     L4060                           ; 405D 90 01
+        inx                                     ; 405F E8
+L4060:  clc                                     ; 4060 18
+        lda     $8E                             ; 4061 A5 8E
+        adc     $8A                             ; 4063 65 8A
+        sta     $8A                             ; 4065 85 8A
+        bcc     L406A                           ; 4067 90 01
+        inx                                     ; 4069 E8
+L406A:  clc                                     ; 406A 18
+        lda     $8E                             ; 406B A5 8E
+        adc     $8A                             ; 406D 65 8A
+        sta     $8A                             ; 406F 85 8A
+        bcc     L4074                           ; 4071 90 01
+        inx                                     ; 4073 E8
+L4074:  clc                                     ; 4074 18
+        lda     $8E                             ; 4075 A5 8E
+        adc     $8A                             ; 4077 65 8A
+        sta     $8A                             ; 4079 85 8A
+        bcc     L407E                           ; 407B 90 01
+        inx                                     ; 407D E8
+L407E:  clc                                     ; 407E 18
+        lda     $8E                             ; 407F A5 8E
+        adc     $8A                             ; 4081 65 8A
+        sta     $8A                             ; 4083 85 8A
+        bcc     L4088                           ; 4085 90 01
+        inx                                     ; 4087 E8
+L4088:  clc                                     ; 4088 18
+        lda     $8E                             ; 4089 A5 8E
+        adc     $8A                             ; 408B 65 8A
+        sta     $8A                             ; 408D 85 8A
+        bcc     L4092                           ; 408F 90 01
+        inx                                     ; 4091 E8
+L4092:  clc                                     ; 4092 18
+        lda     $8E                             ; 4093 A5 8E
+        adc     $8A                             ; 4095 65 8A
+        sta     $8A                             ; 4097 85 8A
+        bcc     L409C                           ; 4099 90 01
+        inx                                     ; 409B E8
+L409C:  clc                                     ; 409C 18
+        lda     $8E                             ; 409D A5 8E
+        adc     $8A                             ; 409F 65 8A
+        sta     $8A                             ; 40A1 85 8A
+        bcc     L40A6                           ; 40A3 90 01
+        inx                                     ; 40A5 E8
+L40A6:  lda     $8A                             ; 40A6 A5 8A
+        clc                                     ; 40A8 18
+        adc     $8C                             ; 40A9 65 8C
+        sta     $8C                             ; 40AB 85 8C
+        txa                                     ; 40AD 8A
+        adc     $8D                             ; 40AE 65 8D
+        sta     $8D                             ; 40B0 85 8D
+        lda     #$00                            ; 40B2 A9 00
+        asl     a                               ; 40B4 0A
+        asl     a                               ; 40B5 0A
+        ldx     #$00                            ; 40B6 A2 00
+        clc                                     ; 40B8 18
+        adc     $8C                             ; 40B9 65 8C
+        sta     $8C                             ; 40BB 85 8C
+        txa                                     ; 40BD 8A
+        adc     $8D                             ; 40BE 65 8D
+        sta     $8D                             ; 40C0 85 8D
+        lda     #$00                            ; 40C2 A9 00
+        ldx     #$00                            ; 40C4 A2 00
+        clc                                     ; 40C6 18
+        adc     $8C                             ; 40C7 65 8C
+        sta     $8C                             ; 40C9 85 8C
+        txa                                     ; 40CB 8A
+        adc     $8D                             ; 40CC 65 8D
+        sta     $8D                             ; 40CE 85 8D
+        lda     #$1E                            ; 40D0 A9 1E
+        ldx     #$4A                            ; 40D2 A2 4A
+        sta     $82                             ; 40D4 85 82
+        stx     $83                             ; 40D6 86 83
+        lda     $8C                             ; 40D8 A5 8C
+        clc                                     ; 40DA 18
+        adc     $82                             ; 40DB 65 82
+        sta     $82                             ; 40DD 85 82
+        lda     $8D                             ; 40DF A5 8D
+        adc     $83                             ; 40E1 65 83
+        sta     $83                             ; 40E3 85 83
+        ldy     #$00                            ; 40E5 A0 00
+        lda     $86                             ; 40E7 A5 86
+        sta     ($82),y                         ; 40E9 91 82
+        lda     #$02                            ; 40EB A9 02
+        sta     $86                             ; 40ED 85 86
+        stx     $87                             ; 40EF 86 87
+        lda     #$00                            ; 40F1 A9 00
+        sta     $8C                             ; 40F3 85 8C
+        sta     $8D                             ; 40F5 85 8D
+        lda     #$00                            ; 40F7 A9 00
+        sta     $8E                             ; 40F9 85 8E
+        lda     #$00                            ; 40FB A9 00
+        sta     $8A                             ; 40FD 85 8A
+        lda     #$00                            ; 40FF A9 00
+        ldx     #$00                            ; 4101 A2 00
+        clc                                     ; 4103 18
+        lda     $8E                             ; 4104 A5 8E
+        adc     $8A                             ; 4106 65 8A
+        sta     $8A                             ; 4108 85 8A
+        bcc     L410D                           ; 410A 90 01
+        inx                                     ; 410C E8
+L410D:  clc                                     ; 410D 18
+        lda     $8E                             ; 410E A5 8E
+        adc     $8A                             ; 4110 65 8A
+        sta     $8A                             ; 4112 85 8A
+        bcc     L4117                           ; 4114 90 01
+        inx                                     ; 4116 E8
+L4117:  clc                                     ; 4117 18
+        lda     $8E                             ; 4118 A5 8E
+        adc     $8A                             ; 411A 65 8A
+        sta     $8A                             ; 411C 85 8A
+        bcc     L4121                           ; 411E 90 01
+        inx                                     ; 4120 E8
+L4121:  clc                                     ; 4121 18
+        lda     $8E                             ; 4122 A5 8E
+        adc     $8A                             ; 4124 65 8A
+        sta     $8A                             ; 4126 85 8A
+        bcc     L412B                           ; 4128 90 01
+        inx                                     ; 412A E8
+L412B:  clc                                     ; 412B 18
+        lda     $8E                             ; 412C A5 8E
+        adc     $8A                             ; 412E 65 8A
+        sta     $8A                             ; 4130 85 8A
+        bcc     L4135                           ; 4132 90 01
+        inx                                     ; 4134 E8
+L4135:  clc                                     ; 4135 18
+        lda     $8E                             ; 4136 A5 8E
+        adc     $8A                             ; 4138 65 8A
+        sta     $8A                             ; 413A 85 8A
+        bcc     L413F                           ; 413C 90 01
+        inx                                     ; 413E E8
+L413F:  clc                                     ; 413F 18
+        lda     $8E                             ; 4140 A5 8E
+        adc     $8A                             ; 4142 65 8A
+        sta     $8A                             ; 4144 85 8A
+        bcc     L4149                           ; 4146 90 01
+        inx                                     ; 4148 E8
+L4149:  clc                                     ; 4149 18
+        lda     $8E                             ; 414A A5 8E
+        adc     $8A                             ; 414C 65 8A
+        sta     $8A                             ; 414E 85 8A
+        bcc     L4153                           ; 4150 90 01
+        inx                                     ; 4152 E8
+L4153:  clc                                     ; 4153 18
+        lda     $8E                             ; 4154 A5 8E
+        adc     $8A                             ; 4156 65 8A
+        sta     $8A                             ; 4158 85 8A
+        bcc     L415D                           ; 415A 90 01
+        inx                                     ; 415C E8
+L415D:  clc                                     ; 415D 18
+        lda     $8E                             ; 415E A5 8E
+        adc     $8A                             ; 4160 65 8A
+        sta     $8A                             ; 4162 85 8A
+        bcc     L4167                           ; 4164 90 01
+        inx                                     ; 4166 E8
+L4167:  clc                                     ; 4167 18
+        lda     $8E                             ; 4168 A5 8E
+        adc     $8A                             ; 416A 65 8A
+        sta     $8A                             ; 416C 85 8A
+        bcc     L4171                           ; 416E 90 01
+        inx                                     ; 4170 E8
+L4171:  clc                                     ; 4171 18
+        lda     $8E                             ; 4172 A5 8E
+        adc     $8A                             ; 4174 65 8A
+        sta     $8A                             ; 4176 85 8A
+        bcc     L417B                           ; 4178 90 01
+        inx                                     ; 417A E8
+L417B:  lda     $8A                             ; 417B A5 8A
+        clc                                     ; 417D 18
+        adc     $8C                             ; 417E 65 8C
+        sta     $8C                             ; 4180 85 8C
+        txa                                     ; 4182 8A
+        adc     $8D                             ; 4183 65 8D
+        sta     $8D                             ; 4185 85 8D
+        lda     #$00                            ; 4187 A9 00
+        asl     a                               ; 4189 0A
+        asl     a                               ; 418A 0A
+        ldx     #$00                            ; 418B A2 00
+        clc                                     ; 418D 18
+        adc     $8C                             ; 418E 65 8C
+        sta     $8C                             ; 4190 85 8C
+        txa                                     ; 4192 8A
+        adc     $8D                             ; 4193 65 8D
+        sta     $8D                             ; 4195 85 8D
+        lda     #$01                            ; 4197 A9 01
+        ldx     #$00                            ; 4199 A2 00
+        clc                                     ; 419B 18
+        adc     $8C                             ; 419C 65 8C
+        sta     $8C                             ; 419E 85 8C
+        txa                                     ; 41A0 8A
+        adc     $8D                             ; 41A1 65 8D
+        sta     $8D                             ; 41A3 85 8D
+        lda     #$1E                            ; 41A5 A9 1E
+        ldx     #$4A                            ; 41A7 A2 4A
+        sta     $82                             ; 41A9 85 82
+        stx     $83                             ; 41AB 86 83
+        lda     $8C                             ; 41AD A5 8C
+        clc                                     ; 41AF 18
+        adc     $82                             ; 41B0 65 82
+        sta     $82                             ; 41B2 85 82
+        lda     $8D                             ; 41B4 A5 8D
+        adc     $83                             ; 41B6 65 83
+        sta     $83                             ; 41B8 85 83
+        ldy     #$00                            ; 41BA A0 00
+        lda     $86                             ; 41BC A5 86
+        sta     ($82),y                         ; 41BE 91 82
+        lda     #$03                            ; 41C0 A9 03
+        sta     $86                             ; 41C2 85 86
+        stx     $87                             ; 41C4 86 87
+        lda     #$00                            ; 41C6 A9 00
+        sta     $8C                             ; 41C8 85 8C
+        sta     $8D                             ; 41CA 85 8D
+        lda     #$00                            ; 41CC A9 00
+        sta     $8E                             ; 41CE 85 8E
+        lda     #$00                            ; 41D0 A9 00
+        sta     $8A                             ; 41D2 85 8A
+        lda     #$00                            ; 41D4 A9 00
+        ldx     #$00                            ; 41D6 A2 00
+        clc                                     ; 41D8 18
+        lda     $8E                             ; 41D9 A5 8E
+        adc     $8A                             ; 41DB 65 8A
+        sta     $8A                             ; 41DD 85 8A
+        bcc     L41E2                           ; 41DF 90 01
+        inx                                     ; 41E1 E8
+L41E2:  clc                                     ; 41E2 18
+        lda     $8E                             ; 41E3 A5 8E
+        adc     $8A                             ; 41E5 65 8A
+        sta     $8A                             ; 41E7 85 8A
+        bcc     L41EC                           ; 41E9 90 01
+        inx                                     ; 41EB E8
+L41EC:  clc                                     ; 41EC 18
+        lda     $8E                             ; 41ED A5 8E
+        adc     $8A                             ; 41EF 65 8A
+        sta     $8A                             ; 41F1 85 8A
+        bcc     L41F6                           ; 41F3 90 01
+        inx                                     ; 41F5 E8
+L41F6:  clc                                     ; 41F6 18
+        lda     $8E                             ; 41F7 A5 8E
+        adc     $8A                             ; 41F9 65 8A
+        sta     $8A                             ; 41FB 85 8A
+        bcc     L4200                           ; 41FD 90 01
+        inx                                     ; 41FF E8
+L4200:  clc                                     ; 4200 18
+        lda     $8E                             ; 4201 A5 8E
+        adc     $8A                             ; 4203 65 8A
+        sta     $8A                             ; 4205 85 8A
+        bcc     L420A                           ; 4207 90 01
+        inx                                     ; 4209 E8
+L420A:  clc                                     ; 420A 18
+        lda     $8E                             ; 420B A5 8E
+        adc     $8A                             ; 420D 65 8A
+        sta     $8A                             ; 420F 85 8A
+        bcc     L4214                           ; 4211 90 01
+        inx                                     ; 4213 E8
+L4214:  clc                                     ; 4214 18
+        lda     $8E                             ; 4215 A5 8E
+        adc     $8A                             ; 4217 65 8A
+        sta     $8A                             ; 4219 85 8A
+        bcc     L421E                           ; 421B 90 01
+        inx                                     ; 421D E8
+L421E:  clc                                     ; 421E 18
+        lda     $8E                             ; 421F A5 8E
+        adc     $8A                             ; 4221 65 8A
+        sta     $8A                             ; 4223 85 8A
+        bcc     L4228                           ; 4225 90 01
+        inx                                     ; 4227 E8
+L4228:  clc                                     ; 4228 18
+        lda     $8E                             ; 4229 A5 8E
+        adc     $8A                             ; 422B 65 8A
+        sta     $8A                             ; 422D 85 8A
+        bcc     L4232                           ; 422F 90 01
+        inx                                     ; 4231 E8
+L4232:  clc                                     ; 4232 18
+        lda     $8E                             ; 4233 A5 8E
+        adc     $8A                             ; 4235 65 8A
+        sta     $8A                             ; 4237 85 8A
+        bcc     L423C                           ; 4239 90 01
+        inx                                     ; 423B E8
+L423C:  clc                                     ; 423C 18
+        lda     $8E                             ; 423D A5 8E
+        adc     $8A                             ; 423F 65 8A
+        sta     $8A                             ; 4241 85 8A
+        bcc     L4246                           ; 4243 90 01
+        inx                                     ; 4245 E8
+L4246:  clc                                     ; 4246 18
+        lda     $8E                             ; 4247 A5 8E
+        adc     $8A                             ; 4249 65 8A
+        sta     $8A                             ; 424B 85 8A
+        bcc     L4250                           ; 424D 90 01
+        inx                                     ; 424F E8
+L4250:  lda     $8A                             ; 4250 A5 8A
+        clc                                     ; 4252 18
+        adc     $8C                             ; 4253 65 8C
+        sta     $8C                             ; 4255 85 8C
+        txa                                     ; 4257 8A
+        adc     $8D                             ; 4258 65 8D
+        sta     $8D                             ; 425A 85 8D
+        lda     #$01                            ; 425C A9 01
+        asl     a                               ; 425E 0A
+        asl     a                               ; 425F 0A
+        ldx     #$00                            ; 4260 A2 00
+        clc                                     ; 4262 18
+        adc     $8C                             ; 4263 65 8C
+        sta     $8C                             ; 4265 85 8C
+        txa                                     ; 4267 8A
+        adc     $8D                             ; 4268 65 8D
+        sta     $8D                             ; 426A 85 8D
+        lda     #$00                            ; 426C A9 00
+        ldx     #$00                            ; 426E A2 00
+        clc                                     ; 4270 18
+        adc     $8C                             ; 4271 65 8C
+        sta     $8C                             ; 4273 85 8C
+        txa                                     ; 4275 8A
+        adc     $8D                             ; 4276 65 8D
+        sta     $8D                             ; 4278 85 8D
+        lda     #$1E                            ; 427A A9 1E
+        ldx     #$4A                            ; 427C A2 4A
+        sta     $82                             ; 427E 85 82
+        stx     $83                             ; 4280 86 83
+        lda     $8C                             ; 4282 A5 8C
+        clc                                     ; 4284 18
+        adc     $82                             ; 4285 65 82
+        sta     $82                             ; 4287 85 82
+        lda     $8D                             ; 4289 A5 8D
+        adc     $83                             ; 428B 65 83
+        sta     $83                             ; 428D 85 83
+        ldy     #$00                            ; 428F A0 00
+        lda     $86                             ; 4291 A5 86
+        sta     ($82),y                         ; 4293 91 82
+        lda     #$04                            ; 4295 A9 04
+        sta     $86                             ; 4297 85 86
+        stx     $87                             ; 4299 86 87
+        lda     #$00                            ; 429B A9 00
+        sta     $8C                             ; 429D 85 8C
+        sta     $8D                             ; 429F 85 8D
+        lda     #$00                            ; 42A1 A9 00
+        sta     $8E                             ; 42A3 85 8E
+        lda     #$00                            ; 42A5 A9 00
+        sta     $8A                             ; 42A7 85 8A
+        lda     #$00                            ; 42A9 A9 00
+        ldx     #$00                            ; 42AB A2 00
+        clc                                     ; 42AD 18
+        lda     $8E                             ; 42AE A5 8E
+        adc     $8A                             ; 42B0 65 8A
+        sta     $8A                             ; 42B2 85 8A
+        bcc     L42B7                           ; 42B4 90 01
+        inx                                     ; 42B6 E8
+L42B7:  clc                                     ; 42B7 18
+        lda     $8E                             ; 42B8 A5 8E
+        adc     $8A                             ; 42BA 65 8A
+        sta     $8A                             ; 42BC 85 8A
+        bcc     L42C1                           ; 42BE 90 01
+        inx                                     ; 42C0 E8
+L42C1:  clc                                     ; 42C1 18
+        lda     $8E                             ; 42C2 A5 8E
+        adc     $8A                             ; 42C4 65 8A
+        sta     $8A                             ; 42C6 85 8A
+        bcc     L42CB                           ; 42C8 90 01
+        inx                                     ; 42CA E8
+L42CB:  clc                                     ; 42CB 18
+        lda     $8E                             ; 42CC A5 8E
+        adc     $8A                             ; 42CE 65 8A
+        sta     $8A                             ; 42D0 85 8A
+        bcc     L42D5                           ; 42D2 90 01
+        inx                                     ; 42D4 E8
+L42D5:  clc                                     ; 42D5 18
+        lda     $8E                             ; 42D6 A5 8E
+        adc     $8A                             ; 42D8 65 8A
+        sta     $8A                             ; 42DA 85 8A
+        bcc     L42DF                           ; 42DC 90 01
+        inx                                     ; 42DE E8
+L42DF:  clc                                     ; 42DF 18
+        lda     $8E                             ; 42E0 A5 8E
+        adc     $8A                             ; 42E2 65 8A
+        sta     $8A                             ; 42E4 85 8A
+        bcc     L42E9                           ; 42E6 90 01
+        inx                                     ; 42E8 E8
+L42E9:  clc                                     ; 42E9 18
+        lda     $8E                             ; 42EA A5 8E
+        adc     $8A                             ; 42EC 65 8A
+        sta     $8A                             ; 42EE 85 8A
+        bcc     L42F3                           ; 42F0 90 01
+        inx                                     ; 42F2 E8
+L42F3:  clc                                     ; 42F3 18
+        lda     $8E                             ; 42F4 A5 8E
+        adc     $8A                             ; 42F6 65 8A
+        sta     $8A                             ; 42F8 85 8A
+        bcc     L42FD                           ; 42FA 90 01
+        inx                                     ; 42FC E8
+L42FD:  clc                                     ; 42FD 18
+        lda     $8E                             ; 42FE A5 8E
+        adc     $8A                             ; 4300 65 8A
+        sta     $8A                             ; 4302 85 8A
+        bcc     L4307                           ; 4304 90 01
+        inx                                     ; 4306 E8
+L4307:  clc                                     ; 4307 18
+        lda     $8E                             ; 4308 A5 8E
+        adc     $8A                             ; 430A 65 8A
+        sta     $8A                             ; 430C 85 8A
+        bcc     L4311                           ; 430E 90 01
+        inx                                     ; 4310 E8
+L4311:  clc                                     ; 4311 18
+        lda     $8E                             ; 4312 A5 8E
+        adc     $8A                             ; 4314 65 8A
+        sta     $8A                             ; 4316 85 8A
+        bcc     L431B                           ; 4318 90 01
+        inx                                     ; 431A E8
+L431B:  clc                                     ; 431B 18
+        lda     $8E                             ; 431C A5 8E
+        adc     $8A                             ; 431E 65 8A
+        sta     $8A                             ; 4320 85 8A
+        bcc     L4325                           ; 4322 90 01
+        inx                                     ; 4324 E8
+L4325:  lda     $8A                             ; 4325 A5 8A
+        clc                                     ; 4327 18
+        adc     $8C                             ; 4328 65 8C
+        sta     $8C                             ; 432A 85 8C
+        txa                                     ; 432C 8A
+        adc     $8D                             ; 432D 65 8D
+        sta     $8D                             ; 432F 85 8D
+        lda     #$01                            ; 4331 A9 01
+        asl     a                               ; 4333 0A
+        asl     a                               ; 4334 0A
+        ldx     #$00                            ; 4335 A2 00
+        clc                                     ; 4337 18
+        adc     $8C                             ; 4338 65 8C
+        sta     $8C                             ; 433A 85 8C
+        txa                                     ; 433C 8A
+        adc     $8D                             ; 433D 65 8D
+        sta     $8D                             ; 433F 85 8D
+        lda     #$01                            ; 4341 A9 01
+        ldx     #$00                            ; 4343 A2 00
+        clc                                     ; 4345 18
+        adc     $8C                             ; 4346 65 8C
+        sta     $8C                             ; 4348 85 8C
+        txa                                     ; 434A 8A
+        adc     $8D                             ; 434B 65 8D
+        sta     $8D                             ; 434D 85 8D
+        lda     #$1E                            ; 434F A9 1E
+        ldx     #$4A                            ; 4351 A2 4A
+        sta     $82                             ; 4353 85 82
+        stx     $83                             ; 4355 86 83
+        lda     $8C                             ; 4357 A5 8C
+        clc                                     ; 4359 18
+        adc     $82                             ; 435A 65 82
+        sta     $82                             ; 435C 85 82
+        lda     $8D                             ; 435E A5 8D
+        adc     $83                             ; 4360 65 83
+        sta     $83                             ; 4362 85 83
+        ldy     #$00                            ; 4364 A0 00
+        lda     $86                             ; 4366 A5 86
+        sta     ($82),y                         ; 4368 91 82
+        lda     #$0A                            ; 436A A9 0A
+        sta     $86                             ; 436C 85 86
+        stx     $87                             ; 436E 86 87
+        lda     #$00                            ; 4370 A9 00
+        sta     $8C                             ; 4372 85 8C
+        sta     $8D                             ; 4374 85 8D
+        lda     #$01                            ; 4376 A9 01
+        sta     $8E                             ; 4378 85 8E
+        lda     #$00                            ; 437A A9 00
+        sta     $8A                             ; 437C 85 8A
+        lda     #$00                            ; 437E A9 00
+        ldx     #$00                            ; 4380 A2 00
+        clc                                     ; 4382 18
+        lda     $8E                             ; 4383 A5 8E
+        adc     $8A                             ; 4385 65 8A
+        sta     $8A                             ; 4387 85 8A
+        bcc     L438C                           ; 4389 90 01
+        inx                                     ; 438B E8
+L438C:  clc                                     ; 438C 18
+        lda     $8E                             ; 438D A5 8E
+        adc     $8A                             ; 438F 65 8A
+        sta     $8A                             ; 4391 85 8A
+        bcc     L4396                           ; 4393 90 01
+        inx                                     ; 4395 E8
+L4396:  clc                                     ; 4396 18
+        lda     $8E                             ; 4397 A5 8E
+        adc     $8A                             ; 4399 65 8A
+        sta     $8A                             ; 439B 85 8A
+        bcc     L43A0                           ; 439D 90 01
+        inx                                     ; 439F E8
+L43A0:  clc                                     ; 43A0 18
+        lda     $8E                             ; 43A1 A5 8E
+        adc     $8A                             ; 43A3 65 8A
+        sta     $8A                             ; 43A5 85 8A
+        bcc     L43AA                           ; 43A7 90 01
+        inx                                     ; 43A9 E8
+L43AA:  clc                                     ; 43AA 18
+        lda     $8E                             ; 43AB A5 8E
+        adc     $8A                             ; 43AD 65 8A
+        sta     $8A                             ; 43AF 85 8A
+        bcc     L43B4                           ; 43B1 90 01
+        inx                                     ; 43B3 E8
+L43B4:  clc                                     ; 43B4 18
+        lda     $8E                             ; 43B5 A5 8E
+        adc     $8A                             ; 43B7 65 8A
+        sta     $8A                             ; 43B9 85 8A
+        bcc     L43BE                           ; 43BB 90 01
+        inx                                     ; 43BD E8
+L43BE:  clc                                     ; 43BE 18
+        lda     $8E                             ; 43BF A5 8E
+        adc     $8A                             ; 43C1 65 8A
+        sta     $8A                             ; 43C3 85 8A
+        bcc     L43C8                           ; 43C5 90 01
+        inx                                     ; 43C7 E8
+L43C8:  clc                                     ; 43C8 18
+        lda     $8E                             ; 43C9 A5 8E
+        adc     $8A                             ; 43CB 65 8A
+        sta     $8A                             ; 43CD 85 8A
+        bcc     L43D2                           ; 43CF 90 01
+        inx                                     ; 43D1 E8
+L43D2:  clc                                     ; 43D2 18
+        lda     $8E                             ; 43D3 A5 8E
+        adc     $8A                             ; 43D5 65 8A
+        sta     $8A                             ; 43D7 85 8A
+        bcc     L43DC                           ; 43D9 90 01
+        inx                                     ; 43DB E8
+L43DC:  clc                                     ; 43DC 18
+        lda     $8E                             ; 43DD A5 8E
+        adc     $8A                             ; 43DF 65 8A
+        sta     $8A                             ; 43E1 85 8A
+        bcc     L43E6                           ; 43E3 90 01
+        inx                                     ; 43E5 E8
+L43E6:  clc                                     ; 43E6 18
+        lda     $8E                             ; 43E7 A5 8E
+        adc     $8A                             ; 43E9 65 8A
+        sta     $8A                             ; 43EB 85 8A
+        bcc     L43F0                           ; 43ED 90 01
+        inx                                     ; 43EF E8
+L43F0:  clc                                     ; 43F0 18
+        lda     $8E                             ; 43F1 A5 8E
+        adc     $8A                             ; 43F3 65 8A
+        sta     $8A                             ; 43F5 85 8A
+        bcc     L43FA                           ; 43F7 90 01
+        inx                                     ; 43F9 E8
+L43FA:  lda     $8A                             ; 43FA A5 8A
+        clc                                     ; 43FC 18
+        adc     $8C                             ; 43FD 65 8C
+        sta     $8C                             ; 43FF 85 8C
+        txa                                     ; 4401 8A
+        adc     $8D                             ; 4402 65 8D
+        sta     $8D                             ; 4404 85 8D
+        lda     #$00                            ; 4406 A9 00
+        asl     a                               ; 4408 0A
+        asl     a                               ; 4409 0A
+        ldx     #$00                            ; 440A A2 00
+        clc                                     ; 440C 18
+        adc     $8C                             ; 440D 65 8C
+        sta     $8C                             ; 440F 85 8C
+        txa                                     ; 4411 8A
+        adc     $8D                             ; 4412 65 8D
+        sta     $8D                             ; 4414 85 8D
+        lda     #$00                            ; 4416 A9 00
+        ldx     #$00                            ; 4418 A2 00
+        clc                                     ; 441A 18
+        adc     $8C                             ; 441B 65 8C
+        sta     $8C                             ; 441D 85 8C
+        txa                                     ; 441F 8A
+        adc     $8D                             ; 4420 65 8D
+        sta     $8D                             ; 4422 85 8D
+        lda     #$1E                            ; 4424 A9 1E
+        ldx     #$4A                            ; 4426 A2 4A
+        sta     $82                             ; 4428 85 82
+        stx     $83                             ; 442A 86 83
+        lda     $8C                             ; 442C A5 8C
+        clc                                     ; 442E 18
+        adc     $82                             ; 442F 65 82
+        sta     $82                             ; 4431 85 82
+        lda     $8D                             ; 4433 A5 8D
+        adc     $83                             ; 4435 65 83
+        sta     $83                             ; 4437 85 83
+        ldy     #$00                            ; 4439 A0 00
+        lda     $86                             ; 443B A5 86
+        sta     ($82),y                         ; 443D 91 82
+        lda     #$14                            ; 443F A9 14
+        sta     $86                             ; 4441 85 86
+        stx     $87                             ; 4443 86 87
+        lda     #$00                            ; 4445 A9 00
+        sta     $8C                             ; 4447 85 8C
+        sta     $8D                             ; 4449 85 8D
+        lda     #$01                            ; 444B A9 01
+        sta     $8E                             ; 444D 85 8E
+        lda     #$00                            ; 444F A9 00
+        sta     $8A                             ; 4451 85 8A
+        lda     #$00                            ; 4453 A9 00
+        ldx     #$00                            ; 4455 A2 00
+        clc                                     ; 4457 18
+        lda     $8E                             ; 4458 A5 8E
+        adc     $8A                             ; 445A 65 8A
+        sta     $8A                             ; 445C 85 8A
+        bcc     L4461                           ; 445E 90 01
+        inx                                     ; 4460 E8
+L4461:  clc                                     ; 4461 18
+        lda     $8E                             ; 4462 A5 8E
+        adc     $8A                             ; 4464 65 8A
+        sta     $8A                             ; 4466 85 8A
+        bcc     L446B                           ; 4468 90 01
+        inx                                     ; 446A E8
+L446B:  clc                                     ; 446B 18
+        lda     $8E                             ; 446C A5 8E
+        adc     $8A                             ; 446E 65 8A
+        sta     $8A                             ; 4470 85 8A
+        bcc     L4475                           ; 4472 90 01
+        inx                                     ; 4474 E8
+L4475:  clc                                     ; 4475 18
+        lda     $8E                             ; 4476 A5 8E
+        adc     $8A                             ; 4478 65 8A
+        sta     $8A                             ; 447A 85 8A
+        bcc     L447F                           ; 447C 90 01
+        inx                                     ; 447E E8
+L447F:  clc                                     ; 447F 18
+        lda     $8E                             ; 4480 A5 8E
+        adc     $8A                             ; 4482 65 8A
+        sta     $8A                             ; 4484 85 8A
+        bcc     L4489                           ; 4486 90 01
+        inx                                     ; 4488 E8
+L4489:  clc                                     ; 4489 18
+        lda     $8E                             ; 448A A5 8E
+        adc     $8A                             ; 448C 65 8A
+        sta     $8A                             ; 448E 85 8A
+        bcc     L4493                           ; 4490 90 01
+        inx                                     ; 4492 E8
+L4493:  clc                                     ; 4493 18
+        lda     $8E                             ; 4494 A5 8E
+        adc     $8A                             ; 4496 65 8A
+        sta     $8A                             ; 4498 85 8A
+        bcc     L449D                           ; 449A 90 01
+        inx                                     ; 449C E8
+L449D:  clc                                     ; 449D 18
+        lda     $8E                             ; 449E A5 8E
+        adc     $8A                             ; 44A0 65 8A
+        sta     $8A                             ; 44A2 85 8A
+        bcc     L44A7                           ; 44A4 90 01
+        inx                                     ; 44A6 E8
+L44A7:  clc                                     ; 44A7 18
+        lda     $8E                             ; 44A8 A5 8E
+        adc     $8A                             ; 44AA 65 8A
+        sta     $8A                             ; 44AC 85 8A
+        bcc     L44B1                           ; 44AE 90 01
+        inx                                     ; 44B0 E8
+L44B1:  clc                                     ; 44B1 18
+        lda     $8E                             ; 44B2 A5 8E
+        adc     $8A                             ; 44B4 65 8A
+        sta     $8A                             ; 44B6 85 8A
+        bcc     L44BB                           ; 44B8 90 01
+        inx                                     ; 44BA E8
+L44BB:  clc                                     ; 44BB 18
+        lda     $8E                             ; 44BC A5 8E
+        adc     $8A                             ; 44BE 65 8A
+        sta     $8A                             ; 44C0 85 8A
+        bcc     L44C5                           ; 44C2 90 01
+        inx                                     ; 44C4 E8
+L44C5:  clc                                     ; 44C5 18
+        lda     $8E                             ; 44C6 A5 8E
+        adc     $8A                             ; 44C8 65 8A
+        sta     $8A                             ; 44CA 85 8A
+        bcc     L44CF                           ; 44CC 90 01
+        inx                                     ; 44CE E8
+L44CF:  lda     $8A                             ; 44CF A5 8A
+        clc                                     ; 44D1 18
+        adc     $8C                             ; 44D2 65 8C
+        sta     $8C                             ; 44D4 85 8C
+        txa                                     ; 44D6 8A
+        adc     $8D                             ; 44D7 65 8D
+        sta     $8D                             ; 44D9 85 8D
+        lda     #$00                            ; 44DB A9 00
+        asl     a                               ; 44DD 0A
+        asl     a                               ; 44DE 0A
+        ldx     #$00                            ; 44DF A2 00
+        clc                                     ; 44E1 18
+        adc     $8C                             ; 44E2 65 8C
+        sta     $8C                             ; 44E4 85 8C
+        txa                                     ; 44E6 8A
+        adc     $8D                             ; 44E7 65 8D
+        sta     $8D                             ; 44E9 85 8D
+        lda     #$01                            ; 44EB A9 01
+        ldx     #$00                            ; 44ED A2 00
+        clc                                     ; 44EF 18
+        adc     $8C                             ; 44F0 65 8C
+        sta     $8C                             ; 44F2 85 8C
+        txa                                     ; 44F4 8A
+        adc     $8D                             ; 44F5 65 8D
+        sta     $8D                             ; 44F7 85 8D
+        lda     #$1E                            ; 44F9 A9 1E
+        ldx     #$4A                            ; 44FB A2 4A
+        sta     $82                             ; 44FD 85 82
+        stx     $83                             ; 44FF 86 83
+        lda     $8C                             ; 4501 A5 8C
+        clc                                     ; 4503 18
+        adc     $82                             ; 4504 65 82
+        sta     $82                             ; 4506 85 82
+        lda     $8D                             ; 4508 A5 8D
+        adc     $83                             ; 450A 65 83
+        sta     $83                             ; 450C 85 83
+        ldy     #$00                            ; 450E A0 00
+        lda     $86                             ; 4510 A5 86
+        sta     ($82),y                         ; 4512 91 82
+        lda     #$1E                            ; 4514 A9 1E
+        sta     $86                             ; 4516 85 86
+        stx     $87                             ; 4518 86 87
+        lda     #$00                            ; 451A A9 00
+        sta     $8C                             ; 451C 85 8C
+        sta     $8D                             ; 451E 85 8D
+        lda     #$01                            ; 4520 A9 01
+        sta     $8E                             ; 4522 85 8E
+        lda     #$00                            ; 4524 A9 00
+        sta     $8A                             ; 4526 85 8A
+        lda     #$00                            ; 4528 A9 00
+        ldx     #$00                            ; 452A A2 00
+        clc                                     ; 452C 18
+        lda     $8E                             ; 452D A5 8E
+        adc     $8A                             ; 452F 65 8A
+        sta     $8A                             ; 4531 85 8A
+        bcc     L4536                           ; 4533 90 01
+        inx                                     ; 4535 E8
+L4536:  clc                                     ; 4536 18
+        lda     $8E                             ; 4537 A5 8E
+        adc     $8A                             ; 4539 65 8A
+        sta     $8A                             ; 453B 85 8A
+        bcc     L4540                           ; 453D 90 01
+        inx                                     ; 453F E8
+L4540:  clc                                     ; 4540 18
+        lda     $8E                             ; 4541 A5 8E
+        adc     $8A                             ; 4543 65 8A
+        sta     $8A                             ; 4545 85 8A
+        bcc     L454A                           ; 4547 90 01
+        inx                                     ; 4549 E8
+L454A:  clc                                     ; 454A 18
+        lda     $8E                             ; 454B A5 8E
+        adc     $8A                             ; 454D 65 8A
+        sta     $8A                             ; 454F 85 8A
+        bcc     L4554                           ; 4551 90 01
+        inx                                     ; 4553 E8
+L4554:  clc                                     ; 4554 18
+        lda     $8E                             ; 4555 A5 8E
+        adc     $8A                             ; 4557 65 8A
+        sta     $8A                             ; 4559 85 8A
+        bcc     L455E                           ; 455B 90 01
+        inx                                     ; 455D E8
+L455E:  clc                                     ; 455E 18
+        lda     $8E                             ; 455F A5 8E
+        adc     $8A                             ; 4561 65 8A
+        sta     $8A                             ; 4563 85 8A
+        bcc     L4568                           ; 4565 90 01
+        inx                                     ; 4567 E8
+L4568:  clc                                     ; 4568 18
+        lda     $8E                             ; 4569 A5 8E
+        adc     $8A                             ; 456B 65 8A
+        sta     $8A                             ; 456D 85 8A
+        bcc     L4572                           ; 456F 90 01
+        inx                                     ; 4571 E8
+L4572:  clc                                     ; 4572 18
+        lda     $8E                             ; 4573 A5 8E
+        adc     $8A                             ; 4575 65 8A
+        sta     $8A                             ; 4577 85 8A
+        bcc     L457C                           ; 4579 90 01
+        inx                                     ; 457B E8
+L457C:  clc                                     ; 457C 18
+        lda     $8E                             ; 457D A5 8E
+        adc     $8A                             ; 457F 65 8A
+        sta     $8A                             ; 4581 85 8A
+        bcc     L4586                           ; 4583 90 01
+        inx                                     ; 4585 E8
+L4586:  clc                                     ; 4586 18
+        lda     $8E                             ; 4587 A5 8E
+        adc     $8A                             ; 4589 65 8A
+        sta     $8A                             ; 458B 85 8A
+        bcc     L4590                           ; 458D 90 01
+        inx                                     ; 458F E8
+L4590:  clc                                     ; 4590 18
+        lda     $8E                             ; 4591 A5 8E
+        adc     $8A                             ; 4593 65 8A
+        sta     $8A                             ; 4595 85 8A
+        bcc     L459A                           ; 4597 90 01
+        inx                                     ; 4599 E8
+L459A:  clc                                     ; 459A 18
+        lda     $8E                             ; 459B A5 8E
+        adc     $8A                             ; 459D 65 8A
+        sta     $8A                             ; 459F 85 8A
+        bcc     L45A4                           ; 45A1 90 01
+        inx                                     ; 45A3 E8
+L45A4:  lda     $8A                             ; 45A4 A5 8A
+        clc                                     ; 45A6 18
+        adc     $8C                             ; 45A7 65 8C
+        sta     $8C                             ; 45A9 85 8C
+        txa                                     ; 45AB 8A
+        adc     $8D                             ; 45AC 65 8D
+        sta     $8D                             ; 45AE 85 8D
+        lda     #$01                            ; 45B0 A9 01
+        asl     a                               ; 45B2 0A
+        asl     a                               ; 45B3 0A
+        ldx     #$00                            ; 45B4 A2 00
+        clc                                     ; 45B6 18
+        adc     $8C                             ; 45B7 65 8C
+        sta     $8C                             ; 45B9 85 8C
+        txa                                     ; 45BB 8A
+        adc     $8D                             ; 45BC 65 8D
+        sta     $8D                             ; 45BE 85 8D
+        lda     #$00                            ; 45C0 A9 00
+        ldx     #$00                            ; 45C2 A2 00
+        clc                                     ; 45C4 18
+        adc     $8C                             ; 45C5 65 8C
+        sta     $8C                             ; 45C7 85 8C
+        txa                                     ; 45C9 8A
+        adc     $8D                             ; 45CA 65 8D
+        sta     $8D                             ; 45CC 85 8D
+        lda     #$1E                            ; 45CE A9 1E
+        ldx     #$4A                            ; 45D0 A2 4A
+        sta     $82                             ; 45D2 85 82
+        stx     $83                             ; 45D4 86 83
+        lda     $8C                             ; 45D6 A5 8C
+        clc                                     ; 45D8 18
+        adc     $82                             ; 45D9 65 82
+        sta     $82                             ; 45DB 85 82
+        lda     $8D                             ; 45DD A5 8D
+        adc     $83                             ; 45DF 65 83
+        sta     $83                             ; 45E1 85 83
+        ldy     #$00                            ; 45E3 A0 00
+        lda     $86                             ; 45E5 A5 86
+        sta     ($82),y                         ; 45E7 91 82
+        lda     #$28                            ; 45E9 A9 28
+        sta     $86                             ; 45EB 85 86
+        stx     $87                             ; 45ED 86 87
+        lda     #$00                            ; 45EF A9 00
+        sta     $8C                             ; 45F1 85 8C
+        sta     $8D                             ; 45F3 85 8D
+        lda     #$01                            ; 45F5 A9 01
+        sta     $8E                             ; 45F7 85 8E
+        lda     #$00                            ; 45F9 A9 00
+        sta     $8A                             ; 45FB 85 8A
+        lda     #$00                            ; 45FD A9 00
+        ldx     #$00                            ; 45FF A2 00
+        clc                                     ; 4601 18
+        lda     $8E                             ; 4602 A5 8E
+        adc     $8A                             ; 4604 65 8A
+        sta     $8A                             ; 4606 85 8A
+        bcc     L460B                           ; 4608 90 01
+        inx                                     ; 460A E8
+L460B:  clc                                     ; 460B 18
+        lda     $8E                             ; 460C A5 8E
+        adc     $8A                             ; 460E 65 8A
+        sta     $8A                             ; 4610 85 8A
+        bcc     L4615                           ; 4612 90 01
+        inx                                     ; 4614 E8
+L4615:  clc                                     ; 4615 18
+        lda     $8E                             ; 4616 A5 8E
+        adc     $8A                             ; 4618 65 8A
+        sta     $8A                             ; 461A 85 8A
+        bcc     L461F                           ; 461C 90 01
+        inx                                     ; 461E E8
+L461F:  clc                                     ; 461F 18
+        lda     $8E                             ; 4620 A5 8E
+        adc     $8A                             ; 4622 65 8A
+        sta     $8A                             ; 4624 85 8A
+        bcc     L4629                           ; 4626 90 01
+        inx                                     ; 4628 E8
+L4629:  clc                                     ; 4629 18
+        lda     $8E                             ; 462A A5 8E
+        adc     $8A                             ; 462C 65 8A
+        sta     $8A                             ; 462E 85 8A
+        bcc     L4633                           ; 4630 90 01
+        inx                                     ; 4632 E8
+L4633:  clc                                     ; 4633 18
+        lda     $8E                             ; 4634 A5 8E
+        adc     $8A                             ; 4636 65 8A
+        sta     $8A                             ; 4638 85 8A
+        bcc     L463D                           ; 463A 90 01
+        inx                                     ; 463C E8
+L463D:  clc                                     ; 463D 18
+        lda     $8E                             ; 463E A5 8E
+        adc     $8A                             ; 4640 65 8A
+        sta     $8A                             ; 4642 85 8A
+        bcc     L4647                           ; 4644 90 01
+        inx                                     ; 4646 E8
+L4647:  clc                                     ; 4647 18
+        lda     $8E                             ; 4648 A5 8E
+        adc     $8A                             ; 464A 65 8A
+        sta     $8A                             ; 464C 85 8A
+        bcc     L4651                           ; 464E 90 01
+        inx                                     ; 4650 E8
+L4651:  clc                                     ; 4651 18
+        lda     $8E                             ; 4652 A5 8E
+        adc     $8A                             ; 4654 65 8A
+        sta     $8A                             ; 4656 85 8A
+        bcc     L465B                           ; 4658 90 01
+        inx                                     ; 465A E8
+L465B:  clc                                     ; 465B 18
+        lda     $8E                             ; 465C A5 8E
+        adc     $8A                             ; 465E 65 8A
+        sta     $8A                             ; 4660 85 8A
+        bcc     L4665                           ; 4662 90 01
+        inx                                     ; 4664 E8
+L4665:  clc                                     ; 4665 18
+        lda     $8E                             ; 4666 A5 8E
+        adc     $8A                             ; 4668 65 8A
+        sta     $8A                             ; 466A 85 8A
+        bcc     L466F                           ; 466C 90 01
+        inx                                     ; 466E E8
+L466F:  clc                                     ; 466F 18
+        lda     $8E                             ; 4670 A5 8E
+        adc     $8A                             ; 4672 65 8A
+        sta     $8A                             ; 4674 85 8A
+        bcc     L4679                           ; 4676 90 01
+        inx                                     ; 4678 E8
+L4679:  lda     $8A                             ; 4679 A5 8A
+        clc                                     ; 467B 18
+        adc     $8C                             ; 467C 65 8C
+        sta     $8C                             ; 467E 85 8C
+        txa                                     ; 4680 8A
+        adc     $8D                             ; 4681 65 8D
+        sta     $8D                             ; 4683 85 8D
+        lda     #$01                            ; 4685 A9 01
+        asl     a                               ; 4687 0A
+        asl     a                               ; 4688 0A
+        ldx     #$00                            ; 4689 A2 00
+        clc                                     ; 468B 18
+        adc     $8C                             ; 468C 65 8C
+        sta     $8C                             ; 468E 85 8C
+        txa                                     ; 4690 8A
+        adc     $8D                             ; 4691 65 8D
+        sta     $8D                             ; 4693 85 8D
+        lda     #$01                            ; 4695 A9 01
+        ldx     #$00                            ; 4697 A2 00
+        clc                                     ; 4699 18
+        adc     $8C                             ; 469A 65 8C
+        sta     $8C                             ; 469C 85 8C
+        txa                                     ; 469E 8A
+        adc     $8D                             ; 469F 65 8D
+        sta     $8D                             ; 46A1 85 8D
+        lda     #$1E                            ; 46A3 A9 1E
+        ldx     #$4A                            ; 46A5 A2 4A
+        sta     $82                             ; 46A7 85 82
+        stx     $83                             ; 46A9 86 83
+        lda     $8C                             ; 46AB A5 8C
+        clc                                     ; 46AD 18
+        adc     $82                             ; 46AE 65 82
+        sta     $82                             ; 46B0 85 82
+        lda     $8D                             ; 46B2 A5 8D
+        adc     $83                             ; 46B4 65 83
+        sta     $83                             ; 46B6 85 83
+        ldy     #$00                            ; 46B8 A0 00
+        lda     $86                             ; 46BA A5 86
+        sta     ($82),y                         ; 46BC 91 82
+        lda     #$00                            ; 46BE A9 00
+        sta     $8C                             ; 46C0 85 8C
+        sta     $8D                             ; 46C2 85 8D
+        lda     #$00                            ; 46C4 A9 00
+        sta     $8E                             ; 46C6 85 8E
+        lda     #$00                            ; 46C8 A9 00
+        sta     $8A                             ; 46CA 85 8A
+        lda     #$00                            ; 46CC A9 00
+        ldx     #$00                            ; 46CE A2 00
+        clc                                     ; 46D0 18
+        lda     $8E                             ; 46D1 A5 8E
+        adc     $8A                             ; 46D3 65 8A
+        sta     $8A                             ; 46D5 85 8A
+        bcc     L46DA                           ; 46D7 90 01
+        inx                                     ; 46D9 E8
+L46DA:  clc                                     ; 46DA 18
+        lda     $8E                             ; 46DB A5 8E
+        adc     $8A                             ; 46DD 65 8A
+        sta     $8A                             ; 46DF 85 8A
+        bcc     L46E4                           ; 46E1 90 01
+        inx                                     ; 46E3 E8
+L46E4:  clc                                     ; 46E4 18
+        lda     $8E                             ; 46E5 A5 8E
+        adc     $8A                             ; 46E7 65 8A
+        sta     $8A                             ; 46E9 85 8A
+        bcc     L46EE                           ; 46EB 90 01
+        inx                                     ; 46ED E8
+L46EE:  clc                                     ; 46EE 18
+        lda     $8E                             ; 46EF A5 8E
+        adc     $8A                             ; 46F1 65 8A
+        sta     $8A                             ; 46F3 85 8A
+        bcc     L46F8                           ; 46F5 90 01
+        inx                                     ; 46F7 E8
+L46F8:  clc                                     ; 46F8 18
+        lda     $8E                             ; 46F9 A5 8E
+        adc     $8A                             ; 46FB 65 8A
+        sta     $8A                             ; 46FD 85 8A
+        bcc     L4702                           ; 46FF 90 01
+        inx                                     ; 4701 E8
+L4702:  clc                                     ; 4702 18
+        lda     $8E                             ; 4703 A5 8E
+        adc     $8A                             ; 4705 65 8A
+        sta     $8A                             ; 4707 85 8A
+        bcc     L470C                           ; 4709 90 01
+        inx                                     ; 470B E8
+L470C:  clc                                     ; 470C 18
+        lda     $8E                             ; 470D A5 8E
+        adc     $8A                             ; 470F 65 8A
+        sta     $8A                             ; 4711 85 8A
+        bcc     L4716                           ; 4713 90 01
+        inx                                     ; 4715 E8
+L4716:  clc                                     ; 4716 18
+        lda     $8E                             ; 4717 A5 8E
+        adc     $8A                             ; 4719 65 8A
+        sta     $8A                             ; 471B 85 8A
+        bcc     L4720                           ; 471D 90 01
+        inx                                     ; 471F E8
+L4720:  clc                                     ; 4720 18
+        lda     $8E                             ; 4721 A5 8E
+        adc     $8A                             ; 4723 65 8A
+        sta     $8A                             ; 4725 85 8A
+        bcc     L472A                           ; 4727 90 01
+        inx                                     ; 4729 E8
+L472A:  clc                                     ; 472A 18
+        lda     $8E                             ; 472B A5 8E
+        adc     $8A                             ; 472D 65 8A
+        sta     $8A                             ; 472F 85 8A
+        bcc     L4734                           ; 4731 90 01
+        inx                                     ; 4733 E8
+L4734:  clc                                     ; 4734 18
+        lda     $8E                             ; 4735 A5 8E
+        adc     $8A                             ; 4737 65 8A
+        sta     $8A                             ; 4739 85 8A
+        bcc     L473E                           ; 473B 90 01
+        inx                                     ; 473D E8
+L473E:  clc                                     ; 473E 18
+        lda     $8E                             ; 473F A5 8E
+        adc     $8A                             ; 4741 65 8A
+        sta     $8A                             ; 4743 85 8A
+        bcc     L4748                           ; 4745 90 01
+        inx                                     ; 4747 E8
+L4748:  lda     $8A                             ; 4748 A5 8A
+        clc                                     ; 474A 18
+        adc     $8C                             ; 474B 65 8C
+        sta     $8C                             ; 474D 85 8C
+        txa                                     ; 474F 8A
+        adc     $8D                             ; 4750 65 8D
+        sta     $8D                             ; 4752 85 8D
+        lda     #$00                            ; 4754 A9 00
+        asl     a                               ; 4756 0A
+        asl     a                               ; 4757 0A
+        ldx     #$00                            ; 4758 A2 00
+        clc                                     ; 475A 18
+        adc     $8C                             ; 475B 65 8C
+        sta     $8C                             ; 475D 85 8C
+        txa                                     ; 475F 8A
+        adc     $8D                             ; 4760 65 8D
+        sta     $8D                             ; 4762 85 8D
+        lda     #$00                            ; 4764 A9 00
+        ldx     #$00                            ; 4766 A2 00
+        clc                                     ; 4768 18
+        adc     $8C                             ; 4769 65 8C
+        sta     $8C                             ; 476B 85 8C
+        txa                                     ; 476D 8A
+        adc     $8D                             ; 476E 65 8D
+        sta     $8D                             ; 4770 85 8D
+        lda     #$1E                            ; 4772 A9 1E
+        ldx     #$4A                            ; 4774 A2 4A
+        sta     $82                             ; 4776 85 82
+        stx     $83                             ; 4778 86 83
+        lda     $8C                             ; 477A A5 8C
+        clc                                     ; 477C 18
+        adc     $82                             ; 477D 65 82
+        sta     $82                             ; 477F 85 82
+        lda     $8D                             ; 4781 A5 8D
+        adc     $83                             ; 4783 65 83
+        sta     $83                             ; 4785 85 83
+        ldy     #$00                            ; 4787 A0 00
+        lda     ($82),y                         ; 4789 B1 82
+        ldx     #$00                            ; 478B A2 00
+        sta     $84                             ; 478D 85 84
+        stx     $85                             ; 478F 86 85
+        lda     #$00                            ; 4791 A9 00
+        sta     $8C                             ; 4793 85 8C
+        sta     $8D                             ; 4795 85 8D
+        lda     #$00                            ; 4797 A9 00
+        sta     $8E                             ; 4799 85 8E
+        lda     #$00                            ; 479B A9 00
+        sta     $8A                             ; 479D 85 8A
+        lda     #$00                            ; 479F A9 00
+        ldx     #$00                            ; 47A1 A2 00
+        clc                                     ; 47A3 18
+        lda     $8E                             ; 47A4 A5 8E
+        adc     $8A                             ; 47A6 65 8A
+        sta     $8A                             ; 47A8 85 8A
+        bcc     L47AD                           ; 47AA 90 01
+        inx                                     ; 47AC E8
+L47AD:  clc                                     ; 47AD 18
+        lda     $8E                             ; 47AE A5 8E
+        adc     $8A                             ; 47B0 65 8A
+        sta     $8A                             ; 47B2 85 8A
+        bcc     L47B7                           ; 47B4 90 01
+        inx                                     ; 47B6 E8
+L47B7:  clc                                     ; 47B7 18
+        lda     $8E                             ; 47B8 A5 8E
+        adc     $8A                             ; 47BA 65 8A
+        sta     $8A                             ; 47BC 85 8A
+        bcc     L47C1                           ; 47BE 90 01
+        inx                                     ; 47C0 E8
+L47C1:  clc                                     ; 47C1 18
+        lda     $8E                             ; 47C2 A5 8E
+        adc     $8A                             ; 47C4 65 8A
+        sta     $8A                             ; 47C6 85 8A
+        bcc     L47CB                           ; 47C8 90 01
+        inx                                     ; 47CA E8
+L47CB:  clc                                     ; 47CB 18
+        lda     $8E                             ; 47CC A5 8E
+        adc     $8A                             ; 47CE 65 8A
+        sta     $8A                             ; 47D0 85 8A
+        bcc     L47D5                           ; 47D2 90 01
+        inx                                     ; 47D4 E8
+L47D5:  clc                                     ; 47D5 18
+        lda     $8E                             ; 47D6 A5 8E
+        adc     $8A                             ; 47D8 65 8A
+        sta     $8A                             ; 47DA 85 8A
+        bcc     L47DF                           ; 47DC 90 01
+        inx                                     ; 47DE E8
+L47DF:  clc                                     ; 47DF 18
+        lda     $8E                             ; 47E0 A5 8E
+        adc     $8A                             ; 47E2 65 8A
+        sta     $8A                             ; 47E4 85 8A
+        bcc     L47E9                           ; 47E6 90 01
+        inx                                     ; 47E8 E8
+L47E9:  clc                                     ; 47E9 18
+        lda     $8E                             ; 47EA A5 8E
+        adc     $8A                             ; 47EC 65 8A
+        sta     $8A                             ; 47EE 85 8A
+        bcc     L47F3                           ; 47F0 90 01
+        inx                                     ; 47F2 E8
+L47F3:  clc                                     ; 47F3 18
+        lda     $8E                             ; 47F4 A5 8E
+        adc     $8A                             ; 47F6 65 8A
+        sta     $8A                             ; 47F8 85 8A
+        bcc     L47FD                           ; 47FA 90 01
+        inx                                     ; 47FC E8
+L47FD:  clc                                     ; 47FD 18
+        lda     $8E                             ; 47FE A5 8E
+        adc     $8A                             ; 4800 65 8A
+        sta     $8A                             ; 4802 85 8A
+        bcc     L4807                           ; 4804 90 01
+        inx                                     ; 4806 E8
+L4807:  clc                                     ; 4807 18
+        lda     $8E                             ; 4808 A5 8E
+        adc     $8A                             ; 480A 65 8A
+        sta     $8A                             ; 480C 85 8A
+        bcc     L4811                           ; 480E 90 01
+        inx                                     ; 4810 E8
+L4811:  clc                                     ; 4811 18
+        lda     $8E                             ; 4812 A5 8E
+        adc     $8A                             ; 4814 65 8A
+        sta     $8A                             ; 4816 85 8A
+        bcc     L481B                           ; 4818 90 01
+        inx                                     ; 481A E8
+L481B:  lda     $8A                             ; 481B A5 8A
+        clc                                     ; 481D 18
+        adc     $8C                             ; 481E 65 8C
+        sta     $8C                             ; 4820 85 8C
+        txa                                     ; 4822 8A
+        adc     $8D                             ; 4823 65 8D
+        sta     $8D                             ; 4825 85 8D
+        lda     #$01                            ; 4827 A9 01
+        asl     a                               ; 4829 0A
+        asl     a                               ; 482A 0A
+        ldx     #$00                            ; 482B A2 00
+        clc                                     ; 482D 18
+        adc     $8C                             ; 482E 65 8C
+        sta     $8C                             ; 4830 85 8C
+        txa                                     ; 4832 8A
+        adc     $8D                             ; 4833 65 8D
+        sta     $8D                             ; 4835 85 8D
+        lda     #$01                            ; 4837 A9 01
+        ldx     #$00                            ; 4839 A2 00
+        clc                                     ; 483B 18
+        adc     $8C                             ; 483C 65 8C
+        sta     $8C                             ; 483E 85 8C
+        txa                                     ; 4840 8A
+        adc     $8D                             ; 4841 65 8D
+        sta     $8D                             ; 4843 85 8D
+        lda     #$1E                            ; 4845 A9 1E
+        ldx     #$4A                            ; 4847 A2 4A
+        sta     $82                             ; 4849 85 82
+        stx     $83                             ; 484B 86 83
+        lda     $8C                             ; 484D A5 8C
+        clc                                     ; 484F 18
+        adc     $82                             ; 4850 65 82
+        sta     $82                             ; 4852 85 82
+        lda     $8D                             ; 4854 A5 8D
+        adc     $83                             ; 4856 65 83
+        sta     $83                             ; 4858 85 83
+        ldy     #$00                            ; 485A A0 00
+        lda     ($82),y                         ; 485C B1 82
+        ldx     #$00                            ; 485E A2 00
+        clc                                     ; 4860 18
+        adc     $84                             ; 4861 65 84
+        sta     $84                             ; 4863 85 84
+        stx     $85                             ; 4865 86 85
+        lda     #$00                            ; 4867 A9 00
+        sta     $8C                             ; 4869 85 8C
+        sta     $8D                             ; 486B 85 8D
+        lda     #$01                            ; 486D A9 01
+        sta     $8E                             ; 486F 85 8E
+        lda     #$00                            ; 4871 A9 00
+        sta     $8A                             ; 4873 85 8A
+        lda     #$00                            ; 4875 A9 00
+        ldx     #$00                            ; 4877 A2 00
+        clc                                     ; 4879 18
+        lda     $8E                             ; 487A A5 8E
+        adc     $8A                             ; 487C 65 8A
+        sta     $8A                             ; 487E 85 8A
+        bcc     L4883                           ; 4880 90 01
+        inx                                     ; 4882 E8
+L4883:  clc                                     ; 4883 18
+        lda     $8E                             ; 4884 A5 8E
+        adc     $8A                             ; 4886 65 8A
+        sta     $8A                             ; 4888 85 8A
+        bcc     L488D                           ; 488A 90 01
+        inx                                     ; 488C E8
+L488D:  clc                                     ; 488D 18
+        lda     $8E                             ; 488E A5 8E
+        adc     $8A                             ; 4890 65 8A
+        sta     $8A                             ; 4892 85 8A
+        bcc     L4897                           ; 4894 90 01
+        inx                                     ; 4896 E8
+L4897:  clc                                     ; 4897 18
+        lda     $8E                             ; 4898 A5 8E
+        adc     $8A                             ; 489A 65 8A
+        sta     $8A                             ; 489C 85 8A
+        bcc     L48A1                           ; 489E 90 01
+        inx                                     ; 48A0 E8
+L48A1:  clc                                     ; 48A1 18
+        lda     $8E                             ; 48A2 A5 8E
+        adc     $8A                             ; 48A4 65 8A
+        sta     $8A                             ; 48A6 85 8A
+        bcc     L48AB                           ; 48A8 90 01
+        inx                                     ; 48AA E8
+L48AB:  clc                                     ; 48AB 18
+        lda     $8E                             ; 48AC A5 8E
+        adc     $8A                             ; 48AE 65 8A
+        sta     $8A                             ; 48B0 85 8A
+        bcc     L48B5                           ; 48B2 90 01
+        inx                                     ; 48B4 E8
+L48B5:  clc                                     ; 48B5 18
+        lda     $8E                             ; 48B6 A5 8E
+        adc     $8A                             ; 48B8 65 8A
+        sta     $8A                             ; 48BA 85 8A
+        bcc     L48BF                           ; 48BC 90 01
+        inx                                     ; 48BE E8
+L48BF:  clc                                     ; 48BF 18
+        lda     $8E                             ; 48C0 A5 8E
+        adc     $8A                             ; 48C2 65 8A
+        sta     $8A                             ; 48C4 85 8A
+        bcc     L48C9                           ; 48C6 90 01
+        inx                                     ; 48C8 E8
+L48C9:  clc                                     ; 48C9 18
+        lda     $8E                             ; 48CA A5 8E
+        adc     $8A                             ; 48CC 65 8A
+        sta     $8A                             ; 48CE 85 8A
+        bcc     L48D3                           ; 48D0 90 01
+        inx                                     ; 48D2 E8
+L48D3:  clc                                     ; 48D3 18
+        lda     $8E                             ; 48D4 A5 8E
+        adc     $8A                             ; 48D6 65 8A
+        sta     $8A                             ; 48D8 85 8A
+        bcc     L48DD                           ; 48DA 90 01
+        inx                                     ; 48DC E8
+L48DD:  clc                                     ; 48DD 18
+        lda     $8E                             ; 48DE A5 8E
+        adc     $8A                             ; 48E0 65 8A
+        sta     $8A                             ; 48E2 85 8A
+        bcc     L48E7                           ; 48E4 90 01
+        inx                                     ; 48E6 E8
+L48E7:  clc                                     ; 48E7 18
+        lda     $8E                             ; 48E8 A5 8E
+        adc     $8A                             ; 48EA 65 8A
+        sta     $8A                             ; 48EC 85 8A
+        bcc     L48F1                           ; 48EE 90 01
+        inx                                     ; 48F0 E8
+L48F1:  lda     $8A                             ; 48F1 A5 8A
+        clc                                     ; 48F3 18
+        adc     $8C                             ; 48F4 65 8C
+        sta     $8C                             ; 48F6 85 8C
+        txa                                     ; 48F8 8A
+        adc     $8D                             ; 48F9 65 8D
+        sta     $8D                             ; 48FB 85 8D
+        lda     #$00                            ; 48FD A9 00
+        asl     a                               ; 48FF 0A
+        asl     a                               ; 4900 0A
+        ldx     #$00                            ; 4901 A2 00
+        clc                                     ; 4903 18
+        adc     $8C                             ; 4904 65 8C
+        sta     $8C                             ; 4906 85 8C
+        txa                                     ; 4908 8A
+        adc     $8D                             ; 4909 65 8D
+        sta     $8D                             ; 490B 85 8D
+        lda     #$00                            ; 490D A9 00
+        ldx     #$00                            ; 490F A2 00
+        clc                                     ; 4911 18
+        adc     $8C                             ; 4912 65 8C
+        sta     $8C                             ; 4914 85 8C
+        txa                                     ; 4916 8A
+        adc     $8D                             ; 4917 65 8D
+        sta     $8D                             ; 4919 85 8D
+        lda     #$1E                            ; 491B A9 1E
+        ldx     #$4A                            ; 491D A2 4A
+        sta     $82                             ; 491F 85 82
+        stx     $83                             ; 4921 86 83
+        lda     $8C                             ; 4923 A5 8C
+        clc                                     ; 4925 18
+        adc     $82                             ; 4926 65 82
+        sta     $82                             ; 4928 85 82
+        lda     $8D                             ; 492A A5 8D
+        adc     $83                             ; 492C 65 83
+        sta     $83                             ; 492E 85 83
+        ldy     #$00                            ; 4930 A0 00
+        lda     ($82),y                         ; 4932 B1 82
+        ldx     #$00                            ; 4934 A2 00
+        clc                                     ; 4936 18
+        adc     $84                             ; 4937 65 84
+        sta     $84                             ; 4939 85 84
+        stx     $85                             ; 493B 86 85
+        lda     #$00                            ; 493D A9 00
+        sta     $8C                             ; 493F 85 8C
+        sta     $8D                             ; 4941 85 8D
+        lda     #$01                            ; 4943 A9 01
+        sta     $8E                             ; 4945 85 8E
+        lda     #$00                            ; 4947 A9 00
+        sta     $8A                             ; 4949 85 8A
+        lda     #$00                            ; 494B A9 00
+        ldx     #$00                            ; 494D A2 00
+        clc                                     ; 494F 18
+        lda     $8E                             ; 4950 A5 8E
+        adc     $8A                             ; 4952 65 8A
+        sta     $8A                             ; 4954 85 8A
+        bcc     L4959                           ; 4956 90 01
+        inx                                     ; 4958 E8
+L4959:  clc                                     ; 4959 18
+        lda     $8E                             ; 495A A5 8E
+        adc     $8A                             ; 495C 65 8A
+        sta     $8A                             ; 495E 85 8A
+        bcc     L4963                           ; 4960 90 01
+        inx                                     ; 4962 E8
+L4963:  clc                                     ; 4963 18
+        lda     $8E                             ; 4964 A5 8E
+        adc     $8A                             ; 4966 65 8A
+        sta     $8A                             ; 4968 85 8A
+        bcc     L496D                           ; 496A 90 01
+        inx                                     ; 496C E8
+L496D:  clc                                     ; 496D 18
+        lda     $8E                             ; 496E A5 8E
+        adc     $8A                             ; 4970 65 8A
+        sta     $8A                             ; 4972 85 8A
+        bcc     L4977                           ; 4974 90 01
+        inx                                     ; 4976 E8
+L4977:  clc                                     ; 4977 18
+        lda     $8E                             ; 4978 A5 8E
+        adc     $8A                             ; 497A 65 8A
+        sta     $8A                             ; 497C 85 8A
+        bcc     L4981                           ; 497E 90 01
+        inx                                     ; 4980 E8
+L4981:  clc                                     ; 4981 18
+        lda     $8E                             ; 4982 A5 8E
+        adc     $8A                             ; 4984 65 8A
+        sta     $8A                             ; 4986 85 8A
+        bcc     L498B                           ; 4988 90 01
+        inx                                     ; 498A E8
+L498B:  clc                                     ; 498B 18
+        lda     $8E                             ; 498C A5 8E
+        adc     $8A                             ; 498E 65 8A
+        sta     $8A                             ; 4990 85 8A
+        bcc     L4995                           ; 4992 90 01
+        inx                                     ; 4994 E8
+L4995:  clc                                     ; 4995 18
+        lda     $8E                             ; 4996 A5 8E
+        adc     $8A                             ; 4998 65 8A
+        sta     $8A                             ; 499A 85 8A
+        bcc     L499F                           ; 499C 90 01
+        inx                                     ; 499E E8
+L499F:  clc                                     ; 499F 18
+        lda     $8E                             ; 49A0 A5 8E
+        adc     $8A                             ; 49A2 65 8A
+        sta     $8A                             ; 49A4 85 8A
+        bcc     L49A9                           ; 49A6 90 01
+        inx                                     ; 49A8 E8
+L49A9:  clc                                     ; 49A9 18
+        lda     $8E                             ; 49AA A5 8E
+        adc     $8A                             ; 49AC 65 8A
+        sta     $8A                             ; 49AE 85 8A
+        bcc     L49B3                           ; 49B0 90 01
+        inx                                     ; 49B2 E8
+L49B3:  clc                                     ; 49B3 18
+        lda     $8E                             ; 49B4 A5 8E
+        adc     $8A                             ; 49B6 65 8A
+        sta     $8A                             ; 49B8 85 8A
+        bcc     L49BD                           ; 49BA 90 01
+        inx                                     ; 49BC E8
+L49BD:  clc                                     ; 49BD 18
+        lda     $8E                             ; 49BE A5 8E
+        adc     $8A                             ; 49C0 65 8A
+        sta     $8A                             ; 49C2 85 8A
+        bcc     L49C7                           ; 49C4 90 01
+        inx                                     ; 49C6 E8
+L49C7:  lda     $8A                             ; 49C7 A5 8A
+        clc                                     ; 49C9 18
+        adc     $8C                             ; 49CA 65 8C
+        sta     $8C                             ; 49CC 85 8C
+        txa                                     ; 49CE 8A
+        adc     $8D                             ; 49CF 65 8D
+        sta     $8D                             ; 49D1 85 8D
+        lda     #$01                            ; 49D3 A9 01
+        asl     a                               ; 49D5 0A
+        asl     a                               ; 49D6 0A
+        ldx     #$00                            ; 49D7 A2 00
+        clc                                     ; 49D9 18
+        adc     $8C                             ; 49DA 65 8C
+        sta     $8C                             ; 49DC 85 8C
+        txa                                     ; 49DE 8A
+        adc     $8D                             ; 49DF 65 8D
+        sta     $8D                             ; 49E1 85 8D
+        lda     #$01                            ; 49E3 A9 01
+        ldx     #$00                            ; 49E5 A2 00
+        clc                                     ; 49E7 18
+        adc     $8C                             ; 49E8 65 8C
+        sta     $8C                             ; 49EA 85 8C
+        txa                                     ; 49EC 8A
+        adc     $8D                             ; 49ED 65 8D
+        sta     $8D                             ; 49EF 85 8D
+        lda     #$1E                            ; 49F1 A9 1E
+        ldx     #$4A                            ; 49F3 A2 4A
+        sta     $82                             ; 49F5 85 82
+        stx     $83                             ; 49F7 86 83
+        lda     $8C                             ; 49F9 A5 8C
+        clc                                     ; 49FB 18
+        adc     $82                             ; 49FC 65 82
+        sta     $82                             ; 49FE 85 82
+        lda     $8D                             ; 4A00 A5 8D
+        adc     $83                             ; 4A02 65 83
+        sta     $83                             ; 4A04 85 83
+        ldy     #$00                            ; 4A06 A0 00
+        lda     ($82),y                         ; 4A08 B1 82
+        ldx     #$00                            ; 4A0A A2 00
+        clc                                     ; 4A0C 18
+        adc     $84                             ; 4A0D 65 84
+        sta     $90                             ; 4A0F 85 90
+        lda     $90                             ; 4A11 A5 90
+        ldx     #$00                            ; 4A13 A2 00
+        ldx     #$00                            ; 4A15 A2 00
+        sta     $9C40                           ; 4A17 8D 40 9C
+        stx     $9C41                           ; 4A1A 8E 41 9C
+        rts                                     ; 4A1D 60
+
+; ----------------------------------------------------------------------------

@@ -1,12 +1,1 @@
-# Memory Dump Validation - Arithmetic Operators
-
-## Test Values
-- a = 100 (0x64)
-- b = 50 (0x32)
-- sum = 150 (0x96) [100 + 50]
-- diff = 50 (0x32) [100 - 50]
-- prod = 50 (0x32) [10 * 5]
-- result @40000 ($9C40) = 50 (diff)
-
-## Expected Memory Dump
-Address $9C40 (40000): 0x32 (50)
+9C40: 32                      

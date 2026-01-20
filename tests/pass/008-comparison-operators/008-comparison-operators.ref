@@ -1,10 +1,1 @@
-# Memory Dump Validation - Arithmetic with Storage
-
-## Test Values
-- a = 100 (0x64)
-- b = 50 (0x32)
-- sum = 150 (0x96) [100 + 50]
-- result @40000 ($9C40) = 150
-
-## Expected Memory Dump
-Address $9C40 (40000): 0x96 (150)
+9C40: 96                      

@@ -248,7 +248,6 @@ Final PC: 0x4012
 A=0xB8 X=0x0B Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\004-word-pointers\004-word-pointers.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\004-word-pointers\004-word-pointers_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -272,7 +271,6 @@ Final PC: 0x4016
 A=0xB8 X=0x0B Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\004-word-pointers\004-word-pointers.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\004-word-pointers\004-word-pointers_6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -296,7 +294,6 @@ Final PC: 0x400F
 A=0x96 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 01100110
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-arrays-1d-byte\005-arrays-1d-byte.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-arrays-1d-byte\005-arrays-1d-byte_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -320,7 +317,6 @@ Final PC: 0x4011
 A=0x96 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 01100110
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-arrays-1d-byte\005-arrays-1d-byte.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-arrays-1d-byte\005-arrays-1d-byte_6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -344,7 +340,6 @@ Final PC: 0x400F
 A=0x01 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-if-statement\005-if-statement.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-if-statement\005-if-statement_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -368,7 +363,6 @@ Final PC: 0x4011
 A=0x01 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-if-statement\005-if-statement.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\005-if-statement\005-if-statement_6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -384,15 +378,14 @@ Start address: 0x4006
 CPU type: 65C02
 
 CPU halted: JMP * detected at $400F
-Total cycles executed: 455
+Total cycles executed: 476
 
 Simulation completed
-Cycles executed: 455
+Cycles executed: 476
 Final PC: 0x4012
-A=0x15 X=0x15 Y=0x15 SP=0xFF
+A=0x70 X=0x17 Y=0x70 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-arrays-1d-word\006-arrays-1d-word.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-arrays-1d-word\006-arrays-1d-word_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -408,15 +401,14 @@ Start address: 0x4006
 CPU type: 6502
 
 CPU halted: JMP * detected at $4013
-Total cycles executed: 459
+Total cycles executed: 480
 
 Simulation completed
-Cycles executed: 459
+Cycles executed: 480
 Final PC: 0x4016
-A=0x15 X=0x15 Y=0x15 SP=0xFF
+A=0x70 X=0x17 Y=0x70 SP=0xFF
 Status: NV-BDIZC = 00100100
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-arrays-1d-word\006-arrays-1d-word.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-arrays-1d-word\006-arrays-1d-word_6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -440,7 +432,6 @@ Final PC: 0x400F
 A=0x0A X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100111
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-while-loop\006-while-loop.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-while-loop\006-while-loop_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -464,7 +455,52 @@ Final PC: 0x4011
 A=0x0A X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100111
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-while-loop\006-while-loop.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\006-while-loop\006-while-loop_6502.txt" 
-Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400F
+Total cycles executed: 1548
+
+Simulation completed
+Cycles executed: 1548
+Final PC: 0x4012
+A=0x12 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_default.txt" 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $4013
+Total cycles executed: 1552
+
+Simulation completed
+Cycles executed: 1552
+Final PC: 0x4016
+A=0x12 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-arrays-multidim-2d\007-arrays-multidim-2d_6502.txt" 
   
   
 ---------------------------------------------------------------         
@@ -488,7 +524,6 @@ Final PC: 0x400F
 A=0x0F X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100111
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-nested-procedures\007-nested-procedures.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-nested-procedures\007-nested-procedures_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -512,7 +547,6 @@ Final PC: 0x4011
 A=0x0F X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100111
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-nested-procedures\007-nested-procedures.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-nested-procedures\007-nested-procedures_6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -536,7 +570,6 @@ Final PC: 0x400F
 A=0x2A X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-procedure-call\007-procedure-call.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-procedure-call\007-procedure-call_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -560,7 +593,52 @@ Final PC: 0x4011
 A=0x2A X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100110
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-procedure-call\007-procedure-call.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\007-procedure-call\007-procedure-call_6502.txt" 
-Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400F
+Total cycles executed: 3514
+
+Simulation completed
+Cycles executed: 3514
+Final PC: 0x4012
+A=0x37 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_default.txt" 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $4013
+Total cycles executed: 3518
+
+Simulation completed
+Cycles executed: 3518
+Final PC: 0x4016
+A=0x37 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-arrays-multidim-3d\008-arrays-multidim-3d_6502.txt" 
   
   
 ---------------------------------------------------------------         
@@ -584,7 +662,6 @@ Final PC: 0x400F
 A=0x96 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 01100110
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-comparison-operators\008-comparison-operators.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-comparison-operators\008-comparison-operators_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -608,7 +685,6 @@ Final PC: 0x4011
 A=0x96 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 01100110
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-comparison-operators\008-comparison-operators.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-comparison-operators\008-comparison-operators_6502.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -632,7 +708,6 @@ Final PC: 0x400F
 A=0x32 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-subtraction\008-subtraction.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-subtraction\008-subtraction_default.txt" 
-Simulation result does not match reference 
   
   
 ---------------------------------------------------------------         
@@ -656,7 +731,303 @@ Final PC: 0x4011
 A=0x32 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100101
 fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-subtraction\008-subtraction.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\008-subtraction\008-subtraction_6502.txt" 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400C
+Total cycles executed: 68
+
+Simulation completed
+Cycles executed: 68
+Final PC: 0x400F
+A=0x32 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100111
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_default.txt" 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $400E
+Total cycles executed: 70
+
+Simulation completed
+Cycles executed: 70
+Final PC: 0x4011
+A=0x32 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100111
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arithmetic-operators\009-arithmetic-operators_6502.txt" 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400F
+Total cycles executed: 357
+
+Simulation completed
+Cycles executed: 357
+Final PC: 0x4012
+A=0x96 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 01100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_default.txt" 
 Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $4013
+Total cycles executed: 361
+
+Simulation completed
+Cycles executed: 361
+Final PC: 0x4016
+A=0x96 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 01100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-arrays-inferred-size\009-arrays-inferred-size_6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400C
+Total cycles executed: 225
+
+Simulation completed
+Cycles executed: 225
+Final PC: 0x400F
+A=0x03 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_default.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $400E
+Total cycles executed: 227
+
+Simulation completed
+Cycles executed: 227
+Final PC: 0x4011
+A=0x03 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\009-division\009-division_6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400D
+Total cycles executed: 20
+
+Simulation completed
+Cycles executed: 20
+Final PC: 0x4010
+A=0x37 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_default.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $400D
+Total cycles executed: 20
+
+Simulation completed
+Cycles executed: 20
+Final PC: 0x4010
+A=0x37 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-global-variable\010-global-variable_6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400C
+Total cycles executed: 220
+
+Simulation completed
+Cycles executed: 220
+Final PC: 0x400F
+A=0x01 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_default.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $400E
+Total cycles executed: 222
+
+Simulation completed
+Cycles executed: 222
+Final PC: 0x4011
+A=0x01 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\010-modulo\010-modulo_6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.com
+Start address: 0x4006
+CPU type: 65C02
+
+CPU halted: JMP * detected at $400C
+Total cycles executed: 240
+
+Simulation completed
+Cycles executed: 240
+Final PC: 0x400F
+A=0x0F X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_default.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.zap 
+python compiler.py -6502 "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.com" 
+da65 --cpu 6502 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.cut" 
+6502_simulator.exe --cpu 6502 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.com" 
+Loaded C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.com
+Start address: 0x4006
+CPU type: 6502
+
+CPU halted: JMP * detected at $400E
+Total cycles executed: 242
+
+Simulation completed
+Cycles executed: 242
+Final PC: 0x4011
+A=0x0F X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100110
+fc "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication.ref" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\011-multiplication\011-multiplication_6502.txt" 
+Simulation result does not match reference 
+  
+  
+---------------------------------------------------------------         
+C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence.zap 
+python compiler.py "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence.zap" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.s" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default_exehdr.o" 
+ld65 -C cfg\my_atari.cfg "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.o" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default_exehdr.o" -o "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.com" 
+da65 --cpu 65c02 --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.cut" 
+6502_simulator.exe --cpu 65c02 --config C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence.json --verbose --dump-file "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.txt" "C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\012-operator-precedence\012-operator-precedence_default.com" 
+Simulation failed 
   
   
 ---------------------------------------------------------------         
