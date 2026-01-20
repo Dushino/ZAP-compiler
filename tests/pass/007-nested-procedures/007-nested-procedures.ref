@@ -1,0 +1,9 @@
+# Memory Dump Validation - Nested Procedures
+
+## Test Values
+- increment_all(15) called
+- Loop runs 15 times, result incremented each time
+- result @40000 ($9C40) = 15 (0x0F)
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x0F (15)

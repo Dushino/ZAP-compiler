@@ -1,0 +1,10 @@
+# Memory Dump Validation - Division
+
+## Test Values
+- x = 12 (0x0C)
+- y = 4 (0x04)
+- z = 12 / 4 = 3 (0x03)
+- result @40000 ($9C40) = 3
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x03 (3)

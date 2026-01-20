@@ -1,0 +1,10 @@
+# Memory Dump Validation - Escape Sequences
+
+## Test Values
+- tab = 9 (TAB: \t)
+- newline = 10 (NEWLINE: \n)
+- cr = 13 (CARRIAGE RETURN: \r)
+- result = tab + newline = 19 (0x13)
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x13

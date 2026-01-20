@@ -1,0 +1,10 @@
+# Memory Dump Validation - Struct Basic
+
+## Test Values
+- struct Point { byte x, byte y }
+- p.x = 25 (0x19)
+- p.y = 75 (0x4B)
+- result = p.x = 25
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x19

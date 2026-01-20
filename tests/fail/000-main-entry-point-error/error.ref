@@ -1,0 +1,12 @@
+; Expected error message for missing main procedure
+;
+; Error Validation:
+; - Must contain: "Error:"
+; - Must contain: "main"
+; - Must be human-readable
+; - Should mention "procedure" or "entry point"
+
+ERROR_PATTERN: "Program must have a 'main\\(\\)' procedure"
+ERROR_TYPE: Semantic Error - Missing entry point
+SEVERITY: Fatal - compilation fails
+MESSAGE_QUALITY: Human-readable, specific, actionable

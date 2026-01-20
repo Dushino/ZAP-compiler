@@ -1,0 +1,9 @@
+# Memory Dump Validation - Subtraction
+
+## Test Values
+- x = 100 (0x64)
+- y = 50 (0x32)
+- result = 100 - 50 = 50 (0x32)
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x32 (50)

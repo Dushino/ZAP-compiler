@@ -1,0 +1,5 @@
+# Error Test - IF Statement Scope
+
+## Expected Error
+Variable y is out of scope: declared inside IF block but used outside
+Error should indicate variable scope boundaries.

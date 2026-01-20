@@ -1,0 +1,3 @@
+# Memory Dump Validation - Less or Equal
+- x <= y evaluates to TRUE
+Address $9C40 (40000): 0x01 (1)

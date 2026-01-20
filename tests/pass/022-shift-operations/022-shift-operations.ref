@@ -1,0 +1,8 @@
+# Memory Dump Validation - Shift Operations
+
+## Test Values
+- shift = 5
+- result = shift + shift = 10 (0x0A)
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x0A

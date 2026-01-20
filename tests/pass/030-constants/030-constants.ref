@@ -1,0 +1,9 @@
+# Memory Dump Validation - Constants
+
+## Test Values
+- MAX_VALUE = 100 (0x64) [const]
+- x = MAX_VALUE = 100
+- result = x = 100
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x64

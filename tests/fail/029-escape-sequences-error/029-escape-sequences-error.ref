@@ -1,0 +1,4 @@
+# Error Test - Escape Sequences
+
+## Expected Error
+Invalid escape sequence: \q is not a valid escape character

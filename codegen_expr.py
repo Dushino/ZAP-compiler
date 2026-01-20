@@ -3511,10 +3511,16 @@ class CodeGen:
         use_inc_opt = (expr.op == BinOp.ADD and right_is_const_1 and left_is_ptr and ptr_elem_size == 1 and not result_16)
         use_dec_opt = (expr.op == BinOp.SUB and right_is_const_1 and left_is_ptr and ptr_elem_size == 1)
 
+        # Check if left operand is complex (uses TMP0 internally)
+        left_is_complex = isinstance(expr.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+        
+        # For complex left operands, use TMP1 to avoid clobbering TMP0 used by subscript/field calculations
+        left_tmp = "TMP1" if left_is_complex else "TMP0"
+
         # Generate left operand
         self.gen_expr(expr.left)
-        self.emit("\tSTA TMP0")
-        self.emit("\tSTX TMP0+1")
+        self.emit(f"\tSTA {left_tmp}")
+        self.emit(f"\tSTX {left_tmp}+1")
 
         # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
         if not (use_inc_opt or use_dec_opt):
@@ -3522,31 +3528,32 @@ class CodeGen:
         
         # Handle different operations
         if expr.op == BinOp.ADD:
-            self._gen_add(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt, right_16)
+            self._gen_add(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt, right_16, left_tmp)
         elif expr.op == BinOp.SUB:
-            self._gen_sub(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt)
+            self._gen_sub(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt, left_tmp)
         elif expr.op == BinOp.MUL:
-            self._gen_mul(left_16, right_16, result_16)
+            self._gen_mul(left_16, right_16, result_16, left_tmp)
         elif expr.op == BinOp.DIV:
-            self._gen_div(left_16, right_16, result_16)
+            self._gen_div(left_16, right_16, result_16, left_tmp)
         elif expr.op == BinOp.MOD:
-            self._gen_mod(left_16, right_16, result_16)
+            self._gen_mod(left_16, right_16, result_16, left_tmp)
         elif expr.op == BinOp.BAND:
-            self._gen_bitwise_and(result_16)
+            self._gen_bitwise_and(result_16, left_tmp)
         elif expr.op == BinOp.BOR:
-            self._gen_bitwise_or(result_16)
+            self._gen_bitwise_or(result_16, left_tmp)
         elif expr.op == BinOp.BXOR:
-            self._gen_bitwise_xor(result_16)
+            self._gen_bitwise_xor(result_16, left_tmp)
         elif expr.op == BinOp.LSHIFT:
-            self._gen_lshift(result_16)
+            self._gen_lshift(result_16, left_tmp)
         elif expr.op == BinOp.RSHIFT:
-            self._gen_rshift(result_16)
+            self._gen_rshift(result_16, left_tmp)
     
-    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True):
+    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True, left_tmp: str = "TMP0"):
         """Generate addition (inline)
         ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD, or struct size)
-        use_inc: if True and ptr_elem_size == 1, use INC TMP0 for adding 1 (optimization)
+        use_inc: if True and ptr_elem_size == 1, use INC on left_tmp for adding 1 (optimization)
         right_16: whether the right operand is 16-bit (if False, X may not be valid)
+        left_tmp: which temporary register holds the left operand (default TMP0)
         
         NOTE: For 16-bit operations, right operand should be in A/X when called
         """
@@ -3574,15 +3581,15 @@ class CodeGen:
                 self.emit("\tLDX TMP4+1")
         
         if is_16bit:
-            # 16-bit: (A,X) + (TMP0,TMP0+1) → (A,X)
+            # 16-bit: (A,X) + (left_tmp,left_tmp+1) → (A,X)
             if use_inc and ptr_elem_size == 1:
                 # Optimization: use INC for adding 1 to 16-bit pointer
-                self.emit("\tINC TMP0")
-                self.emit("\tBNE +")
-                self.emit("\tINC TMP0+1")
+                self.emit(f"\tINC {left_tmp}")
+                self.emit(f"\tBNE +")
+                self.emit(f"\tINC {left_tmp}+1")
                 self.emit("+")
-                self.emit("\tLDA TMP0")
-                self.emit("\tLDX TMP0+1")
+                self.emit(f"\tLDA {left_tmp}")
+                self.emit(f"\tLDX {left_tmp}+1")
             else:
                 # For BYTE operands, the high byte is always 0
                 # For WORD operands, we need to use X correctly
@@ -3592,10 +3599,10 @@ class CodeGen:
                     self.emit("\tSTA TMP3")
                     self.emit("\tLDA TMP3")    # Restore low byte
                     self.emit("\tCLC")
-                    self.emit("\tADC TMP0")     # Add low bytes
+                    self.emit(f"\tADC {left_tmp}")     # Add low bytes
                     self.emit("\tTAY")
                     self.emit("\tLDA #0")       # High byte is 0
-                    self.emit("\tADC TMP0+1")   # Add high bytes with carry
+                    self.emit(f"\tADC {left_tmp}+1")   # Add high bytes with carry
                     self.emit("\tTAX")
                     self.emit("\tTYA")
                 else:
@@ -3606,26 +3613,27 @@ class CodeGen:
                     # Now do the addition with proper handling
                     self.emit("\tLDA TMP3")    # Restore low byte of right operand
                     self.emit("\tCLC")
-                    self.emit("\tADC TMP0")     # Add low bytes
+                    self.emit(f"\tADC {left_tmp}")     # Add low bytes
                     self.emit("\tTAY")
                     self.emit("\tLDA TMP3+1")   # Get high byte of right operand
-                    self.emit("\tADC TMP0+1")   # Add high bytes with carry
+                    self.emit(f"\tADC {left_tmp}+1")   # Add high bytes with carry
                     self.emit("\tTAX")
                     self.emit("\tTYA")
         else:
-            # 8-bit: A + TMP0 → A
+            # 8-bit: A + left_tmp → A
             if use_inc and ptr_elem_size == 1:
                 # Optimization: use INC for adding 1
-                self.emit("\tINC TMP0")
-                self.emit("\tLDA TMP0")
+                self.emit(f"\tINC {left_tmp}")
+                self.emit(f"\tLDA {left_tmp}")
             else:
                 self.emit("\tCLC")
-                self.emit("\tADC TMP0")
+                self.emit(f"\tADC {left_tmp}")
     
-    def _gen_sub(self, is_16bit: bool, ptr_elem_size: int = 1, use_dec: bool = False):
-        """Generate subtraction (inline): TMP0 - A
+    def _gen_sub(self, is_16bit: bool, ptr_elem_size: int = 1, use_dec: bool = False, left_tmp: str = "TMP0"):
+        """Generate subtraction (inline): left_tmp - A
         ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD)
-        use_dec: if True and ptr_elem_size == 1, use DEC TMP0 for subtracting 1 (optimization)
+        use_dec: if True and ptr_elem_size == 1, use DEC on left_tmp for subtracting 1 (optimization)
+        left_tmp: which temporary register holds the left operand (default TMP0)
         """
         if ptr_elem_size == 2:
             # Pointer to WORD: scale offset by 2
@@ -3633,39 +3641,39 @@ class CodeGen:
             self.emit("\tASL A")  # Multiply by 2
         
         if is_16bit:
-            # 16-bit: (TMP0,TMP0+1) - (A,X) → (A,X)
+            # 16-bit: (left_tmp,left_tmp+1) - (A,X) → (A,X)
             if use_dec and ptr_elem_size == 1:
                 # Optimization: use DEC for subtracting 1 from 16-bit pointer
-                self.emit("\tDEC TMP0")
-                self.emit("\tBNE +")
-                self.emit("\tDEC TMP0+1")
+                self.emit(f"\tDEC {left_tmp}")
+                self.emit(f"\tBNE +")
+                self.emit(f"\tDEC {left_tmp}+1")
                 self.emit("+")
-                self.emit("\tLDA TMP0")
-                self.emit("\tLDX TMP0+1")
+                self.emit(f"\tLDA {left_tmp}")
+                self.emit(f"\tLDX {left_tmp}+1")
             else:
                 self.emit("\tSTA TMP2")
                 self.emit("\tSTX TMP2+1")
                 self.emit("\tSEC")
-                self.emit("\tLDA TMP0")
+                self.emit(f"\tLDA {left_tmp}")
                 self.emit("\tSBC TMP2")
                 self.emit("\tTAY")
-                self.emit("\tLDA TMP0+1")
+                self.emit(f"\tLDA {left_tmp}+1")
                 self.emit("\tSBC TMP2+1")
                 self.emit("\tTAX")
                 self.emit("\tTYA")
         else:
-            # 8-bit: TMP0 - A → A
+            # 8-bit: left_tmp - A → A
             if use_dec and ptr_elem_size == 1:
                 # Optimization: use DEC for subtracting 1
-                self.emit("\tDEC TMP0")
-                self.emit("\tLDA TMP0")
+                self.emit(f"\tDEC {left_tmp}")
+                self.emit(f"\tLDA {left_tmp}")
             else:
                 self.emit("\tSTA TMP2")
                 self.emit("\tSEC")
-                self.emit("\tLDA TMP0")
+                self.emit(f"\tLDA {left_tmp}")
                 self.emit("\tSBC TMP2")
     
-    def _gen_mul(self, left_16: bool, right_16: bool, result_16: bool):
+    def _gen_mul(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0"):
         """Generate multiplication (call runtime routine)"""
         if not left_16 and not right_16:
             self.math_routines_needed.add("MUL8")
@@ -3676,12 +3684,19 @@ class CodeGen:
         else:
             self.math_routines_needed.add("MUL16")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # TMP0,TMP0+1 = left operand (already stored via gen_expr)
+        # left_tmp,left_tmp+1 = left operand (already stored via gen_expr)
         # A,X = right operand (in registers)
         
         # Store right operand
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
+        
+        # Move left operand to TMP0 if not already there
+        if left_tmp != "TMP0":
+            self.emit(f"\tLDA {left_tmp}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA {left_tmp}+1")
+            self.emit("\tSTA TMP0+1")
         
         if not left_16 and not right_16:
             # 8x8 = 8 or 16
@@ -3700,7 +3715,7 @@ class CodeGen:
             # 16x16 = 16
             self.emit("\tJSR MUL16")
     
-    def _gen_div(self, left_16: bool, right_16: bool, result_16: bool):
+    def _gen_div(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0"):
         """Generate division (call runtime routine)"""
         if not left_16 and not right_16:
             self.math_routines_needed.add("DIV8")
@@ -3711,10 +3726,17 @@ class CodeGen:
         else:
             self.math_routines_needed.add("DIV16")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # TMP0,TMP0+1 = dividend
+        # left_tmp,left_tmp+1 = dividend
         # A,X = divisor
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
+        
+        # Move left operand to TMP0 if not already there
+        if left_tmp != "TMP0":
+            self.emit(f"\tLDA {left_tmp}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA {left_tmp}+1")
+            self.emit("\tSTA TMP0+1")
         
         if not left_16 and not right_16:
             # 8/8 = 8
@@ -3729,7 +3751,7 @@ class CodeGen:
             # 16/16 = 16
             self.emit("\tJSR DIV16")
     
-    def _gen_mod(self, left_16: bool, right_16: bool, result_16: bool):
+    def _gen_mod(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0"):
         """Generate modulo (call runtime routine)"""
         if not left_16 and not right_16:
             self.math_routines_needed.add("MOD8")
@@ -3740,6 +3762,17 @@ class CodeGen:
         else:
             self.math_routines_needed.add("MOD16")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
+        # left_tmp,left_tmp+1 = dividend
+        # A,X = divisor
+        self.emit("\tSTA TMP2")
+        self.emit("\tSTX TMP3")
+        
+        # Move left operand to TMP0 if not already there
+        if left_tmp != "TMP0":
+            self.emit(f"\tLDA {left_tmp}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA {left_tmp}+1")
+            self.emit("\tSTA TMP0+1")
         # TMP0,TMP0+1 = dividend
         # A,X = divisor
         self.emit("\tSTA TMP2")
@@ -3758,58 +3791,63 @@ class CodeGen:
             # 16%16 = 16
             self.emit("\tJSR MOD16")
 
-    def _gen_bitwise_and(self, result_16: bool):
-        """Generate bitwise AND: TMP0 & A (or TMP0/TMP0+1 & A/X for 16-bit)"""
+    def _gen_bitwise_and(self, result_16: bool, left_tmp: str = "TMP0"):
+        """Generate bitwise AND: left_tmp & A (or left_tmp/left_tmp+1 & A/X for 16-bit)"""
         if result_16:
-            # 16-bit AND: (TMP0,TMP0+1) & (A,X) → (A,X)
-            self.emit("\tAND TMP0")
+            # 16-bit AND: (left_tmp,left_tmp+1) & (A,X) → (A,X)
+            self.emit(f"\tAND {left_tmp}")
             self.emit("\tTAY")
             self.emit("\tTXA")
-            self.emit("\tAND TMP0+1")
+            self.emit(f"\tAND {left_tmp}+1")
             self.emit("\tTAX")
             self.emit("\tTYA")
         else:
-            # 8-bit AND: TMP0 & A → A
-            self.emit("\tAND TMP0")
+            # 8-bit AND: left_tmp & A → A
+            self.emit(f"\tAND {left_tmp}")
 
-    def _gen_bitwise_or(self, result_16: bool):
-        """Generate bitwise OR: TMP0 | A (or TMP0/TMP0+1 | A/X for 16-bit)"""
+    def _gen_bitwise_or(self, result_16: bool, left_tmp: str = "TMP0"):
+        """Generate bitwise OR: left_tmp | A (or left_tmp/left_tmp+1 | A/X for 16-bit)"""
         if result_16:
-            # 16-bit OR: (TMP0,TMP0+1) | (A,X) → (A,X)
-            self.emit("\tORA TMP0")
+            # 16-bit OR: (left_tmp,left_tmp+1) | (A,X) → (A,X)
+            self.emit(f"\tORA {left_tmp}")
             self.emit("\tTAY")
             self.emit("\tTXA")
-            self.emit("\tORA TMP0+1")
+            self.emit(f"\tORA {left_tmp}+1")
             self.emit("\tTAX")
             self.emit("\tTYA")
         else:
-            # 8-bit OR: TMP0 | A → A
-            self.emit("\tORA TMP0")
+            # 8-bit OR: left_tmp | A → A
+            self.emit(f"\tORA {left_tmp}")
 
-    def _gen_bitwise_xor(self, result_16: bool):
-        """Generate bitwise XOR: TMP0 ^ A (or TMP0/TMP0+1 ^ A/X for 16-bit)"""
+    def _gen_bitwise_xor(self, result_16: bool, left_tmp: str = "TMP0"):
+        """Generate bitwise XOR: left_tmp ^ A (or left_tmp/left_tmp+1 ^ A/X for 16-bit)"""
         if result_16:
-            # 16-bit XOR: (TMP0,TMP0+1) ^ (A,X) → (A,X)
-            self.emit("\tEOR TMP0")
+            # 16-bit XOR: (left_tmp,left_tmp+1) ^ (A,X) → (A,X)
+            self.emit(f"\tEOR {left_tmp}")
             self.emit("\tTAY")
             self.emit("\tTXA")
-            self.emit("\tEOR TMP0+1")
+            self.emit(f"\tEOR {left_tmp}+1")
             self.emit("\tTAX")
             self.emit("\tTYA")
         else:
-            # 8-bit XOR: TMP0 ^ A → A
-            self.emit("\tEOR TMP0")
+            # 8-bit XOR: left_tmp ^ A → A
+            self.emit(f"\tEOR {left_tmp}")
 
-    def _gen_lshift(self, result_16: bool):
-        """Generate left shift: TMP0 << A (shift count in A)"""
+    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0"):
+        """Generate left shift: left_tmp << A (shift count in A)"""
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
         # Shift count is in A
         if result_16:
-            # 16-bit shift left (TMP0,TMP0+1) << A → (A,X)
+            # 16-bit shift left (left_tmp,left_tmp+1) << A → (A,X)
             self.emit("\tSTA TMP2")    # Store shift count
-            self.emit("\tLDA TMP0")    # Load low byte into A
-            self.emit("\tLDX TMP0+1")  # Load high byte into X
+            self.emit(f"\tLDA {left_tmp}")    # Load low byte into A
+            self.emit(f"\tLDX {left_tmp}+1")  # Load high byte into X
+            
+            # Copy to TMP0/TMP0+1 if not already there
+            if left_tmp != "TMP0":
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
             
             lbl_loop = self.new_label("LSHIFT_LOOP")
             lbl_end = self.new_label("LSHIFT_END")
@@ -3828,9 +3866,13 @@ class CodeGen:
             self.emit("\tLDA TMP0")    # Result low byte
             self.emit("\tLDX TMP0+1")  # Result high byte
         else:
-            # 8-bit shift left: TMP0 << A → A
+            # 8-bit shift left: left_tmp << A → A
             self.emit("\tSTA TMP2")    # Store shift count
-            self.emit("\tLDA TMP0")    # Load value
+            self.emit(f"\tLDA {left_tmp}")    # Load value
+            
+            # Copy to TMP0 if not already there
+            if left_tmp != "TMP0":
+                self.emit("\tSTA TMP0")
             
             lbl_loop = self.new_label("LSHIFT8_LOOP")
             lbl_end = self.new_label("LSHIFT8_END")
@@ -3845,16 +3887,21 @@ class CodeGen:
             self.emit(f"{lbl_end}:")
             self.emit("\tLDA TMP0")    # Load result
 
-    def _gen_rshift(self, result_16: bool):
-        """Generate right shift: TMP0 >> A (shift count in A)"""
+    def _gen_rshift(self, result_16: bool, left_tmp: str = "TMP0"):
+        """Generate right shift: left_tmp >> A (shift count in A)"""
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
         # Shift count is in A
         if result_16:
-            # 16-bit shift right (TMP0,TMP0+1) >> A → (A,X)
+            # 16-bit shift right (left_tmp,left_tmp+1) >> A → (A,X)
             self.emit("\tSTA TMP2")    # Store shift count
-            self.emit("\tLDA TMP0")    # Load low byte into A
-            self.emit("\tLDX TMP0+1")  # Load high byte into X
+            self.emit(f"\tLDA {left_tmp}")    # Load low byte into A
+            self.emit(f"\tLDX {left_tmp}+1")  # Load high byte into X
+            
+            # Copy to TMP0/TMP0+1 if not already there
+            if left_tmp != "TMP0":
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
             
             lbl_loop = self.new_label("RSHIFT_LOOP")
             lbl_end = self.new_label("RSHIFT_END")
@@ -3873,9 +3920,13 @@ class CodeGen:
             self.emit("\tLDA TMP0")    # Result low byte
             self.emit("\tLDX TMP0+1")  # Result high byte
         else:
-            # 8-bit shift right: TMP0 >> A → A
+            # 8-bit shift right: left_tmp >> A → A
             self.emit("\tSTA TMP2")    # Store shift count
-            self.emit("\tLDA TMP0")    # Load value
+            self.emit(f"\tLDA {left_tmp}")    # Load value
+            
+            # Copy to TMP0 if not already there
+            if left_tmp != "TMP0":
+                self.emit("\tSTA TMP0")
             
             lbl_loop = self.new_label("RSHIFT8_LOOP")
             lbl_end = self.new_label("RSHIFT8_END")

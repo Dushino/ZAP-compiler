@@ -1,0 +1,4 @@
+# Error Test - 1D BYTE Array Bounds
+
+## Expected Error
+Array index out of bounds: 15 >= array size 10

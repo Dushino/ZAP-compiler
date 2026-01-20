@@ -1,0 +1,3 @@
+# Memory Dump Validation - Bitwise Operations
+- result = 255 - 127 = 128 (0x80)
+Address $9C40 (40000): 0x80 (128)

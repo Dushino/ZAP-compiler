@@ -1,0 +1,10 @@
+# Memory Dump Validation - WHILE Loop with Condition
+
+## Test Values
+- x = 50 (0x32)
+- y = 100 (0x64)
+- Loop condition: result == 0, sets result = 1 once
+- result @40000 ($9C40) = 1 (0x01)
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x01 (1)

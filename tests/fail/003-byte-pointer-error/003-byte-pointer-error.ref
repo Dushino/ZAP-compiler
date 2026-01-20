@@ -1,0 +1,5 @@
+# Error Test - BYTE Pointer Type Mismatch
+
+## Expected Error
+Type mismatch: cannot assign address of BYTE to WORD pointer
+Error should indicate incompatible pointer types.

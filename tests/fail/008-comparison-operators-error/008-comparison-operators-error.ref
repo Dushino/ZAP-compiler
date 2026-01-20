@@ -1,0 +1,5 @@
+# Error Test - Comparison Type Mismatch
+
+## Expected Error
+Type mismatch in comparison: cannot compare BYTE with STRING
+Error should indicate incompatible operand types.

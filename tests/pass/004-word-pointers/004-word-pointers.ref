@@ -1,0 +1,9 @@
+# Memory Dump Validation - WORD Pointers
+
+## Test Values
+- target = 3000 (0x0BB8)
+- ptr = address of target
+- result @40000 ($9C40) = 3000 (0x0BB8)
+
+## Expected Memory Dump
+Address $9C40-$9C41 (40000-40001): 0xB8 0x0B (little-endian: 0x0BB8 = 3000)

@@ -1,0 +1,9 @@
+# Memory Dump Validation - 1D WORD Array
+
+## Test Values
+- arr[3] = [1000, 2000, 3000]
+- sum = 1000+2000+3000 = 6000 (0x1770)
+- result @40000 ($9C40) = 6000
+
+## Expected Memory Dump
+Address $9C40-$9C41 (40000-40001): 0x70 0x17 (little-endian: 0x1770 = 6000)

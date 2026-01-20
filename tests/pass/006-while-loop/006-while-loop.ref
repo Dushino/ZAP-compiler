@@ -1,0 +1,9 @@
+# Memory Dump Validation - WHILE Loop
+
+## Test Values
+- Loop: count from 0 to 9, sum incremented 10 times
+- sum = 10 (0x0A)
+- result @40000 ($9C40) = 10
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x0A (10)

@@ -1,0 +1,5 @@
+# Error Test - Global Variable Undefined
+
+## Expected Error
+Variable x is not defined in scope
+Error should indicate that x is only local to main, not accessible in helper.

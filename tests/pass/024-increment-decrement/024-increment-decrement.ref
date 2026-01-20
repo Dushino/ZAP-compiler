@@ -1,0 +1,9 @@
+# Memory Dump Validation - Increment/Decrement
+
+## Test Values
+- x = 10
+- x = x + 1 = 11 (0x0B)
+- result = x = 11
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x0B

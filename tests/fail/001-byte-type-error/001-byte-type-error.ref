@@ -1,0 +1,3 @@
+ERROR_EXPECTED: Yes - undefined variable reference
+ERROR_MESSAGE: Should mention "undefined" or "not defined"
+SEVERITY: Semantic error - compilation must fail

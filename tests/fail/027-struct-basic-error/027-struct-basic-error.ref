@@ -1,0 +1,4 @@
+# Error Test - Struct Basic
+
+## Expected Error
+Undefined member: struct Point has no member 'z'

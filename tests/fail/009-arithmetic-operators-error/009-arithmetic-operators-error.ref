@@ -1,0 +1,5 @@
+# Error Test - Arithmetic Division by Zero
+
+## Expected Error
+Division by zero is not allowed
+Error should be caught at compile-time if divisor is constant, or handled at runtime.

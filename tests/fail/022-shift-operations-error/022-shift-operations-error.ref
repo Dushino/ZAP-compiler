@@ -1,0 +1,4 @@
+# Error Test - Shift Operations
+
+## Expected Error
+Type error: value 300 exceeds byte range (0-255)

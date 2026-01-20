@@ -1,0 +1,4 @@
+# Error Test - Constants
+
+## Expected Error
+Cannot modify const: attempting to reassign const variable MAX

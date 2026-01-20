@@ -1,0 +1,9 @@
+# Memory Dump Validation - Procedure Call
+
+## Test Values
+- add(30, 12) returns 42 (0x2A)
+- x = 42
+- result @40000 ($9C40) = 42
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x2A (42)

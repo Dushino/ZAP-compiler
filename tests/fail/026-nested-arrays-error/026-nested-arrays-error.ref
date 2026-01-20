@@ -1,0 +1,4 @@
+# Error Test - Nested Arrays
+
+## Expected Error
+Index out of bounds: index 5 exceeds array dimension [2]

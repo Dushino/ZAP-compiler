@@ -1,0 +1,4 @@
+# Error Test - Cast Operations
+
+## Expected Error
+Type error: value 256 exceeds byte range (0-255)

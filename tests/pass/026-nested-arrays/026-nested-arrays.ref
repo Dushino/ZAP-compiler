@@ -1,0 +1,9 @@
+# Memory Dump Validation - Multi-dimensional Array Simulation
+
+## Test Values
+- arr[6] = [10,20,30,40,50,60]
+- sum = arr[0] + arr[5] = 10 + 60 = 70 (0x46)
+- result = 70
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x46 (70)

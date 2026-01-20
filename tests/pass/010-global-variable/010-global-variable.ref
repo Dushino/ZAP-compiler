@@ -1,0 +1,8 @@
+# Memory Dump Validation - Global Variable
+
+## Test Values
+- global_value = 55 (0x37) [stored at program start]
+- result = 55 (copies global_value)
+
+## Expected Memory Dump
+Address $4000 (16384): 0x37 (55) [global_value location in memory]

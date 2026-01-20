@@ -1,0 +1,9 @@
+# Memory Dump Validation - String Literals
+
+## Test Values
+- str[5] = "ZAPA" (string initialized with ASCII values)
+- str[0] = 'Z' (0x5A)
+- result = str[0] = 0x5A
+
+## Expected Memory Dump
+Address $9C40 (40000): 0x5A

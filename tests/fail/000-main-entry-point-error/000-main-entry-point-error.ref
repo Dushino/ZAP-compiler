@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Program must have a 'main\\(\\)' procedure"
+ERROR_TYPE: Semantic Error - Missing entry point
+SEVERITY: Fatal - compilation fails
