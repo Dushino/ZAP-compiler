@@ -169,7 +169,13 @@ class Parser:
         
         # Parse field list until END
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
-            # Parse: type IDENT [ address_spec ]
+            # Parse: [^] type IDENT [ address_spec ]
+            # Check for pointer prefix first
+            is_pointer = False
+            if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+                is_pointer = True
+                self.advance()
+            
             # type (either built-in like byte/word, or a struct name)
             if self.cur.type == TOK_TYPE:
                 # Built-in type (byte, word)
@@ -183,11 +189,6 @@ class Parser:
                 self.advance()
             else:
                 self.error(f"Expected type in struct field, got {self.cur.type} {self.cur.value}")
-            
-            is_pointer = False
-            if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
-                is_pointer = True
-                self.advance()
             
             field_type = TypeNode(type_name, is_pointer)
             
@@ -248,7 +249,28 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
 
-        while self.cur.type in (TOK_TYPE, TOK_TYPEMOD) or (self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names):
+        def _is_declaration_start():
+            """Check if current position starts a declaration"""
+            if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
+                return True
+            if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+                return True
+            # For struct types, check if next token is an identifier (variable name)
+            # NOT a dot (which would indicate field access like node.data)
+            if self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+                # Look ahead to see if next token is an identifier or [ or @ or =
+                # If it's a dot, this is a statement, not a declaration
+                next_tok = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
+                if next_tok and (next_tok.type == TOK_IDENT or 
+                                next_tok.type in (TOK_SQB, TOK_AT) or
+                                (next_tok.type == TOK_OP and next_tok.value in ("[", "@")) or
+                                next_tok.type == TOK_EQU):
+                    return True
+                # If next token is dot or anything else, it's not a declaration
+                return False
+            return False
+
+        while _is_declaration_start():
             decl = self.parse_declaration()
             for d in decl.declarators:
                 if d.name in seen_names:
@@ -382,6 +404,16 @@ class Parser:
             is_const = True
             self.advance()
 
+        # Check for pointer prefix - two possible orders:
+        # 1. ^type name (pointer prefix first - used in structs and procs)
+        # 2. type ^name (pointer suffix after type - global declarations)
+        is_pointer = False
+        
+        # Try order 1: ^type name
+        if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+            is_pointer = True
+            self.advance()
+
         # type (built-in or struct name)
         type_tok = self.cur
         if self.cur.type == TOK_TYPE:
@@ -392,9 +424,9 @@ class Parser:
             self.advance()
         else:
             self.expect(TOK_TYPE)
-
-        is_pointer = False
-        if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+        
+        # Check for order 2: type ^name (pointer suffix after type)
+        if not is_pointer and (self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^")):
             is_pointer = True
             self.advance()
 
@@ -651,6 +683,12 @@ class Parser:
 
     def parse_factor(self):
         # Handle unary operators (prefix)
+        if self.cur.type == TOK_AT:
+            # Address-of operator @expr
+            self.advance()
+            operand = self.parse_factor()  # Parse the expression to take address of
+            return UnaryExpr(UnOp.ADDROF, operand)
+        
         if self.cur.type == TOK_OP and self.cur.value == "~":
             op_line = self.cur.line
             op_col = self.cur.col

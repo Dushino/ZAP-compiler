@@ -67,12 +67,21 @@ class StructAnalyzer:
                 # Nested struct type
                 nested_struct = self.registry._structs[field_type]
                 width = nested_struct.size
+            elif is_pointer and field_type == struct_def.name.upper():
+                # Self-referential struct pointer (or forward-referenced struct)
+                # Pointers are always 16-bit (2 bytes)
+                width = 2
+            elif is_pointer:
+                # Forward reference to struct type (will be resolved later or error at use time)
+                # For now, assume pointer size (2 bytes)
+                width = 2
             else:
-                # Unknown type
+                # Unknown non-pointer type
                 raise SemanticError(f"Unsupported field type '{field_type}' in struct")
 
-            if is_pointer:
-                width = 2  # All pointers are 16-bit
+            if is_pointer and width != 2:
+                # Pointers should be 2 bytes
+                width = 2
 
             # Evaluate fixed address if present
             fixed_addr = None

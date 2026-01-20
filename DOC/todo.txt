@@ -47,3 +47,18 @@ Steps:
 [x] Optimize 16-bit INC/DEC by small constants: sequence of multiple INC zp/INC zp+1 pairs can be replaced by a short add routine if constants are small (k≤3) or consolidate into CLC/ADC #k when low-byte is in A and X has high-byte.
 [x] Fold identical conditional jumps: BEQ L1 followed by JMP L1 (same target) → prefer a single JMP L1 for safety unless branch distance is provably in range.
 [x] Merge consecutive PHA/PLA around untouched A: PHA … PLA where A is not modified in between → remove both, but only when PLA's N/Z flags are definitively overwritten before any branch/control flow.
+[ ] Document peephole optimizations in the compiler documentation
+
+[ ] Consider "get address" operator for variables and struct fields. Which character is suitable? 
+    Possible candidates: & (but it collides with bitwise AND), @, $ (but it collides with hex literals). 
+    Maybe use a keyword "addrof" like in C?  
+[ ] Const struct initialization syntax 
+    
+    const struct S {
+        byte a;
+        byte b;
+    } s1 = { 1, 2 };
+
+    const S s2 = { 3, 4 };  # regular struct initialization
+
+    All struct elements must be initialized.

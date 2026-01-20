@@ -19,7 +19,7 @@ from typing import Optional, Set
 def _walk_expr(expr, ctx, global_symtab):
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
-        SubscriptExpr, CallExpr
+        SubscriptExpr, CallExpr, FieldAccess
     )
 
     if isinstance(expr, IntLiteral):
@@ -30,6 +30,11 @@ def _walk_expr(expr, ctx, global_symtab):
         sym = global_symtab._symbols.get(expr.name)
         if sym is not None and not getattr(sym, "proc_name", ""):
             ctx["used_globals"].add(expr.name)
+        return
+
+    if isinstance(expr, FieldAccess):
+        # For field access like global_pt.x, mark the object as used
+        _walk_expr(expr.object, ctx, global_symtab)
         return
 
     if isinstance(expr, CallExpr):

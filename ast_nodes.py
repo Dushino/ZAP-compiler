@@ -201,6 +201,7 @@ class BinaryExpr(Expr):
 class UnOp(Enum):
     NOT = "!"
     BNOT = "~"  # Bitwise NOT
+    ADDROF = "@"  # Address-of operator
 
 
 @dataclass(frozen=True)

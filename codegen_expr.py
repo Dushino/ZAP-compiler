@@ -3256,8 +3256,9 @@ class CodeGen:
         result_16 = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
         
         # Detect pointer arithmetic: determine if this is pointer +/- value
-        left_is_ptr = left_t.kind == ExprKind.ADDR
-        right_is_ptr = right_t.kind == ExprKind.ADDR
+        # Check sem_type.is_pointer to detect both @-created addresses and pointer variables
+        left_is_ptr = left_t.sem_type.is_pointer
+        right_is_ptr = right_t.sem_type.is_pointer
         
         # For pointer arithmetic, we need the element size of the pointer
         ptr_elem_size = 1  # default
@@ -3916,12 +3917,18 @@ class CodeGen:
                     if k is not None:
                         # For pointer arithmetic, scale by element size
                         # WORD pointers move by 2 bytes per element, BYTE pointers by 1
-                        scale = 2 if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" else 1
+                        # Struct pointers move by struct size
+                        scale = 1
+                        if lhs_t.sem_type.is_pointer:
+                            if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
+                                scale = lhs_t.sem_type.struct_info.size
+                            elif lhs_t.sem_type.base == "WORD":
+                                scale = 2
                         total_inc = k * scale
                         
                         if is_word:
                             # For 16-bit values, use proper ADD instead of looping INC
-                            if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" and total_inc > 1:
+                            if lhs_t.sem_type.is_pointer and total_inc > 1:
                                 # Use 16-bit addition for pointer arithmetic
                                 self.emit(f"\tLDA {asm}")
                                 self.emit(f"\tCLC")
@@ -3944,12 +3951,18 @@ class CodeGen:
                     k = k_right
                     # For pointer arithmetic, scale by element size
                     # WORD pointers move by 2 bytes per element, BYTE pointers by 1
-                    scale = 2 if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" else 1
+                    # Struct pointers move by struct size
+                    scale = 1
+                    if lhs_t.sem_type.is_pointer:
+                        if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
+                            scale = lhs_t.sem_type.struct_info.size
+                        elif lhs_t.sem_type.base == "WORD":
+                            scale = 2
                     total_dec = k * scale
                     
                     if is_word:
                         # For 16-bit values, use proper SBC instead of looping DEC
-                        if lhs_t.sem_type.is_pointer and lhs_t.sem_type.base == "WORD" and total_dec > 1:
+                        if lhs_t.sem_type.is_pointer and total_dec > 1:
                             # Use 16-bit subtraction for pointer arithmetic
                             self.emit(f"\tLDA {asm}")
                             self.emit(f"\tSEC")
