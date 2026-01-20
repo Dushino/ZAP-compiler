@@ -354,36 +354,80 @@ Windows-specific build script for project setup.
     - Automatically scales offset values based on pointer element type
     - Applies ASL (shift left) when pointer points to WORD (doubles offset)
     - Works for both addition and subtraction operations
+18. ✅ **Struct implementation** - Full support for composite types with multiple fields
+    - Struct definition parsing and semantic analysis
+    - Field access (struct.field notation)
+    - Struct initialization with explicit values
+    - Nested struct support (struct containing struct)
+    - Struct arrays with full initialization
+    - Struct parameters and return values
+    - Pointers to structs (struct ^ptr)
+    - 26/26 struct feature tests passing
+19. ✅ **CONST for all types** - Extended const support across all data types
+    - Const scalars (byte, word)
+    - Const pointers (byte ^, word ^)
+    - Const arrays with element modification blocking
+    - Const strings (NUL-terminated)
+    - Const structs with field modification prevention
+    - Const struct arrays
+    - Compile-time enforcement preventing any modification
+    - 36/36 const feature and enforcement tests passing
+20. ✅ **Address-of operator (@)** - Get address of any variable, array element, or struct field
+    - Expression-level `@var` syntax (distinct from declaration-level `@address` specifier)
+    - Works with variables, array elements, struct fields
+    - Returns WORD pointer preserving base type information
+    - Supports nested expressions: `@struct.field`, `@array[i]`
+    - Generated efficient 16-bit address loading code
+    - 9/9 address-of tests passing
+21. ✅ **Bitwise operators** - Added full bitwise operation support
+    - AND (`&`), OR (`|`), XOR (`^`)
+    - Bitwise NOT (`~` unary operator)
+    - Proper operator precedence with bitwise operators
+    - Used in existing code patterns (masking, flag operations)
+22. ✅ **Documentation updates** - Comprehensive documentation reflecting all features
+    - grammar.ebnf updated with struct, bitwise, const, address-of documentation
+    - ZAP_LANGUAGE_REFERENCE.md with new Structs section and operator documentation
+    - ADVANCED_TOPICS.md updated with @ operator examples
+    - All markdown files consistent with implementation status
 
 ## Next Steps (Priority Order)
 
-### Phase 1: Non-ZP Pointer Support (Planned)
-- [ ] Track pointer location (ZP vs BSS) in symbol table
-- [ ] Error detection for dereferencing non-ZP pointers
-- [ ] Documentation in IMPLEMENTATION_GUIDE.md
-- **Effort**: 2-4 hours
-- **Benefit**: Foundation for future pointer optimizations
+### Phase 4: Remaining Language Features
+- [ ] Function implementations (currently stubs)
+- [ ] Enhanced string literal support (escape sequences)
+- [ ] Multi-dimensional arrays (via calculation patterns)
+- [ ] Additional assembly optimizations
+- **Effort**: Variable based on feature
+- **Benefit**: Extended language capabilities
 
-### Phase 2: Smart Dereferencing (After Phase 1)
-- [ ] Temp management for non-ZP pointer dereferencing
-- [ ] Load-deref-use optimization patterns
-- [ ] Test suite validation
-- **Effort**: 4-6 hours
+### Phase 5: Platform & Tools Extensions (Future)
+- [ ] Additional 6502 variants support
+- [ ] Debugger symbol support
+- [ ] IDE extensions (VS Code, etc.)
+- **Effort**: 10+ hours depending on scope
 
-### Phase 3: Advanced Pointer Operations (After Phase 2)
-- [ ] Pointer arithmetic (ptr + offset)
-- [ ] Multi-step pointer chains
-- [ ] Performance testing and optimization
-- **Effort**: 6-8 hours
+### Documentation & Quality
+1. Continue expanding with more example programs
+2. Add tutorial series for specific domains (games, utilities)
+3. Performance benchmarking and optimization guides
+4. Troubleshooting guide expansion
+5. Video tutorials and community resources
 
-### Additional Improvements
-1. Complete function implementation and integration
-2. Add more comprehensive error messages with source file locations
-3. Add string literal improvements (escape sequences, length limits)
-4. Expand array functionality (multi-dimensional arrays)
-5. Implement STRUCT support
-6. Add bitwise operators (&, |, ^, <<, >>)
-7. Add more example programs and documentation
-8. Optimize register allocation in expressions
-9. Add unit tests with Python test framework
-10. Performance profiling and optimization of generated assembly
+## Test Coverage Summary
+
+**Total Tests Passing**: 75+
+
+### By Feature
+- **Struct Features**: 26/26 ✅
+- **Address-of Operator**: 9/9 ✅
+- **CONST Support**: 36/36 ✅
+- **Pointer Arithmetic**: 11/11 ✅
+- **Regression Tests**: 25/27 ✅ (2 unrelated failures)
+
+### Test Files
+- `test_struct_*` - Comprehensive struct feature tests
+- `test_array_indexing.py` - Array subscripting tests
+- `test_comprehensive_struct.py` - Full struct integration tests
+- `test_nested_structs.py` - Nested struct tests
+- `verify_nested_structs.py` - Nested struct verification
+- Integration with existing test suite

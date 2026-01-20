@@ -18,9 +18,10 @@
 6. [Control Flow](#control-flow)
 7. [Procedures & Functions](#procedures--functions)
 8. [Arrays & Strings](#arrays--strings)
-9. [Pointers](#pointers)
-10. [Module System](#module-system)
-11. [Advanced Topics](#advanced-topics)
+9. [Structs](#structs)
+10. [Pointers](#pointers)
+11. [Module System](#module-system)
+12. [Advanced Topics](#advanced-topics)
 
 ---
 
@@ -139,17 +140,43 @@ byte backslash = '\\' ; Backslash (value 92)
 #### const - Constant Values
 
 ```zap
-const byte VERSION = 1     ; Compile-time constant
-const word MAX_SIZE = 1024
+const byte VERSION = 1          ; Compile-time constant (byte)
+const word MAX_SIZE = 1024      ; Compile-time constant (word)
+const byte ^data_ptr = @buffer  ; Constant pointer
+const byte arr[] = { 1, 2, 3 }  ; Constant array
 ```
 
-Constants are evaluated at compile-time and cannot be modified.
+The `const` modifier can be applied to any variable type. Constant values are evaluated at compile-time and cannot be modified at runtime. This includes:
+
+- **Scalars** (byte, word)
+- **Pointers** (byte ^, word ^)
+- **Arrays** (array elements cannot be modified)
+- **Structs** (struct instances cannot be modified, nor can their fields)
+
+Attempting to modify a const variable results in a compile-time error:
+
+```zap
+const byte x = 10
+x = 20              ; ERROR: Cannot assign to const
+
+const byte arr[] = { 1, 2, 3 }
+arr[0] = 5          ; ERROR: Cannot modify const array
+
+struct Point
+    byte x
+    byte y
+end
+
+const Point p = { 5, 10 }
+p.x = 20            ; ERROR: Cannot modify field of const struct
+```
 
 #### Pointer Types
 
 ```zap
 byte ^ptr           ; Pointer to byte
 word ^addr          ; Pointer to word
+struct Point ^p     ; Pointer to struct
 ```
 
 See [Pointers](#pointers) section for detailed information.
@@ -168,17 +195,19 @@ Basic syntax:
 ### Global Variables
 
 ```zap
-byte global_x = 0       ; Global variable
-byte screen = 40000 @0x9C00  ; Using hex address
+byte global_x = 0                   ; Global variable
+byte screen = 40000 @0x9C00         ; Using hex address
 word counter = 0
+const byte VERSION = 1              ; Compile-time constant
 ```
 
 ### Local Variables
 
 ```zap
 proc main()
-    byte local_var          ; Local to main
-    byte temp = 0           ; Local with initialization
+    byte local_var                  ; Local to main
+    byte temp = 0                   ; Local with initialization
+    const byte MAX_LOCAL = 100      ; Local constant
     
     ; Use variables here
 end
@@ -366,6 +395,77 @@ byte flag = 1
 byte notflag = !flag  ; Logical negation
 ```
 
+### Bitwise Operators
+
+Bitwise operators perform bit-level manipulation on numeric values.
+
+| Operator | Example | Meaning |
+|----------|---------|---------|
+| `&` | `a & b` | Bitwise AND |
+| `\|` | `a \| b` | Bitwise OR |
+| `^` | `a ^ b` | Bitwise XOR |
+| `~` | `~a` | Bitwise NOT (unary) |
+
+```zap
+proc bitwise_example()
+    byte mask = $0F
+    byte value = $FF
+    
+    byte and_result = value & mask     ; $0F - AND operation
+    byte or_result = value | mask      ; $FF - OR operation
+    byte xor_result = value ^ mask     ; $F0 - XOR operation
+    byte not_result = ~value           ; $00 - Bitwise NOT
+    
+    ; Common pattern: check if bit is set
+    if value & $80 then
+        ; High bit is set
+    endif
+end
+```
+
+### Address-Of Operator (@)
+
+The `@` operator (when used in expressions) retrieves the address of a variable, array element, or struct field. This is distinct from the `@` address specifier used in declarations.
+
+| Operator | Example | Returns | Notes |
+|----------|---------|---------|-------|
+| `@` | `@var` | `word` | Address of variable |
+| `@` | `@arr[i]` | `word` | Address of array element |
+| `@` | `@struct.field` | `word` | Address of struct field |
+
+```zap
+byte data = 42
+word addr = @data              ; Get address of data
+
+byte arr[] = { 1, 2, 3 }
+word elem_addr = @arr[1]       ; Get address of arr[1] (value 2)
+
+struct Point
+    byte x
+    byte y
+end
+
+Point p = { 10, 20 }
+word x_addr = @p.x             ; Get address of p.x field
+```
+
+The address-of operator is particularly useful for passing variable addresses to assembly code or storing memory locations:
+
+```zap
+proc setup_pointers()
+    byte buffer[256]
+    word buf_addr = @buffer    ; Store buffer address
+    
+    ; Can pass to assembly routines
+    asm
+        LDA #<buf_addr
+        STA BUFPTR
+        LDA #>buf_addr
+        STA BUFPTR+1
+    end
+end
+```
+
 ### Operator Precedence
 
 From lowest to highest:
@@ -374,10 +474,13 @@ From lowest to highest:
 2. `&&` (Logical AND)
 3. `==`, `!=` (Equality)
 4. `<`, `>`, `<=`, `>=` (Comparison)
-5. `+`, `-` (Addition, Subtraction)
-6. `*`, `/`, `%` (Multiplication, Division, Modulo)
-7. `-`, `!` (Unary)
-8. Primary (literals, variables, parentheses)
+5. `|` (Bitwise OR)
+6. `^` (Bitwise XOR)
+7. `&` (Bitwise AND)
+8. `+`, `-` (Addition, Subtraction)
+9. `*`, `/`, `%` (Multiplication, Division, Modulo)
+10. `-`, `!`, `~`, `@` (Unary)
+11. Primary (literals, variables, parentheses)
 
 ```zap
 proc precedence_example()
@@ -391,6 +494,9 @@ proc precedence_example()
     byte a = 1, b = 0, c = 1
     if a && b || c then     ; (a && b) || c = true
     endif
+    
+    ; Bitwise precedence
+    result = 5 & 3 | 1      ; ((5 & 3) | 1) = (1 | 1) = 1
 end
 ```
 
@@ -667,9 +773,10 @@ end
 ### Array Declaration
 
 ```zap
-byte arr1[10]           ; Array of 10 bytes, uninitialized
-byte arr2[10] = 0       ; All initialized to 0
-word arr3[5]            ; Array of 5 words
+byte arr1[10]                   ; Array of 10 bytes, uninitialized
+byte arr2[10] = 0               ; All initialized to 0
+word arr3[5]                    ; Array of 5 words
+const byte arr4[] = {1, 2, 3}   ; Constant array (cannot modify)
 ```
 
 ### Array Initialization
@@ -683,6 +790,9 @@ byte data[8] = {255, 0, 127}    ; Rest are 0
 
 ; Word arrays
 word addresses[] = {$2000, $3000, $4000}
+
+; Constant arrays
+const byte default_levels[] = {1, 2, 3, 4}
 ```
 
 ### Array Subscripting
@@ -697,13 +807,34 @@ proc array_example()
     value = arr[0]      ; value = 10
     value = arr[2]      ; value = 30
     
-    ; Write to array
+    ; Write to array (not allowed for const arrays)
     arr[1] = 99
     
     ; Dynamic subscripts
     for i = 0 to 4
         arr[i] = i * 10
     next i
+end
+```
+
+### Array Address-Of Operator
+
+Get the address of an array or array element using the `@` operator:
+
+```zap
+proc array_addressing()
+    byte arr[] = {10, 20, 30, 40, 50}
+    
+    word arr_addr = @arr        ; Address of first element
+    word elem_addr = @arr[2]    ; Address of arr[2]
+    
+    ; Useful for passing to assembly routines
+    asm
+        LDA #<arr_addr
+        STA PTR
+        LDA #>arr_addr
+        STA PTR+1
+    end
 end
 ```
 
@@ -749,6 +880,195 @@ end
 
 ---
 
+## Structs
+
+Structs are composite data types that group multiple fields of different types together. They allow you to create structured data, similar to records or objects in other languages.
+
+### Struct Definition
+
+```zap
+struct Point
+    byte x
+    byte y
+end
+
+struct Player
+    byte x
+    byte y
+    byte health
+    word score
+end
+```
+
+### Struct Initialization
+
+```zap
+; Initialize with values
+Point p1 = { 10, 20 }
+
+; Initialize with complex expressions
+Point p2 = { 100 + 50, 200 - 50 }
+
+; Nested: Structs containing other structs
+struct Rectangle
+    Point top_left
+    Point bottom_right
+end
+
+Rectangle r = { { 0, 0 }, { 100, 100 } }
+```
+
+### Field Access
+
+```zap
+proc struct_fields()
+    Point p = { 15, 30 }
+    
+    ; Read fields
+    byte x_value = p.x
+    byte y_value = p.y
+    
+    ; Write to fields
+    p.x = 20
+    p.y = 40
+    
+    ; Nested field access
+    Rectangle r = { { 0, 0 }, { 100, 100 } }
+    byte top_left_x = r.top_left.x
+    r.bottom_right.y = 50
+end
+```
+
+### Struct Arrays
+
+Arrays of structs are fully supported with initialization:
+
+```zap
+struct Enemy
+    byte x
+    byte y
+    byte health
+end
+
+; Array of 10 enemies
+Enemy enemies[10]
+
+; Initialize array with values
+Enemy level_enemies[3] = {
+    { 10, 20, 100 },
+    { 30, 40, 80 },
+    { 50, 60, 120 }
+}
+
+proc update_enemies()
+    byte i
+    for i = 0 to 2
+        enemies[i].x = enemies[i].x + 1
+        enemies[i].health = enemies[i].health - 5
+    next i
+end
+```
+
+### Struct Address-Of Operator
+
+Get the address of a struct or struct field using `@`:
+
+```zap
+proc struct_addressing()
+    Point p = { 50, 100 }
+    
+    word p_addr = @p                ; Address of entire struct
+    word x_addr = @p.x              ; Address of p.x field
+    word y_addr = @p.y              ; Address of p.y field
+    
+    Enemy enemies[10]
+    word enemy_addr = @enemies[0]   ; Address of first enemy
+    word health_addr = @enemies[0].health
+end
+```
+
+### Const Structs
+
+Mark structs as const to prevent modification:
+
+```zap
+const Point origin = { 0, 0 }
+origin.x = 10               ; ERROR: Cannot modify field of const struct
+```
+
+All fields of a const struct are immutable at runtime:
+
+```zap
+struct Config
+    byte mode
+    byte flags
+end
+
+const Config default_config = { 1, 0 }
+
+proc setup()
+    byte mode = default_config.mode     ; OK - reading const field
+    default_config.flags = 1            ; ERROR - modifying const struct field
+end
+```
+
+### Struct Function Parameters
+
+```zap
+func byte distance(Point p1, Point p2)
+    byte dx = p1.x - p2.x
+    byte dy = p1.y - p2.y
+    ; ... calculate distance
+    return 0
+end
+
+proc use_structs()
+    Point a = { 10, 20 }
+    Point b = { 30, 40 }
+    
+    byte dist = distance(a, b)
+end
+```
+
+### Struct Function Return
+
+Functions can return struct values:
+
+```zap
+func Point add_points(Point p1, Point p2)
+    Point result = { p1.x + p2.x, p1.y + p2.y }
+    return result
+end
+
+proc combine_points()
+    Point a = { 5, 10 }
+    Point b = { 15, 20 }
+    Point c = add_points(a, b)     ; c = { 20, 30 }
+end
+```
+
+### Pointers to Structs
+
+Create pointers to struct types:
+
+```zap
+struct Data
+    byte value
+    byte flag
+end
+
+proc struct_pointers()
+    Data d = { 42, 1 }
+    Data ^ptr = @d              ; Pointer to struct
+    
+    ; Access through pointer
+    byte val = ptr^.value       ; Read field through pointer
+    ptr^.flag = 0               ; Write field through pointer
+end
+```
+
+---
+
 ## Pointers
 
 ### Pointer Declaration
@@ -760,16 +1080,25 @@ word ^addr          ; Pointer to word
 
 ### Taking Addresses
 
+Use the `@` operator (address-of) to get the address of a variable:
+
 ```zap
 byte x = 42
-byte ^ptr = ^x      ; ptr now points to x
+byte ^ptr = @x      ; ptr now points to x
+```
+
+Alternative syntax with `^` (also supported):
+
+```zap
+byte x = 42
+byte ^ptr = ^x      ; ptr now points to x (equivalent)
 ```
 
 ### Dereferencing
 
 ```zap
 byte x = 42
-byte ^ptr = ^x
+byte ^ptr = @x
 byte y = ptr^       ; y now = 42
 ptr^ = 99           ; x now = 99
 ```
@@ -781,14 +1110,14 @@ Pointers support addition and subtraction. Offsets are automatically scaled by t
 ```zap
 proc pointer_arithmetic()
     byte arr[] = {10, 20, 30, 40, 50}
-    byte ^ptr = ^arr        ; ptr points to arr[0]
+    byte ^ptr = @arr        ; ptr points to arr[0]
     
     ; BYTE pointers: +1 moves 1 byte
     ptr = ptr + 1           ; Now points to arr[1]
     byte value = ptr^       ; value = 20
     
     word addresses[] = {$1000, $2000, $3000}
-    word ^wptr = ^addresses
+    word ^wptr = @addresses
     
     ; WORD pointers: +1 moves 2 bytes
     wptr = wptr + 1         ; Skips to next WORD

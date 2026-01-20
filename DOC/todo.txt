@@ -8,23 +8,21 @@
 [x] .ifdef and related directives
 [x] test file without main() should fail compilation
 [x] escape sequences for ASCII: \n, \t, \r, \", \', \\
-[ ] update grammar.ebnf
-    ToDo:
-    - after STRUCT support is added
-    - after & and | operators check
-    - after module constructors and destructors
-    - after malloc and free
+[x] update grammar.ebnf
+    Done:
+    - STRUCT support added (struct definitions, field access, initialization)
+    - & and | operators implemented (bitwise AND, OR, XOR)
+    - const struct initialization added
 [x] .segment "name"
 [x] binary operators &, | 
-[ ] struct support
+[x] struct support
 [ ] malloc, free?
 [x] clean up directives with #
 [ ] improve error messages 
-[ ] implement module constructors and destructors?
+[x] implement module constructors? No. 
 [x] fix wrong code generation as ORA X is wrong
 [x] compiler defines in command line
-[ ] create scr.zap to distinguish between Atari and SBC
-[ ] STATIC keyword for local variables? - only disables check for using noninitialized variable
+[ ] create sbc.zap and atari.zap to distinguish between Atari and SBC
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Describe how to use labels from ASM blocks in ZAP! code
 [ ] Export and import symbols from/to whole ZAP! program. Use case: ZAP! program is part of bigger package.
@@ -36,29 +34,43 @@ Steps:
 - Submit a PR to the Linguist repository with your language definition
 - Once merged, GitHub will automatically highlight ZAP! code blocks
 
-[x] Remove dead transfers: TXA/TAX or TYA/TAY back-to-back when the register value isn’t used in between.
-[x] Collapse redundant reloads after load-immediate: LDA #imm followed soon by LDA #same_imm with no A-clobber in between → drop the second load.
-[x] Elide redundant stores: STA zp followed by STA zp with no A changes in between → drop the second (already partly handled; keep excluding fixed addresses and temps in deref setup).
-[x] Remove no-op arithmetic on zero: CLC/SEC immediately followed by ADC #0 or SBC #0 → drop the add/sub.
-[x] Simplify branches to the next line: BEQ next_label where next_label is the very next instruction → drop the branch (or replace with NOP).
-[x] Collapse load-then-compare with zero: LDA zp + CMP #0 → LDA zp plus branch on status if your condition was only zero/non-zero; for CMP #0 used before BEQ/BNE, you can drop the CMP and branch on the prior load's Z flag if untouched.
-[x] Short-circuit store/load pairs: STA zp followed immediately by LDA zp with no flags dependence between → drop the load.
-[x] Remove useless increments/decrements of zero-page temps when not used: e.g., INC TMPx followed by overwrite of TMPx before any read.
-[x] Optimize 16-bit INC/DEC by small constants: sequence of multiple INC zp/INC zp+1 pairs can be replaced by a short add routine if constants are small (k≤3) or consolidate into CLC/ADC #k when low-byte is in A and X has high-byte.
-[x] Fold identical conditional jumps: BEQ L1 followed by JMP L1 (same target) → prefer a single JMP L1 for safety unless branch distance is provably in range.
-[x] Merge consecutive PHA/PLA around untouched A: PHA … PLA where A is not modified in between → remove both, but only when PLA's N/Z flags are definitively overwritten before any branch/control flow.
 [ ] Document peephole optimizations in the compiler documentation
 
-[ ] Consider "get address" operator for variables and struct fields. Which character is suitable? 
-    Possible candidates: & (but it collides with bitwise AND), @, $ (but it collides with hex literals). 
-    Maybe use a keyword "addrof" like in C?  
-[ ] Const struct initialization syntax 
+[x] "get address" operator @
+    Implemented:
+    - Parses @ for address-of operator
+    - Semantic analysis validates operands (variables, array elements, struct fields)
+    - Code generation for all addressable types
+    - Returns WORD (16-bit) address preserving base type
+    - Works with variables, arrays, structs, and their fields
+    - Supports both global and local scopes
+[x] Const struct initialization syntax 
     
     const struct S {
         byte a;
         byte b;
     } s1 = { 1, 2 };
 
-    const S s2 = { 3, 4 };  # regular struct initialization
+    const S s2 = { 3, 4 };  ; regular struct initialization
 
     All struct elements must be initialized.
+[x] Update all documentation files
+    Completed:
+    - Updated grammar.ebnf with @ operator in unary section
+    - Updated grammar.ebnf notes with @ operator documentation
+    - Updated ZAP_LANGUAGE_REFERENCE.md:
+      * Added bitwise operators section with &, |, ^, ~ documentation
+      * Added address-of operator (@) section with examples
+      * Updated operator precedence table
+      * Added const arrays and const struct documentation
+      * Added new Structs section (comprehensive coverage)
+      * Added struct arrays, address-of for structs, const structs
+      * Updated array section with address-of examples
+    - Updated ADVANCED_TOPICS.md pointer operations section:
+      * Changed from ^ to @ for address-of operator
+      * Added alternative ^ syntax documentation
+      * Added complex address expressions (@array[i], @struct.field)
+    - Updated project_state.md:
+      * Added items 18-22 for struct, const, address-of, bitwise operators
+      * Updated Next Steps section to reflect completed work
+      * Added test coverage summary

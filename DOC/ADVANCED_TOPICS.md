@@ -31,23 +31,49 @@ Pointers store memory addresses. In ZAP!, pointers are 16-bit values (word-sized
 ```zap
 byte x = 42
 byte ^ptr           ; Pointer type
-ptr = ^x            ; Store address of x
+ptr = @x            ; Store address of x (address-of operator)
 byte value = ptr^   ; Dereference (read from address)
 ptr^ = 99           ; Dereference (write to address)
 ```
 
 ### Taking Addresses
 
-The `^` operator retrieves an address:
+The `@` operator (address-of) retrieves an address:
 
 ```zap
 byte data = 100
-byte ^ptr = ^data   ; Get address of data, store in ptr
+byte ^ptr = @data   ; Get address of data, store in ptr
 ```
 
 **What's stored in `ptr`?**
 - The 16-bit memory address where `data` lives
 - Compiler assigns this address automatically
+
+**Alternative syntax with `^` operator** (also supported):
+
+```zap
+byte data = 100
+byte ^ptr = ^data   ; Equivalent to @data
+```
+
+### Getting Addresses of Complex Expressions
+
+The `@` operator works with arrays and struct fields:
+
+```zap
+; Array element address
+byte arr[] = {10, 20, 30}
+word elem_addr = @arr[1]    ; Address of arr[1]
+
+; Struct field address
+struct Point
+    byte x
+    byte y
+end
+
+Point p = {50, 100}
+word field_addr = @p.x      ; Address of p.x field
+```
 
 ### Dereferencing
 
@@ -55,7 +81,7 @@ The `^` operator also reads/writes through pointers:
 
 ```zap
 byte x = 50
-byte ^ptr = ^x
+byte ^ptr = @x
 
 ; Read through pointer
 byte value = ptr^   ; value = 50
@@ -72,13 +98,13 @@ Pointers support addition and subtraction. **Type matters**:
 ```zap
 ; BYTE pointer: +1 moves 1 byte
 byte arr[] = {10, 20, 30}
-byte ^ptr = ^arr
+byte ^ptr = @arr
 ptr = ptr + 1           ; Points to second element
 byte second = ptr^      ; second = 20
 
 ; WORD pointer: +1 moves 2 bytes (word size)
 word addresses[] = {$1000, $2000, $3000}
-word ^wptr = ^addresses
+word ^wptr = @addresses
 wptr = wptr + 1         ; Points to second WORD (2 bytes later)
 word addr2 = wptr^      ; addr2 = $2000
 ```
@@ -95,8 +121,8 @@ Array of pointers to data:
 byte data1[] = "First"
 byte data2[] = "Second"
 byte ^ptrs[2]
-ptrs[0] = ^data1
-ptrs[1] = ^data2
+ptrs[0] = @data1
+ptrs[1] = @data2
 
 ; Access through array
 byte char1 = ptrs[0]^   ; 'F' from data1
