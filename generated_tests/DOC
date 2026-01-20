@@ -1,0 +1,149 @@
+# Generated Tests Organization
+
+**Date**: January 20, 2026  
+**Status**: ✅ COMPLETE
+
+## Summary
+
+All intermediate and generated test files have been moved from the root project directory to the `generated_tests` subdirectory to keep the project root clean and organized.
+
+## Files Moved
+
+### Debug Scripts (25 files)
+```
+debug_026_struct_asm.py
+debug_bom.py
+debug_dce.py
+debug_encoding.py
+debug_escape.py
+debug_func_match.py
+debug_func_parse.py
+debug_global_struct.py
+debug_global_struct2.py
+debug_global_struct3.py
+debug_parser.py
+debug_parse_func.py
+debug_parse_program.py
+debug_parse_prog_inst.py
+debug_ptr_arithmetic.py
+debug_ptr_parsing.py
+debug_reset.py
+debug_stmt_src.py
+debug_struct_param.py
+debug_struct_ptr_main.py
+debug_struct_ptr_return.py
+debug_struct_type.py
+debug_struct_vars.py
+debug_tokens.py
+debug_use_inc.py
+```
+
+### Test Suite Files (1 file)
+```
+test_multidim_suite.py
+```
+
+### Test ZAP Files (6 files)
+```
+test_2d_subscript_ops.zap
+test_multidim.zap
+test_multidim2.zap
+test_multidim3.zap
+test_multidim4.zap
+test_multidim_subscript.zap
+```
+
+### Example Files (1 file)
+```
+example_escape_sequences.py
+```
+
+## Directory Structure
+
+### Before
+```
+project_root/
+├── debug_*.py (25 files)
+├── test_*.py (1 file - test_multidim_suite.py)
+├── test_*.zap (6 files)
+├── example_*.py (1 file)
+└── generated_tests/
+    ├── test_*.py (existing generated tests)
+    ├── check_*.py (existing check scripts)
+    └── ... (other generated content)
+```
+
+### After
+```
+project_root/
+├── generated_tests/
+│   ├── debug_*.py (25 files - MOVED)
+│   ├── test_*.py (37 files total - 1 MOVED + 36 existing)
+│   ├── test_*.zap (12 files - 6 MOVED + existing)
+│   ├── check_*.py (3 files - existing)
+│   ├── example_*.py (1 file - MOVED)
+│   └── ... (other generated content)
+└── (root now only has core project files)
+```
+
+## Current Contents of generated_tests/
+
+**Statistics**:
+- Debug files: 25
+- Test Python files: 36 (from previous) + 1 (test_multidim_suite.py)
+- Check files: 3
+- Example files: 1 (new)
+- Test ZAP source files: 12 (6 existing + 6 moved)
+- Assembly output files: Multiple
+
+## Future Policy
+
+**All generated or temporary test files should be created in `generated_tests/` directory:**
+
+✅ **Should be in generated_tests/**:
+- `debug_*.py` - Debugging/exploration scripts
+- `test_*.py` - Generated test harnesses (except those in official tests/ directory)
+- `test_*.zap` - Temporary ZAP test files
+- `example_*.py` - Example code and exploration
+- `check_*.py` - Validation and checking scripts
+- `*_test.s` - Generated assembly test output
+- Any `.s` files generated during development/testing
+
+❌ **Should remain in root**:
+- `compiler.py` - Main compiler entry point
+- `run_tests_simple.py` - Official test runner
+- `quick_validation.py` - Quick validation script
+- Core source files (parser.py, codegen_expr.py, etc.)
+- Configuration files (Makefile, etc.)
+
+## Benefits
+
+1. **Cleaner Project Root**: Only core project files visible at top level
+2. **Better Organization**: All experimental/generated content in one place
+3. **Easier Navigation**: Less clutter when browsing project structure
+4. **Clear Intent**: Generated files are clearly separated from production code
+5. **Version Control**: Easier to understand what's part of the actual codebase
+
+## Migration Instructions for Contributors
+
+When creating test or debug files:
+
+```bash
+# ❌ Don't do this (root directory)
+python debug_something.py
+
+# ✅ Do this instead (generated_tests directory)
+cd generated_tests
+python debug_something.py
+```
+
+Or specify full path:
+```bash
+python generated_tests/test_new_feature.py
+```
+
+---
+
+**Status**: ✅ COMPLETE  
+**Files Moved**: 33 total (25 debug + 1 test suite + 6 zap files + 1 example)  
+**Remaining in Root**: Only core project files

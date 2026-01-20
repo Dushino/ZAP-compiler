@@ -436,7 +436,7 @@ Windows-specific build script for project setup.
   - Additional standard escapes: `\a`, `\b`, `\f`, `\v`
   - All 26 escape sequence tests passing
   - Documentation updated (grammar.ebnf, language reference)
-- [ ] Multi-dimensional arrays (via calculation patterns)
+- [x] Multi-dimensional arrays (via calculation patterns)
 - [ ] Additional assembly optimizations
 - **Effort**: Variable based on feature
 - **Benefit**: Extended language capabilities

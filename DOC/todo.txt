@@ -74,3 +74,11 @@ Steps:
       * Added items 18-22 for struct, const, address-of, bitwise operators
       * Updated Next Steps section to reflect completed work
       * Added test coverage summary
+
+
+[ ] Multi-dimensional arrays - all data in BSS
+[ ] Extensible tests for every possible aspect of ZAP language with error messages review
+[ ] Review of generated unoptimized code
+[ ] Peephole optimization rework.
+[ ] IDE integration
+[ ] Tutorials with examples.
