@@ -479,16 +479,20 @@ class Parser:
             decl_col = self.cur.col
             self.expect(TOK_IDENT)
 
-            array_size = None
-            if _is_sqb("["):
+            # Parse array dimensions (may have multiple [size] clauses)
+            array_sizes = []
+            while _is_sqb("["):
                 # [expr] or []
                 self.advance()
                 if not _is_sqb("]"):
-                    array_size = self.parse_expr()
+                    array_sizes.append(self.parse_expr())
                 else:
                     # [] → infer size from initializer
-                    array_size = IntLiteral(-1)
+                    array_sizes.append(IntLiteral(-1))
                 _expect_sqb("]")  # closing ]
+
+            # For backward compatibility, keep array_size for single dimension
+            array_size = array_sizes[0] if len(array_sizes) == 1 else None
 
             init = None
             address = None
@@ -536,7 +540,17 @@ class Parser:
                 self.local_decl_src[(self.current_proc_name, name)] = (self.filename, decl_line, decl_col, line_text)
             else:
                 self.global_decl_src[name] = (self.filename, decl_line, decl_col, line_text)
-            return Declarator(name, array_size, address, init, decl_line, decl_col)
+            
+            # Create Declarator with multi-dimensional support
+            return Declarator(
+                name=name,
+                array_size=array_size,
+                address=address,
+                initializer=init,
+                array_sizes=array_sizes if array_sizes else None,
+                line=decl_line,
+                col=decl_col
+            )
 
         declarators = [parse_declarator()]
 

@@ -62,17 +62,22 @@ class StringInit(InitValue):
 @dataclass(frozen=True)
 class Declarator(ASTNode):
     name: str
-    array_size: Optional["Expr"]      # None = není pole
-    address: Optional["Expr"]         # None = bez @
-    initializer: Optional[InitValue]
+    array_size: Optional["Expr"] = None      # DEPRECATED: use array_sizes
+    address: Optional["Expr"] = None         # None = bez @
+    initializer: Optional[InitValue] = None
+    array_sizes: Optional[List["Expr"]] = None  # Multi-dimensional: [size1, size2, ...]
     line: int = 0
     col: int = 0
 
     def __repr__(self) -> str:
         parts = [self.name]
 
-        if self.array_size is not None:
-            parts.append(f"[{self.array_size}]")
+        # Show array dimensions
+        sizes = self.array_sizes if self.array_sizes else (
+            [self.array_size] if self.array_size is not None else []
+        )
+        for size in sizes:
+            parts.append(f"[{size}]")
 
         if self.address is not None:
             parts.append(f"@{self.address}")
@@ -147,6 +152,11 @@ class DerefExpr(Expr):
 
 @dataclass(frozen=True)
 class SubscriptExpr(Expr):
+    """Array subscript: arr[index] or nested arr[i][j]
+    
+    For multi-dimensional arrays, nesting creates the structure:
+      arr[i][j] → SubscriptExpr(SubscriptExpr(arr, i), j)
+    """
     array: Expr
     index: Expr
 

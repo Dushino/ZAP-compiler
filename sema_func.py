@@ -72,7 +72,8 @@ class FuncAnalyzer:
                 init=None,
                 address=None,
                 is_volatile=False,
-                proc_name=func.name
+                proc_name=func.name,
+                array_dims=None
             )
             local_symtab.define(sym)
         

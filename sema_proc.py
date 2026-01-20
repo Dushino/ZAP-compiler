@@ -91,7 +91,8 @@ class ProcAnalyzer:
                 init=None,
                 address=None,
                 is_volatile=False,
-                proc_name=proc.name
+                proc_name=proc.name,
+                array_dims=None
             )
             local_symtab.define(sym)
 

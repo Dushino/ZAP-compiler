@@ -42,6 +42,47 @@ def eval_const_expr(expr, symtab=None):
     raise SemanticError("Constant expression required")
 
 
+def eval_array_dimensions(array_sizes, symtab, d_obj=None):
+    """Extract and evaluate array dimensions from Declarator
+    
+    Returns: (is_array, array_dims, array_len)
+      - is_array: True if this is an array
+      - array_dims: List[int] for multi-dimensional arrays ([3, 4, 5])
+      - array_len: int for backward compat with 1D arrays
+    """
+    is_array = False
+    array_dims = []
+    array_len = None
+    
+    if array_sizes:
+        # Multi-dimensional array
+        is_array = True
+        for size_expr in array_sizes:
+            try:
+                sz_val = eval_const_expr(size_expr, symtab)
+            except SemanticError as e:
+                line = getattr(d_obj, 'line', 0)
+                col = getattr(d_obj, 'col', 0)
+                raise SemanticError(e.message, line=line, col=col)
+            
+            if sz_val == -1:
+                # [] → will be inferred from initializer
+                array_dims.append(None)
+            elif sz_val <= 0:
+                line = getattr(d_obj, 'line', 0)
+                col = getattr(d_obj, 'col', 0)
+                raise SemanticError("Array dimension must be positive", line=line, col=col)
+            else:
+                array_dims.append(sz_val)
+        
+        # For backward compatibility, set array_len to first dimension if all are known
+        if array_dims and all(d is not None for d in array_dims):
+            array_len = array_dims[0] if len(array_dims) == 1 else None
+    
+    return is_array, array_dims, array_len
+
+
+
 class StructAnalyzer:
     """Analyzes and registers struct definitions"""
     def __init__(self, struct_registry: StructRegistry):
@@ -147,26 +188,28 @@ class DeclarationAnalyzer:
         sem_type: SemType
         ):
 
-        # pole
-        is_array = d.array_size is not None
-        array_len = None
+        # Extract array dimensions (supports multi-dimensional arrays)
+        array_sizes_to_eval = d.array_sizes if d.array_sizes else (
+            [d.array_size] if d.array_size is not None else []
+        )
+        
+        is_array, array_dims, array_len = eval_array_dimensions(array_sizes_to_eval, self.symtab, d)
+        
         address_val = None
 
         if d.address is not None:
             address_val = eval_const_expr(d.address, self.symtab)
 
-        if is_array:
-            try:
-                sz_val = eval_const_expr(d.array_size, self.symtab)
-            except SemanticError as e:
-                raise SemanticError(e.message, line=d.line, col=d.col)
-            if sz_val == -1:
-                # [] → infer size
-                array_len = None
-            elif sz_val <= 0:
-                raise SemanticError("Array size must be positive", line=d.line, col=d.col)
-            else:
-                array_len = sz_val
+        if is_array and array_dims:
+            # Process each dimension
+            processed_dims = []
+            for dim_val in array_dims:
+                if dim_val is None:
+                    # [] → infer size (will be done below)
+                    processed_dims.append(None)
+                else:
+                    processed_dims.append(dim_val)
+            array_dims = processed_dims
 
         # const pravidla
         if decl.is_const:
@@ -191,7 +234,8 @@ class DeclarationAnalyzer:
                     const_value=val,
                     address=None,
                     is_volatile=False,
-                    proc_name=getattr(self.symtab, '_proc_name', '')
+                    proc_name=getattr(self.symtab, '_proc_name', ''),
+                    array_dims=None
                 )
                 try:
                     self.symtab.define(sym)
@@ -219,7 +263,8 @@ class DeclarationAnalyzer:
                         const_value=None,
                         address=None,
                         is_volatile=False,
-                        proc_name=getattr(self.symtab, '_proc_name', '')
+                        proc_name=getattr(self.symtab, '_proc_name', ''),
+                        array_dims=array_dims if array_dims else None
                     )
                     try:
                         self.symtab.define(sym)
@@ -244,7 +289,8 @@ class DeclarationAnalyzer:
                         const_value=None,       # Struct const doesn't have single const_value
                         address=None,
                         is_volatile=False,
-                        proc_name=getattr(self.symtab, '_proc_name', '')
+                        proc_name=getattr(self.symtab, '_proc_name', ''),
+                        array_dims=None
                     )
                     try:
                         self.symtab.define(sym)
@@ -274,7 +320,8 @@ class DeclarationAnalyzer:
                     const_value=None,
                     address=None,
                     is_volatile=False,
-                    proc_name=getattr(self.symtab, '_proc_name', '')
+                    proc_name=getattr(self.symtab, '_proc_name', ''),
+                    array_dims=array_dims if array_dims else None
                 )
                 try:
                     self.symtab.define(sym)
@@ -306,18 +353,36 @@ class DeclarationAnalyzer:
                         array_len = len(d.initializer.values)
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                    
+                    # Resolve inferred dimensions in array_dims from initializer
+                    if array_dims and None in array_dims:
+                        # For struct arrays, infer last dimension
+                        inferred_size = len(d.initializer.values)
+                        array_dims[-1] = inferred_size
                 else:
                     # Regular (non-struct) array
                     if array_len is None:
                         array_len = len(d.initializer.values)
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                    
+                    # Resolve inferred dimensions in array_dims from initializer
+                    if array_dims and None in array_dims:
+                        # For regular arrays, infer last dimension
+                        inferred_size = len(d.initializer.values)
+                        array_dims[-1] = inferred_size
 
             elif isinstance(d.initializer, StringInit):
                 if sem_type.base.lower() != "byte":
                     raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
                 if array_len is None:
                     array_len = len(d.initializer.value) + 1
+                
+                # Resolve inferred dimensions in array_dims from string initializer
+                if array_dims and None in array_dims:
+                    # For string arrays, infer size (string length + NUL terminator)
+                    inferred_size = len(d.initializer.value) + 1
+                    array_dims[-1] = inferred_size
 
             elif d.initializer is not None:
                 raise SemanticError("Invalid array initializer", line=d.line, col=d.col)
@@ -345,7 +410,8 @@ class DeclarationAnalyzer:
             init=d.initializer,
             address=address_val,
             is_volatile=address_val is not None,
-            proc_name=getattr(self.symtab, '_proc_name', '')
+            proc_name=getattr(self.symtab, '_proc_name', ''),
+            array_dims=array_dims if array_dims else None
         )
 
         try:

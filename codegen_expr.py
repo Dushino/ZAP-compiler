@@ -2415,18 +2415,19 @@ class CodeGen:
             if array_vars:
                 self.emit("; Array variables (BSS)")
                 for sym in array_vars:
-                    size = sym.array_len if sym.array_len else 1
-                    # Calculate element size based on type
-                    if sym.type.is_struct and sym.type.struct_info:
-                        # Struct arrays: multiply by struct size
-                        element_size = sym.type.struct_info.size
-                    elif sym.type.base == "WORD":
-                        # WORD arrays: 2 bytes per element
-                        element_size = 2
-                    else:
-                        # BYTE arrays: 1 byte per element
-                        element_size = 1
-                    total_size = size * element_size
+                    # Use the new get_total_array_size() method for multi-dimensional support
+                    total_size = sym.get_total_array_size()
+                    if total_size == 0:
+                        # Fallback for old-style arrays without array_dims
+                        size = sym.array_len if sym.array_len else 1
+                        # Calculate element size based on type
+                        if sym.type.is_struct and sym.type.struct_info:
+                            element_size = sym.type.struct_info.size
+                        elif sym.type.base == "WORD":
+                            element_size = 2
+                        else:
+                            element_size = 1
+                        total_size = size * element_size
                     self.emit(f"{sym.asm_name()}:\t.res {total_size}")
 
 
@@ -2855,20 +2856,245 @@ class CodeGen:
             self.emit("\tTAX")  # Transfer high byte to X
             self.emit("\tPLA")  # Restore low byte to A
 
+    def _collect_subscript_indices(self, expr: SubscriptExpr) -> tuple:
+        """Collect all indices and base identifier from nested subscripts.
+        
+        For arr[i][j][k], returns ([k, j, i], Identifier('arr'))
+        (indices are collected in reverse order as we traverse the nesting)
+        """
+        indices = [expr.index]
+        current = expr.array
+        
+        # Traverse nested subscripts
+        while isinstance(current, SubscriptExpr):
+            indices.append(current.index)
+            current = current.array
+        
+        # current should now be an Identifier
+        if not isinstance(current, Identifier):
+            self._raise_error("Subscript base must be array identifier")
+        
+        # Reverse to get correct order: [i, j, k]
+        indices.reverse()
+        
+        return indices, current
+
+    def _get_array_dimensions_for_codegen(self, sym: Symbol) -> list:
+        """Get array dimensions for code generation.
+        
+        For 1D: returns [size] if size is known, [] if inferred
+        For ND: returns [d1, d2, d3, ...] or [] if any dimension is inferred
+        """
+        if not sym.is_array:
+            return []
+        
+        if sym.array_dims:
+            # Multi-dimensional array
+            if all(d is not None for d in sym.array_dims):
+                return sym.array_dims
+            else:
+                # Some dimensions were inferred - can't do stride calculation
+                return []
+        elif sym.array_len:
+            # 1D array (backward compat)
+            return [sym.array_len]
+        
+        return []
+
+    def _calculate_element_width(self, sym: Symbol) -> int:
+        """Calculate the width of array elements in bytes."""
+        if sym.type.is_struct and sym.type.struct_info:
+            return sym.type.struct_info.size
+        elif sym.type.base == "WORD":
+            return 2
+        else:
+            return 1
+
+    def _gen_multidim_subscript(self, indices: list, sym: Symbol, 
+                                load_only: bool, calc_addr_only: bool = False):
+        """Generate code for multi-dimensional subscript with known dimensions.
+        
+        For arr[i][j][k] with dimensions [d1, d2, d3] and element width E:
+        Strides: [d2*d3*E, d3*E, E]
+        Offset = i*s[0] + j*s[1] + k*s[2]
+        """
+        dims = self._get_array_dimensions_for_codegen(sym)
+        if not dims:
+            self._raise_error("Multi-dimensional array dimensions must be known")
+        
+        element_width = self._calculate_element_width(sym)
+        
+        # Calculate strides (least significant to most)
+        strides = []
+        stride = element_width
+        for i in range(len(dims) - 1, -1, -1):
+            strides.insert(0, stride)
+            stride *= dims[i]
+        
+        # First, save RHS value if this is a store operation
+        if not load_only:
+            self.gen_expr(indices[-1])  # Evaluate RHS
+            self.emit("\tSTA TMP2")
+            self.emit("\tSTX TMP2+1")
+        
+        # Calculate total offset for address: TMP4/TMP4+1 will accumulate
+        self.emit("\tLDA #0")
+        self.emit("\tSTA TMP4")
+        self.emit("\tSTA TMP4+1")
+        
+        # Add each index * stride to offset
+        # We only need to process indices[:-1] for store, or all for load
+        indices_to_process = indices[:-1] if not load_only else indices
+        
+        for idx_expr, stride_val in zip(indices_to_process, strides):
+            # Evaluate index expression -> A
+            self.gen_expr(idx_expr)
+            
+            # Multiply index by stride
+            if stride_val == 1:
+                # No multiplication needed - A already has index
+                pass
+            elif stride_val == 2:
+                # Multiply by 2: ASL
+                self.emit("\tASL A")
+                self.emit("\tLDX #0")
+            elif stride_val & (stride_val - 1) == 0:
+                # Power of 2: use bit shifts
+                shifts = (stride_val - 1).bit_length()  # log2(stride_val)
+                for _ in range(shifts):
+                    self.emit("\tASL A")
+                self.emit("\tLDX #0")
+            else:
+                # General multiplication (non-power-of-2)
+                # Save A (index) to TMP1
+                self.emit("\tSTA TMP1")
+                
+                # Multiply TMP1 * stride -> A:X using repeated addition
+                self.emit("\tLDA #0")
+                self.emit("\tSTA TMP3")  # TMP3 = result low byte
+                self.emit("\tLDA #0")
+                self.emit("\tLDX #0")   # X = result high byte
+                
+                for _ in range(stride_val):
+                    self.emit("\tCLC")
+                    self.emit("\tLDA TMP1")
+                    self.emit("\tADC TMP3")
+                    self.emit("\tSTA TMP3")
+                    carry_lbl = self.new_label("STRIDE_CARRY")
+                    self.emit(f"\tBCC {carry_lbl}")
+                    self.emit("\tINX")
+                    self.emit(f"{carry_lbl}:")
+                
+                self.emit("\tLDA TMP3")
+                # X already has high byte
+            
+            # Now A/X has (index * stride), add to TMP4
+            self.emit("\tCLC")
+            self.emit("\tADC TMP4")
+            self.emit("\tSTA TMP4")
+            self.emit("\tTXA")
+            self.emit("\tADC TMP4+1")
+            self.emit("\tSTA TMP4+1")
+        
+        # Load base address -> TMP0/TMP0+1
+        self._load_sym_addr(sym.asm_name())
+        self.emit("\tSTA TMP0")
+        self.emit("\tSTX TMP0+1")
+        
+        # TMP4/TMP4+1 now has total offset, add to base address in TMP0
+        self.emit("\tLDA TMP4")
+        self.emit("\tCLC")
+        self.emit("\tADC TMP0")
+        self.emit("\tSTA TMP0")
+        self.emit("\tLDA TMP4+1")
+        self.emit("\tADC TMP0+1")
+        self.emit("\tSTA TMP0+1")
+        
+        # If only calculating address, stop here
+        if calc_addr_only:
+            return
+        
+        # Handle final index for complete address (only for store operations)
+        if not load_only and len(indices) > 1:
+            # Get last index and its stride
+            last_idx = indices[-1]
+            last_stride = strides[-1]
+            
+            self.gen_expr(last_idx)
+            
+            # Multiply by last stride
+            if last_stride == 1:
+                pass
+            elif last_stride == 2:
+                self.emit("\tASL A")
+                self.emit("\tLDX #0")
+            elif last_stride & (last_stride - 1) == 0:
+                shifts = (last_stride - 1).bit_length()
+                for _ in range(shifts):
+                    self.emit("\tASL A")
+                self.emit("\tLDX #0")
+            else:
+                self.emit("\tSTA TMP1")
+                self.emit("\tLDA #0")
+                self.emit("\tSTA TMP3")
+                self.emit("\tLDX #0")
+                for _ in range(last_stride):
+                    self.emit("\tCLC")
+                    self.emit("\tLDA TMP1")
+                    self.emit("\tADC TMP3")
+                    self.emit("\tSTA TMP3")
+                    carry_lbl = self.new_label("STRIDE_FINAL_CARRY")
+                    self.emit(f"\tBCC {carry_lbl}")
+                    self.emit("\tINX")
+                    self.emit(f"{carry_lbl}:")
+                self.emit("\tLDA TMP3")
+            
+            # Add to TMP0
+            self.emit("\tCLC")
+            self.emit("\tADC TMP0")
+            self.emit("\tSTA TMP0")
+            self.emit("\tTXA")
+            self.emit("\tADC TMP0+1")
+            self.emit("\tSTA TMP0+1")
+        
+        # Load or store element at TMP0
+        if load_only:
+            self.emit("\tLDY #0")
+            self.emit("\tLDA (TMP0),Y")
+            if element_width == 2:
+                self.emit("\tINY")
+                self.emit("\tLDA (TMP0),Y")
+                self.emit("\tTAX")
+            else:
+                self.emit("\tLDX #0")
+        else:
+            # Store RHS value (in TMP2/TMP2+1)
+            self.emit("\tLDY #0")
+            self.emit("\tLDA TMP2")
+            self.emit("\tSTA (TMP0),Y")
+            if element_width == 2:
+                self.emit("\tINY")
+                self.emit("\tLDA TMP2+1")
+                self.emit("\tSTA (TMP0),Y")
+
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False):
-        # only support array identifiers
+        # Check if this is a multi-dimensional subscript
+        indices, base_ident = self._collect_subscript_indices(expr)
+        
+        # For multi-index subscripts, use multi-dimensional code generation
+        if len(indices) > 1:
+            sym = self.current_symtab.lookup(base_ident.name)
+            self._gen_multidim_subscript(indices, sym, load_only, calc_addr_only)
+            return
+        
+        # Single index - use original 1D implementation
         if not isinstance(expr.array, Identifier):
             self._raise_error("Subscript array must be identifier")
 
         sym = self.current_symtab.lookup(expr.array.name)
         
         # Calculate element width based on array element type
-        if sym.type.is_struct and sym.type.struct_info:
-            width = sym.type.struct_info.size
-        elif sym.type.base == "WORD":
-            width = 2
-        else:
-            width = 1
+        element_width = self._calculate_element_width(sym)
 
         # base address -> TMP0/TMP0+1
         self._load_sym_addr(sym.asm_name())
@@ -2879,8 +3105,8 @@ class CodeGen:
         self.gen_expr(expr.index)
         
         # Multiply index by element width and store result
-        if width > 1:
-            if width == 2:
+        if element_width > 1:
+            if element_width == 2:
                 # Optimization: use ASL to multiply by 2
                 self.emit("\tASL A")
                 # Handle carry from multiplication
@@ -2900,7 +3126,7 @@ class CodeGen:
                 
                 # Multiply: TMP4 = TMP3 * width
                 # Using repeated addition: result = 0; for i in range(width): result += index
-                for i in range(width):
+                for i in range(element_width):
                     self.emit("\tCLC")
                     self.emit("\tLDA TMP3")
                     self.emit("\tADC TMP4")
@@ -2933,7 +3159,7 @@ class CodeGen:
         if load_only:
             self.emit("\tLDY #0")
             self.emit("\tLDA (TMP0),Y")
-            if width == 2:
+            if element_width == 2:
                 self.emit("\tINY")
                 self.emit("\tLDA (TMP0),Y")
                 self.emit("\tTAX")
@@ -2944,7 +3170,7 @@ class CodeGen:
             self.emit("\tLDY #0")
             self.emit("\tLDA TMP2")
             self.emit("\tSTA (TMP0),Y")
-            if width == 2:
+            if element_width == 2:
                 self.emit("\tINY")
                 self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")

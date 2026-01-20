@@ -92,17 +92,41 @@ class Symbol:
     is_const: bool
     const_value: int | None    
     is_array: bool
-    array_len: Optional[int]
-    init: Optional[object]   # InitValue z AST (zatím)
+    array_len: Optional[int]   # DEPRECATED: use array_dims for multi-dim support
+    init: Optional[object]     # InitValue z AST (zatím)
     address: Optional[int] = None   # pevná adresa pro HW porty
     is_volatile: bool = False       # true → nelze optimalizovat čtení
     proc_name: str = ""             # jméno procedury (pro lokály)
+    array_dims: Optional[List[int]] = None  # [10, 20, 30] for 3D array
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""
         if self.proc_name:
             return f"_{self.proc_name}_{self.name}"
         return f"_{self.name}"
+    
+    def get_total_array_size(self) -> int:
+        """Calculate total size in bytes for array (including element type width)"""
+        if not self.is_array:
+            return 0
+        
+        # Get element size based on type
+        element_width = self.type.width
+        
+        # Multiply by all dimension sizes
+        total = element_width
+        if self.array_dims:
+            # Check for any None values (should be resolved during semantic analysis)
+            if any(d is None for d in self.array_dims):
+                # Inferred dimension not resolved - can't calculate size
+                return 0
+            for dim in self.array_dims:
+                total *= dim
+        elif self.array_len:
+            # Backward compatibility with 1D array_len
+            total *= self.array_len
+        
+        return total
 
 
 class SymbolTable:

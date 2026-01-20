@@ -61,6 +61,31 @@ class ExprTypeChecker:
             arr_t = self.check(expr.array)
             if arr_t.kind != ExprKind.ADDR:
                 raise SemanticError("Subscript requires array address")
+            
+            # Check if this is a multi-dimensional array
+            # For multi-dimensional arrays, partial subscripting returns ADDR (pointer to next dimension)
+            # Only final subscript returns LVALUE (actual element)
+            
+            # Detect if array base is a direct identifier (indicating this might be first subscript of multi-dim)
+            is_direct_array = isinstance(expr.array, Identifier)
+            
+            if is_direct_array:
+                # First subscript on array - check if array is multi-dimensional
+                try:
+                    arr_sym = self.symtab.lookup(expr.array.name)
+                    if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > 1:
+                        # Multi-dimensional array - first subscript returns ADDR (pointer to next dimension)
+                        elem_type = SemType(
+                            base=arr_t.sem_type.base,
+                            is_pointer=True,  # Returns a pointer to next dimension
+                            is_struct=arr_t.sem_type.is_struct,
+                            struct_info=arr_t.sem_type.struct_info
+                        )
+                        return ExprType(elem_type, ExprKind.ADDR)
+                except (KeyError, AttributeError):
+                    pass
+            
+            # Single-dimensional array or final subscript of multi-dimensional array
             # array element is LVALUE of base type
             # Preserve is_struct and struct_info from array element type
             elem_type = SemType(
