@@ -2,7 +2,7 @@ from symbols import SemType, SemType, SymbolLookup, FuncTable
 from sema import SemanticError
 from sema_types import ExprKind, ExprType
 from ast_nodes import IntLiteral, Identifier, DerefExpr, CallExpr
-from ast_nodes import BinaryExpr, UnaryExpr, BinOp, SubscriptExpr, FieldAccess
+from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess
 
 
 def promote(a: SemType, b: SemType) -> SemType:
@@ -121,6 +121,34 @@ class ExprTypeChecker:
 
         # unární OP
         if isinstance(expr, UnaryExpr):
+            # Handle address-of operator (@)
+            if expr.op == UnOp.ADDROF:
+                # @ can only be applied to lvalues (variables, array elements, struct fields)
+                operand_t = self.check(expr.expr)
+                
+                # Check that operand is addressable
+                if isinstance(expr.expr, Identifier):
+                    # Variable address - always valid
+                    pass
+                elif isinstance(expr.expr, SubscriptExpr):
+                    # Array element address - valid
+                    pass
+                elif isinstance(expr.expr, FieldAccess):
+                    # Struct field address - valid
+                    pass
+                else:
+                    raise SemanticError("Cannot take address of this expression")
+                
+                # Address-of always returns WORD pointer to the operand's type
+                base_type = operand_t.sem_type.base
+                is_struct = operand_t.sem_type.is_struct
+                struct_info = operand_t.sem_type.struct_info
+                
+                return ExprType(
+                    SemType(base=base_type, is_pointer=True, is_struct=is_struct, struct_info=struct_info),
+                    ExprKind.ADDR
+                )
+            
             t = self.check(expr.expr)
             # Convert LVALUE to VALUE when reading (e.g., !ptr^ or -ptr^ or ~ptr^)
             if t.kind == ExprKind.LVALUE:

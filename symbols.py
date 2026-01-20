@@ -73,11 +73,16 @@ class SemType:
             return 2
         if self.is_struct and self.struct_info:
             return self.struct_info.size
-        if self.base == "byte":
+        base_lower = self.base.lower() if isinstance(self.base, str) else ""
+        if base_lower == "byte":
             return 1
-        if self.base == "word":
+        if base_lower == "word":
             return 2
         raise ValueError(f"Unknown type: {self.base}")
+    
+    def get_size(self) -> int:
+        """Alias for width property"""
+        return self.width
 
 
 @dataclass

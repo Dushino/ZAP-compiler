@@ -2446,8 +2446,12 @@ class CodeGen:
         # Exception: always initialize fixed-address variables (hardware ports) and variables with initializers
         if sym.proc_name == "" and sym.name not in self.used_globals and sym.address is None and sym.init is None:
             return
-        if sym.is_const:
+        
+        # Skip const scalar values (they're baked into code, not initialized at runtime)
+        # BUT: const structs and const arrays NEED initialization code
+        if sym.is_const and sym.init is None:
             return
+        
         if sym.init is None:
             return
 
@@ -3658,10 +3662,14 @@ class CodeGen:
             self.emit("\tLDA TMP0")    # Load result
 
     def _gen_unary(self, expr: UnaryExpr):
-        """Generate code for unary operators (!, ~)"""
+        """Generate code for unary operators (@, !, ~)"""
         operand_t = self.tc_check(expr.expr)
         
-        if expr.op == UnOp.BNOT:  # Bitwise NOT (~)
+        if expr.op == UnOp.ADDROF:  # Address-of (@)
+            # Generate code to load address of operand into A (low) and X (high)
+            self._gen_address_of(expr.expr)
+        
+        elif expr.op == UnOp.BNOT:  # Bitwise NOT (~)
             # Generate operand, then apply EOR #$FF to invert bits
             self.gen_expr(expr.expr)
             
@@ -3708,6 +3716,143 @@ class CodeGen:
                 self.emit(f"{lbl_zero}:")
                 self.emit("\tLDA #$00")
                 self.emit(f"{lbl_end}:")
+    
+    def _gen_address_of(self, operand: Expr):
+        """Generate code to load address of operand into A (low byte) and X (high byte)"""
+        if isinstance(operand, Identifier):
+            # Simple variable: load its address
+            sym = self.current_symtab.lookup(operand.name)
+            label = self._get_label_for_symbol(sym)
+            
+            # Load address into A (low) and X (high)
+            self.emit(f"\tLDA #<{label}")
+            self.emit(f"\tLDX #>{label}")
+        
+        elif isinstance(operand, SubscriptExpr):
+            # Array element: calculate base + index*element_size
+            # Get array symbol
+            if not isinstance(operand.array, Identifier):
+                raise SemanticError("Complex array subscripts not supported with @")
+            
+            array_sym = self.current_symtab.lookup(operand.array.name)
+            label = self._get_label_for_symbol(array_sym)
+            
+            # Get element size
+            elem_size = array_sym.type.get_size()
+            
+            # Generate index value into TMP0
+            self.gen_expr(operand.index)
+            self.emit("\tSTA TMP0")  # Save index
+            
+            # Calculate address = base + index * elem_size
+            if elem_size == 1:
+                # No multiplication needed
+                self.emit(f"\tLDA #<{label}")
+                self.emit("\tCLC")
+                self.emit("\tADC TMP0")
+                self.emit("\tSTA TMP1")       # Save low byte of result
+                self.emit(f"\tLDA #>{label}")
+                self.emit("\tADC #$00")       # Add carry to high byte
+                self.emit("\tTAX")            # High byte to X
+                self.emit("\tLDA TMP1")       # Low byte to A
+            else:
+                # Multiply index by element size
+                self.emit(f"\tLDA #<{label}")
+                self.emit("\tSTA TMP1")
+                self.emit(f"\tLDA #>{label}")
+                self.emit("\tSTA TMP2")
+                
+                # Multiply TMP0 by elem_size
+                self.emit(f"\tLDA #<{elem_size}")
+                self.emit(f"\tLDX #>{elem_size}")
+                self.emit("\tSTX TMP3")       # Save high byte of size
+                self.emit(f"\tLDA TMP0")
+                self.emit(f"\tMULTIPLY_ADDRESS_{self.for_id}")
+                # Result would be in TMP4:TMP5, but we need to use available temp space
+                # For now, emit code to add result to base address
+                
+                # Simplified: use runtime multiply helper if available
+                # For MVP: just handle simple cases (elem_size = 1, 2, 4)
+                if elem_size == 2:
+                    # Multiply by 2 = shift left
+                    self.emit("\tASL TMP0")
+                    self.emit("\tLDA #<{label}")
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")
+                    self.emit("\tSTA TMP1")
+                    self.emit(f"\tLDA #>{label}")
+                    self.emit("\tADC #$00")
+                    self.emit("\tTAX")
+                    self.emit("\tLDA TMP1")
+                elif elem_size == 4:
+                    # Multiply by 4 = shift left twice
+                    self.emit("\tASL TMP0")
+                    self.emit("\tASL TMP0")
+                    self.emit("\tLDA #<{label}")
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")
+                    self.emit("\tSTA TMP1")
+                    self.emit(f"\tLDA #>{label}")
+                    self.emit("\tADC #$00")
+                    self.emit("\tTAX")
+                    self.emit("\tLDA TMP1")
+                else:
+                    raise SemanticError(f"Element size {elem_size} not yet supported for address-of")
+        
+        elif isinstance(operand, FieldAccess):
+            # Struct field: base address + field offset
+            if not isinstance(operand.object, Identifier):
+                raise SemanticError("Complex field access not supported with @")
+            
+            struct_sym = self.current_symtab.lookup(operand.object.name)
+            struct_label = self._get_label_for_symbol(struct_sym)
+            
+            # Get field offset
+            field_offset = self._get_field_offset(operand.object, operand.field)
+            
+            # Load base address
+            self.emit(f"\tLDA #<{struct_label}")
+            self.emit(f"\tLDX #>{struct_label}")
+            
+            # Add field offset
+            if field_offset > 0:
+                lbl_no_carry = self.new_label("ADDROF_NO_CARRY")
+                self.emit("\tSTA TMP0")
+                self.emit("\tCLC")
+                self.emit(f"\tADC #{field_offset}")
+                self.emit(f"\tBCC {lbl_no_carry}")
+                self.emit("\tINX")
+                self.emit(f"{lbl_no_carry}:")
+        
+        else:
+            raise SemanticError("Invalid operand for address-of operator")
+    
+    def _get_label_for_symbol(self, sym: Symbol) -> str:
+        """Get the label name for a symbol"""
+        if sym.address is not None:
+            # Fixed address variable
+            return f"${sym.address:04X}"
+        else:
+            # Dynamic address - use symbol name as label
+            prefix = sym.proc_name + "_" if sym.proc_name else ""
+            return f"_{prefix}{sym.name.upper()}"
+    
+    def _get_field_offset(self, struct_expr: Expr, field_name: str) -> int:
+        """Calculate byte offset of field within struct"""
+        if not isinstance(struct_expr, Identifier):
+            raise SemanticError("Complex struct access not supported")
+        
+        sym = self.current_symtab.lookup(struct_expr.name)
+        if not sym.type.is_struct or not sym.type.struct_info:
+            raise SemanticError("Not a struct")
+        
+        offset = 0
+        for field in sym.type.struct_info.fields:
+            if field.name.upper() == field_name.upper():
+                return offset
+            offset += field.sem_type.get_size()
+        
+        raise SemanticError(f"Field '{field_name}' not found in struct")
 
     def _gen_logical(self, expr: BinaryExpr):
         # TMP4 used to combine A/X when testing word values
@@ -3846,6 +3991,24 @@ class CodeGen:
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr, FieldAccess)):
             self._raise_error("Left side of assignment is not assignable")
+        
+        # Check for const violation: can't assign to const variables, const array elements, or const struct fields
+        if isinstance(lhs, Identifier):
+            sym = self.current_symtab.lookup(lhs.name)
+            if sym.is_const:
+                self._raise_error(f"Cannot assign to const variable '{lhs.name}'")
+        elif isinstance(lhs, SubscriptExpr):
+            # Check if modifying an element of a const array
+            if isinstance(lhs.array, Identifier):
+                sym = self.current_symtab.lookup(lhs.array.name)
+                if sym.is_const:
+                    self._raise_error(f"Cannot assign to element of const array '{lhs.array.name}'")
+        elif isinstance(lhs, FieldAccess):
+            # Check if accessing a field of a const struct
+            if isinstance(lhs.object, Identifier):
+                sym = self.current_symtab.lookup(lhs.object.name)
+                if sym.is_const:
+                    self._raise_error(f"Cannot assign to field of const struct '{lhs.object.name}'")
 
         # Special case: array-to-array assignment (string copy)
         # str3 = str2 -> copy str2 content into str3 until NUL or max length

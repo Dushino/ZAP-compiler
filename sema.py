@@ -172,31 +172,118 @@ class DeclarationAnalyzer:
         if decl.is_const:
             if d.address is not None:
                 raise SemanticError("CONST cannot have address", line=d.line, col=d.col)
-            if not isinstance(d.initializer, ExprInit):
-                raise SemanticError("CONST must have expression initializer", line=d.line, col=d.col)
-            try:
-                val = eval_const_expr(d.initializer.expr, self.symtab)
-            except SemanticError as e:
-                raise SemanticError(e.message, line=d.line, col=d.col)
+            
+            # CONST can have expression initializer (scalars), ListInit (structs/arrays), or StringInit (byte arrays)
+            if isinstance(d.initializer, ExprInit):
+                # Scalar const: must have evaluable expression
+                try:
+                    val = eval_const_expr(d.initializer.expr, self.symtab)
+                except SemanticError as e:
+                    raise SemanticError(e.message, line=d.line, col=d.col)
 
-            sym = Symbol(
-                name=d.name,
-                type=sem_type,
-                is_const=True,
-                is_array=False,
-                array_len=None,
-                init=None,              # CONST nemá runtime init
-                const_value=val,
-                address=None,
-                is_volatile=False,
-                proc_name=getattr(self.symtab, '_proc_name', '')
-            )
-            try:
-                self.symtab.define(sym)
-            except SemanticError as e:
-                # Re-raise with better context for constants
-                raise SemanticError(f"Constant '{d.name}': {e.message}", line=d.line, col=d.col)
-            return
+                sym = Symbol(
+                    name=d.name,
+                    type=sem_type,
+                    is_const=True,
+                    is_array=False,
+                    array_len=None,
+                    init=None,              # Scalar const has no runtime init
+                    const_value=val,
+                    address=None,
+                    is_volatile=False,
+                    proc_name=getattr(self.symtab, '_proc_name', '')
+                )
+                try:
+                    self.symtab.define(sym)
+                except SemanticError as e:
+                    # Re-raise with better context for constants
+                    raise SemanticError(f"Constant '{d.name}': {e.message}", line=d.line, col=d.col)
+                return
+            
+            elif isinstance(d.initializer, ListInit):
+                # ListInit for const: can be struct or array
+                if is_array:
+                    # Const array with ListInit
+                    if array_len is None:
+                        array_len = len(d.initializer.values)
+                    elif array_len != len(d.initializer.values):
+                        raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                    
+                    sym = Symbol(
+                        name=d.name,
+                        type=sem_type,
+                        is_const=True,
+                        is_array=True,
+                        array_len=array_len,
+                        init=d.initializer,     # Store init for code gen
+                        const_value=None,
+                        address=None,
+                        is_volatile=False,
+                        proc_name=getattr(self.symtab, '_proc_name', '')
+                    )
+                    try:
+                        self.symtab.define(sym)
+                    except SemanticError as e:
+                        raise SemanticError(f"Const array '{d.name}': {e.message}", line=d.line, col=d.col)
+                    return
+                
+                elif sem_type.is_struct:
+                    # Const struct (non-array)
+                    # Validate field count
+                    num_fields = len(sem_type.struct_info.fields)
+                    if len(d.initializer.values) != num_fields:
+                        raise SemanticError(f"Struct initializer has {len(d.initializer.values)} values, expected {num_fields}", line=d.line, col=d.col)
+                    
+                    sym = Symbol(
+                        name=d.name,
+                        type=sem_type,
+                        is_const=True,
+                        is_array=False,
+                        array_len=None,
+                        init=d.initializer,     # Store init for code gen
+                        const_value=None,       # Struct const doesn't have single const_value
+                        address=None,
+                        is_volatile=False,
+                        proc_name=getattr(self.symtab, '_proc_name', '')
+                    )
+                    try:
+                        self.symtab.define(sym)
+                    except SemanticError as e:
+                        raise SemanticError(f"Const struct '{d.name}': {e.message}", line=d.line, col=d.col)
+                    return
+                else:
+                    raise SemanticError("List initializer only allowed for struct or array types", line=d.line, col=d.col)
+            
+            elif isinstance(d.initializer, StringInit):
+                # String init for const byte array
+                if not is_array:
+                    raise SemanticError("String initializer for scalar", line=d.line, col=d.col)
+                if sem_type.base.lower() != "byte":
+                    raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
+                
+                if array_len is None:
+                    array_len = len(d.initializer.value) + 1
+                
+                sym = Symbol(
+                    name=d.name,
+                    type=sem_type,
+                    is_const=True,
+                    is_array=True,
+                    array_len=array_len,
+                    init=d.initializer,     # Store init for code gen
+                    const_value=None,
+                    address=None,
+                    is_volatile=False,
+                    proc_name=getattr(self.symtab, '_proc_name', '')
+                )
+                try:
+                    self.symtab.define(sym)
+                except SemanticError as e:
+                    raise SemanticError(f"Const string '{d.name}': {e.message}", line=d.line, col=d.col)
+                return
+            
+            else:
+                raise SemanticError("CONST must have initializer (expression, list, or string)", line=d.line, col=d.col)
 
 
         # inicializace pole
