@@ -160,6 +160,13 @@ expr_list       ::= expression { "," expression } ;
    STRING          - "..." with NUL terminator, supports escape sequences
    ASM_BLOCK       - Inline 6502 assembly code
    Comments        - ; until end of line
+
+   Escape Sequences in strings and character literals:
+   - Standard: \n (newline), \t (tab), \r (carriage return), \a (bell), \b (backspace), 
+              \f (form feed), \v (vertical tab), \0 (null), \" (double quote), \' (single quote), \\ (backslash)
+   - Hexadecimal: \xHH where H is hex digit (0-9, a-f, A-F), e.g., \xFF, \x41
+   - Octal: \OOO where O is octal digit (0-7), e.g., \377 (255), \101 (65/'A')
+   - Binary: \bBBBBBBBB where B is binary digit (0-1), e.g., \b11111111 (255), \b01000001 (65/'A')
 *)
 
 (* ============ NOTES ============ *)
@@ -173,6 +180,7 @@ expr_list       ::= expression { "," expression } ;
    - Procedures end with END, functions end with END (implicit return)
    - FOR loops require NEXT statement with loop variable
    - WHILE loops terminate with END
+   - Binary \b escape sequences must have at least one binary digit following
    - IF statements use IF-THEN-ELSE-ENDIF structure (ELSE is optional)
    - Module system: .module marks a file as importable, .include loads dependencies
    - .segment directive controls code/data segment placement (ca65 compatible)

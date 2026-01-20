@@ -93,7 +93,8 @@ class Parser:
         
         # RESET to beginning
         self.pos = temp_pos
-        self.cur = temp_cur
+        if self.pos < len(self.tokens):
+            self.cur = self.tokens[self.pos]
 
         # SECOND PASS: Parse everything
         while self.cur.type != TOK_EOF:
@@ -258,12 +259,13 @@ class Parser:
             # For struct types, check if next token is an identifier (variable name)
             # NOT a dot (which would indicate field access like node.data)
             if self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
-                # Look ahead to see if next token is an identifier or [ or @ or =
+                # Look ahead to see if next token is an identifier or [ or @ or = or ^ (pointer)
                 # If it's a dot, this is a statement, not a declaration
                 next_tok = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
                 if next_tok and (next_tok.type == TOK_IDENT or 
+                                next_tok.type == TOK_PTR or
                                 next_tok.type in (TOK_SQB, TOK_AT) or
-                                (next_tok.type == TOK_OP and next_tok.value in ("[", "@")) or
+                                (next_tok.type == TOK_OP and next_tok.value in ("[", "@", "^")) or
                                 next_tok.type == TOK_EQU):
                     return True
                 # If next token is dot or anything else, it's not a declaration
@@ -297,9 +299,18 @@ class Parser:
         start_col = self.cur.col
         self.expect(TOK_KEYWORD, "FUNC")
         
-        # return type
+        # return type: can be TYPE (byte/word) or STRUCT_NAME
         ret_type_tok = self.cur
-        self.expect(TOK_TYPE)
+        if self.cur.type == TOK_TYPE:
+            self.advance()
+            ret_type_base = ret_type_tok.value
+        elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+            # Struct return type
+            ret_type_base = self.cur.value
+            self.advance()
+        else:
+            self.error(f"Expected type for function return, got {self.cur.type}")
+        
         ret_is_pointer = False
         if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
             ret_is_pointer = True
@@ -346,15 +357,31 @@ class Parser:
         ret_expr = self.parse_expr()
         body.append(ReturnStmt(ret_expr))
 
+        # consume END keyword
+        self.expect(TOK_KEYWORD, "END")
+
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.proc_src[name] = (self.filename, start_line, start_col, line_text)
 
-        return FuncDecl(name, TypeNode(ret_type_tok.value, ret_is_pointer), params, locals, body)
+        return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body)
 
     def parse_parameter(self):
-        # type
+        # type: can be TYPE (byte/word) or STRUCT_NAME, optionally const
+        is_const = False
+        if self.cur.type == TOK_TYPEMOD and self.cur.value.upper() == "CONST":
+            is_const = True
+            self.advance()
+        
         type_tok = self.cur
-        self.expect(TOK_TYPE)
+        if self.cur.type == TOK_TYPE:
+            self.advance()
+            type_base = type_tok.value
+        elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+            # Struct parameter type
+            type_base = self.cur.value
+            self.advance()
+        else:
+            self.error(f"Expected type for parameter, got {self.cur.type}")
         
         is_pointer = False
         if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
@@ -372,7 +399,7 @@ class Parser:
             self.expect(TOK_OP, ']')
             is_array = True
         
-        return Parameter(TypeNode(type_tok.value, is_pointer), name, is_array, name_line, name_col)
+        return Parameter(TypeNode(type_base, is_pointer), name, is_array, name_line, name_col)
 
     def parse_init_value(self):
         """Parse an initializer value: either a nested list { ... } or an expression."""

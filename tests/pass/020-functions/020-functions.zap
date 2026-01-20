@@ -22,30 +22,38 @@ word result18 @40030
 ; byte - byte
 func byte doublebb(byte x)
 return x * 2
+end
 
 func byte quadbb(byte x)
 return doublebb(doublebb(x))
+end
 
 ; word - byte
 func word doublewb(byte x)
 return x * 2
+end
 
 func word quadwb(byte x)
 return doublewb(doublewb(x))
+end
 
 ; byte - word
 func byte doublebw(word x)
 return x * 2
+end
 
 func byte quadbw(word x)
 return doublebw(doublebw(x))
+end
 
 ; word - word
 func word doubleww(word x)
 return x * 2
+end
 
 func word quadww(word x)
 return doubleww(doubleww(x))
+end
 
 ; -------------------------------------
 proc main()

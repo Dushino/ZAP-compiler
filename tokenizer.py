@@ -5,7 +5,7 @@ from typing import Optional
 from token_types import *
 from errors import TokenizerError
 
-ESCAPES         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\"}
+ESCAPES         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\","a":"\a","b":"\b","f":"\f","v":"\v","0":"\0"}
 KEYWORDS        = {"proc", "func", "struct",
                    "if","else", "elseif", "then", "endif", "end", 
                    "for", "to", "step", "next",
@@ -73,6 +73,83 @@ class Tokenizer:
         if self.pos < self.length:
             return self.src[self.pos]
         return None
+
+    def _process_escape_sequence(self):
+        """Process escape sequence and return the character.
+        
+        Supported escape sequences:
+        - \\n, \\t, \\r, \\a, \\f, \\v - standard control chars
+        - \\0 - null byte
+        - \\" - double quote
+        - \\' - single quote
+        - \\\\ - backslash
+        - \\xHH - hex byte (e.g., \\xFF)
+        - \\OOO - octal byte (e.g., \\377 for 255)
+        - \\bBBBBBBBB - binary byte (e.g., \\b11111111 for 255)
+        
+        NOTE: Binary \\b prefix is checked BEFORE \\b backspace escape to allow binary literals
+        """
+        esc = self._peek()
+        if esc is None:
+            raise TokenizerError("Unexpected EOF in escape sequence", line=self.line, col=self.col)
+        
+        # Binary escape: \bBBBBBBBB (1-8 binary digits) - CHECK BEFORE ESCAPES to avoid conflict with \b backspace
+        if esc == 'b' and self._peek(1) in ('0', '1'):
+            self._advance(1)
+            binary_digits = ""
+            for _ in range(8):
+                c = self._peek()
+                if c and c in "01":
+                    binary_digits += c
+                    self._advance(1)
+                else:
+                    break
+            if not binary_digits:
+                raise TokenizerError("Expected binary digit after \\b", line=self.line, col=self.col)
+            value = int(binary_digits, 2)
+            if value > 255:
+                raise TokenizerError(f"Binary escape out of range (0-255): \\b{binary_digits}", line=self.line, col=self.col)
+            return chr(value)
+        
+        # Standard single-character escapes
+        if esc in ESCAPES:
+            self._advance(1)
+            return ESCAPES[esc]
+        
+        # Hex escape: \xHH (1-2 hex digits)
+        if esc == 'x':
+            self._advance(1)
+            hex_digits = ""
+            for _ in range(2):
+                c = self._peek()
+                if c and c in "0123456789abcdefABCDEF":
+                    hex_digits += c
+                    self._advance(1)
+                else:
+                    break
+            if not hex_digits:
+                raise TokenizerError("Expected hex digit after \\x", line=self.line, col=self.col)
+            value = int(hex_digits, 16)
+            if value > 255:
+                raise TokenizerError(f"Hex escape out of range (0-255): \\x{hex_digits}", line=self.line, col=self.col)
+            return chr(value)
+        
+        # Octal escape: \OOO (1-3 octal digits)
+        if esc in "01234567":
+            octal_digits = ""
+            for _ in range(3):
+                c = self._peek()
+                if c and c in "01234567":
+                    octal_digits += c
+                    self._advance(1)
+                else:
+                    break
+            value = int(octal_digits, 8)
+            if value > 255:
+                raise TokenizerError(f"Octal escape out of range (0-377): \\{octal_digits}", line=self.line, col=self.col)
+            return chr(value)
+        
+        raise TokenizerError(f"Unknown escape sequence: \\{esc}", line=self.line, col=self.col)
 
     def _emit(self, ttype: str, start_line: int, start_col: int, value: Optional[str] = None):
         if value is None:
@@ -159,14 +236,8 @@ class Tokenizer:
                         raise TokenizerError("Missing end of string", line=self.sline, col=self.scol)
                     if c == '\\':
                         self._advance(1)
-                        esc = self._peek()
-                        if esc is None:
-                            raise TokenizerError("Unexpected EOF in escape sequence", line=self.line, col=self.col)
-                        if esc in ESCAPES:
-                            buf.append(ESCAPES[esc])
-                        else:
-                            raise TokenizerError(f"Unknown escape sequence: \\{esc}", line=self.line, col=self.col)
-                        self._advance(1)
+                        escaped_char = self._process_escape_sequence()
+                        buf.append(escaped_char)
                         continue
                     if c == '"':
                         self._advance(1)
@@ -244,14 +315,8 @@ class Tokenizer:
                     raise TokenizerError("Unexpected EOF in character literal", line=self.sline, col=self.scol)
                 if c == '\\':
                     self._advance(1)
-                    esc = self._peek()
-                    if esc is None:
-                        raise TokenizerError("Unexpected EOF in escape sequence", line=self.line, col=self.col)
-                    if esc in ESCAPES:
-                        char_val = ord(ESCAPES[esc])
-                    else:
-                        raise TokenizerError(f"Unknown escape sequence: \\{esc}", line=self.line, col=self.col)
-                    self._advance(1)
+                    escaped_char = self._process_escape_sequence()
+                    char_val = ord(escaped_char)
                 else:
                     char_val = ord(c)
                     self._advance(1)

@@ -122,18 +122,47 @@ Character literals are written with single quotes and are converted to their ASC
 byte c = 'A'        ; Character literal (value 65)
 byte newline = '\n' ; Newline character (value 10)
 byte tab = '\t'     ; Tab character (value 9)
-byte quote = '\''
-  ; Single quote (value 39)
+byte quote = '\''   ; Single quote (value 39)
 byte backslash = '\\' ; Backslash (value 92)
+byte null = '\0'    ; Null terminator (value 0)
+byte hex_255 = '\xFF' ; Hex escape (value 255)
+byte octal_65 = '\101' ; Octal escape (value 65, same as 'A')
+byte binary_65 = '\b01000001' ; Binary escape (value 65, same as 'A')
 ```
 
 **Character Escapes** (in character and string literals):
+
+Standard Control Characters:
 - `\n` - Newline (10)
 - `\t` - Tab (9)
 - `\r` - Carriage return (13)
+- `\a` - Bell/Alert (7)
+- `\b` - Backspace (8)
+- `\f` - Form feed (12)
+- `\v` - Vertical tab (11)
+- `\0` - Null byte (0)
+
+Quote and Backslash:
 - `\"` - Double quote
 - `\'` - Single quote
 - `\\` - Backslash
+
+Numeric Escape Sequences:
+- `\xHH` - Hexadecimal byte (two hex digits: 0-9, a-f, A-F)
+  - Example: `\xFF` (255), `\x41` (65/'A'), `\x00` (0)
+- `\OOO` - Octal byte (1-3 octal digits: 0-7)
+  - Example: `\377` (255), `\101` (65/'A'), `\0` (0)
+- `\bBBBBBBBB` - Binary byte (1-8 binary digits: 0-1)
+  - Example: `\b11111111` (255), `\b01000001` (65/'A'), `\b00000000` (0)
+
+Examples:
+
+```zap
+byte arr[] = "Hello\0World"  ; String with embedded null
+byte data[] = "\xFF\x00\x42" ; Binary data using hex escapes
+byte mask = '\b11110000'     ; Mask value using binary
+char code = '\101'           ; Letter 'A' using octal
+```
 
 ### Type Modifiers
 

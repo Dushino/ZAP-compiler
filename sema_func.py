@@ -47,7 +47,21 @@ class FuncAnalyzer:
         
         # add parameters to local symbol table
         for param in func.params:
-            sem_type = SemType(param.type.base, param.type.is_pointer)
+            # Check if parameter type is a struct
+            base_name = param.type.base.upper()
+            is_struct = False
+            struct_info = None
+            
+            if self.struct_registry and self.struct_registry.is_defined(base_name):
+                is_struct = True
+                struct_info = self.struct_registry.lookup(base_name)
+            
+            sem_type = SemType(
+                base=param.type.base,
+                is_pointer=param.type.is_pointer,
+                is_struct=is_struct,
+                struct_info=struct_info
+            )
             sym = Symbol(
                 name=param.name,
                 type=sem_type,
