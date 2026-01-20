@@ -1777,7 +1777,10 @@ class CodeGen:
         if self.pruned_procs:
             removed = ", ".join(sorted(self.pruned_procs))
             self.emit(f"; Optimized out unused procedures (definitions and calls removed): {removed}")
-        self.emit("; ------------------------------\n")
+        self.emit("; ==============================")
+        self.emit("")
+        self.emit(".DEBUGINFO +  ; Enable debug information for symbol names")
+        self.emit("")
         #self.emit(".include \"macros.inc\"")
         #self.emit(".include \"variables.inc\"\n")
 

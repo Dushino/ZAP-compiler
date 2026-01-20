@@ -36,9 +36,11 @@ FAIL_ROOT ?= tests/fail
 
 ATARI_CPU = 6502
 ATARI_AS_OPTS = -I $(LIBDIR) -t none --cpu $(ATARI_CPU) -g
+ATARI_LD_OPTS = -Ln $(APPBINDIR)/$(APPNAME).lbl
 
 SBC_CPU   = w65c02
 SBC_AS_OPTS  = -I $(LIBDIR) -t none --cpu $(SBC_CPU) -g
+SBC_LD_OPTS = -Ln $(APPBINDIR)/$(APPNAME).lbl
 
 
 # Rules
@@ -55,7 +57,7 @@ run: atari
 
 atari: compile_atari
 	$(AS) $(ATARI_AS_OPTS) $(LIBDIR)/atari/exehdr.s -o $(APPOBJDIR)/exehdr.o
-	$(LD) -C cfg/my_atari.cfg $(APPOBJ) $(APPOBJDIR)/exehdr.o  -o $(APPBIN).com	
+	$(LD) -C cfg/my_atari.cfg $(ATARI_LD_OPTS) $(APPOBJ) $(APPOBJDIR)/exehdr.o  -o $(APPBIN).com	
 	dd if=$(APPBIN).com of=$(APPBIN).cut bs=6 skip=1
 	$(DA) --cpu $(ATARI_CPU) --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose  $(APPBIN).cut > $(APPBIN).da65
 
@@ -70,7 +72,7 @@ upload: sbc
 
 sbc: compile_sbc
 	$(AS) $(SBC_AS_OPTS) $(LIBDIR)/atari/exehdr.s -o $(APPOBJDIR)/exehdr.o
-	$(LD) -C cfg/my_sbc.cfg $(APPOBJ) -o $(APPBIN).com	
+	$(LD) -C cfg/my_sbc.cfg $(SBC_LD_OPTS) $(APPOBJ) -o $(APPBIN).com	
 	$(DA) --cpu $(SBC_CPU) --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose  $(APPBIN).cut > $(APPBIN).da65
 
 compile_sbc: 

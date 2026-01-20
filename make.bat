@@ -37,6 +37,7 @@ set "ATARI_CPU=6502"
 set "ATARI_AS_OPTS=-I %LIBDIR% -t none --cpu %ATARI_CPU% -g"
 set "SBC_CPU=w65c02"
 set "SBC_AS_OPTS=-I %LIBDIR% -t none --cpu %SBC_CPU% -g"
+rem Note: -g flag enables debug info generation in object files for VICE/Oricutron debugging
 
 
 rem ======================================================================
