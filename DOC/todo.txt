@@ -76,7 +76,7 @@ Steps:
       * Added test coverage summary
 
 
-[ ] Multi-dimensional arrays - all data in BSS
+[x] Multi-dimensional arrays - all data in BSS
 [ ] Extensible tests for every possible aspect of ZAP language with error messages review
 [ ] Review of generated unoptimized code
 [ ] Peephole optimization rework.
