@@ -170,7 +170,7 @@ class Parser:
         
         # Parse field list until END
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
-            # Parse: [^] type IDENT [ address_spec ]
+            # Parse: [^] type IDENT [dimensions] [ address_spec ]
             # Check for pointer prefix first
             is_pointer = False
             if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
@@ -204,13 +204,24 @@ class Parser:
                                 line=self.cur.line, col=self.cur.col)
             seen_names.add(field_name)
             
+            # Parse optional array dimensions
+            array_sizes = None
+            if self.cur.type == TOK_OP and self.cur.value == "[":
+                array_sizes = []
+                while self.cur.type == TOK_OP and self.cur.value == "[":
+                    self.advance()
+                    # Parse array size expression
+                    size_expr = self.parse_expr()
+                    array_sizes.append(size_expr)
+                    self.expect(TOK_OP, "]")
+            
             # Parse optional address spec
             field_addr = None
             if self.cur.type == TOK_AT:
                 self.advance()
                 field_addr = self.parse_expr()
             
-            fields.append(StructField(field_type, field_name, field_addr))
+            fields.append(StructField(field_type, field_name, field_addr, array_sizes))
         
         self.expect(TOK_KEYWORD, "END")
         return StructDef(struct_name, fields)

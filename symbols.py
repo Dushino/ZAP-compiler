@@ -11,18 +11,30 @@ class StructFieldInfo:
     is_pointer: bool
     offset: int           # Byte offset from struct start
     fixed_address: Optional[int] = None  # If field has @address
+    array_sizes: Optional[List[int]] = None  # For arrays: [size1, size2, ...]
 
     @property
     def width(self) -> int:
         """Width of this field in bytes"""
+        # Calculate element width
         if self.is_pointer:
-            return 2
-        if self.base_type == "byte":
-            return 1
-        if self.base_type == "word":
-            return 2
-        # For struct types, will be calculated by StructRegistry
-        return 0  # Will be looked up
+            elem_width = 2
+        elif self.base_type == "byte":
+            elem_width = 1
+        elif self.base_type == "word":
+            elem_width = 2
+        else:
+            # For struct types, will be calculated by StructRegistry
+            elem_width = 0  # Will be looked up
+        
+        # If it's an array, multiply by total elements
+        if self.array_sizes:
+            total_elements = 1
+            for size in self.array_sizes:
+                total_elements *= size
+            return elem_width * total_elements
+        
+        return elem_width
 
 
 @dataclass(frozen=True)

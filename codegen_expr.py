@@ -2860,6 +2860,7 @@ class CodeGen:
         """Collect all indices and base identifier from nested subscripts.
         
         For arr[i][j][k], returns ([k, j, i], Identifier('arr'))
+        For struct_var.array_field[i][j], returns ([j, i], FieldAccess(...))
         (indices are collected in reverse order as we traverse the nesting)
         """
         indices = [expr.index]
@@ -2870,9 +2871,9 @@ class CodeGen:
             indices.append(current.index)
             current = current.array
         
-        # current should now be an Identifier
-        if not isinstance(current, Identifier):
-            self._raise_error("Subscript base must be array identifier")
+        # current should now be an Identifier or FieldAccess
+        if not isinstance(current, (Identifier, FieldAccess)):
+            self._raise_error("Subscript base must be array identifier or field access")
         
         # Reverse to get correct order: [i, j, k]
         indices.reverse()
@@ -3031,31 +3032,72 @@ class CodeGen:
 
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False):
         # Check if this is a multi-dimensional subscript
-        indices, base_ident = self._collect_subscript_indices(expr)
+        indices, base = self._collect_subscript_indices(expr)
         
-        # For multi-index subscripts, use multi-dimensional code generation
-        if len(indices) > 1:
-            sym = self.current_symtab.lookup(base_ident.name)
+        # For multi-index subscripts with Identifier base, use multi-dimensional code generation
+        if len(indices) > 1 and isinstance(base, Identifier):
+            sym = self.current_symtab.lookup(base.name)
             self._gen_multidim_subscript(indices, sym, load_only, calc_addr_only)
             return
         
-        # Single index - use original 1D implementation
-        if not isinstance(expr.array, Identifier):
-            self._raise_error("Subscript array must be identifier")
+        # Single index or FieldAccess base - use original 1D implementation
+        if isinstance(base, Identifier):
+            # Original code for array identifiers
+            sym = self.current_symtab.lookup(base.name)
+            
+            # Calculate element width based on array element type
+            element_width = self._calculate_element_width(sym)
 
-        sym = self.current_symtab.lookup(expr.array.name)
-        
-        # Calculate element width based on array element type
-        element_width = self._calculate_element_width(sym)
+            # base address -> TMP0/TMP0+1
+            self._load_sym_addr(sym.asm_name())
+            self.emit("\tSTA TMP0")
+            self.emit("\tSTX TMP0+1")
 
-        # base address -> TMP0/TMP0+1
-        self._load_sym_addr(sym.asm_name())
-        self.emit("\tSTA TMP0")
-        self.emit("\tSTX TMP0+1")
+            # index -> calculate scaled offset
+            self.gen_expr(expr.index)
+            
+        elif isinstance(base, FieldAccess):
+            # New code for field access (struct_var.field[index])
+            # First, generate the field access which should give us the address in A/X
+            self._gen_field_access(base, load_only=True)
+            # Result is in A/X - this is the address of the array field
+            # Save it to TMP0
+            self.emit("\tSTA TMP0")
+            self.emit("\tSTX TMP0+1")
+            
+            # Get field info to determine element width
+            obj_type = self.tc_check(base.object).sem_type
+            if not obj_type.is_struct:
+                self._raise_error("Field access base must be struct")
+            
+            struct_info = obj_type.struct_info
+            if struct_info is None:
+                self._raise_error(f"Struct '{obj_type.base}' not found")
+            
+            # Find field info to get element type
+            field_info = None
+            for f in struct_info.fields:
+                if f.name == base.field:
+                    field_info = f
+                    break
+            
+            if field_info is None:
+                self._raise_error(f"Field '{base.field}' not found in struct")
+            
+            # Determine element width
+            if field_info.base_type == "BYTE":
+                element_width = 1
+            elif field_info.base_type == "WORD":
+                element_width = 2
+            else:
+                # Nested struct or other type - would need struct registry lookup
+                element_width = 2  # Default for now
+            
+            # Generate the index expression
+            self.gen_expr(expr.index)
+        else:
+            self._raise_error("Subscript array must be identifier or field access")
 
-        # index -> calculate scaled offset
-        self.gen_expr(expr.index)
-        
         # Multiply index by element width and store result
         if element_width > 1:
             if element_width == 2:
@@ -3176,6 +3218,8 @@ class CodeGen:
         For pointer field access (ptr^.field):
           - Dereference pointer to get object address
           - Load field from that address using offset
+          
+        For array fields, return the address instead of value.
         """
         t = self.tc_check(expr)
         field_type = t.sem_type
@@ -3198,6 +3242,61 @@ class CodeGen:
         
         if field_info is None:
             self._raise_error(f"Field '{expr.field}' not found in struct '{struct_info.name}'")
+        
+        # Special handling for array fields - return address instead of loading value
+        if field_info.array_sizes:
+            # This field is an array, return its address
+            field_offset = field_info.offset
+            
+            if expr.is_deref:
+                # ptr^.field where field is array - load pointer, add offset
+                self.gen_expr(expr.object)
+                # A/X now has pointer to struct
+                
+                if field_offset > 0:
+                    # Add offset to pointer
+                    self.emit(f"\tCLC")
+                    self.emit(f"\tADC #{field_offset}")
+                    self.emit(f"\tBCC NOCARRY_ARRFIELD_DEREF_{id(expr)}")
+                    self.emit(f"\tINC A+1")
+                    self.emit(f"NOCARRY_ARRFIELD_DEREF_{id(expr)}:")
+            else:
+                # obj.field where field is array - get address of array within struct
+                if isinstance(expr.object, Identifier):
+                    sym = self.current_symtab.lookup(expr.object.name)
+                    base_asm = sym.asm_name()
+                    
+                    # Calculate field address
+                    field_asm = base_asm
+                    if field_offset > 0:
+                        field_asm = f"{base_asm}+{field_offset}"
+                    
+                    # Load address of field into A/X
+                    self.emit(f"\tLDA #<{field_asm}")
+                    self.emit(f"\tLDX #>{field_asm}")
+                    
+                elif isinstance(expr.object, SubscriptExpr):
+                    # Array subscript: arr[i].array_field
+                    # Get address of arr[i]
+                    self._gen_subscript(expr.object, load_only=True, calc_addr_only=True)
+                    
+                    # Add field offset to address in TMP0
+                    if field_offset > 0:
+                        self.emit(f"\tCLC")
+                        self.emit(f"\tLDA TMP0")
+                        self.emit(f"\tADC #{field_offset}")
+                        self.emit(f"\tSTA TMP0")
+                        self.emit(f"\tBCC NOCARRY_ARRFIELD_SUBSCR_{id(expr)}")
+                        self.emit(f"\tINC TMP0+1")
+                        self.emit(f"NOCARRY_ARRFIELD_SUBSCR_{id(expr)}:")
+                    
+                    # Return address in A/X
+                    self.emit(f"\tLDA TMP0")
+                    self.emit(f"\tLDX TMP0+1")
+                else:
+                    self._raise_error("Array field access requires identifier or subscript base")
+            
+            return
         
         field_offset = field_info.offset
         field_width = 2 if field_info.base_type == "WORD" else 1

@@ -68,22 +68,24 @@ class ExprTypeChecker:
             
             # Helper function to count subscript depth and find base array
             def get_subscript_info(sub_expr):
-                """Returns (base_identifier, subscript_depth)"""
+                """Returns (base_identifier, subscript_depth, base_is_field_access)"""
                 depth = 0
                 current = sub_expr
                 while isinstance(current, SubscriptExpr):
                     depth += 1
                     current = current.array
                 if isinstance(current, Identifier):
-                    return current.name, depth
-                return None, depth
+                    return current.name, depth, False
+                elif isinstance(current, FieldAccess):
+                    return current, depth, True
+                return None, depth, False
             
-            base_name, current_depth = get_subscript_info(expr)
+            base_info, current_depth, is_field_access = get_subscript_info(expr)
             
-            if base_name:
-                # We found the base array identifier - check its dimensions
+            if base_info and not is_field_access:
+                # We found a base array identifier - check its dimensions
                 try:
-                    arr_sym = self.symtab.lookup(base_name)
+                    arr_sym = self.symtab.lookup(base_info)
                     if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > current_depth:
                         # More dimensions remain after this subscript - return ADDR
                         elem_type = SemType(
@@ -95,6 +97,37 @@ class ExprTypeChecker:
                         return ExprType(elem_type, ExprKind.ADDR)
                 except (KeyError, AttributeError):
                     pass
+            elif base_info and is_field_access:
+                # We have a field access as base - check if the field has multiple dimensions
+                field_access_expr = base_info
+                # Get the field info from the struct registry
+                if not self.struct_registry:
+                    pass  # Will default to LVALUE below
+                else:
+                    try:
+                        # Check the object type
+                        obj_type = self.check(field_access_expr.object)
+                        
+                        # Get struct info
+                        if field_access_expr.is_deref:
+                            base_type_name = obj_type.sem_type.base
+                        else:
+                            base_type_name = obj_type.sem_type.base
+                        
+                        struct_info = self.struct_registry.lookup(base_type_name.upper())
+                        if struct_info:
+                            field_info = struct_info.get_field(field_access_expr.field.upper())
+                            if field_info and field_info.array_sizes and len(field_info.array_sizes) > current_depth:
+                                # More dimensions remain after this subscript - return ADDR
+                                elem_type = SemType(
+                                    base=arr_t.sem_type.base,
+                                    is_pointer=True,  # Returns a pointer to next dimension
+                                    is_struct=arr_t.sem_type.is_struct,
+                                    struct_info=arr_t.sem_type.struct_info
+                                )
+                                return ExprType(elem_type, ExprKind.ADDR)
+                    except (KeyError, AttributeError, SemanticError):
+                        pass
             
             # Single-dimensional array or final subscript of multi-dimensional array
             # array element is LVALUE of base type
@@ -247,6 +280,10 @@ class ExprTypeChecker:
                 nested_struct = self.struct_registry.lookup(field_info.base_type.upper())
                 field_sem_type = SemType(field_info.base_type, field_info.is_pointer, 
                                         is_struct=True, struct_info=nested_struct)
+            
+            # If field is an array, return ADDR (pointer to array), not LVALUE
+            if field_info.array_sizes:
+                return ExprType(field_sem_type, ExprKind.ADDR)
             
             return ExprType(field_sem_type, ExprKind.LVALUE)
 

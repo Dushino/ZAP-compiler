@@ -99,30 +99,49 @@ class StructAnalyzer:
             field_type = field_ast.type.base.upper()
             is_pointer = field_ast.type.is_pointer
 
-            # Get field width
+            # Get element width (for a single element, not array)
             if field_type == "BYTE":
-                width = 1
+                elem_width = 1
             elif field_type == "WORD":
-                width = 2
+                elem_width = 2
             elif field_type in self.registry._structs:
                 # Nested struct type
                 nested_struct = self.registry._structs[field_type]
-                width = nested_struct.size
+                elem_width = nested_struct.size
             elif is_pointer and field_type == struct_def.name.upper():
                 # Self-referential struct pointer (or forward-referenced struct)
                 # Pointers are always 16-bit (2 bytes)
-                width = 2
+                elem_width = 2
             elif is_pointer:
                 # Forward reference to struct type (will be resolved later or error at use time)
                 # For now, assume pointer size (2 bytes)
-                width = 2
+                elem_width = 2
             else:
                 # Unknown non-pointer type
                 raise SemanticError(f"Unsupported field type '{field_type}' in struct")
 
-            if is_pointer and width != 2:
+            if is_pointer and elem_width != 2:
                 # Pointers should be 2 bytes
-                width = 2
+                elem_width = 2
+
+            # Evaluate array dimensions if present
+            array_sizes = None
+            if field_ast.array_sizes:
+                array_sizes = []
+                for size_expr in field_ast.array_sizes:
+                    try:
+                        size = eval_const_expr(size_expr)
+                        array_sizes.append(size)
+                    except SemanticError as e:
+                        raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}")
+
+            # Calculate total width
+            width = elem_width
+            if array_sizes:
+                total_elements = 1
+                for size in array_sizes:
+                    total_elements *= size
+                width = elem_width * total_elements
 
             # Evaluate fixed address if present
             fixed_addr = None
@@ -138,7 +157,8 @@ class StructAnalyzer:
                 base_type=field_type,
                 is_pointer=is_pointer,
                 offset=current_offset,
-                fixed_address=fixed_addr
+                fixed_address=fixed_addr,
+                array_sizes=array_sizes
             )
             fields.append(field_info)
             current_offset += width

@@ -106,10 +106,14 @@ class StructField(ASTNode):
     type: TypeNode
     name: str
     address: Optional["Expr"] = None    # None = no fixed address
+    array_sizes: Optional[List["Expr"]] = None  # Multi-dimensional array: [size1, size2, ...]
 
     def __repr__(self) -> str:
         addr_str = f" @{self.address}" if self.address else ""
-        return f"StructField({self.type} {self.name}{addr_str})"
+        array_str = ""
+        if self.array_sizes:
+            array_str = "".join(f"[{s}]" for s in self.array_sizes)
+        return f"StructField({self.type} {self.name}{array_str}{addr_str})"
 
 
 @dataclass(frozen=True)
