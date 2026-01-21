@@ -1,5 +1,5 @@
 (* ZAP! Language Grammar - EBNF Notation *)
-(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs *)
+(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, Logical NOT Operator *)
 (* Lexical tokens: IDENT, NUMBER, STRING, TOK_ASM_BLOCK *)
 (* Comments: beginning with ; until end of line *)
 

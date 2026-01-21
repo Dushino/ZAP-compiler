@@ -77,6 +77,13 @@ Steps:
 
 
 [x] Multi-dimensional arrays - all data in BSS
+[x] Logical NOT operator (!) implementation and fix
+    Fixed:
+    - Added ! to tokenizer.py SINGLE_OPS set (was missing)
+    - Added ! operator parsing to parser.py parse_factor() function
+    - Test 029-operators-logical now PASSES
+    - Created LOGICAL_NOT_OPERATOR_FIX.md documentation
+    - Updated grammar.ebnf header comment
 [ ] Extensible tests for every possible aspect of ZAP language with error messages review
 [ ] Review of generated unoptimized code
 [ ] Peephole optimization rework.

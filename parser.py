@@ -769,6 +769,14 @@ class Parser:
             operand = self.parse_factor()  # Recursive call for nested unary operators
             return UnaryExpr(UnOp.BNOT, operand)
         
+        if self.cur.type == TOK_OP and self.cur.value == "!":
+            # Logical NOT operator
+            op_line = self.cur.line
+            op_col = self.cur.col
+            self.advance()
+            operand = self.parse_factor()  # Recursive call for nested unary operators
+            return UnaryExpr(UnOp.NOT, operand)
+        
         if self.cur.type == TOK_NUMBER:
             val = self.cur.value
             self.advance()
