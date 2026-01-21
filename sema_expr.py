@@ -335,13 +335,13 @@ class ExprTypeChecker:
                         max_size = arr_sym.array_dims[dim_index]
                         if max_size is not None and index_value >= max_size:
                             raise SemanticError(
-                                f"Array index {index_value} is out of bounds for array dimension {dim_index} with size {max_size}"
+                                f"Array index {index_value} is out of bounds for array dimension {dim_index + 1} with size {max_size}"
                             )
                     elif arr_sym.array_len and dim_index == 0:
                         # Old 1D array format with array_len
                         if index_value >= arr_sym.array_len:
                             raise SemanticError(
-                                f"Array index {index_value} is out of bounds for array with size {arr_sym.array_len}"
+                                f"Array index {index_value} is out of bounds for array dimension 1 with size {arr_sym.array_len}"
                             )
             except (KeyError, AttributeError):
                 # Symbol not found, skip bounds check (error will be caught elsewhere)
