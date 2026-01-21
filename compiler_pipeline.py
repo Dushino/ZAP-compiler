@@ -372,7 +372,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             struct_an.analyze(item)
 
     # --- declarations ---    
-    decl_an = DeclarationAnalyzer(global_symtab, struct_registry)
+    decl_an = DeclarationAnalyzer(global_symtab, struct_registry, func_table)
     for d in program.decls:
         decl_an.analyze(d)
     
@@ -399,7 +399,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     expr_tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
 
     # --- procedures and functions ---
-    proc_an = ProcAnalyzer(proc_table, debug_info=debug, struct_registry=struct_registry)
+    proc_an = ProcAnalyzer(proc_table, debug_info=debug, struct_registry=struct_registry, func_table=func_table)
     func_an = FuncAnalyzer(func_table, expr_tc, debug_info=debug, struct_registry=struct_registry)
     analyzed_procs = []
     analyzed_funcs = []

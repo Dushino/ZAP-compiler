@@ -177,9 +177,10 @@ class StructAnalyzer:
 
 
 class DeclarationAnalyzer:
-    def __init__(self, symtab: SymbolTable, struct_registry=None):
+    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None):
         self.symtab = symtab
         self.struct_registry = struct_registry
+        self.func_table = func_table
 
     def analyze(self, decl: Declaration):
         # Check if this is a struct type or a built-in type
@@ -451,6 +452,13 @@ class DeclarationAnalyzer:
                             f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
                             line=d.line, col=d.col
                         )
+            
+            # Type-check all expression initializers to trigger validation
+            # (e.g., array bounds checking for subscript expressions)
+            if isinstance(d.initializer, ExprInit) and self.func_table is not None:
+                from sema_expr import ExprTypeChecker
+                tc = ExprTypeChecker(self.symtab, self.func_table, self.struct_registry)
+                tc.check(d.initializer.expr)
 
         sym = Symbol(
             name=d.name,

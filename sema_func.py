@@ -77,7 +77,7 @@ class FuncAnalyzer:
             )
             local_symtab.define(sym)
         
-        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry)
+        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table)
         for d in func.locals:
             decl_an.analyze(d)
 
