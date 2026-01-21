@@ -2451,9 +2451,11 @@ class CodeGen:
         if sym.proc_name == "" and sym.name not in self.used_globals and sym.address is None and sym.init is None:
             return
         
-        # Skip const scalar values (they're baked into code, not initialized at runtime)
-        # BUT: const structs and const arrays NEED initialization code
-        if sym.is_const and sym.init is None:
+        # Skip const values - they don't need runtime initialization
+        # Const arrays are stored in ROM (ARRAY_DATA_*) and accessed directly
+        # Const scalars are baked into code at usage points
+        # Const structs would need initialization if they existed, but we handle them below if needed
+        if sym.is_const:
             return
         
         if sym.init is None:
@@ -2800,6 +2802,23 @@ class CodeGen:
         sym = self.current_symtab.lookup(expr.name)
 
         if sym.is_const:
+            # Handle const arrays specially - they have addresses to ROM data
+            if sym.is_array:
+                # Const arrays: get address of ROM data
+                if sym.init and isinstance(sym.init, ListInit):
+                    values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+                    is_word = sym.type.base == "WORD"
+                    data_key = (tuple(values), is_word)
+                    if data_key not in self.array_literals:
+                        self.array_id += 1
+                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    arr_label = self.array_literals[data_key]
+                    self._load_sym_addr(arr_label)
+                    return
+                else:
+                    self._raise_error(f"Const array '{sym.name}' has no initialization")
+            
+            # Const scalars
             if sym.const_value is None:
                 self._raise_error(f"Constant '{sym.name}' has no value")
             # Use the symbol's declared type, not the inferred literal type
@@ -3048,8 +3067,24 @@ class CodeGen:
             # Calculate element width based on array element type
             element_width = self._calculate_element_width(sym)
 
-            # base address -> TMP0/TMP0+1
-            self._load_sym_addr(sym.asm_name())
+            # For const arrays, load address of ROM data (ARRAY_DATA_*) instead of RAM variable
+            if sym.is_const and sym.is_array:
+                # Generate the ARRAY_DATA label from the const values
+                if sym.init and isinstance(sym.init, ListInit):
+                    values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+                    is_word = sym.type.base == "WORD"
+                    data_key = (tuple(values), is_word)
+                    if data_key not in self.array_literals:
+                        self.array_id += 1
+                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    arr_label = self.array_literals[data_key]
+                    self._load_sym_addr(arr_label)
+                else:
+                    self._raise_error(f"Const array '{sym.name}' has no initialization")
+            else:
+                # base address -> TMP0/TMP0+1 (regular non-const array)
+                self._load_sym_addr(sym.asm_name())
+            
             self.emit("\tSTA TMP0")
             self.emit("\tSTX TMP0+1")
 
