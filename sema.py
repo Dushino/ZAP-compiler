@@ -243,6 +243,20 @@ class DeclarationAnalyzer:
                     val = eval_const_expr(d.initializer.expr, self.symtab)
                 except SemanticError as e:
                     raise SemanticError(e.message, line=d.line, col=d.col)
+                
+                # Check if constant fits in its type
+                if sem_type.base == "BYTE" and not sem_type.is_pointer:
+                    if val < 0 or val > 0xFF:
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)",
+                            line=d.line, col=d.col
+                        )
+                elif sem_type.base == "WORD" or sem_type.is_pointer:
+                    if val < 0 or val > 0xFFFF:
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
+                            line=d.line, col=d.col
+                        )
 
                 sym = Symbol(
                     name=d.name,
@@ -420,6 +434,23 @@ class DeclarationAnalyzer:
 
             if isinstance(d.initializer, StringInit):
                 raise SemanticError("String initializer for scalar", line=d.line, col=d.col)
+            
+            # Check if initializer is a constant that fits in the type
+            if isinstance(d.initializer, ExprInit) and isinstance(d.initializer.expr, IntLiteral):
+                val = d.initializer.expr.value
+                # Check range
+                if sem_type.base == "BYTE" and not sem_type.is_pointer:
+                    if val < 0 or val > 0xFF:
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)",
+                            line=d.line, col=d.col
+                        )
+                elif sem_type.base == "WORD" or sem_type.is_pointer:
+                    if val < 0 or val > 0xFFFF:
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
+                            line=d.line, col=d.col
+                        )
 
         sym = Symbol(
             name=d.name,

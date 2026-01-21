@@ -1,5 +1,0 @@
-# Error Test - WORD Type Overflow
-
-## Expected Error
-WORD type overflow: 65536 exceeds maximum value (65535)
-Error message should be human-readable and indicate the out-of-range value.

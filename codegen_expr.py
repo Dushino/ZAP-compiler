@@ -103,6 +103,31 @@ class CodeGen:
         else:
             self.emit(f"\tLDA #${value:02X}")
             self.emit(f"\tSTA {asm}")
+    
+    def _check_constant_fits(self, value: int, target_type: SemType, context: str = "") -> bool:
+        """Check if a constant value fits in the target type. Raise error if not.
+        
+        Returns True if the value fits, raises SemanticError if not.
+        """
+        # For BYTE types (not pointers)
+        if target_type.base == "BYTE" and not target_type.is_pointer:
+            if value < 0 or value > 0xFF:
+                error_msg = f"Constant value {value} (0x{value:X}) does not fit in BYTE (0-255)"
+                if context:
+                    error_msg += f" ({context})"
+                self._raise_error(error_msg)
+            return True
+        
+        # For WORD types and pointers
+        if target_type.base == "WORD" or target_type.is_pointer:
+            if value < 0 or value > 0xFFFF:
+                error_msg = f"Constant value {value} (0x{value:X}) does not fit in WORD (0-65535)"
+                if context:
+                    error_msg += f" ({context})"
+                self._raise_error(error_msg)
+            return True
+        
+        return True
 
     def _emit_store_word_const(self, sym: Symbol, value: int):
         value &= 0xFFFF
@@ -2518,7 +2543,10 @@ class CodeGen:
         if isinstance(sym.init, ExprInit):
             # Immediate initializer
             if isinstance(sym.init.expr, IntLiteral):
-                val = sym.init.expr.value & 0xFFFF
+                val = sym.init.expr.value
+                # Check if constant fits in target type
+                self._check_constant_fits(val, sym.type, f"initialization of {sym.name}")
+                val = val & 0xFFFF  # Mask after check
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
                     self._emit_store_byte_const(sym, val)
                 else:  # WORD or pointer → store both bytes
@@ -4553,6 +4581,8 @@ class CodeGen:
 
             # Direct constant assignment
             if isinstance(rhs, IntLiteral) and sym_lhs.address is None:
+                # Check if constant fits in target type
+                self._check_constant_fits(rhs.value, lhs_t.sem_type, f"assignment to {lhs.name}")
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
                     self._emit_store_byte_const(sym_lhs, rhs.value)
                 else:
