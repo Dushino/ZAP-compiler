@@ -594,20 +594,27 @@ class Parser:
                 node = SubscriptExpr(node, idx)
                 continue
             if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
-                # Check for ptr^.field pattern
-                if self.cur.type == TOK_PTR:
-                    next_tok = self._peek_next()
-                    if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
-                        # This is ptr^.field - consume ^ and ., then field name
-                        self.advance()  # consume ^
-                        self.advance()  # consume .
-                        if self.cur.type != TOK_IDENT:
-                            self.error("Expected field name after '.'")
-                        field_name = self.cur.value
-                        self.advance()
-                        node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
-                        continue
-                # Otherwise, just treat as postfix dereference
+                # Check for ptr^.field pattern BEFORE treating ^ as postfix deref
+                # This MUST be checked first because ^ can also be binary XOR operator
+                next_tok = self._peek_next()
+                if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
+                    # This is ptr^.field - consume ^ and ., then field name
+                    self.advance()  # consume ^
+                    self.advance()  # consume .
+                    if self.cur.type != TOK_IDENT:
+                        self.error("Expected field name after '.'")
+                    field_name = self.cur.value
+                    self.advance()
+                    node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
+                    continue
+                # Also check if this might be binary XOR (a ^ b) rather than postfix deref
+                # If next token could start an expression operand on the same line, it's probably XOR
+                if next_tok and (next_tok.type in (TOK_IDENT, TOK_NUMBER, TOK_AT) or
+                                (next_tok.type == TOK_OP and next_tok.value in ("~", "@", "("))) and \
+                   next_tok.line == self.cur.line:
+                    # This looks like binary XOR (a ^ b), don't consume the ^
+                    break
+                # Otherwise, treat as postfix dereference
                 self.advance()
                 node = DerefExpr(node)
                 continue
