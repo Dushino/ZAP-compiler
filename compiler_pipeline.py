@@ -372,7 +372,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             struct_an.analyze(item)
 
     # --- declarations ---    
-    decl_an = DeclarationAnalyzer(global_symtab, struct_registry, func_table)
+    decl_an = DeclarationAnalyzer(global_symtab, struct_registry, func_table, global_symtab=None)
     for d in program.decls:
         decl_an.analyze(d)
     

@@ -177,10 +177,11 @@ class StructAnalyzer:
 
 
 class DeclarationAnalyzer:
-    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None):
+    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None, global_symtab=None):
         self.symtab = symtab
         self.struct_registry = struct_registry
         self.func_table = func_table
+        self.global_symtab = global_symtab
 
     def analyze(self, decl: Declaration):
         # Check if this is a struct type or a built-in type
@@ -410,13 +411,22 @@ class DeclarationAnalyzer:
             elif isinstance(d.initializer, StringInit):
                 if sem_type.base.lower() != "byte":
                     raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
+                
+                # Check if string fits in the specified array size
+                string_len = len(d.initializer.value) + 1  # +1 for NUL terminator
+                if array_len is not None and string_len > array_len:
+                    raise SemanticError(
+                        f"String length {len(d.initializer.value)} + 1 (NUL) = {string_len} exceeds array size {array_len}",
+                        line=d.line, col=d.col
+                    )
+                
                 if array_len is None:
-                    array_len = len(d.initializer.value) + 1
+                    array_len = string_len
                 
                 # Resolve inferred dimensions in array_dims from string initializer
                 if array_dims and None in array_dims:
                     # For string arrays, infer size (string length + NUL terminator)
-                    inferred_size = len(d.initializer.value) + 1
+                    inferred_size = string_len
                     array_dims[-1] = inferred_size
 
             elif d.initializer is not None:
@@ -457,7 +467,16 @@ class DeclarationAnalyzer:
             # (e.g., array bounds checking for subscript expressions)
             if isinstance(d.initializer, ExprInit) and self.func_table is not None:
                 from sema_expr import ExprTypeChecker
-                tc = ExprTypeChecker(self.symtab, self.func_table, self.struct_registry)
+                from symbols import ScopedSymbolTable
+                
+                # Create a scoped symbol table that includes both local and global symbols
+                # if global_symtab is available (for local variables), otherwise use symtab as-is
+                if self.global_symtab is not None:
+                    scoped_symtab = ScopedSymbolTable(self.global_symtab)
+                    scoped_symtab.local = self.symtab
+                    tc = ExprTypeChecker(scoped_symtab, self.func_table, self.struct_registry)
+                else:
+                    tc = ExprTypeChecker(self.symtab, self.func_table, self.struct_registry)
                 tc.check(d.initializer.expr)
 
         sym = Symbol(

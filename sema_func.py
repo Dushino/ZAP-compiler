@@ -77,7 +77,7 @@ class FuncAnalyzer:
             )
             local_symtab.define(sym)
         
-        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table)
+        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table, global_symtab=global_symtab)
         for d in func.locals:
             decl_an.analyze(d)
 
@@ -90,6 +90,47 @@ class FuncAnalyzer:
         # update expr_tc to use scoped symbol table
         prev_symtab = self.expr_tc.symtab
         self.expr_tc.symtab = scoped
+
+        # Helper to validate expressions with error reporting
+        def validate_expr(expr, context_stmt=None):
+            try:
+                return self.expr_tc.check(expr)
+            except SemanticError as e:
+                info = self.debug.get("stmt_src", {}).get(id(context_stmt)) if context_stmt else None
+                if info:
+                    if len(info) == 3:
+                        fname, line, _text = info
+                        col = 1
+                    else:
+                        fname, line, col, _text = info
+                    err = SemanticError(e.message, line=line, col=col)
+                    err.filename = fname
+                    raise err
+                raise
+
+        # Validate all expressions in all statements
+        def validate_stmt_exprs(statements: list):
+            from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt
+            for st in statements:
+                if isinstance(st, AssignStmt):
+                    validate_expr(st.lhs, st)
+                    validate_expr(st.rhs, st)
+                elif isinstance(st, IfStmt):
+                    validate_expr(st.cond, st)
+                    validate_stmt_exprs(st.then_body)
+                    if st.else_body:
+                        validate_stmt_exprs(st.else_body)
+                elif isinstance(st, WhileStmt):
+                    validate_expr(st.cond, st)
+                    validate_stmt_exprs(st.body)
+                elif isinstance(st, ForStmt):
+                    validate_expr(st.start, st)
+                    validate_expr(st.end, st)
+                    if st.step is not None:
+                        validate_expr(st.step, st)
+                    validate_stmt_exprs(st.body)
+
+        validate_stmt_exprs(func.body)
 
         has_return = False
         for stmt in func.body:

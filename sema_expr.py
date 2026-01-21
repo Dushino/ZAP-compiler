@@ -26,7 +26,10 @@ class ExprTypeChecker:
                 return ExprType(SemType("WORD", False), ExprKind.VALUE)
 
         if isinstance(expr, Identifier):
-            sym = self.symtab.lookup(expr.name)
+            try:
+                sym = self.symtab.lookup(expr.name)
+            except KeyError:
+                raise SemanticError(f"Variable '{expr.name}' is not defined")
             if sym.is_array:
                 # Array addresses are 16-bit pointers even if they point to BYTE
                 # But preserve struct information
@@ -166,6 +169,11 @@ class ExprTypeChecker:
             if op in {
                 BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD
             }:
+                # Check for division/modulo by zero
+                if op in {BinOp.DIV, BinOp.MOD} and isinstance(expr.right, IntLiteral):
+                    if expr.right.value == 0:
+                        raise SemanticError("Division by zero")
+                
                 if lt.kind == ExprKind.ADDR or rt.kind == ExprKind.ADDR:
                     if op in (BinOp.ADD, BinOp.SUB):
                         if lt.kind == ExprKind.ADDR and rt.kind == ExprKind.VALUE:

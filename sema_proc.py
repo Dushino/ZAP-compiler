@@ -97,13 +97,43 @@ class ProcAnalyzer:
             )
             local_symtab.define(sym)
 
-        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table)
+        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table, global_symtab=global_symtab)
         for d in proc.locals:
             decl_an.analyze(d)
 
         # scoped lookup: nejdřív lokály, pak globály
         scoped = ScopedSymbolTable(global_symtab)
         scoped.local = local_symtab
+
+        # Type-check expressions in statements to validate variable references
+        if self.func_table is not None:
+            from sema_expr import ExprTypeChecker
+            tc = ExprTypeChecker(scoped, self.func_table, self.struct_registry)
+
+            def validate_stmt_exprs(statements: list):
+                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt
+                for st in statements:
+                    if isinstance(st, AssignStmt):
+                        tc.check(st.lhs)
+                        tc.check(st.rhs)
+                    elif isinstance(st, ReturnStmt):
+                        tc.check(st.expr)
+                    elif isinstance(st, IfStmt):
+                        tc.check(st.cond)
+                        validate_stmt_exprs(st.then_body)
+                        if st.else_body:
+                            validate_stmt_exprs(st.else_body)
+                    elif isinstance(st, WhileStmt):
+                        tc.check(st.cond)
+                        validate_stmt_exprs(st.body)
+                    elif isinstance(st, ForStmt):
+                        tc.check(st.start)
+                        tc.check(st.end)
+                        if st.step is not None:
+                            tc.check(st.step)
+                        validate_stmt_exprs(st.body)
+
+            validate_stmt_exprs(proc.body)
 
         # validate procedure calls inside the body (must refer to defined procs)
         def walk(statements: list):
