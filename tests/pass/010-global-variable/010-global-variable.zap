@@ -1,5 +1,6 @@
 byte global_value = 55
+byte result @40000
 
 proc main()
-    byte result = global_value
+    result = global_value
 end
