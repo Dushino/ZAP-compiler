@@ -203,6 +203,32 @@ class DeclarationAnalyzer:
         for d in decl.declarators:
             self._analyze_declarator(decl, d, sem_type)
 
+    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int):
+        """Recursively validate struct initializer has correct field count and nested structs."""
+        num_fields = len(struct_info.fields)
+        num_values = len(init.values)
+        
+        if num_values != num_fields:
+            raise SemanticError(
+                f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided",
+                line=line, col=col
+            )
+        
+        # Validate nested structs
+        for field, value in zip(struct_info.fields, init.values):
+            # Check if field type is a struct by looking it up in registry
+            if self.struct_registry and not field.is_pointer:
+                # Try to lookup the field base_type as a struct
+                nested_struct_info = None
+                try:
+                    nested_struct_info = self.struct_registry.lookup(field.base_type.upper())
+                except SemanticError:
+                    # Not a struct, just a built-in type
+                    pass
+                
+                if nested_struct_info and isinstance(value, ListInit):
+                    self._validate_struct_init(value, nested_struct_info, line, col)
+
     def _analyze_declarator(
         self,
         decl: Declaration,
@@ -310,10 +336,8 @@ class DeclarationAnalyzer:
                 
                 elif sem_type.is_struct:
                     # Const struct (non-array)
-                    # Validate field count
-                    num_fields = len(sem_type.struct_info.fields)
-                    if len(d.initializer.values) != num_fields:
-                        raise SemanticError(f"Struct initializer has {len(d.initializer.values)} values, expected {num_fields}", line=d.line, col=d.col)
+                    # Validate field count (including nested)
+                    self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
                     
                     sym = Symbol(
                         name=d.name,
@@ -377,11 +401,9 @@ class DeclarationAnalyzer:
                 
                 if is_struct_array:
                     # For struct arrays, each element should be a nested list matching the struct field count
-                    num_fields = len(sem_type.struct_info.fields)
                     for i, val in enumerate(d.initializer.values):
                         if isinstance(val, ListInit):
-                            if len(val.values) != num_fields:
-                                raise SemanticError(f"Struct initializer has {len(val.values)} values, expected {num_fields}", line=d.line, col=d.col)
+                            self._validate_struct_init(val, sem_type.struct_info, d.line, d.col)
                         else:
                             raise SemanticError(f"Struct array element {i} must be a list initializer", line=d.line, col=d.col)
                     
@@ -442,6 +464,10 @@ class DeclarationAnalyzer:
                 # ListInit is allowed for struct types for nested initialization
                 if not sem_type.is_struct:
                     raise SemanticError("List initializer for scalar", line=d.line, col=d.col)
+                
+                # Validate struct field count matches initializer value count (including nested)
+                if sem_type.struct_info:
+                    self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
 
             if isinstance(d.initializer, StringInit):
                 raise SemanticError("String initializer for scalar", line=d.line, col=d.col)
