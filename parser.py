@@ -594,6 +594,20 @@ class Parser:
                 node = SubscriptExpr(node, idx)
                 continue
             if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
+                # Check for ptr^.field pattern
+                if self.cur.type == TOK_PTR:
+                    next_tok = self._peek_next()
+                    if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
+                        # This is ptr^.field - consume ^ and ., then field name
+                        self.advance()  # consume ^
+                        self.advance()  # consume .
+                        if self.cur.type != TOK_IDENT:
+                            self.error("Expected field name after '.'")
+                        field_name = self.cur.value
+                        self.advance()
+                        node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
+                        continue
+                # Otherwise, just treat as postfix dereference
                 self.advance()
                 node = DerefExpr(node)
                 continue
@@ -796,6 +810,17 @@ class Parser:
                         self.error("Expected ']' after subscript")
                     node = SubscriptExpr(node, idx)
                     continue
+                # IMPORTANT: Check for ptr^.field BEFORE checking for standalone ^
+                # This must be checked first because ^ can be consumed as postfix deref
+                if self.cur.type == TOK_PTR:
+                    next_tok = self._peek_next()
+                    if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
+                        self.advance()  # consume ^
+                        self.advance()  # consume .
+                        field_name = self.cur.value
+                        self.expect(TOK_IDENT)
+                        node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
+                        continue
                 # For caret: only treat as postfix dereference if next token cannot start an expression
                 # If it could be an expression (IDENT, NUMBER, LBRACE, etc.), then it's likely binary XOR
                 if self.cur.type == TOK_PTR:
@@ -816,26 +841,13 @@ class Parser:
                     self.advance()
                     node = DerefExpr(node)
                     continue
-                # Field access: obj.field or ptr^.field
+                # Field access: obj.field
                 if self.cur.type == TOK_OP and self.cur.value == ".":
                     self.advance()
                     field_name = self.cur.value
                     self.expect(TOK_IDENT)
                     node = FieldAccess(node, field_name, is_deref=False)
                     continue
-                # Deref + field access: ptr^.field
-                # Check if this is ptr^.field pattern
-                if self.cur.type == TOK_PTR:
-                    # Look ahead to see if . follows
-                    next_tok = self._peek_next()
-                    if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
-                        self.advance()  # consume ^
-                        self.advance()  # consume .
-                        field_name = self.cur.value
-                        self.expect(TOK_IDENT)
-                        node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
-                        continue
-                    # Otherwise this is just postfix deref (already handled above)
                 break
             return node
 

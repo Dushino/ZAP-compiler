@@ -52,10 +52,15 @@ class ExprTypeChecker:
             base = self.check(expr.pointer)
             if base.kind != ExprKind.ADDR or not base.sem_type.is_pointer:
                 raise SemanticError("Cannot dereference non-pointer")
-            return ExprType(
-                SemType(base.sem_type.base, False),
-                ExprKind.LVALUE
+            
+            # When dereferencing, preserve struct information if the pointed-to type is a struct
+            result_type = SemType(
+                base=base.sem_type.base,
+                is_pointer=False,
+                is_struct=base.sem_type.is_struct,
+                struct_info=base.sem_type.struct_info
             )
+            return ExprType(result_type, ExprKind.LVALUE)
 
         if isinstance(expr, SubscriptExpr):
             arr_t = self.check(expr.array)
@@ -250,17 +255,12 @@ class ExprTypeChecker:
             # Check the object type
             obj_type = self.check(expr.object)
             
-            # For deref field access (ptr^.field), object must be pointer
-            if expr.is_deref:
-                if obj_type.kind != ExprKind.ADDR or not obj_type.sem_type.is_pointer:
-                    raise SemanticError("Cannot use ^. on non-pointer")
-                base_type_name = obj_type.sem_type.base
-            else:
-                # For direct field access (obj.field), object must be struct value or lvalue
-                # (e.g., arr[0].field where arr[0] is LVALUE)
-                if obj_type.kind not in (ExprKind.VALUE, ExprKind.LVALUE):
-                    raise SemanticError("Field access requires struct value or pointer")
-                base_type_name = obj_type.sem_type.base
+            # For deref field access (ptr^.field), object is a DerefExpr which is LVALUE of struct type
+            # For direct field access (obj.field), object can be LVALUE or VALUE of struct type
+            if obj_type.kind not in (ExprKind.VALUE, ExprKind.LVALUE):
+                raise SemanticError("Field access requires struct value or lvalue")
+            
+            base_type_name = obj_type.sem_type.base
             
             # Look up struct definition
             struct_info = self.struct_registry.lookup(base_type_name.upper())

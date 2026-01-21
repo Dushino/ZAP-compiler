@@ -3236,7 +3236,7 @@ class CodeGen:
         # Find field info
         field_info = None
         for f in struct_info.fields:
-            if f.name == expr.field:
+            if f.name == expr.field.upper():
                 field_info = f
                 break
         
@@ -3302,29 +3302,32 @@ class CodeGen:
         field_width = 2 if field_info.base_type == "WORD" else 1
         
         if expr.is_deref:
-            # ptr^.field - dereference the pointer first
-            # 1) Generate pointer expression -> A/X
-            self.gen_expr(expr.object)
+            # ptr^.field - expr.object should be a DerefExpr(pointer)
+            # We need to get the address that the pointer points to
+            if not isinstance(expr.object, DerefExpr):
+                self._raise_error(f"Expected DerefExpr for is_deref=True, got {type(expr.object).__name__}")
             
-            # 2) Store pointer address
+            if isinstance(expr.object.pointer, Identifier):
+                # Simple case: pp^.field where pp is a pointer variable
+                ptr_name = expr.object.pointer.name
+                sym = self.current_symtab.lookup(ptr_name)
+                ptr_asm = sym.asm_name()
+                
+                # Load the pointer value (which is the struct address)
+                self.emit(f"\tLDA {ptr_asm}")
+                self.emit(f"\tLDX {ptr_asm}+1")
+            else:
+                # Complex case: generate the pointer expression
+                # This will give us the pointer address in A/X
+                self.gen_expr(expr.object.pointer)
+            
+            # Now A/X contains the address of the struct
+            # Store it in TMP0
             self.emit("\tSTA TMP0")
             self.emit("\tSTX TMP0+1")
             
-            # 3) Load field value from dereferenced location
-            if field_offset == 0:
-                # Field at offset 0: just load directly
-                self.emit("\tLDY #0")
-                self.emit("\tLDA (TMP0),Y")
-                
-                if field_width == 2:
-                    # Load high byte
-                    self.emit("\tPHA")
-                    self.emit("\tINY")
-                    self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tTAX")
-                    self.emit("\tPLA")
-            else:
-                # Field at offset > 0: add offset to pointer first
+            # Add field offset to address if needed
+            if field_offset > 0:
                 self.emit(f"\tLDA #${field_offset:02X}")
                 self.emit("\tCLC")
                 self.emit("\tADC TMP0")
@@ -3332,17 +3335,32 @@ class CodeGen:
                 self.emit(f"\tBCC NOCARRY_FIELD_DEREF_{id(expr)}")
                 self.emit("\tINC TMP0+1")
                 self.emit(f"NOCARRY_FIELD_DEREF_{id(expr)}:")
-                
-                # Load field value
-                self.emit("\tLDY #0")
-                self.emit("\tLDA (TMP0),Y")
-                
-                if field_width == 2:
-                    self.emit("\tPHA")
-                    self.emit("\tINY")
+            
+            # If only loading field value, load it now
+            if load_only:
+                if field_offset == 0:
+                    # Field at offset 0: just load directly
+                    self.emit("\tLDY #0")
                     self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tTAX")
-                    self.emit("\tPLA")
+                    
+                    if field_width == 2:
+                        # Load high byte
+                        self.emit("\tPHA")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tTAX")
+                        self.emit("\tPLA")
+                else:
+                    # Field at offset > 0, address is already in TMP0
+                    self.emit("\tLDY #0")
+                    self.emit("\tLDA (TMP0),Y")
+                    
+                    if field_width == 2:
+                        self.emit("\tPHA")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tTAX")
+                        self.emit("\tPLA")
         else:
             # obj.field - direct field access
             # obj can be: Identifier or SubscriptExpr (array[index])
