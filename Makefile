@@ -211,10 +211,10 @@ tests: clean
 			done; \
 			printf "%-30s" "$$base.zap: "; \
 			if [ $$variant_fail -eq 0 ]; then \
-				echo "✓ PASS (all 4 variants)"; \
+				echo "✓ PASS (all 2 variants)"; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "✗ FAIL ($$variant_fail/4 variants failed)$$variant_errors"; \
+				echo "✗ FAIL ($$variant_fail/2 variants failed)$$variant_errors"; \
 				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
