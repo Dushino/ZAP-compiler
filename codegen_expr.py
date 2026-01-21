@@ -3442,6 +3442,30 @@ class CodeGen:
         right_16 = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
         result_16 = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
         
+        # Check if left operand is a BYTE arithmetic expression that can overflow
+        # If so, treat it as 16-bit because it will have carry promotion applied
+        left_is_promoted_byte_arith = (
+            isinstance(expr.left, BinaryExpr) and 
+            not left_16 and  # Type system says it's BYTE
+            expr.left.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD}
+        )
+        if left_is_promoted_byte_arith:
+            left_16 = True  # Treat as 16-bit since it will have carry promotion
+        
+        # Check if right operand is a BYTE arithmetic expression that can overflow
+        right_is_promoted_byte_arith = (
+            isinstance(expr.right, BinaryExpr) and 
+            not right_16 and  # Type system says it's BYTE
+            expr.right.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD}
+        )
+        if right_is_promoted_byte_arith:
+            right_16 = True  # Treat as 16-bit since it will have carry promotion
+        
+        # Also check if result type should be promoted due to operand promotion
+        # If either operand was promoted to 16-bit and we're doing arithmetic, result should be 16-bit
+        result_16_adj = result_16 or (left_is_promoted_byte_arith and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
+        result_16_adj = result_16_adj or (right_is_promoted_byte_arith and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
+        
         # Detect pointer arithmetic: determine if this is pointer +/- value
         # Check sem_type.is_pointer to detect both @-created addresses and pointer variables
         left_is_ptr = left_t.sem_type.is_pointer
@@ -3482,9 +3506,9 @@ class CodeGen:
         
         # Handle different operations
         if expr.op == BinOp.ADD:
-            self._gen_add(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt, right_16, left_tmp)
+            self._gen_add(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt, right_16, left_tmp)
         elif expr.op == BinOp.SUB:
-            self._gen_sub(result_16, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt, left_tmp)
+            self._gen_sub(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt, left_tmp)
         elif expr.op == BinOp.MUL:
             self._gen_mul(left_16, right_16, result_16, left_tmp)
         elif expr.op == BinOp.DIV:
@@ -3501,6 +3525,23 @@ class CodeGen:
             self._gen_lshift(result_16, left_tmp)
         elif expr.op == BinOp.RSHIFT:
             self._gen_rshift(result_16, left_tmp)
+        
+        # If this is a BYTE arithmetic expression (no 16-bit result conversion by the operation),
+        # we need to handle potential overflow/carry by promoting to 16-bit for the caller
+        # This is needed when the result will be used as a WORD (e.g., in further arithmetic)
+        # However, if we already handled it as 16-bit due to promoted operands, skip this
+        is_byte_arith = (not result_16_adj and not result_16 and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
+        if is_byte_arith:
+            # The 8-bit result in A needs to be promoted to 16-bit by checking carry
+            # Set X based on carry flag: if carry set, X=1, else X=0
+            carry_lbl = self.new_label("NOCARRY_ARITH_RESULT")
+            end_lbl = self.new_label("END_ARITH_RESULT")
+            self.emit(f"\tBCC {carry_lbl}")
+            self.emit(f"\tLDX #1")  # Carry set: high byte = 1
+            self.emit(f"\tJMP {end_lbl}")
+            self.emit(f"{carry_lbl}:")
+            self.emit(f"\tLDX #0")  # No carry: high byte = 0
+            self.emit(f"{end_lbl}:")  # Continue with A/X ready for storage
     
     def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True, left_tmp: str = "TMP0"):
         """Generate addition (inline)
@@ -4468,9 +4509,10 @@ class CodeGen:
         # Handle type widening: if RHS is smaller than LHS, extend with zeros
         # This is needed when assigning a BYTE to a WORD target
         # BUT: Don't clear X if the RHS is a multiply (MUL8 returns 16-bit result in A,X)
-        is_mul = isinstance(rhs, BinaryExpr) and rhs.op == BinOp.MUL
+        # Also: Don't clear X for any arithmetic expression since ADD/SUB/DIV/MOD may have carry
+        is_arith = isinstance(rhs, BinaryExpr) and rhs.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD}
         if (rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer and
-            lhs_t.sem_type.base == "WORD" and not is_mul):
+            lhs_t.sem_type.base == "WORD" and not is_arith):
             if self.is_65c02:
                 self.emit("\tLDX #0")  # Clear X for BYTE to WORD conversion
             else:
