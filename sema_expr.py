@@ -67,6 +67,10 @@ class ExprTypeChecker:
             if arr_t.kind != ExprKind.ADDR:
                 raise SemanticError("Subscript requires array address")
             
+            # Check if index is a constant and validate bounds
+            if isinstance(expr.index, IntLiteral):
+                self._check_array_bounds(expr, expr.index.value)
+            
             # Check if this is a multi-dimensional array
             # For multi-dimensional arrays, partial subscripting returns ADDR (pointer to next dimension)
             # Only final subscript returns LVALUE (actual element)
@@ -291,4 +295,84 @@ class ExprTypeChecker:
         raise SemanticError(
             f"Unsupported expression type: {type(expr).__name__}"
         )
+
+    def _check_array_bounds(self, subscript_expr: SubscriptExpr, index_value: int):
+        """Check if a constant array index is within bounds.
+        
+        For multi-dimensional arrays, finds the base array and checks the index
+        against the appropriate dimension based on subscript depth.
+        """
+        # Helper to get base array info and subscript depth
+        def get_subscript_info(sub_expr):
+            """Returns (base_identifier, subscript_depth, is_field_access, base_field_access)"""
+            depth = 0
+            current = sub_expr
+            while isinstance(current, SubscriptExpr):
+                depth += 1
+                current = current.array
+            if isinstance(current, Identifier):
+                return current.name, depth, False, None
+            elif isinstance(current, FieldAccess):
+                return None, depth, True, current
+            return None, depth, False, None
+        
+        base_name, depth, is_field_access, field_access_expr = get_subscript_info(subscript_expr)
+        
+        # Check negative indices
+        if index_value < 0:
+            raise SemanticError(f"Array index cannot be negative: {index_value}")
+        
+        # For regular array identifiers
+        if base_name and not is_field_access:
+            try:
+                arr_sym = self.symtab.lookup(base_name)
+                if arr_sym.is_array:
+                    # Get the dimension to check based on subscript depth
+                    # depth=1 means first subscript, check first dimension
+                    dim_index = depth - 1
+                    
+                    if arr_sym.array_dims and dim_index < len(arr_sym.array_dims):
+                        max_size = arr_sym.array_dims[dim_index]
+                        if max_size is not None and index_value >= max_size:
+                            raise SemanticError(
+                                f"Array index {index_value} is out of bounds for array dimension {dim_index} with size {max_size}"
+                            )
+                    elif arr_sym.array_len and dim_index == 0:
+                        # Old 1D array format with array_len
+                        if index_value >= arr_sym.array_len:
+                            raise SemanticError(
+                                f"Array index {index_value} is out of bounds for array with size {arr_sym.array_len}"
+                            )
+            except (KeyError, AttributeError):
+                # Symbol not found, skip bounds check (error will be caught elsewhere)
+                pass
+        
+        # For field access (struct field arrays)
+        elif is_field_access and field_access_expr:
+            try:
+                obj_type = self.check(field_access_expr.object)
+                
+                # Get struct info
+                if field_access_expr.is_deref:
+                    base_type_name = obj_type.sem_type.base
+                else:
+                    base_type_name = obj_type.sem_type.base
+                
+                if self.struct_registry:
+                    struct_info = self.struct_registry.lookup(base_type_name.upper())
+                    if struct_info:
+                        field_info = struct_info.get_field(field_access_expr.field.upper())
+                        if field_info and field_info.array_sizes:
+                            dim_index = depth - 1
+                            if dim_index < len(field_info.array_sizes):
+                                max_size = field_info.array_sizes[dim_index]
+                                if max_size is not None and index_value >= max_size:
+                                    raise SemanticError(
+                                        f"Array index {index_value} is out of bounds for struct field dimension {dim_index} with size {max_size}"
+                                    )
+            except (KeyError, AttributeError, SemanticError) as e:
+                # Re-raise SemanticError, skip others
+                if isinstance(e, SemanticError):
+                    raise
+                pass
 
