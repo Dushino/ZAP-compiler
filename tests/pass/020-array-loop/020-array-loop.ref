@@ -1,4 +1,1 @@
-# Memory Dump Validation - Array Loop
-- Loop fills arr[0..9] with values 0..9
-- result = arr[9] = 9 (0x09)
-Address $9C40 (40000): 0x09 (9)
+9C40: 09                      

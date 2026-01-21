@@ -1,9 +1,1 @@
-# Memory Dump Validation - Assignment Chain
-
-## Test Values
-- a = 5 (0x05)
-- b = a = 5
-- result = b = 5
-
-## Expected Memory Dump
-Address $9C40 (40000): 0x05
+9C40: 05                      
