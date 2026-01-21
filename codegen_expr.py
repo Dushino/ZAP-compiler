@@ -1951,6 +1951,54 @@ class CodeGen:
         # Call ARRCPY routine
         self.emit("\tJSR ARRCPY")
 
+    def _gen_const_struct_copy(self, dst_sym, src_const_sym):
+        """Generate code to copy const struct data from ROM to destination.
+        
+        Copies constant struct bytes from ROM data (ARRAY_DATA_*) to destination variable.
+        
+        Parameters:
+        - dst_sym: destination struct symbol (non-const variable)
+        - src_const_sym: source const struct symbol with ROM data
+        """
+        if not src_const_sym.init or not isinstance(src_const_sym.init, ListInit):
+            self._raise_error(f"Const struct '{src_const_sym.name}' has no initialization")
+        
+        # Get the struct size
+        struct_size = src_const_sym.type.struct_info.size if src_const_sym.type.struct_info else 0
+        if struct_size == 0:
+            self._raise_error(f"Cannot determine size of struct '{src_const_sym.name}'")
+        
+        # Extract values from const struct initialization
+        values = [ex.value for ex in src_const_sym.init.values if isinstance(ex, IntLiteral)]
+        
+        # Generate ROM data label for this struct
+        data_key = (tuple(values), False)
+        if data_key not in self.array_literals:
+            self.array_id += 1
+            self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+        arr_label = self.array_literals[data_key]
+        
+        # Generate code to copy struct bytes using COPY_BYTES routine
+        self.copy_bytes_needed = True
+        
+        # Set up source address (ROM data) in TMP0
+        self.emit(f"\tLDA #<{arr_label}")
+        self.emit("\tSTA TMP0")
+        self.emit(f"\tLDA #>{arr_label}")
+        self.emit("\tSTA TMP0+1")
+        
+        # Set up destination address in TMP2
+        dst_asm = dst_sym.asm_name()
+        self.emit(f"\tLDA #<{dst_asm}")
+        self.emit("\tSTA TMP2")
+        self.emit(f"\tLDA #>{dst_asm}")
+        self.emit("\tSTA TMP2+1")
+        
+        # Set copy length in X (number of bytes = struct size)
+        self.emit(f"\tLDX #{struct_size}")
+        self.emit("\tLDY #0")
+        self.emit("\tJSR COPY_BYTES")
+
     
     def _gen_math_routines(self):
         """Generate runtime math routines for *, /, %"""
@@ -2476,6 +2524,14 @@ class CodeGen:
                 else:  # WORD or pointer → store both bytes
                     self._emit_store_word_const(sym, val)
                 return
+            
+            # Special case: struct initialized from const struct identifier
+            if isinstance(sym.init.expr, Identifier) and sym.type.is_struct:
+                src_sym = self.current_symtab.lookup(sym.init.expr.name)
+                if src_sym.is_const and src_sym.init and isinstance(src_sym.init, ListInit):
+                    # Copy const struct bytes to destination
+                    self._gen_const_struct_copy(sym, src_sym)
+                    return
 
             # Fallback: general expression (non-const)
             self.gen_expr(sym.init.expr)
@@ -2817,6 +2873,20 @@ class CodeGen:
                     return
                 else:
                     self._raise_error(f"Const array '{sym.name}' has no initialization")
+            
+            # Handle const structs - they have addresses to ROM data
+            if sym.type.is_struct:
+                if sym.init and isinstance(sym.init, ListInit):
+                    values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+                    data_key = (tuple(values), False)
+                    if data_key not in self.array_literals:
+                        self.array_id += 1
+                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    arr_label = self.array_literals[data_key]
+                    self._load_sym_addr(arr_label)
+                    return
+                else:
+                    self._raise_error(f"Const struct '{sym.name}' has no initialization")
             
             # Const scalars
             if sym.const_value is None:
@@ -4447,6 +4517,15 @@ class CodeGen:
                lhs_t.sem_type.base == "BYTE" and rhs_t.sem_type.base == "BYTE":
                 # This is a byte array to byte array copy
                 self._gen_string_copy(lhs_sym, rhs_sym)
+                return
+            
+            # Special case: const struct to struct assignment (struct copy)
+            # p = ORIG -> copy const struct data into p
+            if not lhs_sym.is_array and not rhs_sym.is_array and \
+               lhs_t.sem_type.is_struct and rhs_t.sem_type.is_struct and \
+               rhs_sym.is_const and rhs_sym.init and isinstance(rhs_sym.init, ListInit):
+                # Copy const struct bytes to lhs
+                self._gen_const_struct_copy(lhs_sym, rhs_sym)
                 return
 
         if lhs_t.kind == ExprKind.LVALUE:
