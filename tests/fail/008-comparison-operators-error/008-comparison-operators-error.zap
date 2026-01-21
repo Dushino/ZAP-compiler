@@ -1,6 +1,7 @@
+
 proc main()
     byte x = 50
-    byte y = 5
+    byte y[] = "ABC"
     
-    byte z = x + y
+    byte z = x > y
 end
