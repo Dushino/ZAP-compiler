@@ -1,11 +1,7 @@
-; This file defines the EXE header and main chunk load header for Atari executables
-
+; Atari COM/EXE header
 .import __START, __END
 
-; -----------------------------------------------
-; Executable file header
-.segment                "COMHEADER"
-                        .word $ffff
-                        .word __START
-                        .word __END
-
+.segment "EXEHDR"
+    .word $FFFF     ; block marker
+    .word __START   ; load address
+    .word __END     ; end address

@@ -291,19 +291,19 @@ if not "%2"=="" (
             rem Assemble to object (only if assembler is available)
             if !AS_AVAILABLE! equ 1 (
                 echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >> tests.txt
-                     %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >> tests.txt
+                %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g "!output_file!" -o "!obj_file!" >nul 2>&1 >> tests.txt
                 if !errorlevel! equ 0 (
                     rem Create Atari binary with header
-                    set "exehdr_obj=!testdir!\!base!!variant_name!_exehdr.o"
-                    set "autostart_obj=!testdir!\!base!!variant_name!_autostart.o"
+                    set "comhdr_obj=!testdir!\!base!!variant_name!_comhdr.o"
+                    set "autostrt_obj=!testdir!\!base!!variant_name!_autostrt.o"
                     set "bin_file=!testdir!\!base!!variant_name!.com"
-                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
-                         %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
-                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
-                         %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
+                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostrt.s -o "!autostrt_obj!" >> tests.txt
+                    %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >nul 2>&1
+                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\comhdr.s -o "!exehdr_obj!" >> tests.txt
+                    %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >nul 2>&1
                     if !errorlevel! equ 0 (
-                        echo %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" "!autostart_obj!" -o "!bin_file!" >> tests.txt
-                             %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" "!autostart_obj!" -o "!bin_file!" >> tests.txt
+                        echo %LD% -C cfg\my_atari.cfg "!obj_file!" "!comhdr_obj!" "autostrt_obj" -o "!bin_file!" >> tests.txt
+                        %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >nul 2>&1
                         if !errorlevel! equ 0 (
                             rem Create cut binary (skip 6-byte header) for disassembly
                             set "cut_file=!testdir!\!base!!variant_name!.cut"
@@ -311,10 +311,10 @@ if not "%2"=="" (
                             set "cfg_file=!testdir!\!base!.json"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
                             echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
-                                 %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 
+                            %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=!testdir!\!base!!variant_name!.txt"
                             echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
-                                 %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
+                            %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                             if !errorlevel! equ 0 (
                                 set "ref_file=!testdir!\!base!.ref"
                                 rem check result by comparing with reference file

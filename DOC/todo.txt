@@ -9,10 +9,6 @@
 [x] test file without main() should fail compilation
 [x] escape sequences for ASCII: \n, \t, \r, \", \', \\
 [x] update grammar.ebnf
-    Done:
-    - STRUCT support added (struct definitions, field access, initialization)
-    - & and | operators implemented (bitwise AND, OR, XOR)
-    - const struct initialization added
 [x] .segment "name"
 [x] binary operators &, | 
 [x] struct support
@@ -34,8 +30,6 @@ Steps:
 - Submit a PR to the Linguist repository with your language definition
 - Once merged, GitHub will automatically highlight ZAP! code blocks
 
-[ ] Document peephole optimizations in the compiler documentation
-
 [x] "get address" operator @
     Implemented:
     - Parses @ for address-of operator
@@ -54,38 +48,12 @@ Steps:
     const S s2 = { 3, 4 };  ; regular struct initialization
 
     All struct elements must be initialized.
-[x] Update all documentation files
-    Completed:
-    - Updated grammar.ebnf with @ operator in unary section
-    - Updated grammar.ebnf notes with @ operator documentation
-    - Updated ZAP_LANGUAGE_REFERENCE.md:
-      * Added bitwise operators section with &, |, ^, ~ documentation
-      * Added address-of operator (@) section with examples
-      * Updated operator precedence table
-      * Added const arrays and const struct documentation
-      * Added new Structs section (comprehensive coverage)
-      * Added struct arrays, address-of for structs, const structs
-      * Updated array section with address-of examples
-    - Updated ADVANCED_TOPICS.md pointer operations section:
-      * Changed from ^ to @ for address-of operator
-      * Added alternative ^ syntax documentation
-      * Added complex address expressions (@array[i], @struct.field)
-    - Updated project_state.md:
-      * Added items 18-22 for struct, const, address-of, bitwise operators
-      * Updated Next Steps section to reflect completed work
-      * Added test coverage summary
-
 
 [x] Multi-dimensional arrays - all data in BSS
 [x] Logical NOT operator (!) implementation and fix
-    Fixed:
-    - Added ! to tokenizer.py SINGLE_OPS set (was missing)
-    - Added ! operator parsing to parser.py parse_factor() function
-    - Test 029-operators-logical now PASSES
-    - Created LOGICAL_NOT_OPERATOR_FIX.md documentation
-    - Updated grammar.ebnf header comment
-[ ] Extensible tests for every possible aspect of ZAP language with error messages review
+[x] Extensible tests for every possible aspect of ZAP language with error messages review
 [ ] Review of generated unoptimized code
 [ ] Peephole optimization rework.
+[ ] Document peephole optimizations in the compiler documentation
 [ ] IDE integration
 [ ] Tutorials with examples.

@@ -1,0 +1,5 @@
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\041-incbin\041-incbin_6502.s" -o "tests\pass\041-incbin\041-incbin_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\comhdr.s -o "tests\pass\041-incbin\comhdr.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\autostrt.s -o "tests\pass\041-incbin\autostrt.o" 
+ld65 -C cfg\my_atari.cfg "tests\pass\041-incbin\041-incbin_6502.o" "tests\pass\041-incbin\comhdr.o" -o "tests\pass\041-incbin\041-incbin_6502.com" "tests\pass\041-incbin\autostrt.o" 
+6502_simulator --max-cycles 1024 --verbose --dump-memory 0x4800-0x4BFF --dump-file "tests\pass\041-incbin\041-incbin_6502.txt" "tests\pass\041-incbin\041-incbin_6502.com" 
