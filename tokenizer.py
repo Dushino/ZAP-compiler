@@ -14,7 +14,7 @@ KEYWORDS        = {"proc", "func", "struct",
                    "return", "break", "continue", "stop",                    
                    "asm"}
 PREPROC         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
-                   ".segment"}
+                   ".segment", ".incbin"}
 TYPES           = {"byte", "word"}
 TYPEMOD         = {"const"}
 SINGLE_OPS      = set("+-*/%><[]&|~^!")

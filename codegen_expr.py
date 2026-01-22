@@ -1811,7 +1811,7 @@ class CodeGen:
 
     def gen_file_footer(self):
         # Ensure runtime helpers and data live in CODE segment
-        self.emit("\n.segment \"CODE\"")
+        self.emit("\n.segment \"END\"")
         self._gen_copy_bytes_routine()
         self._gen_arrcpy_routine()
         self._gen_string_data()
@@ -4944,12 +4944,16 @@ class CodeGen:
 
 
     def gen_stmt(self, stmt):
-        from ast_nodes import SegmentDirective
+        from ast_nodes import SegmentDirective, IncbinDirective
         # Emit source comment for this statement
         self.emit_src_comment_for_stmt(stmt)
         
         if isinstance(stmt, SegmentDirective):
             self.emit(f'.segment "{stmt.name}"')
+            return
+
+        if isinstance(stmt, IncbinDirective):
+            self.emit(f'.incbin "{stmt.filename}"')
             return
 
         if isinstance(stmt, AsmBlock):

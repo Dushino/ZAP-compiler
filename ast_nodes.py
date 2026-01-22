@@ -21,6 +21,11 @@ class SegmentDirective(ASTNode):
 
 
 @dataclass(frozen=True)
+class IncbinDirective(ASTNode):
+    filename: str
+
+
+@dataclass(frozen=True)
 class TypeNode(ASTNode):
     base: str            # "byte", "word"
     is_pointer: bool     # True pokud ^

@@ -106,6 +106,15 @@ class Parser:
                 segment_name = self.cur.value
                 self.advance()
                 procs.append(SegmentDirective(segment_name))
+            elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INCBIN":
+                # Parse .incbin directive at top level
+                self.advance()
+                if self.cur.type != TOK_STRING:
+                    self.error("Expected string after .incbin")
+                filename = self.cur.value
+                self.advance()
+                from ast_nodes import IncbinDirective
+                procs.append(IncbinDirective(filename))
             elif self.cur.type == TOK_OP and self.cur.value == ".":
                 # Handle . followed by IDENT (preprocessor directive like .include)
                 self.advance()
@@ -123,6 +132,13 @@ class Parser:
                         segment_name = self.cur.value
                         self.advance()
                         procs.append(SegmentDirective(segment_name))
+                    elif directive == "INCBIN":
+                        if self.cur.type != TOK_STRING:
+                            self.error("Expected string after .incbin")
+                        filename = self.cur.value
+                        self.advance()
+                        from ast_nodes import IncbinDirective
+                        procs.append(IncbinDirective(filename))
                     else:
                         # Unknown directive, skip it
                         pass
@@ -994,6 +1010,40 @@ class Parser:
             segment_name = self.cur.value
             self.advance()
             return SegmentDirective(segment_name)
+
+        if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INCBIN":
+            # Parse .incbin directive in statement context
+            self.advance()
+            if self.cur.type != TOK_STRING:
+                self.error("Expected string after .incbin")
+            filename = self.cur.value
+            self.advance()
+            from ast_nodes import IncbinDirective
+            return IncbinDirective(filename)
+
+        # Handle . followed by IDENT (preprocessor directive like .segment or .incbin)
+        if self.cur.type == TOK_OP and self.cur.value == ".":
+            self.advance()
+            if self.cur.type == TOK_IDENT:
+                directive = self.cur.value.upper()
+                self.advance()
+                if directive == "SEGMENT":
+                    if self.cur.type != TOK_STRING:
+                        self.error("Expected string after .segment")
+                    segment_name = self.cur.value
+                    self.advance()
+                    return SegmentDirective(segment_name)
+                elif directive == "INCBIN":
+                    if self.cur.type != TOK_STRING:
+                        self.error("Expected string after .incbin")
+                    filename = self.cur.value
+                    self.advance()
+                    from ast_nodes import IncbinDirective
+                    return IncbinDirective(filename)
+                else:
+                    self.error(f"Unknown directive '.{directive}'")
+            else:
+                self.error("Expected identifier after '.'")
 
         if self.cur.type == TOK_KEYWORD:
             if self.cur.value == "ASM":
