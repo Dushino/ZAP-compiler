@@ -7,8 +7,8 @@ class CompileError(Exception):
         self.line = line
         self.col = col
         # Optional extra context
-        self.filename = None
-        self.source_text = None
+        self.filename: str | None = None
+        self.source_text: str | None = None
 
 
 class SyntaxError(CompileError):

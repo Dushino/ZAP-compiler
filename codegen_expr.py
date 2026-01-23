@@ -1460,8 +1460,9 @@ class CodeGen:
                 cur_upper = cur_strip.upper()
                 inc_op = self._inc_operand(cur_upper)
                 dec_op = self._dec_operand(cur_upper)
-                if (inc_op or dec_op) and "TMP" in (inc_op or dec_op).upper():
-                    temp_name = (inc_op or dec_op).upper()
+                op_str = inc_op or dec_op
+                if op_str is not None and "TMP" in op_str.upper():
+                    temp_name = op_str.upper()
                     
                     # Check if next non-comment instruction is a branch (if so, DEC/INC sets flags for it)
                     next_is_branch = False
@@ -2640,10 +2641,12 @@ class CodeGen:
 
         if isinstance(sym.init, ListInit):
             # Check if this is a struct (array or single)
-            is_struct_type = sym.type.is_struct and sym.type.struct_info is not None
+            struct_info = sym.type.struct_info
+            is_struct_type = sym.type.is_struct and struct_info is not None
             
-            if is_struct_type:
-                struct_size = sym.type.struct_info.size
+            if is_struct_type and struct_info is not None:
+                assert struct_info is not None  # Help Pylance understand struct_info is not None
+                struct_size = struct_info.size
                 flattened_values = []
                 
                 if sym.is_array:
@@ -4371,7 +4374,7 @@ class CodeGen:
         for field in sym.type.struct_info.fields:
             if field.name.upper() == field_name.upper():
                 return offset
-            offset += field.sem_type.get_size()
+            offset += field.width
         
         raise SemanticError(f"Field '{field_name}' not found in struct")
 
