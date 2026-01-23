@@ -1,9 +1,9 @@
 byte result @40000 = 0
 
 proc setfont()
-;    .segment "FONT"
-;    .incbin "default.fnt"
-;    .segment "CODE"
+    .segment "FONT"
+    .incbin "default.fnt"
+    .segment "CODE"
 end
 
 

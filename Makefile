@@ -126,7 +126,7 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g \"$$output_file\" -o \"$$obj_file\""; \
+				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g \"$$output_file\" -o \"$$obj_file\"" >> $(TEST_REPORT); \
 				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file; then \
 					variant_errors="$$variant_errors [CA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
@@ -136,7 +136,7 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o \"$$exehdr_obj\""; \
+				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o \"$$exehdr_obj\"" >> $(TEST_REPORT); \
 				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj; then \
 					variant_errors="$$variant_errors [CA65_ERROR:exehdr-$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
@@ -146,19 +146,8 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/autostart.s -o \"$$autostart_obj\""; \
-				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/autostart.s -o $$autostart_obj; then \
-					variant_errors="$$variant_errors [CA65_ERROR:autostart-$$variant_name]"; \
-					variant_fail=$$((variant_fail + 1)); \
-					echo "ca65 assembler failed on autostart" >> $(TEST_REPORT); \
-					echo "" >> $(TEST_REPORT); \
-					echo "" >> $(TEST_REPORT); \
-					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
-					continue; \
-				fi; \
-				echo "-------------------------------------------------------------------"; \
-				echo "$(LD) -C cfg/my_atari.cfg \"$$exehdr_obj\" \"$$obj_file\" \"$$autostart_obj\" -o \"$$bin_file\""; \
-				if ! $(LD) -C cfg/my_atari.cfg $$exehdr_obj $$obj_file $$autostart_obj -o $$bin_file; then \
+				echo "$(LD) -C cfg/my_atari.cfg \"$$exehdr_obj\" \"$$obj_file\"  -o \"$$bin_file\"" >> $(TEST_REPORT); \
+				if ! $(LD) -C cfg/my_atari.cfg $$exehdr_obj $$obj_file -o $$bin_file; then \
 					variant_errors="$$variant_errors [LD65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ld65 linker failed" >> $(TEST_REPORT); \
@@ -167,7 +156,7 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(DA) --cpu $$da_cpu --multi-pass --comments 3 --hexoffs --verbose --verbose \"$$cut_file\"" >> $(TEST_REPORT); \
+#				echo "$(DA) --cpu $$da_cpu --multi-pass --comments 3 --hexoffs --verbose --verbose \"$$cut_file\"" >> $(TEST_REPORT); \
 				if ! $(DA) --cpu $$da_cpu --multi-pass --info cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose $$bin_file > $$dis_file 2>&1; then \
 					variant_errors="$$variant_errors [DA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
@@ -212,12 +201,12 @@ tests: clean
 				echo "" >> $(TEST_REPORT); \
 				echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 			done; \
-			printf "%-30s" "$$base.zap: "; \
+			printf "%-50s" "$$base.zap: "; \
 			if [ $$variant_fail -eq 0 ]; then \
-				echo "✓ PASS (all 2 variants)"; \
+				echo "✅ PASS (all 2 variants)"; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "✗ FAIL ($$variant_fail/2 variants failed)$$variant_errors"; \
+				echo "❌ FAIL ($$variant_fail/2 variants failed)$$variant_errors"; \
 				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
@@ -229,12 +218,12 @@ tests: clean
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
-			printf "%-30s" "$$base.zap: "; \
+			printf "%-50s" "$$base.zap: "; \
 			if $(ZC) -6502 $$zapfile -o $${dir}/$${base}.s >> $(TEST_REPORT) 2>&1; then \
-				echo "✗ FAIL (expected to fail but passed)"; \
+				echo "❌ FAIL (expected to fail but passed)"; \
 				error_count=$$((error_count + 1)); \
 			else \
-				echo "✓ PASS (correctly rejected)"; \
+				echo "✅ PASS (correctly rejected)"; \
 				fail_count=$$((fail_count + 1)); \
 			fi; \
 		fi; \
