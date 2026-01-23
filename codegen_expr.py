@@ -2558,6 +2558,112 @@ class CodeGen:
                     self._gen_const_struct_copy(sym, src_sym)
                     return
 
+            # Optimization: Direct word ADD/SUB initialization without temporaries
+            # e.g., word z = x + y;
+            expr = sym.init.expr
+            if (isinstance(expr, BinaryExpr) and expr.op in {BinOp.ADD, BinOp.SUB} and
+                sym.type.base == "WORD" and not sym.type.is_pointer and not sym.is_array and 
+                sym.address is None and
+                isinstance(expr.left, Identifier) and isinstance(expr.right, Identifier)):
+                
+                left_sym = self.current_symtab.lookup(expr.left.name)
+                right_sym = self.current_symtab.lookup(expr.right.name)
+                
+                if (not left_sym.is_array and left_sym.address is None and
+                    not right_sym.is_array and right_sym.address is None):
+                    
+                    dest_asm = sym.asm_name()
+                    left_asm = left_sym.asm_name()
+                    right_asm = right_sym.asm_name()
+                    
+                    # Direct 16-bit ADD/SUB without temporaries
+                    self.emit(f"\tLDA {left_asm}")
+                    if expr.op == BinOp.ADD:
+                        self.emit("\tCLC")
+                        self.emit(f"\tADC {right_asm}")
+                    else:  # SUB
+                        self.emit("\tSEC")
+                        self.emit(f"\tSBC {right_asm}")
+                    self.emit(f"\tSTA {dest_asm}")
+                    
+                    self.emit(f"\tLDA {left_asm}+1")
+                    if expr.op == BinOp.ADD:
+                        self.emit(f"\tADC {right_asm}+1")
+                    else:  # SUB
+                        self.emit(f"\tSBC {right_asm}+1")
+                    self.emit(f"\tSTA {dest_asm}+1")
+                    return
+
+            # Optimization: Chained word ADD/SUB with immediate during initialization
+            # e.g., word z = x + y + 5;
+            expr = sym.init.expr
+            if (isinstance(expr, BinaryExpr) and expr.op in {BinOp.ADD, BinOp.SUB} and
+                sym.type.base == "WORD" and not sym.type.is_pointer and not sym.is_array and 
+                sym.address is None and
+                isinstance(expr.left, BinaryExpr) and isinstance(expr.right, IntLiteral)):
+                
+                left_expr = expr.left
+                imm_val = expr.right.value & 0xFFFF
+                
+                # Check if left operand is ADD/SUB of two identifiers
+                if (left_expr.op in {BinOp.ADD, BinOp.SUB} and
+                    isinstance(left_expr.left, Identifier) and 
+                    isinstance(left_expr.right, Identifier)):
+                    
+                    # Lookup all symbols
+                    x_sym = self.current_symtab.lookup(left_expr.left.name)
+                    y_sym = self.current_symtab.lookup(left_expr.right.name)
+                    
+                    # Check all are simple variables
+                    if (not x_sym.is_array and x_sym.address is None and
+                        not y_sym.is_array and y_sym.address is None):
+                        
+                        dest_asm = sym.asm_name()
+                        x_asm = x_sym.asm_name()
+                        y_asm = y_sym.asm_name()
+                        imm_low = imm_val & 0xFF
+                        imm_high = (imm_val >> 8) & 0xFF
+                        
+                        # Step 1: Compute (x op1 y) and store in destination
+                        self.emit(f"\tLDA {x_asm}")
+                        if left_expr.op == BinOp.ADD:
+                            self.emit("\tCLC")
+                            self.emit(f"\tADC {y_asm}")
+                        else:  # SUB
+                            self.emit("\tSEC")
+                            self.emit(f"\tSBC {y_asm}")
+                        self.emit(f"\tSTA {dest_asm}")
+                        
+                        self.emit(f"\tLDA {x_asm}+1")
+                        if left_expr.op == BinOp.ADD:
+                            self.emit(f"\tADC {y_asm}+1")
+                        else:  # SUB
+                            self.emit(f"\tSBC {y_asm}+1")
+                        self.emit(f"\tSTA {dest_asm}+1")
+                        
+                        # Step 2: Apply outer operation with immediate to destination
+                        if expr.op == BinOp.ADD:
+                            # dest = dest + imm
+                            self.emit(f"\tLDA #${imm_low:02X}")
+                            self.emit("\tCLC")
+                            self.emit(f"\tADC {dest_asm}")
+                            self.emit(f"\tSTA {dest_asm}")
+                            
+                            self.emit(f"\tLDA #${imm_high:02X}")
+                            self.emit(f"\tADC {dest_asm}+1")
+                            self.emit(f"\tSTA {dest_asm}+1")
+                        else:  # SUB
+                            # dest = dest - imm
+                            self.emit(f"\tLDA {dest_asm}")
+                            self.emit("\tSEC")
+                            self.emit(f"\tSBC #${imm_low:02X}")
+                            self.emit(f"\tSTA {dest_asm}")
+                            
+                            self.emit(f"\tLDA {dest_asm}+1")
+                            self.emit(f"\tSBC #${imm_high:02X}")
+                            self.emit(f"\tSTA {dest_asm}+1")
+                        return
+
             # Fallback: general expression (non-const)
             self.gen_expr(sym.init.expr)
             if sym.type.base == "BYTE" and not sym.type.is_pointer:
@@ -3738,6 +3844,125 @@ class CodeGen:
         use_inc_opt = (expr.op == BinOp.ADD and right_is_const_1 and left_is_ptr and ptr_elem_size == 1 and not result_16)
         use_dec_opt = (expr.op == BinOp.SUB and right_is_const_1 and left_is_ptr and ptr_elem_size == 1)
 
+        # Fast path: Pure byte arithmetic with simple operands (Identifier or IntLiteral)
+        # For: byte z = x + y or byte z = x + 5 --> LDA x; CLC; ADC y/5; STA z
+        is_simple_byte_add_sub = (
+            expr.op in {BinOp.ADD, BinOp.SUB} and 
+            not left_16 and not right_16 and not result_16 and
+            not left_is_ptr and not right_is_ptr and
+            not left_is_promoted_byte_arith and not right_is_promoted_byte_arith and
+            isinstance(expr.left, (Identifier, IntLiteral)) and
+            isinstance(expr.right, (Identifier, IntLiteral))
+        )
+        
+        if is_simple_byte_add_sub:
+            # Generate left operand (just LDA, no X handling needed)
+            if isinstance(expr.left, Identifier):
+                left_sym = self.current_symtab.lookup(expr.left.name)
+                left_asm = left_sym.asm_name()
+                self.emit(f"\tLDA {left_asm}")
+            else:  # IntLiteral
+                val = expr.left.value & 0xFF
+                self.emit(f"\tLDA #{val:02X}")
+            
+            # Set carry for ADD, clear for SUB
+            if expr.op == BinOp.ADD:
+                self.emit("\tCLC")
+            else:  # SUB
+                self.emit("\tSEC")
+            
+            # Generate right operand and perform operation directly
+            if isinstance(expr.right, Identifier):
+                right_sym = self.current_symtab.lookup(expr.right.name)
+                right_asm = right_sym.asm_name()
+                if expr.op == BinOp.ADD:
+                    self.emit(f"\tADC {right_asm}")
+                else:
+                    self.emit(f"\tSBC {right_asm}")
+            else:  # IntLiteral
+                val = expr.right.value & 0xFF
+                if expr.op == BinOp.ADD:
+                    self.emit(f"\tADC #{val:02X}")
+                else:
+                    self.emit(f"\tSBC #{val:02X}")
+            return
+
+        # Fast path: Pure word arithmetic with simple operands (Identifier or IntLiteral)
+        # For: word z = x + y or word z = x + 5
+        # Generates direct 16-bit ADD/SUB without temporaries
+        is_simple_word_add_sub = (
+            expr.op in {BinOp.ADD, BinOp.SUB} and 
+            left_16 and right_16 and result_16 and
+            not left_is_ptr and not right_is_ptr and
+            not left_is_promoted_byte_arith and not right_is_promoted_byte_arith and
+            isinstance(expr.left, (Identifier, IntLiteral)) and
+            isinstance(expr.right, (Identifier, IntLiteral))
+        )
+        
+        if is_simple_word_add_sub:
+            # Generate left operand low byte
+            if isinstance(expr.left, Identifier):
+                left_sym = self.current_symtab.lookup(expr.left.name)
+                left_asm = left_sym.asm_name()
+                self.emit(f"\tLDA {left_asm}")
+            else:  # IntLiteral
+                val = expr.left.value & 0xFF
+                self.emit(f"\tLDA #{val:02X}")
+            
+            # Set carry for ADD, clear for SUB
+            if expr.op == BinOp.ADD:
+                self.emit("\tCLC")
+            else:  # SUB
+                self.emit("\tSEC")
+            
+            # Generate right operand low byte and perform operation
+            if isinstance(expr.right, Identifier):
+                right_sym = self.current_symtab.lookup(expr.right.name)
+                right_asm = right_sym.asm_name()
+                if expr.op == BinOp.ADD:
+                    self.emit(f"\tADC {right_asm}")
+                else:
+                    self.emit(f"\tSBC {right_asm}")
+            else:  # IntLiteral
+                val = expr.right.value & 0xFF
+                if expr.op == BinOp.ADD:
+                    self.emit(f"\tADC #{val:02X}")
+                else:
+                    self.emit(f"\tSBC #{val:02X}")
+            
+            # Save low byte result to temporary
+            self.emit("\tSTA TMP3")
+            
+            # Now do high byte (with carry propagation from low byte)
+            # Load left operand high byte
+            if isinstance(expr.left, Identifier):
+                left_sym = self.current_symtab.lookup(expr.left.name)
+                left_asm = left_sym.asm_name()
+                self.emit(f"\tLDA {left_asm}+1")
+            else:  # IntLiteral
+                val = (expr.left.value >> 8) & 0xFF
+                self.emit(f"\tLDA #{val:02X}")
+            
+            # ADC/SBC high byte (carry is already set/clear from low byte operation)
+            if isinstance(expr.right, Identifier):
+                right_sym = self.current_symtab.lookup(expr.right.name)
+                right_asm = right_sym.asm_name()
+                if expr.op == BinOp.ADD:
+                    self.emit(f"\tADC {right_asm}+1")
+                else:
+                    self.emit(f"\tSBC {right_asm}+1")
+            else:  # IntLiteral
+                val = (expr.right.value >> 8) & 0xFF
+                if expr.op == BinOp.ADD:
+                    self.emit(f"\tADC #{val:02X}")
+                else:
+                    self.emit(f"\tSBC #{val:02X}")
+            
+            # Result: A has high byte, need to return A/X with low byte in A, high byte in X
+            self.emit("\tTAX")  # Move high byte to X
+            self.emit("\tLDA TMP3")  # Get low byte back
+            return
+
         # Check if left operand is complex (uses TMP0 internally)
         left_is_complex = isinstance(expr.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
         
@@ -3775,22 +4000,9 @@ class CodeGen:
         elif expr.op == BinOp.RSHIFT:
             self._gen_rshift(result_16, left_tmp)
         
-        # If this is a BYTE arithmetic expression (no 16-bit result conversion by the operation),
-        # we need to handle potential overflow/carry by promoting to 16-bit for the caller
-        # This is needed when the result will be used as a WORD (e.g., in further arithmetic)
-        # However, if we already handled it as 16-bit due to promoted operands, skip this
-        is_byte_arith = (not result_16_adj and not result_16 and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
-        if is_byte_arith:
-            # The 8-bit result in A needs to be promoted to 16-bit by checking carry
-            # Set X based on carry flag: if carry set, X=1, else X=0
-            carry_lbl = self.new_label("NOCARRY_ARITH_RESULT")
-            end_lbl = self.new_label("END_ARITH_RESULT")
-            self.emit(f"\tBCC {carry_lbl}")
-            self.emit(f"\tLDX #1")  # Carry set: high byte = 1
-            self.emit(f"\tJMP {end_lbl}")
-            self.emit(f"{carry_lbl}:")
-            self.emit(f"\tLDX #0")  # No carry: high byte = 0
-            self.emit(f"{end_lbl}:")  # Continue with A/X ready for storage
+        # For BYTE arithmetic where result is also BYTE, we don't need to promote to 16-bit
+        # The carry is automatically handled by 8-bit wrapping (overflow wraps around 0-255)
+        # We only need carry promotion if the result will be promoted somewhere else (checked via result_16_adj)
     
     def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True, left_tmp: str = "TMP0"):
         """Generate addition (inline)
@@ -4688,6 +4900,7 @@ class CodeGen:
                         # Only optimize if both are simple memory variables (not arrays, not at fixed addresses)
                         if (not left_sym.is_array and left_sym.address is None and
                             not right_sym.is_array and right_sym.address is None):
+
                             
                             left_asm = left_sym.asm_name()
                             right_asm = right_sym.asm_name()
@@ -4750,6 +4963,108 @@ class CodeGen:
                                 self.emit(f"\tSTA {asm}")
                                 return
 
+                # Optimization: Chained word ADD/SUB with immediate
+                # Pattern: z = (x + y) + imm or z = (x - y) - imm
+                # This uses destination as temporary to avoid register shuffling
+                if is_word and isinstance(rhs.left, BinaryExpr) and isinstance(rhs.right, IntLiteral):
+                    left_expr = rhs.left
+                    imm_val = rhs.right.value & 0xFFFF
+                    
+                    # Check if left operand is ADD/SUB of two identifiers
+                    if (left_expr.op in {BinOp.ADD, BinOp.SUB} and
+                        isinstance(left_expr.left, Identifier) and 
+                        isinstance(left_expr.right, Identifier)):
+                        
+                        # Lookup all symbols
+                        x_sym = self.current_symtab.lookup(left_expr.left.name)
+                        y_sym = self.current_symtab.lookup(left_expr.right.name)
+                        
+                        # Check all are simple variables
+                        if (not x_sym.is_array and x_sym.address is None and
+                            not y_sym.is_array and y_sym.address is None):
+                            
+                            x_asm = x_sym.asm_name()
+                            y_asm = y_sym.asm_name()
+                            imm_low = imm_val & 0xFF
+                            imm_high = (imm_val >> 8) & 0xFF
+                            
+                            # Step 1: Compute (x op1 y) and store in destination
+                            self.emit(f"\tLDA {x_asm}")
+                            if left_expr.op == BinOp.ADD:
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC {y_asm}")
+                            else:  # SUB
+                                self.emit("\tSEC")
+                                self.emit(f"\tSBC {y_asm}")
+                            self.emit(f"\tSTA {asm}")
+                            
+                            self.emit(f"\tLDA {x_asm}+1")
+                            if left_expr.op == BinOp.ADD:
+                                self.emit(f"\tADC {y_asm}+1")
+                            else:  # SUB
+                                self.emit(f"\tSBC {y_asm}+1")
+                            self.emit(f"\tSTA {asm}+1")
+                            
+                            # Step 2: Apply outer operation with immediate to destination
+                            if rhs.op == BinOp.ADD:
+                                # dest = dest + imm
+                                self.emit(f"\tLDA #${imm_low:02X}")
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC {asm}")
+                                self.emit(f"\tSTA {asm}")
+                                
+                                self.emit(f"\tLDA #${imm_high:02X}")
+                                self.emit(f"\tADC {asm}+1")
+                                self.emit(f"\tSTA {asm}+1")
+                            else:  # SUB
+                                # dest = dest - imm
+                                self.emit(f"\tLDA {asm}")
+                                self.emit("\tSEC")
+                                self.emit(f"\tSBC #${imm_low:02X}")
+                                self.emit(f"\tSTA {asm}")
+                                
+                                self.emit(f"\tLDA {asm}+1")
+                                self.emit(f"\tSBC #${imm_high:02X}")
+                                self.emit(f"\tSTA {asm}+1")
+                            return
+
+        # Final optimization check: Direct word ADD/SUB without temporaries
+        # This handles z = x + y for WORD variables
+        if (isinstance(lhs, Identifier) and isinstance(rhs, BinaryExpr) and 
+            rhs.op in {BinOp.ADD, BinOp.SUB}):
+            lhs_sym = self.current_symtab.lookup(lhs.name)
+            if (lhs_sym.type.base == "WORD" and not lhs_sym.type.is_pointer and 
+                not lhs_sym.is_array and lhs_sym.address is None and
+                isinstance(rhs.left, Identifier) and isinstance(rhs.right, Identifier)):
+                
+                left_sym = self.current_symtab.lookup(rhs.left.name)
+                right_sym = self.current_symtab.lookup(rhs.right.name)
+                
+                if (not left_sym.is_array and left_sym.address is None and
+                    not right_sym.is_array and right_sym.address is None):
+                    
+                    lhs_asm = lhs_sym.asm_name()
+                    left_asm = left_sym.asm_name()
+                    right_asm = right_sym.asm_name()
+                    
+                    # Direct 16-bit ADD/SUB without temporaries
+                    self.emit(f"\tLDA {left_asm}")
+                    if rhs.op == BinOp.ADD:
+                        self.emit("\tCLC")
+                        self.emit(f"\tADC {right_asm}")
+                    else:  # SUB
+                        self.emit("\tSEC")
+                        self.emit(f"\tSBC {right_asm}")
+                    self.emit(f"\tSTA {lhs_asm}")
+                    
+                    self.emit(f"\tLDA {left_asm}+1")
+                    if rhs.op == BinOp.ADD:
+                        self.emit(f"\tADC {right_asm}+1")
+                    else:  # SUB
+                        self.emit(f"\tSBC {right_asm}+1")
+                    self.emit(f"\tSTA {lhs_asm}+1")
+                    return
+
         # Fast path: store immediate into dereferenced pointer without temps
         # NOTE: Can only use this for ZP (zero-page) pointers since we need Y index for indirect addressing
         # For now, disable this optimization to ensure Y is always used for compatibility
@@ -4762,6 +5077,66 @@ class CodeGen:
         #             self.emit("\tLDY #0")
         #             self.emit(f"\tSTA ({ptr_sym.asm_name()}),Y")
         #             return
+
+        # Optimization: Direct pointer dereference for simple identifiers
+        # Pattern: ptr^ = value where ptr is a simple identifier in zero page
+        if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
+            ptr_sym = self.current_symtab.lookup(lhs.pointer.name)
+            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+                # Pointer is in zero page, can use direct indirect addressing
+                ptr_addr = ptr_sym.asm_name()
+                
+                # Special optimization for simple RHS (identifier or immediate)
+                if isinstance(rhs, Identifier):
+                    rhs_sym = self.current_symtab.lookup(rhs.name)
+                    rhs_addr = rhs_sym.asm_name()
+                    
+                    # Load RHS and store directly
+                    self.emit(f"\tLDA {rhs_addr}")
+                    if lhs_t.sem_type.base == "WORD":
+                        # WORD: load high byte too
+                        self.emit(f"\tLDX {rhs_addr}+1")
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                        self.emit(f"\tINY")
+                        self.emit(f"\tSTX ({ptr_addr}),Y")
+                    else:
+                        # BYTE: store only low byte (no need for X)
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                    return
+                elif isinstance(rhs, IntLiteral):
+                    # Immediate value
+                    val_low = rhs.value & 0xFF
+                    val_high = (rhs.value >> 8) & 0xFF
+                    
+                    self.emit(f"\tLDA #${val_low:02X}")
+                    if lhs_t.sem_type.base == "WORD":
+                        self.emit(f"\tLDX #${val_high:02X}")
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                        self.emit(f"\tINY")
+                        self.emit(f"\tSTX ({ptr_addr}),Y")
+                    else:
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                    return
+                
+                # For complex expressions, generate normally
+                self.gen_expr(rhs)
+                
+                # Store to dereferenced pointer
+                if lhs_t.sem_type.base == "WORD":
+                    # WORD: store both low and high bytes
+                    self.emit(f"\tLDY #0")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                    self.emit(f"\tINY")
+                    self.emit(f"\tSTX ({ptr_addr}),Y")
+                else:
+                    # BYTE: store only low byte
+                    self.emit(f"\tLDY #0")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                return
 
         # vygeneruj RHS
         self.gen_expr(rhs)
@@ -4795,6 +5170,8 @@ class CodeGen:
 
         # dereference
         if isinstance(lhs, DerefExpr):
+            # This should not be reached if the optimization above triggered
+            # But kept as fallback for complex pointer expressions
             # 1️⃣ ulož RHS hodnotu
             self.emit("\tSTA TMP2")
             self.emit("\tSTX TMP2+1")

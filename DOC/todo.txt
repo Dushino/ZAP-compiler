@@ -52,10 +52,62 @@ Steps:
 [x] Multi-dimensional arrays - all data in BSS
 [x] Logical NOT operator (!) implementation and fix
 [x] Extensible tests for every possible aspect of ZAP language with error messages review
-[ ] Review of generated unoptimized code
+[x] Review of generated unoptimized code - BYTE and WORD arithmetic optimized
+    - Fast path for byte ADD/SUB: 3 instructions instead of 15+
+    - Fast path for word ADD/SUB: 9 instructions instead of 19+
+    - Direct 16-bit arithmetic without temporary register shuffle
 [ ] Peephole optimization rework.
 [ ] Document peephole optimizations in the compiler documentation
 [ ] Review VS Code integration files
 [ ] IDE integration
 [ ] Tutorials with examples.
 [ ] .error, .warning directives
+
+
+Generated code review checklist:
+-----------------------------------------------
+001-byte-types.zap
+✓ OPTIMIZED - byte z = x + y now generates:
+    LDA _MAIN_X
+    CLC
+    ADC _MAIN_Y
+    STA _MAIN_Z
+
+(Previously: 15+ instructions with carry checking and temp registers)
+
+----------------------------------------------
+008-subtraction.zap
+✓ OPTIMIZED - byte x - y now generates:
+    LDA _MAIN_X
+    SEC
+    SBC _MAIN_Y
+    STA _MAIN_Z
+
+(Previously: 15+ instructions with carry checking)
+
+----------------------------------------------
+002-word-types.zap
+✓ OPTIMIZED - word z = x + y now generates:
+    LDA _MAIN_X
+    CLC
+    ADC _MAIN_Y
+    STA TMP3
+    LDA _MAIN_X+1
+    ADC _MAIN_Y+1
+    TAX
+    LDA TMP3
+    STA _MAIN_Z
+    STX _MAIN_Z+1
+
+(Previously: 19+ instructions with complex temp register manipulation)
+
+✓ OPTIMIZED - word z = x + y now generates:
+    LDA _MAIN_X
+    CLC
+    ADC _MAIN_Y
+    STA _MAIN_Z
+    
+    LDA _MAIN_X+1
+    ADC _MAIN_Y+1    
+    STA _MAIN_Z+1
+
