@@ -39,7 +39,7 @@
         },
         {
           "name": "keyword.other.zap",
-          "match": "(?i)\\b(PROC|FUNC|ASM|END)\\b"
+          "match": "(?i)\\b(PROC|FUNC|ASM|END|STRUCT)\\b"
         }
       ]
     },
@@ -47,7 +47,7 @@
       "patterns": [
         {
           "name": "storage.type.zap",
-          "match": "(?i)\\b(BYTE|WORD)\\b"
+          "match": "(?i)\\b(BYTE|WORD|STRUCT)\\b"
         },
         {
           "name": "storage.modifier.zap",
