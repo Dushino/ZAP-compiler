@@ -3142,6 +3142,9 @@ class CodeGen:
         For arr[i][j][k] with dimensions [d1, d2, d3] and element width E:
         Strides: [d2*d3*E, d3*E, E]
         Offset = i*s[0] + j*s[1] + k*s[2]
+        
+        OPTIMIZATION: If all indices are compile-time constants (IntLiteral),
+        compute the offset at compile time rather than runtime.
         """
         dims = self._get_array_dimensions_for_codegen(sym)
         if not dims:
@@ -3156,6 +3159,68 @@ class CodeGen:
             strides.insert(0, stride)
             stride *= dims[i]
         
+        # OPTIMIZATION: Check if all indices are compile-time constants
+        all_indices_const = all(isinstance(idx, IntLiteral) for idx in indices)
+        
+        if all_indices_const:
+            # Compile-time address calculation - OPTIMIZED
+            # Calculate offset: offset = i*stride[0] + j*stride[1] + k*stride[2] + ...
+            compile_time_offset = 0
+            for idx_expr, stride_val in zip(indices, strides):
+                compile_time_offset += idx_expr.value * stride_val
+            
+            # Get offset as low and high bytes
+            offset_low = compile_time_offset & 0xFF
+            offset_high = (compile_time_offset >> 8) & 0xFF
+            
+            # Load base address and add compile-time offset directly
+            # Optimized approach: load each byte sequentially, avoiding TXA move
+            if compile_time_offset == 0:
+                # No offset needed, load base address directly
+                self.emit(f"\tLDA #{sym.address:02X}" if sym.address else f"\tLDA #<{sym.asm_name()}")
+                self.emit("\tSTA TMP0")
+                self.emit(f"\tLDA #{(sym.address >> 8) & 0xFF:02X}" if sym.address else f"\tLDA #>{sym.asm_name()}")
+                self.emit("\tSTA TMP0+1")
+            else:
+                # Add compile-time offset: load low byte, add offset, store; then high byte with carry
+                self.emit(f"\tLDA #<{sym.asm_name()}")
+                self.emit("\tCLC")
+                self.emit(f"\tADC #{offset_low}")
+                self.emit("\tSTA TMP0")
+                # Carry flag now contains any overflow from low byte addition
+                self.emit(f"\tLDA #>{sym.asm_name()}")
+                self.emit(f"\tADC #{offset_high}")
+                self.emit("\tSTA TMP0+1")
+            
+            # If only calculating address, we're done
+            if calc_addr_only:
+                return
+            
+            # Load or store element at TMP0
+            if load_only:
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
+                if element_width == 2:
+                    self.emit("\tPHA")  # Save low byte
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tTAX")  # X = high byte
+                    self.emit("\tPLA")  # A = low byte (restored)
+                else:
+                    # For BYTE element, always load X (might be used later)
+                    self.emit("\tLDX #0")
+            else:
+                # Store RHS value (in TMP2/TMP2+1)
+                self.emit("\tLDY #0")
+                self.emit("\tLDA TMP2")
+                self.emit("\tSTA (TMP0),Y")
+                if element_width == 2:
+                    self.emit("\tINY")
+                    self.emit("\tLDA TMP2+1")
+                    self.emit("\tSTA (TMP0),Y")
+            return
+        
+        # Runtime address calculation (for non-constant indices)
         # Note: RHS value is already in TMP2/TMP2+1 (saved by gen_assign before calling this method)
         
         # Calculate total offset for address: TMP4/TMP4+1 will accumulate
@@ -3422,7 +3487,16 @@ class CodeGen:
                 self.emit("\tTAX")  # X = high byte
                 self.emit("\tPLA")  # A = low byte (restored)
             else:
-                self.emit("\tLDX #0")
+                # For BYTE element, only set X if final target is not BYTE
+                # If target is BYTE, we only need the low byte in A
+                need_x = True
+                if self.assign_target_type:
+                    if hasattr(self.assign_target_type, 'base'):
+                        if (self.assign_target_type.base == "BYTE" and 
+                            not getattr(self.assign_target_type, 'is_pointer', False)):
+                            need_x = False
+                if need_x:
+                    self.emit("\tLDX #0")
         else:
             # RHS value in TMP2/TMP2+1 (saved before calling this method)
             self.emit("\tLDY #0")
@@ -3814,12 +3888,13 @@ class CodeGen:
         """
         Collect a chain of array subscript ADD/SUB operations for optimization.
         Returns list of (op, array_name, index_value) tuples if pattern matches, else None.
-        Pattern: arr[0] + arr[1] - arr[2] where all are BYTE, all indices are immediate
+        Pattern: arr[0] + arr[1] - arr[2] where all are BYTE or WORD, all indices are immediate
         """
         if expr.op not in {BinOp.ADD, BinOp.SUB}:
             return None
         
         result = []
+        element_type = None  # Track BYTE or WORD
         
         # Check right operand
         if isinstance(expr.right, SubscriptExpr):
@@ -3827,7 +3902,8 @@ class CodeGen:
                 isinstance(expr.right.index, IntLiteral)):
                 arr_sym = self.current_symtab.lookup(expr.right.array.name)
                 if (arr_sym.is_array and not arr_sym.is_const and 
-                    arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                    arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
+                    element_type = arr_sym.type.base
                     result.append((expr.op, expr.right.array.name, expr.right.index.value))
         else:
             return None  # Right must be subscript
@@ -3840,7 +3916,12 @@ class CodeGen:
                     isinstance(left.index, IntLiteral)):
                     arr_sym = self.current_symtab.lookup(left.array.name)
                     if (arr_sym.is_array and not arr_sym.is_const and 
-                        arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                        arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
+                        # Verify all elements same type
+                        if element_type is None:
+                            element_type = arr_sym.type.base
+                        elif arr_sym.type.base != element_type:
+                            return None  # Mixed BYTE/WORD not allowed
                         # For the leftmost element, the operation is implicit ADD
                         result.append((BinOp.ADD, left.array.name, left.index.value))
                     break
@@ -3853,7 +3934,12 @@ class CodeGen:
                         isinstance(left.right.index, IntLiteral)):
                         arr_sym = self.current_symtab.lookup(left.right.array.name)
                         if (arr_sym.is_array and not arr_sym.is_const and 
-                            arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                            arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
+                            # Verify element type consistency
+                            if element_type is None:
+                                element_type = arr_sym.type.base
+                            elif arr_sym.type.base != element_type:
+                                return None
                             result.append((left.op, left.right.array.name, left.right.index.value))
                             left = left.left
                             continue
@@ -3878,52 +3964,110 @@ class CodeGen:
         chain: list of (op, array_name, index_value) tuples in order
         result_is_16bit: if True, generate 16-bit ADC/SBC with carry propagation
         
-        For 8-bit result: LDA arr[0]; CLC; ADC arr[1]; ...
-        For 16-bit result: LDA arr[0]; LDX #0; CLC; ADC arr[1]; (propagate carry to X)
-        Result left in A (low) and X (high)
+        For BYTE arrays:
+          8-bit result: LDA arr[0]; CLC; ADC arr[1]; ...
+          16-bit result: LDA arr[0]; LDX #0; CLC; ADC arr[1]; (with carry to X)
+        
+        For WORD arrays (16-bit elements):
+          Uses TMP1/TMP2 to accumulate: accumulation strategy
         """
         arr_sym = self.current_symtab.lookup(array_name)
         arr_addr = arr_sym.asm_name()
+        is_word_array = arr_sym.type.base == "WORD"
         
         # Load first element
         op0, _, idx0_val = chain[0]
-        self.emit(f"\tLDA {arr_addr}+{idx0_val}")
-        
-        if result_is_16bit:
-            # For 16-bit result, initialize high byte to 0
-            self.emit("\tLDX #0")
+        if is_word_array:
+            # For WORD arrays, load both low and high bytes
+            offset_low = idx0_val * 2
+            offset_high = offset_low + 1
+            self.emit(f"\tLDA {arr_addr}+{offset_low}")  # Load low byte → A
+            self.emit(f"\tLDX {arr_addr}+{offset_high}")  # Load high byte → X
+            # Store initial result in TMP1/TMP2
+            self.emit("\tSTA TMP1")
+            self.emit("\tSTX TMP2")
+        else:
+            # For BYTE arrays, load only low byte
+            self.emit(f"\tLDA {arr_addr}+{idx0_val}")
+            if result_is_16bit:
+                # For 16-bit result from BYTE elements, initialize high byte to 0
+                self.emit("\tLDX #0")
         
         # Process remaining elements
         for idx, (op, _, idx_val) in enumerate(chain[1:], 1):
-            if op == BinOp.ADD:
-                self.emit("\tCLC")
-                self.emit(f"\tADC {arr_addr}+{idx_val}")
+            if is_word_array:
+                # For WORD arrays: process 16-bit elements
+                offset_low = idx_val * 2
+                offset_high = offset_low + 1
                 
-                if result_is_16bit:
-                    # Propagate carry to high byte (X register)
-                    # We use BCC to skip the increment if no carry
-                    no_carry_lbl = self.new_label("ARRAY_NO_CARRY")
-                    self.emit(f"\tBCC {no_carry_lbl}")
-                    self.emit("\tINX")  # Increment high byte if carry
-                    self.emit(f"{no_carry_lbl}:")
-            else:  # SUB
-                self.emit("\tSEC")
-                self.emit(f"\tSBC {arr_addr}+{idx_val}")
+                lbl_no_carry = self.new_label("WORD_ADD_NO_CARRY")
+                lbl_no_borrow = self.new_label("WORD_SUB_NO_BORROW")
                 
-                if result_is_16bit:
-                    # Propagate borrow to high byte (X register)
-                    # BCS means carry set (NO borrow), BCC means carry clear (borrow occurred)
-                    no_borrow_lbl = self.new_label("ARRAY_NO_BORROW")
-                    self.emit(f"\tBCS {no_borrow_lbl}")
-                    self.emit("\tDEX")  # Decrement high byte if borrow
-                    self.emit(f"{no_borrow_lbl}:")
+                if op == BinOp.ADD:
+                    # 16-bit ADD: TMP1/TMP2 += arr[idx_val]
+                    self.emit("\tCLC")
+                    self.emit(f"\tLDA TMP1")
+                    self.emit(f"\tADC {arr_addr}+{offset_low}")
+                    self.emit("\tSTA TMP1")  # Save low result
+                    self.emit(f"\tBCC {lbl_no_carry}")
+                    self.emit("\tINC TMP2")  # Carry to high byte
+                    self.emit(f"{lbl_no_carry}:")
+                    # Now add high bytes
+                    self.emit(f"\tLDA TMP2")
+                    self.emit("\tCLC")
+                    self.emit(f"\tADC {arr_addr}+{offset_high}")
+                    self.emit("\tSTA TMP2")  # Save high result
+                else:  # SUB
+                    # 16-bit SUB: TMP1/TMP2 -= arr[idx_val]
+                    self.emit("\tSEC")
+                    self.emit(f"\tLDA TMP1")
+                    self.emit(f"\tSBC {arr_addr}+{offset_low}")
+                    self.emit("\tSTA TMP1")  # Save low result
+                    self.emit(f"\tBCS {lbl_no_borrow}")
+                    self.emit("\tDEC TMP2")  # Borrow from high byte
+                    self.emit(f"{lbl_no_borrow}:")
+                    # Now subtract high bytes
+                    self.emit(f"\tLDA TMP2")
+                    self.emit("\tSEC")
+                    self.emit(f"\tSBC {arr_addr}+{offset_high}")
+                    self.emit("\tSTA TMP2")  # Save high result
+            else:
+                # BYTE array processing (existing logic)
+                if op == BinOp.ADD:
+                    self.emit("\tCLC")
+                    self.emit(f"\tADC {arr_addr}+{idx_val}")
+                    
+                    if result_is_16bit:
+                        # Propagate carry to high byte (X register)
+                        no_carry_lbl = self.new_label("ARRAY_NO_CARRY")
+                        self.emit(f"\tBCC {no_carry_lbl}")
+                        self.emit("\tINX")  # Increment high byte if carry
+                        self.emit(f"{no_carry_lbl}:")
+                else:  # SUB
+                    self.emit("\tSEC")
+                    self.emit(f"\tSBC {arr_addr}+{idx_val}")
+                    
+                    if result_is_16bit:
+                        # Propagate borrow to high byte (X register)
+                        no_borrow_lbl = self.new_label("ARRAY_NO_BORROW")
+                        self.emit(f"\tBCS {no_borrow_lbl}")
+                        self.emit("\tDEX")  # Decrement high byte if borrow
+                        self.emit(f"{no_borrow_lbl}:")
+        
+        # For WORD arrays, ensure result is in A/X
+        if is_word_array and len(chain) > 1:
+            self.emit("\tLDA TMP1")  # Low result → A
+            self.emit("\tLDX TMP2")  # High result → X
+
+
+
 
 
 
 
     def _is_immediate_array_subscript(self, expr) -> tuple:
         """
-        Check if expression is array[immediate_index] for BYTE array.
+        Check if expression is array[immediate_index] for BYTE or WORD array.
         Returns (array_name, offset) if match, else None
         """
         if not isinstance(expr, SubscriptExpr):
@@ -3935,11 +4079,12 @@ class CodeGen:
         
         arr_sym = self.current_symtab.lookup(expr.array.name)
         if not (arr_sym.is_array and not arr_sym.is_const and 
-                arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
             return None
         
         offset = expr.index.value * self._calculate_element_width(arr_sym)
         return (arr_sym.asm_name(), offset)
+
     
     def _gen_binary(self, expr: BinaryExpr):
         t = self.tc_check(expr)
@@ -4040,8 +4185,12 @@ class CodeGen:
         result_16_temp = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
         
         # If we're in an assignment context and LHS is WORD, treat result as 16-bit
-        if self.assign_target_type and (self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer):
-            result_16_temp = True
+        # If we're in an assignment context and LHS is BYTE, treat result as 8-bit even if expr promotes
+        if self.assign_target_type:
+            if self.assign_target_type.base == "BYTE" and not self.assign_target_type.is_pointer:
+                result_16_temp = False  # Final assignment is to BYTE, don't promote result
+            elif self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer:
+                result_16_temp = True  # Final assignment is to WORD, treat as 16-bit
         
         chain = self._collect_array_subscript_chain(expr)
         if chain:
@@ -4271,6 +4420,12 @@ class CodeGen:
         
         NOTE: For 16-bit operations, right operand should be in A/X when called
         """
+        # OPTIMIZATION: If we're adding to a BYTE target and the result is artificially 16-bit
+        # just due to intermediate promotion, collapse back to 8-bit for the final result
+        final_target_is_byte = (self.assign_target_type and 
+                               self.assign_target_type.base == "BYTE" and 
+                               not self.assign_target_type.is_pointer)
+        
         if ptr_elem_size > 1:
             # Pointer arithmetic with element size > 1
             # Need to multiply offset by element size
@@ -4293,6 +4448,13 @@ class CodeGen:
                     self.emit("+")
                 self.emit("\tLDA TMP4")
                 self.emit("\tLDX TMP4+1")
+        
+        # If final target is BYTE, use simple 8-bit addition regardless of is_16bit
+        if final_target_is_byte and is_16bit and not use_inc:
+            # Simple 8-bit addition - just add low byte
+            self.emit("\tCLC")
+            self.emit(f"\tADC {left_tmp}")
+            return
         
         if is_16bit:
             # 16-bit: (A,X) + (left_tmp,left_tmp+1) → (A,X)
@@ -5471,6 +5633,30 @@ class CodeGen:
                     self.emit(f"\tSTA ({ptr_addr}),Y")
                 return
 
+        # Check for BYTE subscript assignment - handle it specially to postpone RHS generation
+        if (isinstance(lhs, SubscriptExpr) and 
+            rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer):
+            # Compute address into TMP0/TMP0+1
+            self._gen_subscript(lhs, load_only=True, calc_addr_only=True)
+            
+            # For IntLiteral RHS, emit directly; otherwise generate RHS now
+            if isinstance(rhs, IntLiteral):
+                val = rhs.value & 0xFF
+                self.emit(f"\tLDA #{val}")
+            else:
+                # Generate RHS expression
+                prev_assign_type = self.assign_target_type
+                self.assign_target_type = lhs_t.sem_type
+                try:
+                    self.gen_expr(rhs)
+                finally:
+                    self.assign_target_type = prev_assign_type
+            
+            # Store at computed address
+            self.emit("\tLDY #0")
+            self.emit("\tSTA (TMP0),Y")
+            return
+
         # vygeneruj RHS
         # Set assignment target type context for optimizations
         prev_assign_type = self.assign_target_type
@@ -5534,10 +5720,8 @@ class CodeGen:
             return
 
         if isinstance(lhs, SubscriptExpr):
-            # Subscript optimization was already handled earlier
-            # This is a fallback for complex cases or those that don't match the early optimization pattern
-            # Generate RHS if not already generated
-            self.gen_expr(rhs)
+            # For WORD subscript assignments, store RHS to TMP2/TMP2+1 and let _gen_subscript handle it
+            # (BYTE subscript assignments were already handled earlier with RHS postponement)
             self.emit("\tSTA TMP2")
             self.emit("\tSTX TMP2+1")
             self._gen_subscript(lhs, load_only=False)
