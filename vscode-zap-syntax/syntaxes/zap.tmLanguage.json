@@ -27,7 +27,7 @@
       "patterns": [
         {
           "name": "keyword.control.preprocessor.zap",
-          "match": "\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment|incbin)\\b"
+          "match": "(?i)\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment|incbin)\\b"
         }
       ]
     },
@@ -35,11 +35,11 @@
       "patterns": [
         {
           "name": "keyword.control.zap",
-          "match": "\\b(IF|THEN|ELSE|ELSEIF|FI|WHILE|DO|OD|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|FI|WHILE|DO|OD|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
         },
         {
           "name": "keyword.other.zap",
-          "match": "\\b(PROC|FUNC|END)\\b"
+          "match": "(?i)\\b(PROC|FUNC|ASM|END)\\b"
         }
       ]
     },
@@ -47,19 +47,11 @@
       "patterns": [
         {
           "name": "storage.type.zap",
-          "match": "\\b(BYTE|WORD|CARD|INT|POINTER|ARRAY)\\b"
+          "match": "(?i)\\b(BYTE|WORD)\\b"
         },
         {
           "name": "storage.modifier.zap",
-          "match": "\\b(CONST)\\b"
-        }
-      ]
-    },
-    "constants": {
-      "patterns": [
-        {
-          "name": "constant.language.zap",
-          "match": "\\b(TRUE|FALSE)\\b"
+          "match": "(?i)\\b(CONST)\\b"
         }
       ]
     },
@@ -94,11 +86,11 @@
       "patterns": [
         {
           "name": "keyword.operator.arithmetic.zap",
-          "match": "\\+|-|\\*|/|MOD|&|\\||\\^|<<|>>"
+          "match": "(?i)\\+|-|\\*|/|MOD|&|\\||\\^|<<|>>"
         },
         {
           "name": "keyword.operator.comparison.zap",
-          "match": "=|#|<|>|<=|>=|<>|AND|OR|NOT"
+          "match": "(?i)=|#|<|>|<=|>=|<>|AND|OR|NOT"
         },
         {
           "name": "keyword.operator.assignment.zap",
@@ -111,14 +103,6 @@
         {
           "name": "entity.name.function.zap",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
-        }
-      ]
-    },
-    "directives": {
-      "patterns": [
-        {
-          "name": "keyword.control.directive.zap",
-          "match": "\\.(segment)\\b"
         }
       ]
     }
