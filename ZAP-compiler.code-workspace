@@ -17,6 +17,10 @@
         },
         "editor.fontSize": 17,
         "chat.editing.autoAcceptDelay": 60,
-        "chat.agent.maxRequests": 50
+        "chat.agent.maxRequests": 50,
+        "window.autoDetectColorScheme": true,
+        "workbench.colorTheme": "Solarized Light",
+        "workbench.preferredDarkColorTheme": "Solarized Dark",
+        "workbench.preferredLightColorTheme": "Solarized Light"
     }
 }
