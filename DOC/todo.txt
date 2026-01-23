@@ -55,5 +55,7 @@ Steps:
 [ ] Review of generated unoptimized code
 [ ] Peephole optimization rework.
 [ ] Document peephole optimizations in the compiler documentation
+[ ] Review VS Code integration files
 [ ] IDE integration
 [ ] Tutorials with examples.
+[ ] .error, .warning directives
