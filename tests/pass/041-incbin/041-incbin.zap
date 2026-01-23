@@ -1,12 +1,18 @@
-byte result @40000 = 0
+BYTE result @40000 = 0
 
-proc setfont()
+PROC setfont()
+
+    ASM
     .segment "FONT"
+    MYFONT:
     .incbin "font.fnt"
     .segment "CODE"
-end
+        lda #>MYFONT
+        sta $02F4   ; set font high byte; CHBAS
+    END
+END
 
-proc main()
+PROC main()
     setfont()
     result = 42
-end
+END
