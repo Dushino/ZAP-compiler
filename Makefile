@@ -132,8 +132,8 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g \"$$output_file\" -o \"$$obj_file\"" >> $(TEST_REPORT); \
-				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file >> $(TEST_REPORT) 2>&1; then \
+				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g \"$$output_file\" -o \"$$obj_file\"" \
+				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $$output_file -o $$obj_file then \
 					variant_errors="$$variant_errors [CA65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ca65 assembler failed" >> $(TEST_REPORT); \
@@ -142,8 +142,8 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o \"$$exehdr_obj\"" >> $(TEST_REPORT); \
-				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj >> $(TEST_REPORT) 2>&1; then \
+				echo "$(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o \"$$exehdr_obj\"" \
+				if ! $(AS) -I $(LIBDIR) -t none --cpu $$as_cpu -g $(LIBDIR)/atari/exehdr.s -o $$exehdr_obj then \
 					variant_errors="$$variant_errors [CA65_ERROR:exehdr-$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ca65 assembler failed on exehdr" >> $(TEST_REPORT); \
@@ -152,8 +152,9 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-				echo "$(LD) -C cfg/my_atari.cfg \"$$obj_file\" \"$$exehdr_obj\" -o \"$$bin_file\"" >> $(TEST_REPORT); \
-				if ! $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file >> $(TEST_REPORT) 2>&1; then \
+				echo "-------------------------------------------------------------------"
+				echo "$(LD) -C cfg/my_atari.cfg \"$$obj_file\" \"$$exehdr_obj\" -o \"$$bin_file\"" \
+				if ! $(LD) -C cfg/my_atari.cfg $$obj_file $$exehdr_obj -o $$bin_file then \
 					variant_errors="$$variant_errors [LD65_ERROR:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 					echo "ld65 linker failed" >> $(TEST_REPORT); \

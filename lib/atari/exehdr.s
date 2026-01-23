@@ -1,7 +1,7 @@
 ; Atari COM/EXE header
-.import __START, __END
+.import __RAM_START__, __RAM_LAST__
 
-.segment "EXEHDR"
-    .word $FFFF     ; block marker
-    .word __START   ; load address
-    .word __END     ; end address
+.segment "COMHEADER"
+    .word $FFFF     		; block marker
+    .word __RAM_START__		; load address
+    .word __RAM_LAST__     	; end address

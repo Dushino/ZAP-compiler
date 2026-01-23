@@ -1811,7 +1811,7 @@ class CodeGen:
 
     def gen_file_footer(self):
         # Ensure runtime helpers and data live in CODE segment
-        self.emit("\n.segment \"END\"")
+        self.emit("\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
         self._gen_arrcpy_routine()
         self._gen_string_data()

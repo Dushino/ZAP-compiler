@@ -1,6 +1,6 @@
-.import __START, __END
+.import __RAM_START__, __RAM_LAST__
 
-.segment "AUTOSTART"
-    .word $FFFF     ; second block marker
-    .word __START   ; RUN address
-    .word __END     ; last byte
+.segment "AUTOSTRT"
+    .word $FFFF     		; second block marker
+    .word __RAM_START__		; RUN address
+    .word __RAM_LAST__    	; last byte

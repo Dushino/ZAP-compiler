@@ -9,8 +9,13 @@
 					"label": ""
 				},
 				{
-					"line": 173,
-					"column": 38,
+					"line": 125,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 155,
+					"column": 16,
 					"label": ""
 				}
 			]
@@ -36,6 +41,21 @@
 				{
 					"line": 226,
 					"column": 0,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "make.bat",
+			"bookmarks": [
+				{
+					"line": 232,
+					"column": 17,
+					"label": ""
+				},
+				{
+					"line": 311,
+					"column": 82,
 					"label": ""
 				}
 			]

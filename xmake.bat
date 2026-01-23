@@ -111,7 +111,7 @@ powershell -Command "$data = Get-Content -Path '%APPBIN%.com' -Encoding Byte -Re
 if errorlevel 1 exit /b 1
 
 echo Disassembling binary...
-%DA% --cpu %ATARI_CPU% --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose %APPBIN%.cut > %APPBIN%.da65
+%DA% --cpu %ATARI_CPU% --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose %APPBIN%.cut > %APPBIN%.da65
 if errorlevel 1 exit /b 1
 
 echo.
@@ -155,7 +155,7 @@ echo Linking SBC binary...
 if errorlevel 1 exit /b 1
 
 echo Disassembling binary...
-%DA% --cpu %SBC_CPU% --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose %APPBIN%.cut > %APPBIN%.da65
+%DA% --cpu %SBC_CPU% --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose %APPBIN%.cut > %APPBIN%.da65
 if errorlevel 1 exit /b 1
 
 echo.
@@ -299,18 +299,19 @@ if not "%2"=="" (
                     set "bin_file=!testdir!\!base!!variant_name!.com"
                     echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
                          %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
-                    %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!"
+                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
+                         %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
                     if !errorlevel! equ 0 (
-                        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                        %LD% -C cfg\my_atari.cfg  -o "!bin_file!" "!exehdr_obj!" "!obj_file!"  "!autostart_obj!"
+                        echo %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" "!autostart_obj!" -o "!bin_file!" >> tests.txt
+                             %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" "!autostart_obj!" -o "!bin_file!" >> tests.txt
                         if !errorlevel! equ 0 (
                             rem Create cut binary (skip 6-byte header) for disassembly
                             set "cut_file=!testdir!\!base!!variant_name!.cut"
                             set "dis_file=!testdir!\!base!!variant_name!.dis65"
                             set "cfg_file=!testdir!\!base!.json"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
-                            echo %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
-                                 %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 
+                            echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
+                                 %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 
                             set "txt_file=!testdir!\!base!!variant_name!.txt"
                             echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                                  %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
@@ -433,8 +434,8 @@ if not "%2"=="" (
                             set "dis_file=!testdir!\!base!!variant_name!.dis65"
                             set "cfg_file=!testdir!\!base!.json"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
-                            echo %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
-                            %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
+                            echo %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
+                            %DA% --cpu !as_cpu! --multi-pass --start-addr $4006 --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=!testdir!\!base!!variant_name!.txt"
                             echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                             %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
