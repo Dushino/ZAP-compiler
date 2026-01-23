@@ -1816,8 +1816,6 @@ class CodeGen:
         self._gen_arrcpy_routine()
         self._gen_string_data()
         self._gen_math_routines()
-        self.emit("__END:")
-        self.emit(".export __END")
         self.emit("\n; End of file")
 
     def _gen_copy_bytes_routine(self):
@@ -2508,8 +2506,6 @@ class CodeGen:
         self.emit("\n.segment \"CODE\"")
         self.emit("; Globals initialization")
         self.emit("; ------------------------------") 
-        self.emit("__START:")
-        self.emit(".export __START")
                
 
     def gen_globals_footer(self):
