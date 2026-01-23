@@ -69,6 +69,8 @@ class CodeGen:
         self.fixed_address_labels: set[str] = set()
         # Track current function return type for narrowing WORD to BYTE
         self.current_func_return_type: str | None = None
+        # Track assignment context for optimizations that need target type
+        self.assign_target_type: SemType | None = None  # Current assignment LHS type
 
     def tc_check(self, expr):
         # Wrapper to attach source location to type-checker errors
@@ -3262,6 +3264,28 @@ class CodeGen:
             self._gen_multidim_subscript(indices, sym, load_only, calc_addr_only)
             return
         
+        # OPTIMIZATION: Direct load for immediate indices (compile-time constants)
+        # Pattern: arr[1] where index is known at compile time
+        if (load_only and isinstance(base, Identifier) and isinstance(expr.index, IntLiteral) and
+            not calc_addr_only):
+            sym = self.current_symtab.lookup(base.name)
+            if sym.is_array and not sym.is_const and sym.address is None:
+                # This is a simple array with runtime base address
+                arr_addr = sym.asm_name()
+                element_width = self._calculate_element_width(sym)
+                index_val = expr.index.value
+                offset = index_val * element_width
+                
+                # Direct load from arr+offset
+                if sym.type.base == "BYTE" and not sym.type.is_pointer:
+                    # BYTE element: simple load
+                    self.emit(f"\tLDA {arr_addr}+{offset}")
+                else:
+                    # WORD element: load both bytes
+                    self.emit(f"\tLDA {arr_addr}+{offset}")
+                    self.emit(f"\tLDX {arr_addr}+{offset+1}")
+                return
+        
         # Single index or FieldAccess base - use original 1D implementation
         if isinstance(base, Identifier):
             # Original code for array identifiers
@@ -3786,16 +3810,250 @@ class CodeGen:
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
 
+    def _collect_array_subscript_chain(self, expr: BinaryExpr) -> list:
+        """
+        Collect a chain of array subscript ADD/SUB operations for optimization.
+        Returns list of (op, array_name, index_value) tuples if pattern matches, else None.
+        Pattern: arr[0] + arr[1] - arr[2] where all are BYTE, all indices are immediate
+        """
+        if expr.op not in {BinOp.ADD, BinOp.SUB}:
+            return None
+        
+        result = []
+        
+        # Check right operand
+        if isinstance(expr.right, SubscriptExpr):
+            if (isinstance(expr.right.array, Identifier) and 
+                isinstance(expr.right.index, IntLiteral)):
+                arr_sym = self.current_symtab.lookup(expr.right.array.name)
+                if (arr_sym.is_array and not arr_sym.is_const and 
+                    arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                    result.append((expr.op, expr.right.array.name, expr.right.index.value))
+        else:
+            return None  # Right must be subscript
+        
+        # Check left operand - can be another subscript or another ADD/SUB chain
+        left = expr.left
+        while left:
+            if isinstance(left, SubscriptExpr):
+                if (isinstance(left.array, Identifier) and 
+                    isinstance(left.index, IntLiteral)):
+                    arr_sym = self.current_symtab.lookup(left.array.name)
+                    if (arr_sym.is_array and not arr_sym.is_const and 
+                        arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                        # For the leftmost element, the operation is implicit ADD
+                        result.append((BinOp.ADD, left.array.name, left.index.value))
+                    break
+                else:
+                    return None  # Non-immediate index
+            elif isinstance(left, BinaryExpr) and left.op in {BinOp.ADD, BinOp.SUB}:
+                # Check if right side is a subscript
+                if isinstance(left.right, SubscriptExpr):
+                    if (isinstance(left.right.array, Identifier) and 
+                        isinstance(left.right.index, IntLiteral)):
+                        arr_sym = self.current_symtab.lookup(left.right.array.name)
+                        if (arr_sym.is_array and not arr_sym.is_const and 
+                            arr_sym.address is None and arr_sym.type.base == "BYTE"):
+                            result.append((left.op, left.right.array.name, left.right.index.value))
+                            left = left.left
+                            continue
+                return None
+            else:
+                return None  # Not a subscript or ADD/SUB chain
+        
+        # Must have at least 2 elements and same array
+        if len(result) < 2:
+            return None
+        
+        # Check all from same array
+        first_arr = result[0][1]
+        if not all(arr == first_arr for op, arr, idx in result):
+            return None
+        
+        return list(reversed(result))  # Reverse to get left-to-right order
+    
+    def _gen_array_subscript_chain(self, chain: list, array_name: str, result_is_16bit: bool = False):
+        """
+        Generate optimized code for array subscript chain with mixed ADD/SUB.
+        chain: list of (op, array_name, index_value) tuples in order
+        result_is_16bit: if True, generate 16-bit ADC/SBC with carry propagation
+        
+        For 8-bit result: LDA arr[0]; CLC; ADC arr[1]; ...
+        For 16-bit result: LDA arr[0]; LDX #0; CLC; ADC arr[1]; (propagate carry to X)
+        Result left in A (low) and X (high)
+        """
+        arr_sym = self.current_symtab.lookup(array_name)
+        arr_addr = arr_sym.asm_name()
+        
+        # Load first element
+        op0, _, idx0_val = chain[0]
+        self.emit(f"\tLDA {arr_addr}+{idx0_val}")
+        
+        if result_is_16bit:
+            # For 16-bit result, initialize high byte to 0
+            self.emit("\tLDX #0")
+        
+        # Process remaining elements
+        for idx, (op, _, idx_val) in enumerate(chain[1:], 1):
+            if op == BinOp.ADD:
+                self.emit("\tCLC")
+                self.emit(f"\tADC {arr_addr}+{idx_val}")
+                
+                if result_is_16bit:
+                    # Propagate carry to high byte (X register)
+                    # We use BCC to skip the increment if no carry
+                    no_carry_lbl = self.new_label("ARRAY_NO_CARRY")
+                    self.emit(f"\tBCC {no_carry_lbl}")
+                    self.emit("\tINX")  # Increment high byte if carry
+                    self.emit(f"{no_carry_lbl}:")
+            else:  # SUB
+                self.emit("\tSEC")
+                self.emit(f"\tSBC {arr_addr}+{idx_val}")
+                
+                if result_is_16bit:
+                    # Propagate borrow to high byte (X register)
+                    # BCS means carry set (NO borrow), BCC means carry clear (borrow occurred)
+                    no_borrow_lbl = self.new_label("ARRAY_NO_BORROW")
+                    self.emit(f"\tBCS {no_borrow_lbl}")
+                    self.emit("\tDEX")  # Decrement high byte if borrow
+                    self.emit(f"{no_borrow_lbl}:")
+
+
+
+
+    def _is_immediate_array_subscript(self, expr) -> tuple:
+        """
+        Check if expression is array[immediate_index] for BYTE array.
+        Returns (array_name, offset) if match, else None
+        """
+        if not isinstance(expr, SubscriptExpr):
+            return None
+        if not isinstance(expr.array, Identifier):
+            return None
+        if not isinstance(expr.index, IntLiteral):
+            return None
+        
+        arr_sym = self.current_symtab.lookup(expr.array.name)
+        if not (arr_sym.is_array and not arr_sym.is_const and 
+                arr_sym.address is None and arr_sym.type.base == "BYTE"):
+            return None
+        
+        offset = expr.index.value * self._calculate_element_width(arr_sym)
+        return (arr_sym.asm_name(), offset)
+    
     def _gen_binary(self, expr: BinaryExpr):
         t = self.tc_check(expr)
         left_t = self.tc_check(expr.left)
         right_t = self.tc_check(expr.right)
         
+        # OPTIMIZATION: Detect ADD/SUB with immediate array subscripts
+        # Pattern: arr[0] + value --> LDA arr[0]; CLC; ADC value
+        # Pattern: value + arr[0] --> generate value; CLC; ADC arr[0]
+        # Pattern: arr[0] - value --> LDA arr[0]; SEC; SBC value
+        if expr.op in {BinOp.ADD, BinOp.SUB} and not left_t.sem_type.base == "WORD" and not right_t.sem_type.base == "WORD":
+            left_arr_info = self._is_immediate_array_subscript(expr.left)
+            right_arr_info = self._is_immediate_array_subscript(expr.right)
+            
+            # Case 1: arr[i] + expr
+            if left_arr_info and isinstance(expr.right, (Identifier, IntLiteral, SubscriptExpr)):
+                arr_addr, offset = left_arr_info
+                self.emit(f"\tLDA {arr_addr}+{offset}")
+                
+                if expr.op == BinOp.ADD:
+                    self.emit("\tCLC")
+                    if isinstance(expr.right, IntLiteral):
+                        self.emit(f"\tADC #{expr.right.value & 0xFF:02X}")
+                    elif isinstance(expr.right, Identifier):
+                        right_sym = self.current_symtab.lookup(expr.right.name)
+                        self.emit(f"\tADC {right_sym.asm_name()}")
+                    elif isinstance(expr.right, SubscriptExpr):
+                        # Check if it's also an immediate array subscript
+                        right_info = self._is_immediate_array_subscript(expr.right)
+                        if right_info:
+                            r_addr, r_offset = right_info
+                            self.emit(f"\tADC {r_addr}+{r_offset}")
+                        else:
+                            # Complex subscript - fall through
+                            pass
+                    else:
+                        # Complex expression - fall through
+                        pass
+                else:  # SUB
+                    self.emit("\tSEC")
+                    if isinstance(expr.right, IntLiteral):
+                        self.emit(f"\tSBC #{expr.right.value & 0xFF:02X}")
+                    elif isinstance(expr.right, Identifier):
+                        right_sym = self.current_symtab.lookup(expr.right.name)
+                        self.emit(f"\tSBC {right_sym.asm_name()}")
+                    elif isinstance(expr.right, SubscriptExpr):
+                        right_info = self._is_immediate_array_subscript(expr.right)
+                        if right_info:
+                            r_addr, r_offset = right_info
+                            self.emit(f"\tSBC {r_addr}+{r_offset}")
+                        else:
+                            pass
+                    else:
+                        pass
+                
+                # Check if we successfully handled it (no fallthrough needed)
+                # If we got here and handled it, we should return
+                if isinstance(expr.right, (Identifier, IntLiteral)):
+                    return
+                elif isinstance(expr.right, SubscriptExpr) and right_arr_info:
+                    return
+            
+            # Case 2: expr + arr[i] (ADD only, since SUB doesn't commute)
+            if right_arr_info and expr.op == BinOp.ADD and isinstance(expr.left, (Identifier, IntLiteral, SubscriptExpr)):
+                arr_addr, offset = right_arr_info
+                
+                # Generate left side first
+                if isinstance(expr.left, IntLiteral):
+                    self.emit(f"\tLDA #{expr.left.value & 0xFF:02X}")
+                elif isinstance(expr.left, Identifier):
+                    left_sym = self.current_symtab.lookup(expr.left.name)
+                    self.emit(f"\tLDA {left_sym.asm_name()}")
+                elif isinstance(expr.left, SubscriptExpr):
+                    left_info = self._is_immediate_array_subscript(expr.left)
+                    if left_info:
+                        l_addr, l_offset = left_info
+                        self.emit(f"\tLDA {l_addr}+{l_offset}")
+                    else:
+                        # Complex subscript - can't optimize
+                        pass
+                else:
+                    # Complex expression - can't optimize this way
+                    pass
+                
+                # Add the array element
+                self.emit("\tCLC")
+                self.emit(f"\tADC {arr_addr}+{offset}")
+                
+                # Check if we successfully handled it
+                if isinstance(expr.left, (Identifier, IntLiteral)):
+                    return
+                elif isinstance(expr.left, SubscriptExpr) and left_arr_info:
+                    return
+        
+        # OPTIMIZATION: Detect and optimize array subscript chains
+        # Pattern: arr[0] + arr[1] - arr[2]
+        # Determine result type: use assignment target type if available, else expression result type
+        result_16_temp = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
+        
+        # If we're in an assignment context and LHS is WORD, treat result as 16-bit
+        if self.assign_target_type and (self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer):
+            result_16_temp = True
+        
+        chain = self._collect_array_subscript_chain(expr)
+        if chain:
+            # chain[0][1] is the array name
+            self._gen_array_subscript_chain(chain, chain[0][1], result_is_16bit=result_16_temp)
+            return
+        
         # Determine operand sizes
         # IMPORTANT: Pointers are always 16-bit, even if pointing to BYTE
         left_16 = left_t.sem_type.base == "WORD" or (left_t.kind == ExprKind.ADDR and left_t.sem_type.is_pointer)
         right_16 = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
-        result_16 = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
+        result_16 = result_16_temp
         
         # Check if left operand is a BYTE arithmetic expression that can overflow
         # If so, treat it as 16-bit because it will have carry promotion applied
@@ -4739,6 +4997,81 @@ class CodeGen:
                 sym = self.current_symtab.lookup(lhs.array.name)
                 if sym.is_const:
                     self._raise_error(f"Cannot assign to element of const array '{lhs.array.name}'")
+                    
+            # EARLY OPTIMIZATION: Handle array subscript assignment with optimizations
+            # This must be done BEFORE the general gen_expr(rhs) call to avoid duplicate code generation
+            if isinstance(lhs.array, Identifier):
+                arr_sym = self.current_symtab.lookup(lhs.array.name)
+                if arr_sym.is_array and not arr_sym.is_const and arr_sym.address is None:
+                    arr_addr = arr_sym.asm_name()
+                    element_width = self._calculate_element_width(arr_sym)
+                    
+                    # Case 1: Immediate index - calculate offset at compile time
+                    if isinstance(lhs.index, IntLiteral):
+                        index_val = lhs.index.value
+                        offset = index_val * element_width
+                        
+                        # Generate RHS value into A/X
+                        self.gen_expr(rhs)
+                        
+                        # Direct store using calculated offset
+                        if lhs_t.sem_type.base == "WORD":
+                            # WORD element: store both bytes
+                            self.emit(f"\tSTA {arr_addr}+{offset}")
+                            self.emit(f"\tSTX {arr_addr}+{offset+1}")
+                        else:
+                            # BYTE element: store only A
+                            self.emit(f"\tSTA {arr_addr}+{offset}")
+                        return
+                    
+                    # Case 2: Index in register/accumulator - inline address calculation
+                    # Save RHS value first since index calculation might use A/X
+                    self.gen_expr(rhs)
+                    self.emit("\tSTA TMP2")
+                    self.emit("\tSTX TMP2+1")
+                    
+                    # Generate index expression
+                    self.gen_expr(lhs.index)
+                    
+                    # Now calculate address: arr_addr + index * element_width
+                    if element_width == 1:
+                        # BYTE elements: address = arr_addr + index
+                        self.emit(f"\tCLC")
+                        self.emit(f"\tADC #<{arr_addr}")
+                        self.emit(f"\tSTA TMP0")
+                        self.emit(f"\tTXA")
+                        self.emit(f"\tADC #>{arr_addr}")
+                        self.emit(f"\tSTA TMP0+1")
+                    elif element_width == 2:
+                        # WORD elements: address = arr_addr + index * 2
+                        self.emit(f"\tASL A")  # Multiply index by 2
+                        carry_lbl = self.new_label("ARR_CARRY")
+                        self.emit(f"\tBCC {carry_lbl}")
+                        self.emit(f"\tINC TMP0+1")
+                        self.emit(f"{carry_lbl}:")
+                        self.emit(f"\tCLC")
+                        self.emit(f"\tADC #<{arr_addr}")
+                        self.emit(f"\tSTA TMP0")
+                        self.emit(f"\tTXA")
+                        self.emit(f"\tADC #>{arr_addr}")
+                        self.emit(f"\tSTA TMP0+1")
+                    else:
+                        # Complex element width: fall back to general handler
+                        # RHS is already in TMP2, need to handle index
+                        self._gen_subscript(lhs, load_only=False)
+                        return
+                    
+                    # Store RHS value from TMP2 to calculated address
+                    self.emit(f"\tLDY #0")
+                    self.emit(f"\tLDA TMP2")
+                    self.emit(f"\tSTA (TMP0),Y")
+                    
+                    if lhs_t.sem_type.base == "WORD":
+                        self.emit(f"\tINY")
+                        self.emit(f"\tLDA TMP2+1")
+                        self.emit(f"\tSTA (TMP0),Y")
+                    return
+                    
         elif isinstance(lhs, FieldAccess):
             # Check if accessing a field of a const struct
             if isinstance(lhs.object, Identifier):
@@ -5139,7 +5472,13 @@ class CodeGen:
                 return
 
         # vygeneruj RHS
-        self.gen_expr(rhs)
+        # Set assignment target type context for optimizations
+        prev_assign_type = self.assign_target_type
+        self.assign_target_type = lhs_t.sem_type
+        try:
+            self.gen_expr(rhs)
+        finally:
+            self.assign_target_type = prev_assign_type
 
         # Handle type widening: if RHS is smaller than LHS, extend with zeros
         # This is needed when assigning a BYTE to a WORD target
@@ -5195,7 +5534,10 @@ class CodeGen:
             return
 
         if isinstance(lhs, SubscriptExpr):
-            # Save RHS value to temps before subscript calculation
+            # Subscript optimization was already handled earlier
+            # This is a fallback for complex cases or those that don't match the early optimization pattern
+            # Generate RHS if not already generated
+            self.gen_expr(rhs)
             self.emit("\tSTA TMP2")
             self.emit("\tSTX TMP2+1")
             self._gen_subscript(lhs, load_only=False)

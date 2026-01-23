@@ -6,6 +6,6 @@ proc main()
     arr[0] = 10
     arr[1] = 20
     arr[2] = 30
-    sum = arr[0] + arr[1] + arr[2]  ; 10 + 20 + 30 = 60
+    sum = arr[0] + arr[1] + arr[2] + arr[1] - arr[0] - arr[0]  ; 60
     result = sum
 end
