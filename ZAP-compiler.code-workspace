@@ -12,7 +12,8 @@
             "scminput": false,
             "python": true,
             "ca65": true,
-            "makefile": true
+            "makefile": true,
+            "zap": true
         },
         "editor.fontSize": 17,
         "chat.editing.autoAcceptDelay": 60,
