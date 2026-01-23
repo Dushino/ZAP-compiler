@@ -1,2 +1,2 @@
 # da65 configuration file for tests
-GLOBAL {INPUTOFFS 0; STARTADDR $4000;};
+GLOBAL {INPUTOFFS 6; STARTADDR $4000;};
