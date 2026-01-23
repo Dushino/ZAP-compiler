@@ -2633,7 +2633,7 @@ class CodeGen:
 
                     # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
                     copy_len = str_len * (2 if is_word else 1)
-                    self.emit(f"\tLDX #{copy_len}")
+                    self.emit(f"\tLDX #{copy_len}") # Fixme: assumes length fits in one byte
                     self.emit("\tLDY #0")
                     self.emit("\tJSR COPY_BYTES")
             return
