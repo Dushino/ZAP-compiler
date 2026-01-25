@@ -66,11 +66,39 @@ Steps:
 
 Generated code review checklist:
 ----------------------------------------------
-Tests up to 007-arrays-multidim-2d optimized
+Tests up to 014-structs-simple inclusive have now optimized code generation (no peephole yet)
 
-007-arrays-multidim-d
-- to be more optimized - remove LDX #0 where not needed
 
-Add tests for mixed byte/word array element access and assignments
-- test_array_mixed.zap
+To optimize:
+; /home/dusan/src/ZAP-compiler/tests/pass/012-operator-precedence/012-operator-precedence.zap 5:     byte y = x + x + x
+	LDA _MAIN_X
+	CLC
+	ADC _MAIN_X
+	STA TMP1
+	LDA _MAIN_X
+	CLC
+	ADC TMP1
+	STA _MAIN_Y
+; could be optimized to
+    LDA _MAIN_X 
+    CLC
+    ADC _MAIN_X
+    ADC _MAIN_X
+    STA _MAIN_Y 
 
+Peephole optimization:
+MAIN:
+; /home/dusan/src/ZAP-compiler/tests/pass/014-structs-simple/014-structs-simple.zap 9:     p.age = 42
+	LDA #42
+	STA TMP2
+	LDA _MAIN_P
+	LDY #0
+	LDA TMP2
+	STA _MAIN_P
+; /home/dusan/src/ZAP-compiler/tests/pass/014-structs-simple/014-structs-simple.zap 10:     result = p.age
+	LDA _MAIN_P
+	STA _RESULT
+	RTS
+
+
+ 
