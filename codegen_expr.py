@@ -2667,7 +2667,14 @@ class CodeGen:
                         return
 
             # Fallback: general expression (non-const)
-            self.gen_expr(sym.init.expr)
+            # Set assignment target type context for optimizations
+            prev_assign_type = self.assign_target_type
+            self.assign_target_type = sym.type
+            try:
+                self.gen_expr(sym.init.expr)
+            finally:
+                self.assign_target_type = prev_assign_type
+            
             if sym.type.base == "BYTE" and not sym.type.is_pointer:
                 self.emit(f"\tSTA {sym.asm_name()}")
             else:
@@ -3053,7 +3060,13 @@ class CodeGen:
             self.emit(f"\tLDX {asm}+1")
         else:
             # BYTE → X = 0
-            self.emit("\tLDX #0     ; note 3056")
+            # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
+            target_is_byte = (self.assign_target_type and 
+                            hasattr(self.assign_target_type, 'base') and
+                            self.assign_target_type.base == "BYTE" and 
+                            not getattr(self.assign_target_type, 'is_pointer', False))
+            if not target_is_byte:
+                self.emit("\tLDX #0     ; note 3056")
 
     def _gen_deref(self, expr: DerefExpr):
         t = self.tc_check(expr)
@@ -3207,8 +3220,12 @@ class CodeGen:
                     self.emit("\tTAX")  # X = high byte
                     self.emit("\tPLA")  # A = low byte (restored)
                 else:
-                    # For BYTE element, always load X (might be used later)
-                    self.emit("\tLDX #0     ; note 3211")
+                    # For BYTE element, skip LDX #0 if assignment target is BYTE (optimization at 3216)
+                    if not (self.assign_target_type and 
+                            hasattr(self.assign_target_type, 'base') and
+                            self.assign_target_type.base == "BYTE" and 
+                            not getattr(self.assign_target_type, 'is_pointer', False)):
+                        self.emit("\tLDX #0     ; note 3211")
             else:
                 # Store RHS value (in TMP2/TMP2+1)
                 self.emit("\tLDY #0")
@@ -3718,7 +3735,13 @@ class CodeGen:
                     self.emit(f"\tLDX {field_asm}+1")
                 else:
                     # BYTE field -> X = 0
-                    self.emit("\tLDX #0     ; note 3721")
+                    # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
+                    target_is_byte = (self.assign_target_type and 
+                                    hasattr(self.assign_target_type, 'base') and
+                                    self.assign_target_type.base == "BYTE" and 
+                                    not getattr(self.assign_target_type, 'is_pointer', False))
+                    if not target_is_byte:
+                        self.emit("\tLDX #0     ; note 3721")
                     
             elif isinstance(expr.object, SubscriptExpr):
                 # Array subscript: Point arr[i]; arr[i].x = ...
@@ -4206,19 +4229,23 @@ class CodeGen:
         
         # Check if left operand is a BYTE arithmetic expression that can overflow
         # If so, treat it as 16-bit because it will have carry promotion applied
+        # UNLESS the final result will be assigned to BYTE, in which case we want 8-bit wrapping
         left_is_promoted_byte_arith = (
             isinstance(expr.left, BinaryExpr) and 
             not left_16 and  # Type system says it's BYTE
-            expr.left.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD}
+            expr.left.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD} and
+            result_16  # Only promote if result will be 16-bit
         )
         if left_is_promoted_byte_arith:
             left_16 = True  # Treat as 16-bit since it will have carry promotion
         
         # Check if right operand is a BYTE arithmetic expression that can overflow
+        # UNLESS the final result will be assigned to BYTE, in which case we want 8-bit wrapping
         right_is_promoted_byte_arith = (
             isinstance(expr.right, BinaryExpr) and 
             not right_16 and  # Type system says it's BYTE
-            expr.right.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD}
+            expr.right.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD} and
+            result_16  # Only promote if result will be 16-bit
         )
         if right_is_promoted_byte_arith:
             right_16 = True  # Treat as 16-bit since it will have carry promotion
@@ -4379,7 +4406,9 @@ class CodeGen:
         # Generate left operand
         self.gen_expr(expr.left)
         self.emit(f"\tSTA {left_tmp}")
-        self.emit(f"\tSTX {left_tmp}+1")
+        # Only save high byte if we need 16-bit result
+        if result_16_adj:
+            self.emit(f"\tSTX {left_tmp}+1")
 
         # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
         if not (use_inc_opt or use_dec_opt):
@@ -5670,9 +5699,11 @@ class CodeGen:
         # This is needed when assigning a BYTE to a WORD target
         # BUT: Don't clear X if the RHS is a multiply (MUL8 returns 16-bit result in A,X)
         # Also: Don't clear X for any arithmetic expression since ADD/SUB/DIV/MOD may have carry
+        # Also: Don't clear X if RHS is a simple identifier/literal - gen_expr already handled widening
         is_arith = isinstance(rhs, BinaryExpr) and rhs.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD}
+        is_simple_rhs = isinstance(rhs, (Identifier, IntLiteral))
         if (rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer and
-            lhs_t.sem_type.base == "WORD" and not is_arith):
+            lhs_t.sem_type.base == "WORD" and not is_arith and not is_simple_rhs):
             if self.is_65c02:
                 self.emit("\tLDX #0     ; note 5677")  # Clear X for BYTE to WORD conversion
             else:
@@ -5730,8 +5761,19 @@ class CodeGen:
         if isinstance(lhs, FieldAccess):
             # Save RHS value to temps before field access calculation
             self.emit("\tSTA TMP2")
-            self.emit("\tSTX TMP2+1")
-            self._gen_field_access(lhs, load_only=False)
+            # Only save high byte if RHS is not BYTE (or if we don't know the type)
+            # For BYTE RHS, X is either 0 or undefined, and we don't need it for BYTE field assignment
+            if rhs_t.sem_type.base == "WORD" or rhs_t.sem_type.is_pointer:
+                self.emit("\tSTX TMP2+1")
+            
+            # Set assignment target type to the field type for optimizations
+            # This helps skip unnecessary LDX #0 when the field is BYTE
+            prev_assign_type = self.assign_target_type
+            self.assign_target_type = lhs_t.sem_type
+            try:
+                self._gen_field_access(lhs, load_only=False)
+            finally:
+                self.assign_target_type = prev_assign_type
             return
 
         raise NotImplementedError(type(lhs))
@@ -6305,6 +6347,54 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
 
+            # Fast path: byte identifier vs constant → simple CMP without LDX
+            if not is_16bit and isinstance(cond.left, Identifier):
+                sym = self.current_symtab.lookup(cond.left.name)
+                asm = sym.asm_name()
+                if cond.op == BinOp.EQ:
+                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.NE:
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.LT:
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.LE:
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GT:
+                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBEQ {lbl_else_tmp}")
+                    self.emit(f"\tBCS {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GE:
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCS {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+
             # Evaluate left into A/X
             self.gen_expr(cond.left)
             if is_16bit and left_t.sem_type.base != "WORD":
@@ -6315,7 +6405,13 @@ class CodeGen:
             
             if cmp_operand is not None:
                 # Left operand only; right is accessed directly in CMP
-                self.gen_expr(cond.left)
+                # Optimize: if left is also simple BYTE, load it directly without gen_expr to avoid unnecessary LDX #0
+                # This avoids the unneeded "LDX #0" that would normally follow "LDA byte_var" (optimization at 6321)
+                left_operand = simple_byte_operand(cond.left)
+                if left_operand is not None:
+                    self.emit(f"\tLDA {left_operand}")
+                else:
+                    self.gen_expr(cond.left)
                 cmp_lo = cmp_operand
                 # cmp_hi stays as "TMP0+1" but won't be used for 8-bit
             else:
