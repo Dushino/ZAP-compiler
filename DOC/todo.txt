@@ -66,9 +66,6 @@ Steps:
 
 Generated code review checklist:
 ----------------------------------------------
-Tests up to 020-function-basic are reviewed
-
-----------------------------------------------
 To optimize:
 ; /home/dusan/src/ZAP-compiler/tests/pass/012-operator-precedence/012-operator-precedence.zap 5:     byte y = x + x + x
 	LDA _MAIN_X
@@ -86,7 +83,25 @@ To optimize:
     ADC _MAIN_X
     STA _MAIN_Y 
 
+---
+[ ] *2 /2 optimize to ASL, LSR
+
+[ ] different optimization for 5402 and 65c02
+	LDA #$0A
+	STA _MAIN_X
+; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\024-increment-decrement\024-increment-decrement.zap 5:     x = x + 1
+	INC _MAIN_X
+; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\024-increment-decrement\024-increment-decrement.zap 6:     result = x
+	LDA _MAIN_X
+    STA RESULT
+
+[ ] Document result = a = b 
+
+[ ] 026-nested-arrays - arrays are not nested
+
+
 Peephole optimization:
+[ ]
 MAIN:
 ; /home/dusan/src/ZAP-compiler/tests/pass/014-structs-simple/014-structs-simple.zap 9:     p.age = 42
 	LDA #42
@@ -100,5 +115,10 @@ MAIN:
 	STA _RESULT
 	RTS
 
-!!! Peephole optimization must be disabled for ASM blocks !!!
+[ ] !!! Peephole optimization must be disabled for ASM blocks !!!
  
+[ ] Only if there is no label before second JMP
+ 	JMP endwhile_2
+	JMP endif_5
+
+[ ]

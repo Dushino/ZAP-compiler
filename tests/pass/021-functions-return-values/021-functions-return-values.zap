@@ -1,9 +1,9 @@
 func byte lo(word w)
-return w
+    return w
 end
 
 func word widen(byte b)
-return b
+    return b
 end
 
 byte result @40000 = 0

@@ -7,7 +7,7 @@ byte result @40000 = 0
 
 proc main()
     Point p
-    p.x = 25
-    p.y = 75
-    result = p.x
+    p.x = 75
+    p.y = 25
+    result = p.y
 end

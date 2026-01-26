@@ -8,5 +8,9 @@ proc main()
         arr[i] = i * 2
     next i
 
+    for i = 0 to 4 STEP 2
+        arr[i] = arr[i] + 1
+    next i
+
     result = arr[4]
 end
