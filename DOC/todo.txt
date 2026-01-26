@@ -66,9 +66,9 @@ Steps:
 
 Generated code review checklist:
 ----------------------------------------------
-Tests up to 014-structs-simple inclusive have now optimized code generation (no peephole yet)
+Tests up to 020-function-basic are reviewed
 
-
+----------------------------------------------
 To optimize:
 ; /home/dusan/src/ZAP-compiler/tests/pass/012-operator-precedence/012-operator-precedence.zap 5:     byte y = x + x + x
 	LDA _MAIN_X
@@ -100,5 +100,5 @@ MAIN:
 	STA _RESULT
 	RTS
 
-
+!!! Peephole optimization must be disabled for ASM blocks !!!
  

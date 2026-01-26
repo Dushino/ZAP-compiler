@@ -94,7 +94,7 @@ class CodeGen:
         if self.is_65c02:
             self.emit(f"\tSTZ {operand}")
         else:
-            self.emit("\tLDA #0")
+            self.emit("\tLDA #$00")
             self.emit(f"\tSTA {operand}")
 
     def _emit_store_byte_const(self, sym: Symbol, value: int):
@@ -1874,8 +1874,8 @@ class CodeGen:
         self.emit("; ------------------------------")
         self.emit("ARRCPY:")
         self.emit("\tSTA TMP3")          # Store length in TMP3
-        self.emit("\tLDX #0")            # Initialize byte counter
-        self.emit("\tLDY #0")            # Initialize index for indirect addressing
+        self.emit("\tLDX #$00")            # Initialize byte counter
+        self.emit("\tLDY #$00")            # Initialize index for indirect addressing
         self.emit("ARRCPY_LOOP:")
         self.emit("\tCPX TMP3")          # Check if we've copied all bytes
         self.emit("\tBEQ ARRCPY_DONE")   # If so, done
@@ -1937,15 +1937,15 @@ class CodeGen:
         if src_sym.address is not None:
             # Fixed address - load as immediate
             addr = src_sym.address
-            self.emit(f"\tLDA #{addr & 0xFF}")
+            self.emit(f"\tLDA #${addr & 0xFF:02X}")
             self.emit("\tSTA TMP0")
-            self.emit(f"\tLDA #{(addr >> 8) & 0xFF}")
+            self.emit(f"\tLDA #${(addr >> 8) & 0xFF:02X}")
             self.emit("\tSTA TMP0+1")
         else:
             # Variable - address is the variable itself (for arrays in ZP or data)
-            self.emit(f"\tLDA #{0}")  # Low byte of source address
+            self.emit(f"\tLDA #$00")  # Low byte of source address
             self.emit("\tSTA TMP0")
-            self.emit(f"\tLDA #{0}")  # High byte
+            self.emit(f"\tLDA #$00")  # High byte
             self.emit("\tSTA TMP0+1")
             # Actually, for simple arrays, just use the variable name as pointer
             # Load address of source array
@@ -1957,9 +1957,9 @@ class CodeGen:
         # Set up destination address in TMP2
         if dst_sym.address is not None:
             addr = dst_sym.address
-            self.emit(f"\tLDA #{addr & 0xFF}")
+            self.emit(f"\tLDA #${addr & 0xFF:02X}")
             self.emit("\tSTA TMP2")
-            self.emit(f"\tLDA #{(addr >> 8) & 0xFF}")
+            self.emit(f"\tLDA #${(addr >> 8) & 0xFF:02X}")
             self.emit("\tSTA TMP2+1")
         else:
             self.emit(f"\tLDA #<{dst_asm}")
@@ -1969,10 +1969,10 @@ class CodeGen:
         
         # Set copy length in A (full array length, not minus 1)
         if dst_len > 0:
-            self.emit(f"\tLDA #{dst_len}")
+            self.emit(f"\tLDA #${dst_len:02X}")
         else:
             # No length limit (risky, but copy up to 255 bytes)
-            self.emit("\tLDA #255")
+            self.emit("\tLDA #$FF")
         
         # Call ARRCPY routine
         self.emit("\tJSR ARRCPY")
@@ -2021,8 +2021,8 @@ class CodeGen:
         self.emit("\tSTA TMP2+1")
         
         # Set copy length in X (number of bytes = struct size)
-        self.emit(f"\tLDX #{struct_size}")
-        self.emit("\tLDY #0")
+        self.emit(f"\tLDX #${struct_size:02X}")
+        self.emit("\tLDY #$00")
         self.emit("\tJSR COPY_BYTES")
 
     
@@ -2043,8 +2043,8 @@ class CodeGen:
             self.emit("; Input: TMP0 (multiplicand), TMP2 (multiplier)")
             self.emit("; Output: A=low, X=high")
             self.emit("MUL8:")
-            self.emit("\tLDA #0")
-            self.emit("\tLDX #8")
+            self.emit("\tLDA #$00")
+            self.emit("\tLDX #$08")
             self.emit("\tCLC")
             self.emit("MUL8_LOOP:")
             self.emit("\tROR TMP2")
@@ -2093,7 +2093,7 @@ class CodeGen:
             self.emit("; Output: A=low, X=high")
             self.emit("MUL16:")
             self._stz("TMP2+2")  # Use TMP2+2 as temp storage
-            self.emit("\tLDX #16")
+            self.emit("\tLDX #$10")
             self.emit("MUL16_LOOP:")
             self.emit("\tLSR TMP3")
             self.emit("\tROR TMP2")
@@ -2119,8 +2119,8 @@ class CodeGen:
             self.emit("; Input: TMP0 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=quotient, X=0")
             self.emit("DIV8:")
-            self.emit("\tLDA #0")
-            self.emit("\tLDX #8")
+            self.emit("\tLDA #$00")
+            self.emit("\tLDX #$08")
             self.emit("\tCLC")
             self.emit("DIV8_LOOP:")
             self.emit("\tROL TMP0")
@@ -2133,7 +2133,7 @@ class CodeGen:
             self.emit("\tBNE DIV8_LOOP")
             self.emit("\tROL TMP0")
             self.emit("\tLDA TMP0")
-            self.emit("\tLDX #0")
+            self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
         def emit_div16_8():
@@ -2142,7 +2142,7 @@ class CodeGen:
             self.emit("; Output: A=low, X=high")
             self.emit("DIV16_8:")
             self._stz("TMP3")
-            self.emit("\tLDX #16")
+            self.emit("\tLDX #$10")
             self.emit("\tCLC")
             self.emit("DIV16_8_LOOP:")
             self.emit("\tROL TMP0")
@@ -2169,15 +2169,15 @@ class CodeGen:
             self.emit("DIV8_16:")
             self.emit("\tLDA TMP0")
             self.emit("\tCMP TMP2")
-            self.emit("\tLDA #0")
+            self.emit("\tLDA #$00")
             self.emit("\tSBC TMP3")
             self.emit("\tBCC DIV8_16_ZERO")
-            self.emit("\tLDA #1")
-            self.emit("\tLDX #0")
+            self.emit("\tLDA #$01")
+            self.emit("\tLDX #$00")
             self.emit("\tRTS")
             self.emit("DIV8_16_ZERO:")
-            self.emit("\tLDA #0")
-            self.emit("\tLDX #0")
+            self.emit("\tLDA #$00")
+            self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
         def emit_div16():
@@ -2219,8 +2219,8 @@ class CodeGen:
             self.emit("; Input: TMP0 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=remainder, X=0")
             self.emit("MOD8:")
-            self.emit("\tLDA #0")
-            self.emit("\tLDX #8")
+            self.emit("\tLDA #$00")
+            self.emit("\tLDX #$08")
             self.emit("\tCLC")
             self.emit("MOD8_LOOP:")
             self.emit("\tROL TMP0")
@@ -2231,7 +2231,7 @@ class CodeGen:
             self.emit("MOD8_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE MOD8_LOOP")
-            self.emit("\tLDX #0")
+            self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
         def emit_mod16_8():
@@ -2989,10 +2989,10 @@ class CodeGen:
     def _gen_literal(self, expr: IntLiteral):
         t = self.tc_check(expr)
         val = expr.value
-        self.emit(f"\tLDA #{val & 0xFF}")
+        self.emit(f"\tLDA #${val & 0xFF:02X}")
         # self.emit(f'; {t}')
         if t.sem_type.base == "WORD":
-            self.emit(f"\tLDX #{(val >> 8) & 0xFF}")
+            self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
 
 
     def _gen_identifier(self, expr: Identifier):
@@ -3035,10 +3035,10 @@ class CodeGen:
                 self._raise_error(f"Constant '{sym.name}' has no value")
             # Use the symbol's declared type, not the inferred literal type
             val = sym.const_value
-            self.emit(f"\tLDA #{val & 0xFF}")
+            self.emit(f"\tLDA #${val & 0xFF:02X}")
             # Pointers are always word-sized even when base type is BYTE
             if sym.type.base == "WORD" or sym.type.is_pointer:
-                self.emit(f"\tLDX #{(val >> 8) & 0xFF}")
+                self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
             return
 
         # ADDR (pointer nebo pole)
@@ -3198,11 +3198,11 @@ class CodeGen:
                 # Add compile-time offset: load low byte, add offset, store; then high byte with carry
                 self.emit(f"\tLDA #<{sym.asm_name()}")
                 self.emit("\tCLC")
-                self.emit(f"\tADC #{offset_low}")
+                self.emit(f"\tADC #${offset_low:02X}")
                 self.emit("\tSTA TMP0")
                 # Carry flag now contains any overflow from low byte addition
                 self.emit(f"\tLDA #>{sym.asm_name()}")
-                self.emit(f"\tADC #{offset_high}")
+                self.emit(f"\tADC #${offset_high:02X}")
                 self.emit("\tSTA TMP0+1")
             
             # If only calculating address, we're done
@@ -3609,7 +3609,7 @@ class CodeGen:
                 if field_offset > 0:
                     # Add offset to pointer
                     self.emit(f"\tCLC")
-                    self.emit(f"\tADC #{field_offset}")
+                    self.emit(f"\tADC #${field_offset:02X}")
                     self.emit(f"\tBCC NOCARRY_ARRFIELD_DEREF_{id(expr)}")
                     self.emit(f"\tINC A+1")
                     self.emit(f"NOCARRY_ARRFIELD_DEREF_{id(expr)}:")
@@ -3637,7 +3637,7 @@ class CodeGen:
                     if field_offset > 0:
                         self.emit(f"\tCLC")
                         self.emit(f"\tLDA TMP0")
-                        self.emit(f"\tADC #{field_offset}")
+                        self.emit(f"\tADC #${field_offset:02X}")
                         self.emit(f"\tSTA TMP0")
                         self.emit(f"\tBCC NOCARRY_ARRFIELD_SUBSCR_{id(expr)}")
                         self.emit(f"\tINC TMP0+1")
@@ -3752,7 +3752,7 @@ class CodeGen:
                 if field_offset > 0:
                     self.emit(f"\tCLC")
                     self.emit(f"\tLDA TMP0")
-                    self.emit(f"\tADC #{field_offset}")
+                    self.emit(f"\tADC #${field_offset:02X}")
                     self.emit(f"\tSTA TMP0")
                     self.emit(f"\tBCC NOCARRY_ARRFIELD_{id(expr)}")
                     self.emit(f"\tINC TMP0+1")
@@ -3769,7 +3769,14 @@ class CodeGen:
                     self.emit("\tTAX")
                     self.emit("\tPLA")
                 else:
-                    self.emit("\tLDX #0     ; note 3749")
+                    # BYTE field -> X = 0
+                    # Optimization: skip LDX #0 if assignment target is BYTE
+                    target_is_byte = (self.assign_target_type and 
+                                    hasattr(self.assign_target_type, 'base') and
+                                    self.assign_target_type.base == "BYTE" and 
+                                    not getattr(self.assign_target_type, 'is_pointer', False))
+                    if not target_is_byte:
+                        self.emit("\tLDX #$00     ; note 3749")
             elif isinstance(expr.object, FieldAccess):
                 # Nested field access: obj.field1.field2... (e.g., xs.pt.x or o1.md.in.a)
                 # Calculate total offset by traversing the entire chain
@@ -3794,7 +3801,14 @@ class CodeGen:
                     if field_width == 2:
                         self.emit(f"\tLDX {field_asm}+1")
                     else:
-                        self.emit("\tLDX #0     ; note 3774")
+                        # BYTE field -> X = 0
+                        # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
+                        target_is_byte = (self.assign_target_type and 
+                                        hasattr(self.assign_target_type, 'base') and
+                                        self.assign_target_type.base == "BYTE" and 
+                                        not getattr(self.assign_target_type, 'is_pointer', False))
+                        if not target_is_byte:
+                            self.emit("\tLDX #$00     ; note 3774")
                         
                 elif isinstance(base_expr, SubscriptExpr):
                     # Array subscript case: arr[i].field1.field2.x
@@ -3821,7 +3835,14 @@ class CodeGen:
                         self.emit("\tTAX")
                         self.emit("\tPLA")
                     else:
-                        self.emit("\tLDX #0     ; note 3801")
+                        # BYTE field -> X = 0
+                        # Optimization: skip LDX #0 if assignment target is BYTE
+                        target_is_byte = (self.assign_target_type and 
+                                        hasattr(self.assign_target_type, 'base') and
+                                        self.assign_target_type.base == "BYTE" and 
+                                        not getattr(self.assign_target_type, 'is_pointer', False))
+                        if not target_is_byte:
+                            self.emit("\tLDX #$00     ; note 3801")
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
             else:
@@ -3889,7 +3910,7 @@ class CodeGen:
                     if total_offset > 0:
                         self.emit(f"\tCLC")
                         self.emit(f"\tLDA TMP0")
-                        self.emit(f"\tADC #{total_offset}")
+                        self.emit(f"\tADC #${total_offset:02X}")
                         self.emit(f"\tSTA TMP0")
                         self.emit(f"\tBCC NOCARRY_NESTEDFIELD_STORE_{id(expr)}")
                         self.emit(f"\tINC TMP0+1")
@@ -4149,7 +4170,7 @@ class CodeGen:
                 else:  # SUB
                     self.emit("\tSEC")
                     if isinstance(expr.right, IntLiteral):
-                        self.emit(f"\tSBC #{expr.right.value & 0xFF:02X}")
+                        self.emit(f"\tSBC #${expr.right.value & 0xFF:02X}")
                     elif isinstance(expr.right, Identifier):
                         right_sym = self.current_symtab.lookup(expr.right.name)
                         self.emit(f"\tSBC {right_sym.asm_name()}")
@@ -4176,7 +4197,7 @@ class CodeGen:
                 
                 # Generate left side first
                 if isinstance(expr.left, IntLiteral):
-                    self.emit(f"\tLDA #{expr.left.value & 0xFF:02X}")
+                    self.emit(f"\tLDA #${expr.left.value & 0xFF:02X}")
                 elif isinstance(expr.left, Identifier):
                     left_sym = self.current_symtab.lookup(expr.left.name)
                     self.emit(f"\tLDA {left_sym.asm_name()}")
@@ -4297,7 +4318,7 @@ class CodeGen:
                 self.emit(f"\tLDA {left_asm}")
             elif isinstance(expr.left, IntLiteral):
                 val = expr.left.value & 0xFF
-                self.emit(f"\tLDA #{val:02X}")
+                self.emit(f"\tLDA #${val:02X}")
             
             # Set carry for ADD, clear for SUB
             if expr.op == BinOp.ADD:
@@ -4316,9 +4337,9 @@ class CodeGen:
             elif isinstance(expr.right, IntLiteral):
                 val = expr.right.value & 0xFF
                 if expr.op == BinOp.ADD:
-                    self.emit(f"\tADC #{val:02X}")
+                    self.emit(f"\tADC #${val:02X}")
                 else:
-                    self.emit(f"\tSBC #{val:02X}")
+                    self.emit(f"\tSBC #${val:02X}")
             return
 
         # Fast path: Pure word arithmetic with simple operands (Identifier or IntLiteral)
@@ -4341,7 +4362,7 @@ class CodeGen:
                 self.emit(f"\tLDA {left_asm}")
             elif isinstance(expr.left, IntLiteral):
                 val = expr.left.value & 0xFF
-                self.emit(f"\tLDA #{val:02X}")
+                self.emit(f"\tLDA #${val:02X}")
             
             # Set carry for ADD, clear for SUB
             if expr.op == BinOp.ADD:
@@ -4360,9 +4381,9 @@ class CodeGen:
             elif isinstance(expr.right, IntLiteral):
                 val = expr.right.value & 0xFF
                 if expr.op == BinOp.ADD:
-                    self.emit(f"\tADC #{val:02X}")
+                    self.emit(f"\tADC #${val:02X}")
                 else:
-                    self.emit(f"\tSBC #{val:02X}")
+                    self.emit(f"\tSBC #${val:02X}")
             
             # Save low byte result to temporary
             self.emit("\tSTA TMP3")
@@ -4375,7 +4396,7 @@ class CodeGen:
                 self.emit(f"\tLDA {left_asm}+1")
             elif isinstance(expr.left, IntLiteral):
                 val = (expr.left.value >> 8) & 0xFF
-                self.emit(f"\tLDA #{val:02X}")
+                self.emit(f"\tLDA #${val:02X}")
             
             # ADC/SBC high byte (carry is already set/clear from low byte operation)
             if isinstance(expr.right, Identifier):
@@ -4388,9 +4409,9 @@ class CodeGen:
             elif isinstance(expr.right, IntLiteral):
                 val = (expr.right.value >> 8) & 0xFF
                 if expr.op == BinOp.ADD:
-                    self.emit(f"\tADC #{val:02X}")
+                    self.emit(f"\tADC #${val:02X}")
                 else:
-                    self.emit(f"\tSBC #{val:02X}")
+                    self.emit(f"\tSBC #${val:02X}")
             
             # Result: A has high byte, need to return A/X with low byte in A, high byte in X
             self.emit("\tTAX")  # Move high byte to X
@@ -5004,7 +5025,7 @@ class CodeGen:
                 lbl_no_carry = self.new_label("ADDROF_NO_CARRY")
                 self.emit("\tSTA TMP0")
                 self.emit("\tCLC")
-                self.emit(f"\tADC #{field_offset}")
+                self.emit(f"\tADC #${field_offset:02X}")
                 self.emit(f"\tBCC {lbl_no_carry}")
                 self.emit("\tINX")
                 self.emit(f"{lbl_no_carry}:")
@@ -5366,7 +5387,7 @@ class CodeGen:
                                 # Use 16-bit addition for pointer arithmetic
                                 self.emit(f"\tLDA {asm}")
                                 self.emit(f"\tCLC")
-                                self.emit(f"\tADC #{total_inc}")
+                                self.emit(f"\tADC #${total_inc:02X}")
                                 self.emit(f"\tSTA {asm}")
                                 lbl = self.new_label("CARRY_ADD_PTR")
                                 self.emit(f"\tBCC {lbl}")
@@ -5400,7 +5421,7 @@ class CodeGen:
                             # Use 16-bit subtraction for pointer arithmetic
                             self.emit(f"\tLDA {asm}")
                             self.emit(f"\tSEC")
-                            self.emit(f"\tSBC #{total_dec}")
+                            self.emit(f"\tSBC #${total_dec:02X}")
                             self.emit(f"\tSTA {asm}")
                             lbl = self.new_label("CARRY_SUB_PTR")
                             self.emit(f"\tBCS {lbl}")
@@ -5938,8 +5959,9 @@ class CodeGen:
             return
 
         if isinstance(stmt, ReturnStmt):
-            # Generate the return expression
-            self.gen_expr(stmt.expr)
+            # Generate the return expression (if any - PROCs may have no return value)
+            if stmt.expr is not None:
+                self.gen_expr(stmt.expr)
             
             # If function expects BYTE but expression is WORD, use only lower byte (A register already has it)
             # X register will be ignored on return

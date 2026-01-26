@@ -1,0 +1,52 @@
+tests\pass\020-functions-basic\020-functions-basic.zap 
+python compiler.py "tests\pass\020-functions-basic\020-functions-basic.zap" -o "tests\pass\020-functions-basic\020-functions-basic_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\020-functions-basic\020-functions-basic_default.s" -o "tests\pass\020-functions-basic\020-functions-basic_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\autostart.s -o "tests\pass\020-functions-basic\020-functions-basic_default_autostart.o" 
+da65 --cpu 65c02 --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "tests\pass\020-functions-basic\020-functions-basic_default.cut" 
+6502_simulator.exe --cpu 65c02 --config tests\pass\020-functions-basic\020-functions-basic.json --verbose --dump-file "tests\pass\020-functions-basic\020-functions-basic_default.txt" "tests\pass\020-functions-basic\020-functions-basic_default.com" 
+Expected data length: 51, actual data length: 56
+Loading file 'tests\pass\020-functions-basic\020-functions-basic_default.com':
+  Start address: 0x4000, expected end address: 0x4032, length: 56 bytes
+Loaded 56 bytes into memory from 0x4000 to 0x4032
+Loaded tests\pass\020-functions-basic\020-functions-basic_default.com
+Start address: 0x4000
+CPU type: 65C02
+
+CPU halted: JMP * detected at $4006
+Total cycles executed: 65
+
+Simulation completed
+Cycles executed: 65
+Final PC: 0x4009
+A=0x06 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+fc "tests\pass\020-functions-basic\020-functions-basic.ref" "tests\pass\020-functions-basic\020-functions-basic_default.txt" 
+  
+  
+---------------------------------------------------------------         
+tests\pass\020-functions-basic\020-functions-basic.zap 
+python compiler.py -6502 "tests\pass\020-functions-basic\020-functions-basic.zap" -o "tests\pass\020-functions-basic\020-functions-basic_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\020-functions-basic\020-functions-basic_6502.s" -o "tests\pass\020-functions-basic\020-functions-basic_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\autostart.s -o "tests\pass\020-functions-basic\020-functions-basic_6502_autostart.o" 
+da65 --cpu 6502 --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "tests\pass\020-functions-basic\020-functions-basic_6502.cut" 
+6502_simulator.exe --cpu 6502 --config tests\pass\020-functions-basic\020-functions-basic.json --verbose --dump-file "tests\pass\020-functions-basic\020-functions-basic_6502.txt" "tests\pass\020-functions-basic\020-functions-basic_6502.com" 
+Expected data length: 53, actual data length: 58
+Loading file 'tests\pass\020-functions-basic\020-functions-basic_6502.com':
+  Start address: 0x4000, expected end address: 0x4034, length: 58 bytes
+Loaded 58 bytes into memory from 0x4000 to 0x4034
+Loaded tests\pass\020-functions-basic\020-functions-basic_6502.com
+Start address: 0x4000
+CPU type: 6502
+
+CPU halted: JMP * detected at $4008
+Total cycles executed: 67
+
+Simulation completed
+Cycles executed: 67
+Final PC: 0x400B
+A=0x06 X=0x00 Y=0x00 SP=0xFF
+Status: NV-BDIZC = 00100100
+fc "tests\pass\020-functions-basic\020-functions-basic.ref" "tests\pass\020-functions-basic\020-functions-basic_6502.txt" 
+  
+  
+---------------------------------------------------------------         
