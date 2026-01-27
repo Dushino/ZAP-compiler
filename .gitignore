@@ -5,9 +5,9 @@ __pycache__/
 .vscode/settings.json
 
 # ca65
-p1/obj/*.o
-p1/out/*.com
-p1/out/*.cut
-p1/out/*.da65
-p1/src2/*
+**/*.o
+**/*.com
+**/*.s
+**/*.da65
+**/*.cut
 
