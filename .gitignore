@@ -5,8 +5,9 @@ __pycache__/
 .vscode/settings.json
 dist/*
 build/*
+python_venv/*
 
-# ca65
+# ZAP! compiler and ca65 artifacts
 **/*.o
 **/*.com
 **/*.s
