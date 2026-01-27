@@ -2,15 +2,23 @@
   "name": "zap-language",
   "displayName": "Zap Language Support",
   "description": "Syntax highlighting and icons for the Zap programming language",
+  "icon": "icons/icon.png",
   "version": "1.0.0",
   "publisher": "dushino42",
+  "homepage": "https://github.com/Dushino/ZAP-compiler",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dushino/ZAP-compiler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dushino/ZAP-compiler/issues"
+  },
   "engines": {
     "vscode": "^1.60.0"
   },
   "categories": [
     "Programming Languages"
   ],
-  "icon": "icons/zap-icon-light.svg",
   "contributes": {
     "languages": [
       {

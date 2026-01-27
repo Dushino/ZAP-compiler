@@ -5,9 +5,9 @@ This extension provides syntax highlighting for the Zap programming language.
 ## Features
 
 - **Syntax Highlighting** for Zap source files (.zap)
-- **Comment Support** - Semicolon-based line comments
-- **Bracket Matching** - Auto-closing and matching for (), [], {}
-- **Code Folding** - Fold PROC/FUNC blocks
+- **Comment Support** - Semicolon-based line comments, multiline C-style comments
+- **Bracket Matching** - Auto-closing and matching for (), [], {}, /* */
+- **Code Folding** - Fold PROC/FUNC and multiline comment blocks
 
 ## Supported Syntax
 
@@ -32,8 +32,9 @@ This extension provides syntax highlighting for the Zap programming language.
 ### Literals
 - Decimal numbers: `123`, `0`
 - Hexadecimal numbers: `$FF`, `$1234`
+- Binary numbers: `%1010`, `%11001100`
 - Strings: `"Hello, World!"`
-- Constants: `TRUE`, `FALSE`
+
 
 ## Installation
 
@@ -43,10 +44,11 @@ See the main tutorial in the repository for installation instructions.
 
 ```zap
 ; Hello World program
-.segment "CODE"
+
+.define DEBUG
 
 PROC Main()
-  BYTE x
+  BYTE x = 1
   CONST BYTE max = 100
   
   .ifdef DEBUG
@@ -56,9 +58,8 @@ PROC Main()
   
   WHILE x < max DO
     x = x + 1
-  OD
+  END
   
-  RETURN
 END
 ```
 
