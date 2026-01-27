@@ -12,11 +12,11 @@ This extension provides syntax highlighting for the Zap programming language.
 ## Supported Syntax
 
 ### Keywords
-- Control flow: `IF`, `THEN`, `ELSE`, `ELSEIF`, `FI`, `WHILE`, `DO`, `OD`, `FOR`, `TO`, `STEP`, `UNTIL`, `RETURN`, `EXIT`
+- Control flow: `IF`, `THEN`, `ELSE`, `ELSEIF`, `END`, `WHILE`, `FOR`, `TO`, `STEP`, `UNTIL`, `RETURN`, `EXIT`
 - Declarations: `PROC`, `FUNC`, `END`
 
 ### Data Types
-- `BYTE`, `WORD`, `CARD`, `INT`, `POINTER`, `ARRAY`
+- `BYTE`, `WORD`
 - `CONST` modifier
 
 ### Preprocessor Directives

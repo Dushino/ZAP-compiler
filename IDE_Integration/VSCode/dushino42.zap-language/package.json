@@ -1,15 +1,16 @@
 {
   "name": "zap-language",
   "displayName": "Zap Language Support",
-  "description": "Syntax highlighting for the Zap programming language",
+  "description": "Syntax highlighting and icons for the Zap programming language",
   "version": "1.0.0",
-  "publisher": "zap-compiler",
+  "publisher": "dushino42",
   "engines": {
     "vscode": "^1.60.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "icon": "icons/zap-icon-light.svg",
   "contributes": {
     "languages": [
       {
@@ -21,11 +22,11 @@
         "extensions": [
           ".zap"
         ],
-        "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/zap-icon-light.svg",
           "dark": "./icons/zap-icon-dark.svg"
-        }
+        },
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
