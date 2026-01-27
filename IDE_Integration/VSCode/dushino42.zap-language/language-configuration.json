@@ -1,6 +1,10 @@
 {
     "comments": {
-        "lineComment": ";"
+        "lineComment": ";",
+        "blockComment": [
+            "/*",
+            "*/"
+        ]
     },
     "brackets": [
         [
@@ -39,6 +43,10 @@
             "notIn": [
                 "string"
             ]
+        },
+        {
+            "open": "/*",
+            "close": "*/"
         }
     ],
     "surroundingPairs": [
