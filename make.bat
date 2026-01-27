@@ -301,7 +301,6 @@ if not "%2"=="" (
                          %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
                     %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!"
                     if !errorlevel! equ 0 (
-                        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                         %LD% -C cfg\my_atari.cfg  -o "!bin_file!" "!exehdr_obj!" "!obj_file!"  "!autostart_obj!"
                         if !errorlevel! equ 0 (
                             rem Create cut binary (skip 6-byte header) for disassembly
