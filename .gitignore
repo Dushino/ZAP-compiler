@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 .vscode/settings.json
+dist/*
+build/*
 
 # ca65
 **/*.o
