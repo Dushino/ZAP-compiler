@@ -87,7 +87,7 @@ if __name__ == "__main__":
         if a == "-o":
             if i + 1 >= len(args):
                 print("Error: -o requires an output filename")
-                print("Usage: python compiler.py [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
+                print("Usage: zapc [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             out_file = args[i + 1]
             i += 2
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         if a == "-D":
             if i + 1 >= len(args):
                 print("Error: -D requires a symbol name")
-                print("Usage: python compiler.py [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
+                print("Usage: zapc [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             predefined_symbols.add(args[i + 1].upper())
             i += 2
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         i += 1
 
     if src_file is None:
-        print("Usage: python compiler.py [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
+        print("Usage: zapc [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
         sys.exit(1)
 
     # Compile program
