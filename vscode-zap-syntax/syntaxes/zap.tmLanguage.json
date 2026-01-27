@@ -35,11 +35,11 @@
       "patterns": [
         {
           "name": "keyword.control.zap",
-          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|FI|WHILE|DO|OD|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
         },
         {
           "name": "keyword.other.zap",
-          "match": "(?i)\\b(PROC|FUNC|ASM|END|STRUCT)\\b"
+          "match": "(?i)\\b(PROC|FUNC|ASM|END)\\b"
         }
       ]
     },
@@ -79,6 +79,10 @@
         {
           "name": "constant.numeric.decimal.zap",
           "match": "\\b[0-9]+"
+        },
+        {
+            "name": "constant.numeric.binary.zap",
+            "match": "\\%[0-1]+"
         }
       ]
     },

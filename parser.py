@@ -307,16 +307,11 @@ class Parser:
                 seen_names.add(d.name)
             locals.append(decl)
 
-        while not (self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "RETURN")):
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
             body.append(self.parse_stmt())
 
-        # Handle RETURN or END
-        if self.cur.type == TOK_KEYWORD and self.cur.value == "RETURN":
-            self.advance()
-            # RETURN in a PROC has no expression
-            body.append(ReturnStmt(None))
-        else:
-            self.expect(TOK_KEYWORD, "END")
+        # consume END keyword
+        self.expect(TOK_KEYWORD, "END")
 
         self.current_proc_name = None
         return ProcDecl(name, params, locals, body)
@@ -376,14 +371,9 @@ class Parser:
                 seen_names.add(d.name)
             locals.append(decl)
         
-        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "RETURN"):
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
             body.append(self.parse_stmt())
         
-        # parse RETURN expression
-        self.expect(TOK_KEYWORD, "RETURN")
-        ret_expr = self.parse_expr()
-        body.append(ReturnStmt(ret_expr))
-
         # consume END keyword
         self.expect(TOK_KEYWORD, "END")
 

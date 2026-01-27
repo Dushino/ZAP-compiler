@@ -117,7 +117,8 @@ class ProcAnalyzer:
                         tc.check(st.lhs)
                         tc.check(st.rhs)
                     elif isinstance(st, ReturnStmt):
-                        tc.check(st.expr)
+                        if st.expr is not None:
+                            tc.check(st.expr)
                     elif isinstance(st, IfStmt):
                         tc.check(st.cond)
                         validate_stmt_exprs(st.then_body)

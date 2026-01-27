@@ -138,7 +138,7 @@ class FuncAnalyzer:
                 has_return = True
                 # Type-check return expression; attach location if error occurs
                 try:
-                    et = self.expr_tc.check(stmt.expr)
+                    et = self.expr_tc.check(stmt.expr) if stmt.expr is not None else None
                 except SemanticError as e:
                     info = self.debug.get("stmt_src", {}).get(id(stmt))
                     if info:
@@ -151,7 +151,7 @@ class FuncAnalyzer:
                         err.filename = fname
                         raise err
                     raise
-                if et.sem_type.base != ret_sem.base:
+                if et is not None and et.sem_type.base != ret_sem.base:
                     # Allow implicit narrowing from WORD to BYTE (use lower byte)
                     # Allow implicit widening from BYTE to WORD (zero-extend)
                     if (ret_sem.base == "BYTE" and et.sem_type.base == "WORD") or \
