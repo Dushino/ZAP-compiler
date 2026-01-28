@@ -115,10 +115,11 @@ MAIN:
 	STA _RESULT
 	RTS
 
-[ ] !!! Peephole optimization must be disabled for ASM blocks !!!
+[ ] !!! Peephole optimization must be disabled for ASM blocks and for fixed address variables !!!
  
 [ ] Only if there is no label before second JMP
  	JMP endwhile_2
 	JMP endif_5
 
 [x] Define symbols for .ifdef according to cmd line CPU option
+    Symbols 6502 or 65C02 defined according to command line option -cpu
