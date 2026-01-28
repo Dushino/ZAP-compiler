@@ -3,8 +3,8 @@
 
 $ErrorActionPreference = "Stop"
 
-$extensionSource = "$PSScriptRoot\vscode-zap-syntax"
-$extensionDest = "$env:USERPROFILE\.vscode\extensions\dushino42.zap-language-1.0.0"
+$extensionSource = "$PSScriptRoot\dushino42.zap-language"
+$extensionDest = "$env:USERPROFILE\.vscode\extensions\dushino42.zap-language"
 
 Write-Host "Installing ZAP VSCode Extension..." -ForegroundColor Cyan
 
@@ -16,8 +16,8 @@ if (-not (Test-Path $extensionSource)) {
 
 # Remove old installations
 $oldPaths = @(
-    "$env:USERPROFILE\.vscode\extensions\vscode-zap-syntax",
-    "$env:USERPROFILE\.vscode\extensions\zap-compiler.zap-language-1.0.0"
+    "$env:USERPROFILE\.vscode\extensions\dushino42.zap-language",
+    "$env:USERPROFILE\.vscode\extensions\dushino42.zap-language"
 )
 
 foreach ($oldPath in $oldPaths) {
@@ -33,3 +33,4 @@ Copy-Item $extensionSource $extensionDest -Recurse
 
 Write-Host "`nExtension installed successfully!" -ForegroundColor Green
 Write-Host "Please restart VSCode to activate the extension." -ForegroundColor Cyan
+
