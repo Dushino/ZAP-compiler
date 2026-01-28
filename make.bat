@@ -305,7 +305,7 @@ if not "%2"=="" (
                         if !errorlevel! equ 0 (
                             rem Create cut binary (skip 6-byte header) for disassembly
                             set "cut_file=!testdir!\!base!!variant_name!.cut"
-                            set "dis_file=!testdir!\!base!!variant_name!.dis65"
+                            set "dis_file=!testdir!\!base!!variant_name!.da65"
                             set "cfg_file=!testdir!\!base!.json"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
                             echo %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
@@ -429,7 +429,7 @@ if not "%2"=="" (
                         if !errorlevel! equ 0 (
                             rem Create cut binary (skip 6-byte header) for disassembly
                             set "cut_file=!testdir!\!base!!variant_name!.cut"
-                            set "dis_file=!testdir!\!base!!variant_name!.dis65"
+                            set "dis_file=!testdir!\!base!!variant_name!.da65"
                             set "cfg_file=!testdir!\!base!.json"
                             powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
                             echo %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
@@ -558,7 +558,7 @@ for /R "tests\pass" %%f in (*.o) do del /Q "%%f" 2>nul
 for /R "tests\pass" %%f in (*.com) do del /Q "%%f" 2>nul
 for /R "tests\pass" %%f in (*.txt) do del /Q "%%f" 2>nul
 for /R "tests\pass" %%f in (*.cut) do del /Q "%%f" 2>nul
-for /R "tests\pass" %%f in (*.dis65) do del /Q "%%f" 2>nul
+for /R "tests\pass" %%f in (*.da65) do del /Q "%%f" 2>nul
 for /R "tests\fail" %%f in (*.s) do del /Q "%%f" 2>nul
 for /R "tests\fail" %%f in (*.o) do del /Q "%%f" 2>nul
 
