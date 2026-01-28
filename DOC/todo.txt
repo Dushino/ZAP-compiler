@@ -121,4 +121,4 @@ MAIN:
  	JMP endwhile_2
 	JMP endif_5
 
-[ ]
+[x] Define symbols for .ifdef according to cmd line CPU option

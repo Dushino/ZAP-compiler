@@ -82,8 +82,11 @@ if __name__ == "__main__":
         a = args[i]
         if a == "-6502":
             target_6502 = True
+            predefined_symbols.add("6502")
             i += 1
             continue
+        else:
+            predefined_symbols.add("65C02")
         if a == "-o":
             if i + 1 >= len(args):
                 print("Error: -o requires an output filename")
