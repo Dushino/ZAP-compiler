@@ -1,52 +1,52 @@
-tests\pass\029-escape-sequences\029-escape-sequences.zap 
-python compiler.py "tests\pass\029-escape-sequences\029-escape-sequences.zap" -o "tests\pass\029-escape-sequences\029-escape-sequences_default.s" 
-ca65 -I lib -t none --cpu 65c02 -g "tests\pass\029-escape-sequences\029-escape-sequences_default.s" -o "tests\pass\029-escape-sequences\029-escape-sequences_default.o" 
-ca65 -I lib -t none --cpu 65c02 -g lib\atari\autostart.s -o "tests\pass\029-escape-sequences\029-escape-sequences_default_autostart.o" 
-da65 --cpu 65c02 --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "tests\pass\029-escape-sequences\029-escape-sequences_default.cut" 
-6502_simulator.exe --cpu 65c02 --config tests\pass\029-escape-sequences\029-escape-sequences.json --verbose --dump-file "tests\pass\029-escape-sequences\029-escape-sequences_default.txt" "tests\pass\029-escape-sequences\029-escape-sequences_default.com" 
-Expected data length: 27, actual data length: 32
-Loading file 'tests\pass\029-escape-sequences\029-escape-sequences_default.com':
-  Start address: 0x4000, expected end address: 0x401A, length: 32 bytes
-Loaded 32 bytes into memory from 0x4000 to 0x401A
-Loaded tests\pass\029-escape-sequences\029-escape-sequences_default.com
+tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.zap 
+python compiler.py "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.zap" -o "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.s" 
+ca65 -I lib -t none --cpu 65c02 -g "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.s" -o "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.o" 
+ca65 -I lib -t none --cpu 65c02 -g lib\atari\autostart.s -o "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default_autostart.o" 
+da65 --cpu 65c02 --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.cut" 
+6502_simulator.exe --cpu 65c02 --config tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.json --verbose --dump-file "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.txt" "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.com" 
+Expected data length: 18, actual data length: 23
+Loading file 'tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.com':
+  Start address: 0x4000, expected end address: 0x4011, length: 23 bytes
+Loaded 23 bytes into memory from 0x4000 to 0x4011
+Loaded tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.com
 Start address: 0x4000
 CPU type: 65C02
 
 CPU halted: JMP * detected at $4006
-Total cycles executed: 41
+Total cycles executed: 37
 
 Simulation completed
-Cycles executed: 41
+Cycles executed: 37
 Final PC: 0x4009
-A=0x13 X=0x00 Y=0x00 SP=0xFF
+A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-fc "tests\pass\029-escape-sequences\029-escape-sequences.ref" "tests\pass\029-escape-sequences\029-escape-sequences_default.txt" 
+fc "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.ref" "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_default.txt" 
   
   
 ---------------------------------------------------------------         
-tests\pass\029-escape-sequences\029-escape-sequences.zap 
-python compiler.py -6502 "tests\pass\029-escape-sequences\029-escape-sequences.zap" -o "tests\pass\029-escape-sequences\029-escape-sequences_6502.s" 
-ca65 -I lib -t none --cpu 6502 -g "tests\pass\029-escape-sequences\029-escape-sequences_6502.s" -o "tests\pass\029-escape-sequences\029-escape-sequences_6502.o" 
-ca65 -I lib -t none --cpu 6502 -g lib\atari\autostart.s -o "tests\pass\029-escape-sequences\029-escape-sequences_6502_autostart.o" 
-da65 --cpu 6502 --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "tests\pass\029-escape-sequences\029-escape-sequences_6502.cut" 
-6502_simulator.exe --cpu 6502 --config tests\pass\029-escape-sequences\029-escape-sequences.json --verbose --dump-file "tests\pass\029-escape-sequences\029-escape-sequences_6502.txt" "tests\pass\029-escape-sequences\029-escape-sequences_6502.com" 
-Expected data length: 29, actual data length: 34
-Loading file 'tests\pass\029-escape-sequences\029-escape-sequences_6502.com':
-  Start address: 0x4000, expected end address: 0x401C, length: 34 bytes
-Loaded 34 bytes into memory from 0x4000 to 0x401C
-Loaded tests\pass\029-escape-sequences\029-escape-sequences_6502.com
+tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.zap 
+python compiler.py -6502 "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.zap" -o "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.s" 
+ca65 -I lib -t none --cpu 6502 -g "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.s" -o "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.o" 
+ca65 -I lib -t none --cpu 6502 -g lib\atari\autostart.s -o "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502_autostart.o" 
+da65 --cpu 6502 --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.cut" 
+6502_simulator.exe --cpu 6502 --config tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.json --verbose --dump-file "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.txt" "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.com" 
+Expected data length: 20, actual data length: 25
+Loading file 'tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.com':
+  Start address: 0x4000, expected end address: 0x4013, length: 25 bytes
+Loaded 25 bytes into memory from 0x4000 to 0x4013
+Loaded tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.com
 Start address: 0x4000
 CPU type: 6502
 
 CPU halted: JMP * detected at $4008
-Total cycles executed: 43
+Total cycles executed: 39
 
 Simulation completed
-Cycles executed: 43
+Cycles executed: 39
 Final PC: 0x400B
-A=0x13 X=0x00 Y=0x00 SP=0xFF
+A=0x00 X=0x00 Y=0x00 SP=0xFF
 Status: NV-BDIZC = 00100100
-fc "tests\pass\029-escape-sequences\029-escape-sequences.ref" "tests\pass\029-escape-sequences\029-escape-sequences_6502.txt" 
+fc "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1.ref" "tests\pass\043-CPU-as-symbol1\043-CPU-as-symbol1_6502.txt" 
   
   
 ---------------------------------------------------------------         
