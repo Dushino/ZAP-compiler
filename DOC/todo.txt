@@ -95,8 +95,6 @@ To optimize:
 	LDA _MAIN_X
     STA RESULT
 
-[ ] Document result = a = b 
-
 [ ] 026-nested-arrays - arrays are not nested
 
 
