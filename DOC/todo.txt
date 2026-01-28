@@ -17,7 +17,7 @@
 [ ] improve error messages 
 [x] implement module constructors? No. 
 [x] fix wrong code generation as ORA X is wrong
-[x] compiler defines in command line
+[x] compiler defines in command line - tested also with conflicting defines and PROC name
 [ ] create sbc.zap and atari.zap to distinguish between Atari and SBC
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Describe how to use labels from ASM blocks in ZAP! code
@@ -126,4 +126,8 @@ MAIN:
 
 [ ] static variables
 [ ] implicit parameters for functions and procedures
+
+[x] library directory as command line -I <filename> option
+    - first search current directory
+    - then search -I path + / + filename in .include or .incbin
 
