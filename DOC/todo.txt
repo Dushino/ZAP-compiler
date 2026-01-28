@@ -124,10 +124,24 @@ MAIN:
 [x] Define symbols for .ifdef according to cmd line CPU option
     Symbols 6502 or 65C02 defined according to command line option -cpu
 
-[ ] static variables
-[ ] implicit parameters for functions and procedures
+[x] static for local variables
+    STATIC on global variable - should error
+    STATIC on const variable - should error
+    STATIC without initializer - should error
+
+[x] implicit parameters for functions and procedures
+
+proc test1(byte a, byte b=5, byte c = 8)
+end
+
+proc main
+    test1(1, 2)
+    test1(3)    ; implies b is initialized to its default value of 5
+    test1(4, , 9) ; implies b is initialized to its default value of 5
+end
 
 [x] library directory as command line -I <filename> option
     - first search current directory
     - then search -I path + / + filename in .include or .incbin
+
 
