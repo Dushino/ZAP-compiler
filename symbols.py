@@ -110,6 +110,7 @@ class Symbol:
     is_volatile: bool = False       # true → nelze optimalizovat čtení
     proc_name: str = ""             # jméno procedury (pro lokály)
     array_dims: Optional[List[int]] = None  # [10, 20, 30] for 3D array
+    is_static: bool = False         # true → static local variable (initialized once at program start)
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""

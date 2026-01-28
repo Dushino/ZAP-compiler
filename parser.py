@@ -440,12 +440,16 @@ class Parser:
 
     def parse_declaration(self):
         is_const = False
+        is_static = False
 
-        # CONST prefix
-        if self.cur.type == TOK_TYPEMOD:
-            if self.cur.value != "CONST":
+        # CONST or STATIC prefix (can be combined as CONST STATIC or STATIC CONST)
+        while self.cur.type == TOK_TYPEMOD:
+            if self.cur.value.upper() == "CONST":
+                is_const = True
+            elif self.cur.value.upper() == "STATIC":
+                is_static = True
+            else:
                 self.error("Unsupported type modifier")
-            is_const = True
             self.advance()
 
         # Check for pointer prefix - two possible orders:
@@ -566,7 +570,8 @@ class Parser:
                 initializer=init,
                 array_sizes=array_sizes if array_sizes else None,
                 line=decl_line,
-                col=decl_col
+                col=decl_col,
+                is_static=is_static
             )
 
         declarators = [parse_declarator()]
@@ -578,7 +583,8 @@ class Parser:
         return Declaration(
             is_const=is_const,
             type=TypeNode(type_tok.value, is_pointer),
-            declarators=declarators
+            declarators=declarators,
+            is_static=is_static
         )
 
 

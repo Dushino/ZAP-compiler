@@ -6,7 +6,7 @@ from module_system import ModuleSystem
 from preprocessor import Preprocessor
 import os
 import sys
-from typing import Optional, Set
+from typing import Optional, Set, List
 
 def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
     # Strip UTF-8 BOM if present
@@ -33,14 +33,14 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None) -> str:
     """Compile a file with module support"""
     try:
         # Get base directory for resolving includes
         base_dir = os.path.dirname(os.path.abspath(filepath))
         
-        # Create module system
-        module_sys = ModuleSystem(base_dir, predefined_symbols=predefined_symbols)
+        # Create module system with include directories
+        module_sys = ModuleSystem(base_dir, predefined_symbols=predefined_symbols, include_dirs=include_dirs or [])
         
         # Build program with all dependencies
         program, defined_symbols = module_sys.build_program(filepath)
@@ -74,8 +74,9 @@ if __name__ == "__main__":
     target_6502 = False
     out_file = None
     predefined_symbols = set()
+    include_dirs = []
 
-    # Simple CLI parsing to support -6502, -o <file>, and -D <symbol>
+    # Simple CLI parsing to support -6502, -o <file>, -D <symbol>, and -I <directory>
     i = 0
     src_file = None
     while i < len(args):
@@ -87,7 +88,7 @@ if __name__ == "__main__":
         if a == "-o":
             if i + 1 >= len(args):
                 print("Error: -o requires an output filename")
-                print("Usage: zapc [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
+                print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             out_file = args[i + 1]
             i += 2
@@ -95,9 +96,17 @@ if __name__ == "__main__":
         if a == "-D":
             if i + 1 >= len(args):
                 print("Error: -D requires a symbol name")
-                print("Usage: zapc [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
+                print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
                 sys.exit(1)
             predefined_symbols.add(args[i + 1].upper())
+            i += 2
+            continue
+        if a == "-I":
+            if i + 1 >= len(args):
+                print("Error: -I requires a directory path")
+                print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
+                sys.exit(1)
+            include_dirs.append(args[i + 1])
             i += 2
             continue
         # First non-option is the source file
@@ -109,7 +118,7 @@ if __name__ == "__main__":
         i += 1
 
     if src_file is None:
-        print("Usage: zapc [-6502] [-D <symbol>] [-o <output.s>] <source.act>")
+        print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
         sys.exit(1)
 
     if target_6502:
@@ -123,6 +132,7 @@ if __name__ == "__main__":
         target_6502=target_6502,
         predefined_symbols=predefined_symbols,
         command_line=command_line,
+        include_dirs=include_dirs,
     )
 
     # Write to file if requested, else print to stdout

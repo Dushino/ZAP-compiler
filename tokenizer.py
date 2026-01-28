@@ -16,7 +16,7 @@ KEYWORDS        = {"proc", "func", "struct",
 PREPROC         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
                    ".segment", ".incbin"}
 TYPES           = {"byte", "word"}
-TYPEMOD         = {"const"}
+TYPEMOD         = {"const", "static"}
 SINGLE_OPS      = set("+-*/%><[]&|~^!")
 TWO_CHAR_OPS    = {"==","!=","<=",">=","&&","||","<<",">>"}
 DELIMIN         = {","}

@@ -236,6 +236,20 @@ class DeclarationAnalyzer:
         sem_type: SemType
         ):
 
+        # Validate STATIC modifier
+        if decl.is_static or d.is_static:
+            # STATIC can only be used on local variables (proc_name must be set)
+            if not getattr(self.symtab, '_proc_name', ''):
+                raise SemanticError("STATIC modifier can only be used on local variables", line=d.line, col=d.col)
+            
+            # STATIC cannot be used on const variables
+            if decl.is_const:
+                raise SemanticError("STATIC and CONST modifiers cannot be combined", line=d.line, col=d.col)
+            
+            # STATIC variables must have an initializer
+            if d.initializer is None:
+                raise SemanticError("STATIC variable must have an initializer", line=d.line, col=d.col)
+
         # Extract array dimensions (supports multi-dimensional arrays)
         array_sizes_to_eval = d.array_sizes if d.array_sizes else (
             [d.array_size] if d.array_size is not None else []
@@ -516,7 +530,8 @@ class DeclarationAnalyzer:
             address=address_val,
             is_volatile=address_val is not None,
             proc_name=getattr(self.symtab, '_proc_name', ''),
-            array_dims=array_dims if array_dims else None
+            array_dims=array_dims if array_dims else None,
+            is_static=decl.is_static or d.is_static
         )
 
         try:

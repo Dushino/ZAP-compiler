@@ -3,7 +3,7 @@ Module system for handling .module and .include directives
 """
 import os
 from dataclasses import dataclass
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, List
 from parser import Parser
 from ast_nodes import Program, Declaration, ProcDecl, FuncDecl
 from preprocessor import Preprocessor
@@ -31,11 +31,12 @@ class ModuleSystem:
     Manages module loading and dependency resolution
     """
     
-    def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None):
+    def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None, include_dirs: Optional[List[str]] = None):
         self.base_path = os.path.abspath(base_path)
         self.loaded_modules: Dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection
         self.preprocessor = Preprocessor(predefined_symbols)  # Shared preprocessor for all modules
+        self.include_dirs = [os.path.abspath(d) for d in (include_dirs or [])]  # Normalize include directory paths
     
     def parse_file(self, filepath: str):
         """Parse a single file and extract module directives"""
@@ -92,7 +93,59 @@ class ModuleSystem:
                 pass
             raise
         
+        # Resolve .incbin file paths
+        self._resolve_incbin_paths(program, filepath)
+        
         return program, is_module, module_name, includes, defined_symbols
+    
+    def _resolve_incbin_paths(self, program: Program, filepath: str):
+        """
+        Resolve .incbin file paths in the program using the include search algorithm.
+        Updates IncbinDirective objects with resolved paths.
+        """
+        from ast_nodes import IncbinDirective
+        
+        file_dir = os.path.dirname(filepath)
+        
+        # Process all top-level items
+        for i, item in enumerate(program.procs):
+            if isinstance(item, IncbinDirective):
+                try:
+                    resolved_path = self._find_file(item.filename, file_dir)
+                    # Replace with a new IncbinDirective containing the resolved path
+                    program.procs[i] = IncbinDirective(resolved_path)
+                except FileNotFoundError as e:
+                    raise Exception(f"Error resolving .incbin '{item.filename}' in {filepath}: {e}")
+    
+    def _find_file(self, filename: str, relative_to_dir: str) -> str:
+        """
+        Search for a file using the include path search algorithm.
+        
+        1. First try the filename as-is (if absolute or relative)
+        2. Then try relative to the directory of the file being compiled (relative_to_dir)
+        3. Then try in each -I directory (in order)
+        
+        Returns the absolute path if found, raises FileNotFoundError if not found.
+        """
+        # If filename is absolute, use it directly
+        if os.path.isabs(filename):
+            if os.path.isfile(filename):
+                return os.path.abspath(filename)
+            raise FileNotFoundError(f"File not found: {filename}")
+        
+        # Try relative to the current file's directory
+        current_relative_path = os.path.join(relative_to_dir, filename)
+        if os.path.isfile(current_relative_path):
+            return os.path.abspath(current_relative_path)
+        
+        # Try each include directory in order
+        for inc_dir in self.include_dirs:
+            inc_path = os.path.join(inc_dir, filename)
+            if os.path.isfile(inc_path):
+                return os.path.abspath(inc_path)
+        
+        # File not found
+        raise FileNotFoundError(f"File not found: {filename} (searched in: current dir, and {len(self.include_dirs)} include directories)")
     
     def load_module(self, module_path: str) -> ModuleInfo:
         """Load a module and its dependencies"""
@@ -141,7 +194,10 @@ class ModuleSystem:
             for inc in includes:
                 # Resolve include path relative to current file's directory
                 inc_dir = os.path.dirname(full_path)
-                inc_path = os.path.join(inc_dir, inc)
+                try:
+                    inc_path = self._find_file(inc, inc_dir)
+                except FileNotFoundError as e:
+                    raise Exception(f"Error loading include '{inc}' from {full_path}: {e}")
                 self.load_module(inc_path)
             
             return module_info

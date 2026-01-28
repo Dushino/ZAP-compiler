@@ -73,6 +73,7 @@ class Declarator(ASTNode):
     array_sizes: Optional[List["Expr"]] = None  # Multi-dimensional: [size1, size2, ...]
     line: int = 0
     col: int = 0
+    is_static: bool = False  # True for STATIC variables
 
     def __repr__(self) -> str:
         parts = [self.name]
@@ -98,11 +99,13 @@ class Declaration(ASTNode):
     is_const: bool
     type: TypeNode
     declarators: List[Declarator]
+    is_static: bool = False  # True if STATIC modifier was present
 
     def __repr__(self) -> str:
         c = "const " if self.is_const else ""
+        s = "static " if self.is_static else ""
         decls = ", ".join(repr(d) for d in self.declarators)
-        return f"{c}Declaration({self.type}: {decls})"
+        return f"{c}{s}Declaration({self.type}: {decls})"
 
 
 @dataclass(frozen=True)
