@@ -200,6 +200,90 @@ const Point p = { 5, 10 }
 p.x = 20            ; ERROR: Cannot modify field of const struct
 ```
 
+#### static - Static Local Variables
+
+The `static` modifier creates local variables that retain their value between procedure calls. Static variables are initialized once at program startup (after global variables) and maintain their state across multiple invocations of the procedure.
+
+**Syntax:**
+
+```zap
+proc counter()
+    static byte count = 0       ; Initialized once at startup, retains value
+    count = count + 1
+end
+
+proc main()
+    counter()  ; count becomes 1
+    counter()  ; count becomes 2
+    counter()  ; count becomes 3
+end
+```
+
+**Rules for static variables:**
+
+- Can **only be used on local variables** (inside procedures/functions)
+- Cannot be combined with `const` modifier
+- **Must have an initializer** - static variables require an initial value
+- The initializer is evaluated once at program startup
+- The variable retains its value between calls
+
+**Invalid usage:**
+
+```zap
+static byte global_var = 5      ; ERROR: static only for local variables
+
+proc test()
+    static byte x              ; ERROR: static requires initializer
+end
+
+proc test2()
+    static const byte y = 10   ; ERROR: cannot combine static and const
+end
+```
+
+**Common use cases:**
+
+1. **Call counters and sequences:**
+```zap
+proc get_next_id()
+    static byte next_id = 1
+    byte result = next_id
+    next_id = next_id + 1
+    return result
+end
+```
+
+2. **State machines:**
+```zap
+proc update_game_state()
+    static byte state = 0  ; 0=init, 1=running, 2=paused
+    
+    if state = 0 then
+        initialize_game()
+        state = 1
+    elseif state = 1 then
+        run_game()
+    elseif state = 2 then
+        handle_pause()
+    endif
+end
+```
+
+3. **Resource tracking:**
+```zap
+proc allocate_handle()
+    static byte handle_count = 0
+    
+    if handle_count < 10 then
+        byte h = handle_count
+        handle_count = handle_count + 1
+        return h
+    else
+        return 255  ; Error: no handles available
+    endif
+end
+```
+
 #### Pointer Types
 
 ```zap

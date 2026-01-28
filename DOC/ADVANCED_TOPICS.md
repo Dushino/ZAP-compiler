@@ -295,9 +295,104 @@ proc allocate_object()
 end
 ```
 
+### Static Local Variables (Persistent State)
+
+Static variables are local variables that retain their values between procedure calls. Unlike regular local variables (which are re-initialized on each entry), static variables are initialized only once at program startup.
+
+**Syntax and Behavior:**
+
+```zap
+proc increment_counter()
+    static byte counter = 0    ; Initialized once at program start
+    counter = counter + 1
+    return counter
+end
+
+proc main()
+    byte x1 = increment_counter()  ; Returns 1, counter now = 1
+    byte x2 = increment_counter()  ; Returns 2, counter now = 2
+    byte x3 = increment_counter()  ; Returns 3, counter now = 3
+end
+```
+
+**Initialization Flow:**
+
+1. Program starts
+2. Global variables are initialized
+3. Static local variables are initialized (in order of procedures)
+4. MAIN is called
+5. During execution, static variables persist across procedure calls
+
+**Rules:**
+
+- Only for **local variables** (inside procedures/functions)
+- Cannot combine with `CONST` modifier
+- Must have an initializer (static variables can't be uninitialized)
+- Storage is in zero-page (ZP) if space available, otherwise in BSS
+
+**Use Cases:**
+
+1. **Call counters:**
+```zap
+proc get_object_id()
+    static byte next_id = 1
+    byte id = next_id
+    next_id = next_id + 1
+    return id
+end
+```
+
+2. **State machines:**
+```zap
+proc game_state()
+    static byte state = 0  ; 0=menu, 1=playing, 2=paused
+    
+    if state = 0 then
+        ; Handle menu
+        state = 1
+    elseif state = 1 then
+        ; Handle game
+        if player_pressed_pause then
+            state = 2
+        endif
+    elseif state = 2 then
+        ; Handle pause
+        if player_pressed_resume then
+            state = 1
+        endif
+    endif
+end
+```
+
+3. **Resource pools:**
+```zap
+const byte MAX_SPRITES = 10
+
+proc allocate_sprite()
+    static byte sprite_count = 0
+    
+    if sprite_count < MAX_SPRITES then
+        byte id = sprite_count
+        sprite_count = sprite_count + 1
+        return id
+    else
+        return 255  ; Error code
+    endif
+end
+```
+
+**Memory Considerations:**
+
+Static local variables occupy memory like global variables - they're allocated in zero-page or BSS at compile time, not on the stack. Therefore:
+
+- Each static variable takes permanent memory
+- Static variables are always available (no stack overhead)
+- Good for values that need to persist but shouldn't be global
+
 ---
 
 ## Inline Assembly
+
 
 ### Basic ASM Block
 

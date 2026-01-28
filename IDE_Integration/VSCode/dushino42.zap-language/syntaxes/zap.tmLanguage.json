@@ -62,7 +62,7 @@
         },
         {
           "name": "storage.modifier.zap",
-          "match": "(?i)\\b(CONST)\\b"
+          "match": "(?i)\\b(CONST|STATIC)\\b"
         }
       ]
     },

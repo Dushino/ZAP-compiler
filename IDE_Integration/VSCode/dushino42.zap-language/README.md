@@ -17,7 +17,7 @@ This extension provides syntax highlighting for the Zap programming language.
 
 ### Data Types
 - `BYTE`, `WORD`
-- `CONST` modifier
+- `CONST`, `STATIC` modifiers
 
 ### Preprocessor Directives
 - `.ifdef`, `.ifndef`, `.else`, `.endif`

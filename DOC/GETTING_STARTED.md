@@ -243,6 +243,47 @@ proc other()
 end
 ```
 
+### Static Local Variables
+
+**Static variables** are local variables that persist their value between procedure calls. Unlike regular local variables (which are re-initialized on each procedure entry), static variables are initialized only once at program start, and retain their value across calls.
+
+**Syntax:**
+```zap
+proc counter()
+    static byte count = 0   ; Initialized once at program start
+    count = count + 1
+end
+
+proc main()
+    counter()  ; count becomes 1
+    counter()  ; count becomes 2
+    counter()  ; count becomes 3
+end
+```
+
+**Rules for STATIC variables:**
+- Can only be used on **local variables** (inside procedures/functions)
+- Cannot be combined with `CONST`
+- **Must have an initializer** (the initial value)
+- The initializer is executed once at program startup, after global variables are initialized
+- The variable retains its value between procedure calls
+
+**Use cases:**
+- Call counters
+- State machines
+- Configuration flags
+- Resource pools
+
+**Example: Simple Call Counter**
+```zap
+proc get_next_id()
+    static byte next_id = 1
+    byte result = next_id
+    next_id = next_id + 1
+    return result
+end
+```
+
 ### Example: Score Tracker
 
 ```zap

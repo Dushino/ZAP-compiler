@@ -2517,12 +2517,7 @@ class CodeGen:
         self.emit("\tJSR MAIN")       
         self.emit("\tJMP *\n")       
 
-    def gen_init(self, sym: Symbol):
-        # Skip unused globals (locals handled elsewhere)
-        # Exception: always initialize fixed-address variables (hardware ports) and variables with initializers
-        if sym.proc_name == "" and sym.name not in self.used_globals and sym.address is None and sym.init is None:
-            return
-        
+    def gen_init(self, sym: Symbol, is_global_init: bool = False):
         # Skip const values - they don't need runtime initialization
         # Const arrays are stored in ROM (ARRAY_DATA_*) and accessed directly
         # Const scalars are baked into code at usage points
@@ -2531,6 +2526,18 @@ class CodeGen:
             return
         
         if sym.init is None:
+            return
+        
+        # If this is a static local variable being initialized during procedure entry, skip it
+        # (static variables are initialized once at program start, not on each entry)
+        # But if we're in global initialization (is_global_init=True), process it normally
+        if sym.is_static and sym.proc_name != "" and not is_global_init:
+            # This will be initialized in the global initialization section
+            return
+        
+        # Skip unused globals (locals handled elsewhere)
+        # Exception: always initialize fixed-address variables (hardware ports) and variables with initializers
+        if sym.proc_name == "" and sym.name not in self.used_globals and sym.address is None and sym.init is None:
             return
 
         # Emit source comment for variable initializers

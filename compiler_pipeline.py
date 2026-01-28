@@ -547,6 +547,21 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     cg.gen_globals_header()
     for sym in global_symtab:
         cg.gen_init(sym)
+    
+    # Collect and initialize static local variables (initialized once at program start)
+    static_locals = []
+    for proc in analyzed_procs:
+        for sym in proc.locals:
+            if sym.is_static:
+                static_locals.append(sym)
+    for func in analyzed_funcs:
+        for sym in func.locals:
+            if sym.is_static:
+                static_locals.append(sym)
+    
+    for sym in static_locals:
+        cg.gen_init(sym, is_global_init=True)
+    
     cg.gen_globals_footer()    
 
     # Initialize stmt_src tracking for DCE
