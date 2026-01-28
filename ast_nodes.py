@@ -240,6 +240,7 @@ class Parameter:
     type: TypeNode
     name: str
     is_array: bool  # True if []
+    default_value: Optional["Expr"] = None  # Default value expression, None if required param
     line: int = 0
     col: int = 0
 

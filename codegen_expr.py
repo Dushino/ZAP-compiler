@@ -32,7 +32,7 @@ class CodeGen:
     label_id = 0
     loop_stack = []
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int]]] | None = None, func_param_specs: dict[str, list[tuple[str, int]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None):
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None):
         # global symbol table (globals)
         self.global_symtab: SymbolTable = symtab
         # currently active table (can be scoped for PROC/FUNC)
@@ -53,8 +53,8 @@ class CodeGen:
         self.used_temps: set[str] = set()
         self.command_line = command_line
         # Parameter specs: mapping name -> list of (param_name, width_bytes)
-        self.proc_param_specs: dict[str, list[tuple[str, int]]] = proc_param_specs or {}
-        self.func_param_specs: dict[str, list[tuple[str, int]]] = func_param_specs or {}
+        self.proc_param_specs: dict[str, list[tuple[str, int, object]]] = proc_param_specs or {}
+        self.func_param_specs: dict[str, list[tuple[str, int, object]]] = func_param_specs or {}
         self.pruned_procs = pruned_procs or []
         # Debug/source maps
         self.debug = debug_info or {}
@@ -5155,10 +5155,20 @@ class CodeGen:
             # Evaluate and pass arguments to function parameters
             specs = self.func_param_specs.get(expr.name)
             if specs is not None:
-                n = min(len(specs), len(expr.args))
-                for i in range(n):
-                    pname, width = specs[i]
-                    arg = expr.args[i]
+                for i, spec in enumerate(specs):
+                    pname, width, default_value = spec
+                    # Determine which argument to use
+                    arg = None
+                    if i < len(expr.args) and expr.args[i] is not None:
+                        # Use provided argument
+                        arg = expr.args[i]
+                    elif default_value is not None:
+                        # Use default value
+                        arg = default_value
+                    else:
+                        # No argument and no default - skip this parameter
+                        continue
+                    
                     arg_type = self.tc_check(arg)
                     self.gen_expr(arg)
                     asm = f"_{expr.name}_{pname}"
@@ -5937,10 +5947,20 @@ class CodeGen:
             # Pass arguments to callee parameters (simple ABI via memory)
             specs = self.proc_param_specs.get(stmt.name)
             if specs is not None:
-                n = min(len(specs), len(stmt.args))
-                for i in range(n):
-                    pname, width = specs[i]
-                    arg = stmt.args[i]
+                for i, spec in enumerate(specs):
+                    pname, width, default_value = spec
+                    # Determine which argument to use
+                    arg = None
+                    if i < len(stmt.args) and stmt.args[i] is not None:
+                        # Use provided argument
+                        arg = stmt.args[i]
+                    elif default_value is not None:
+                        # Use default value
+                        arg = default_value
+                    else:
+                        # No argument and no default - skip this parameter
+                        continue
+                    
                     arg_type = self.tc_check(arg)
                     # evaluate arg into A/(X)
                     self.gen_expr(arg)

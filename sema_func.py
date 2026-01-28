@@ -23,9 +23,11 @@ class FuncAnalyzer:
 
     def analyze_decl(self, func: FuncDecl):
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
+        # Count required parameters (those without defaults)
+        required_params = sum(1 for p in func.params if p.default_value is None)
         try:
             self.func_table.define(
-                FuncSymbol(func.name, ret_sem, len(func.params))
+                FuncSymbol(func.name, ret_sem, len(func.params), required_params)
             )
         except SemanticError as e:
             info = self.debug.get("proc_src", {}).get(func.name)

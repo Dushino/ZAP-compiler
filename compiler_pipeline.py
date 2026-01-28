@@ -488,24 +488,24 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         program, analyzed_procs, analyzed_funcs, global_symtab
     )
     analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
-    # Build parameter specs for procedures and functions (name -> [(param, width)])
+    # Build parameter specs for procedures and functions (name -> [(param, width, default_value)])
     def _build_param_specs_procs(procs):
-        specs: dict[str, list[tuple[str, int]]] = {}
+        specs: dict[str, list[tuple[str, int, object]]] = {}
         for ap in procs:
-            params: list[tuple[str, int]] = []
+            params: list[tuple[str, int, object]] = []
             for prm in ap.ast.params:
                 is_word = prm.type.is_pointer or prm.type.base == "WORD"
-                params.append((prm.name, 2 if is_word else 1))
+                params.append((prm.name, 2 if is_word else 1, prm.default_value))
             specs[ap.ast.name] = params
         return specs
 
     def _build_param_specs_funcs(funcs):
-        specs: dict[str, list[tuple[str, int]]] = {}
+        specs: dict[str, list[tuple[str, int, object]]] = {}
         for af in funcs:
-            params: list[tuple[str, int]] = []
+            params: list[tuple[str, int, object]] = []
             for prm in af.ast.params:
                 is_word = prm.type.is_pointer or prm.type.base == "WORD"
-                params.append((prm.name, 2 if is_word else 1))
+                params.append((prm.name, 2 if is_word else 1, prm.default_value))
             specs[af.ast.name] = params
         return specs
 

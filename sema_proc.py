@@ -20,8 +20,10 @@ class ProcAnalyzer:
         self.func_table = func_table
 
     def analyze_decl(self, proc: ProcDecl):
+        # Count required parameters (those without defaults)
+        required_params = sum(1 for p in proc.params if p.default_value is None)
         try:
-            self.procs.define(ProcSymbol(proc.name, len(proc.params)))
+            self.procs.define(ProcSymbol(proc.name, len(proc.params), required_params))
         except SemanticError as e:
             # Attach location of PROC header
             info = self.debug.get("proc_src", {}).get(proc.name)
@@ -38,7 +40,8 @@ class ProcAnalyzer:
 
     def analyze_call(self, call: CallStmt):
         proc_sym = self.procs.lookup(call.name)  # musí existovat
-        if len(call.args) != proc_sym.param_count:
+        # Allow arguments from required_params to param_count
+        if len(call.args) < proc_sym.required_params or len(call.args) > proc_sym.param_count:
             msg = (
                 f"Procedure '{call.name}' expects {proc_sym.param_count} parameters, "
                 f"but {len(call.args)} were provided"
@@ -96,6 +99,20 @@ class ProcAnalyzer:
                 array_dims=None
             )
             local_symtab.define(sym)
+
+        # Validate parameter ordering: parameters with defaults must come after those without
+        has_default = False
+        for i, param in enumerate(proc.params):
+            if param.default_value is not None:
+                has_default = True
+            elif has_default:
+                # Found a non-default parameter after a default parameter
+                from errors import CompileError
+                raise CompileError(
+                    f"In procedure '{proc.name}': non-default parameter '{param.name}' "
+                    f"cannot follow parameters with default values",
+                    param.line, param.col
+                )
 
         decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table, global_symtab=global_symtab)
         for d in proc.locals:

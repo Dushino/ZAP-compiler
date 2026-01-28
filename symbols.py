@@ -166,6 +166,7 @@ class SymbolLookup(Protocol):
 class ProcSymbol:
     name: str
     param_count: int = 0
+    required_params: int = 0  # params without defaults
 
 
 class ProcTable:
@@ -197,6 +198,7 @@ class FuncSymbol:
     name: str
     ret_type: SemType
     param_count: int = 0
+    required_params: int = 0  # params without defaults
 
 
 class FuncTable:

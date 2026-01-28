@@ -252,7 +252,8 @@ class ExprTypeChecker:
         # funkce
         if isinstance(expr, CallExpr):
             fs = self.func_table.lookup(expr.name)
-            if len(expr.args) != fs.param_count:
+            # Allow arguments from required_params to param_count
+            if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:
                 raise SemanticError(
                     f"Function '{expr.name}' expects {fs.param_count} parameters, "
                     f"but {len(expr.args)} were provided"

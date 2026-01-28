@@ -416,7 +416,13 @@ class Parser:
             self.expect(TOK_OP, ']')
             is_array = True
         
-        return Parameter(TypeNode(type_base, is_pointer), name, is_array, name_line, name_col)
+        # Parse optional default value: = expression
+        default_value = None
+        if self.cur.type == TOK_EQU:
+            self.advance()
+            default_value = self.parse_expr()
+        
+        return Parameter(TypeNode(type_base, is_pointer), name, is_array, default_value, name_line, name_col)
 
     def parse_init_value(self):
         """Parse an initializer value: either a nested list { ... } or an expression."""
@@ -657,10 +663,18 @@ class Parser:
             self.advance()
             args = []
             if self.cur.type != TOK_RBRACE:
-                args.append(self.parse_expr())
+                # Allow empty first argument (skipped)
+                if self.cur.type == TOK_DELIM and self.cur.value == ',':
+                    args.append(None)
+                else:
+                    args.append(self.parse_expr())
                 while self.cur.type == TOK_DELIM and self.cur.value == ',':
                     self.advance()
-                    args.append(self.parse_expr())
+                    # Check for empty argument (skipped parameter)
+                    if self.cur.type == TOK_RBRACE or (self.cur.type == TOK_DELIM and self.cur.value == ','):
+                        args.append(None)
+                    else:
+                        args.append(self.parse_expr())
             self.expect(TOK_RBRACE)
             return CallStmt(lhs.name, args)
 
@@ -822,10 +836,18 @@ class Parser:
                     self.advance()
                     args = []
                     if self.cur.type != TOK_RBRACE:
-                        args.append(self.parse_expr())
+                        # Allow empty first argument (skipped)
+                        if self.cur.type == TOK_DELIM and self.cur.value == ',':
+                            args.append(None)
+                        else:
+                            args.append(self.parse_expr())
                         while self.cur.type == TOK_DELIM and self.cur.value == ',':
                             self.advance()
-                            args.append(self.parse_expr())
+                            # Check for empty argument (skipped parameter)
+                            if self.cur.type == TOK_RBRACE or (self.cur.type == TOK_DELIM and self.cur.value == ','):
+                                args.append(None)
+                            else:
+                                args.append(self.parse_expr())
                     self.expect(TOK_RBRACE)
                     return CallExpr(name, args)
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
