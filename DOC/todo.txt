@@ -22,6 +22,8 @@
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Describe how to use labels from ASM blocks in ZAP! code
 [ ] Export and import symbols from/to whole ZAP! program. Use case: ZAP! program is part of bigger package.
+    - import is by command line option -D
+    - export ToDo: .export directive translated to .export in ASM output 
 [ ] Introduce ZAP! to github:
 [ ] Add to GitHub Linguist (Recommended for long-term)
 You could submit your ZAP! language definition to the GitHub Linguist project. This would get ZAP1 officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.
@@ -121,3 +123,7 @@ MAIN:
 
 [x] Define symbols for .ifdef according to cmd line CPU option
     Symbols 6502 or 65C02 defined according to command line option -cpu
+
+[ ] static variables
+[ ] implicit parameters for functions and procedures
+
