@@ -18,6 +18,17 @@
     "comments": {
       "patterns": [
         {
+          "name": "comment.block.zap",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "patterns": [
+            {
+              "name": "comment.block.zap",
+              "match": "."
+            }
+          ]
+        },
+        {
           "name": "comment.line.semicolon.zap",
           "match": ";.*$"
         }

@@ -3,11 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 .vscode/settings.json
+dist/*
+build/*
+python_venv/*
 
-# ca65
-p1/obj/*.o
-p1/out/*.com
-p1/out/*.cut
-p1/out/*.da65
-p1/src2/*
+# ZAP! compiler and ca65 artifacts
+**/*.o
+**/*.com
+**/*.s
+**/*.da65
+**/*.cut
+**/*.txt
+
 

@@ -1,7 +1,4 @@
 {
-    "comments": {
-        "lineComment": ";"
-    },
     "brackets": [
         [
             "{",
@@ -39,6 +36,10 @@
             "notIn": [
                 "string"
             ]
+        },
+        {
+            "open": "/*",
+            "close": "*/"
         }
     ],
     "surroundingPairs": [
@@ -67,6 +68,7 @@
         "markers": {
             "start": "(?i)^\\s*(PROC|FUNC|IF|ELSE|ELSEIF|WHILE|ASM|STRUCT|\\.ifdef|\\.ifnde\\.else)",
             "end": "(?i)^\\s*(RETURN|END|\\.endif|\\.else)"
-        }
+        },
+        "offSide": true
     }
 }

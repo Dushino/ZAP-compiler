@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 
 $extensionSource = "$PSScriptRoot\vscode-zap-syntax"
-$extensionDest = "$env:USERPROFILE\.vscode\extensions\zap-compiler.zap-language-1.0.0"
+$extensionDest = "$env:USERPROFILE\.vscode\extensions\dushino42.zap-language-1.0.0"
 
 Write-Host "Installing ZAP VSCode Extension..." -ForegroundColor Cyan
 

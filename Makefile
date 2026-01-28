@@ -106,7 +106,7 @@ tests: clean
 				autostart_obj="$${dir}/$${base}$${variant_name}_autostart.o"; \
 				bin_file="$${dir}/$${base}$${variant_name}.com"; \
 				cut_file="$${dir}/$${base}$${variant_name}.cut"; \
-				dis_file="$${dir}/$${base}$${variant_name}.dis65"; \
+				dis_file="$${dir}/$${base}$${variant_name}.da65"; \
 				txt_file="$${dir}/$${base}$${variant_name}.txt"; \
 				sim_config_file="$${dir}/$${base}.json"; \
 				if echo "$$variant_flags" | grep -q -- "-6502"; then as_cpu="6502"; else as_cpu="65c02"; fi; \
@@ -279,7 +279,7 @@ clean:
 	find tests/pass -name '*.com' -type f -delete 2>/dev/null | true
 	find tests/pass -name '*.cut' -type f -delete 2>/dev/null | true
 	find tests/pass -name '*.txt' -type f -delete 2>/dev/null | true
-	find tests/pass -name '*.dis65' -type f -delete 2>/dev/null | true
+	find tests/pass -name '*.da65' -type f -delete 2>/dev/null | true
 	find tests/fail -name '*.s' -type f -delete 2>/dev/null | true
 	find tests/fail -name '*.o' -type f -delete 2>/dev/null | true
 	
