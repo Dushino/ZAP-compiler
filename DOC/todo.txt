@@ -150,4 +150,6 @@ end
 
     port byte POKEY_AUDF1 @$D200
 
-    
+To check
+[ ]  Pointer assignment to and from WORD 
+[ ]  -I command line option for library path
