@@ -67,6 +67,8 @@ class CodeGen:
         self.current_stmt_info: tuple[str, int, int, str] | None = None
         # Track fixed-address variables (hardware registers) - never optimize these
         self.fixed_address_labels: set[str] = set()
+        # Track PORT variables (hardware port-mapped) - never optimize these
+        self.port_labels: set[str] = set()
         # Track current function return type for narrowing WORD to BYTE
         self.current_func_return_type: str | None = None
         # Track assignment context for optimizations that need target type
@@ -201,6 +203,17 @@ class CodeGen:
         label = label.split('+')[0].strip()    # Remove +1
         label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
         return label in self.fixed_address_labels
+
+    def _is_port_variable(self, operand: str) -> bool:
+        """Check if operand references a PORT (hardware port-mapped) variable.
+        
+        PORT variables are hardware port-mapped and cannot be optimized.
+        """
+        # Extract label from operand (handle indexed modes like "LABEL,X" or "LABEL,Y" or "LABEL+1")
+        label = operand.split(',')[0].strip()  # Remove ,X or ,Y
+        label = label.split('+')[0].strip()    # Remove +1
+        label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
+        return label in self.port_labels
 
     def _modifies_memory_operand(self, line: str, operand: str) -> bool:
         """Return True if instruction modifies a specific memory operand.
@@ -2394,6 +2407,9 @@ class CodeGen:
                 self.emit(f"{sym.asm_name()} = ${sym.address:04X}")
                 # Track fixed-address labels to prevent peephole optimization
                 self.fixed_address_labels.add(sym.asm_name())
+                # Also track PORT variables separately for future optimization strategy changes
+                if getattr(sym, "is_port", False):
+                    self.port_labels.add(sym.asm_name())
             self.emit("")
 
         # Zero page offset tracking (starts after emitted system variables)

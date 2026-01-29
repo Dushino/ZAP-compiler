@@ -100,12 +100,14 @@ class Declaration(ASTNode):
     type: TypeNode
     declarators: List[Declarator]
     is_static: bool = False  # True if STATIC modifier was present
+    is_port: bool = False    # True if PORT modifier was present (hardware port-mapped variable)
 
     def __repr__(self) -> str:
         c = "const " if self.is_const else ""
         s = "static " if self.is_static else ""
+        p = "port " if self.is_port else ""
         decls = ", ".join(repr(d) for d in self.declarators)
-        return f"{c}{s}Declaration({self.type}: {decls})"
+        return f"{c}{s}{p}Declaration({self.type}: {decls})"
 
 
 @dataclass(frozen=True)

@@ -250,6 +250,32 @@ class DeclarationAnalyzer:
             if d.initializer is None:
                 raise SemanticError("STATIC variable must have an initializer", line=d.line, col=d.col)
 
+        # Validate PORT modifier
+        if decl.is_port:
+            # PORT cannot be combined with CONST
+            if decl.is_const:
+                raise SemanticError("PORT and CONST modifiers cannot be combined", line=d.line, col=d.col)
+            
+            # PORT cannot be combined with STATIC
+            if decl.is_static or d.is_static:
+                raise SemanticError("PORT and STATIC modifiers cannot be combined", line=d.line, col=d.col)
+            
+            # PORT requires an address specification (@)
+            if d.address is None:
+                raise SemanticError("PORT modifier requires address specification with @", line=d.line, col=d.col)
+            
+            # PORT cannot be used on arrays
+            if d.array_size is not None or d.array_sizes is not None:
+                raise SemanticError("PORT modifier cannot be used on arrays", line=d.line, col=d.col)
+            
+            # PORT cannot be used on pointers
+            if decl.type.is_pointer:
+                raise SemanticError("PORT modifier cannot be used on pointers", line=d.line, col=d.col)
+            
+            # PORT cannot have initializers (hardware ports can't be initialized)
+            if d.initializer is not None:
+                raise SemanticError("PORT variable cannot have initializer", line=d.line, col=d.col)
+
         # Extract array dimensions (supports multi-dimensional arrays)
         array_sizes_to_eval = d.array_sizes if d.array_sizes else (
             [d.array_size] if d.array_size is not None else []
@@ -311,7 +337,8 @@ class DeclarationAnalyzer:
                     address=None,
                     is_volatile=False,
                     proc_name=getattr(self.symtab, '_proc_name', ''),
-                    array_dims=None
+                    array_dims=None,
+                    is_port=decl.is_port
                 )
                 try:
                     self.symtab.define(sym)
@@ -340,7 +367,8 @@ class DeclarationAnalyzer:
                         address=None,
                         is_volatile=False,
                         proc_name=getattr(self.symtab, '_proc_name', ''),
-                        array_dims=array_dims if array_dims else None
+                        array_dims=array_dims if array_dims else None,
+                        is_port=decl.is_port
                     )
                     try:
                         self.symtab.define(sym)
@@ -364,7 +392,8 @@ class DeclarationAnalyzer:
                         address=None,
                         is_volatile=False,
                         proc_name=getattr(self.symtab, '_proc_name', ''),
-                        array_dims=None
+                        array_dims=None,
+                        is_port=decl.is_port
                     )
                     try:
                         self.symtab.define(sym)
@@ -395,7 +424,8 @@ class DeclarationAnalyzer:
                     address=None,
                     is_volatile=False,
                     proc_name=getattr(self.symtab, '_proc_name', ''),
-                    array_dims=array_dims if array_dims else None
+                    array_dims=array_dims if array_dims else None,
+                    is_port=decl.is_port
                 )
                 try:
                     self.symtab.define(sym)
@@ -531,7 +561,8 @@ class DeclarationAnalyzer:
             is_volatile=address_val is not None,
             proc_name=getattr(self.symtab, '_proc_name', ''),
             array_dims=array_dims if array_dims else None,
-            is_static=decl.is_static or d.is_static
+            is_static=decl.is_static or d.is_static,
+            is_port=decl.is_port
         )
 
         try:

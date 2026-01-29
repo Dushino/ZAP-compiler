@@ -447,13 +447,16 @@ class Parser:
     def parse_declaration(self):
         is_const = False
         is_static = False
+        is_port = False
 
-        # CONST or STATIC prefix (can be combined as CONST STATIC or STATIC CONST)
+        # CONST, STATIC, or PORT prefix (can be combined with restrictions)
         while self.cur.type == TOK_TYPEMOD:
             if self.cur.value.upper() == "CONST":
                 is_const = True
             elif self.cur.value.upper() == "STATIC":
                 is_static = True
+            elif self.cur.value.upper() == "PORT":
+                is_port = True
             else:
                 self.error("Unsupported type modifier")
             self.advance()
@@ -590,7 +593,8 @@ class Parser:
             is_const=is_const,
             type=TypeNode(type_tok.value, is_pointer),
             declarators=declarators,
-            is_static=is_static
+            is_static=is_static,
+            is_port=is_port
         )
 
 
