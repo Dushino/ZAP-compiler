@@ -2,6 +2,8 @@
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 
+set "spaces=                                                  "
+
 rem ======================================================================
 rem ZAP Compiler Build System for Windows
 rem ======================================================================
@@ -363,10 +365,9 @@ if not "%2"=="" (
     )
     
     rem Output result for this test
-    set "result_msg=!base!.zap: "
-    set "spaces=                              "
+    set "result_msg=!base!.zap: "    
     set "padded_msg=!result_msg!!spaces!"
-    set "padded_msg=!padded_msg:~0,30!"
+    set "padded_msg=!padded_msg:~0,40!"
     
     if !variant_fail! equ 0 (
         echo !padded_msg!PASS ^(all 2 variants^)
@@ -481,12 +482,12 @@ if not "%2"=="" (
             ) else (
                 rem Just count compilation success
                 set /a variant_fail+=1
-                echo ca65 not found, compilation failed.
+                echo ❌ ca65 not found, compilation failed.
             )
         ) else (
             set /a variant_fail+=1
             echo ZAP compiler failed >> tests.txt
-            echo ❌  ZAP compiler failed
+            echo ❌ ZAP compiler failed
         )
         echo:  >> tests.txt
         echo:  >> tests.txt
@@ -495,9 +496,8 @@ if not "%2"=="" (
     
     rem Output result for this test
     set "result_msg=!base!.zap: "
-    set "spaces=                              "
     set "padded_msg=!result_msg!!spaces!"
-    set "padded_msg=!padded_msg:~0,30!"
+    set "padded_msg=!padded_msg:~0,40!"
     
     if !variant_fail! equ 0 (
         echo !padded_msg!✅ PASS ^(all 2 variants^)
@@ -520,17 +520,16 @@ if "%2"=="" (
         set "base=%%~nf"
         set "testdir=%%~dpf"
         set "testdir=!testdir:~0,-1!"
-        set "result_msg=!base!.zap: "
-        set "spaces=                              "
+        set "result_msg=!base!.zap: "        
         set "padded_msg=!result_msg!!spaces!"
-        set "padded_msg=!padded_msg:~0,30!"
+        set "padded_msg=!padded_msg:~0,40!"
         
         %ZC% -6502 "%%f" -o "!testdir!\!base!.s" >nul 2>&1
         if !errorlevel! equ 0 (
-            echo !padded_msg!✗ ^(expected to fail but passed^)
+            echo !padded_msg!❌ ^(expected to fail but passed^)
             set /a error_count+=1
         ) else (
-            echo !padded_msg!✓ PASS ^(correctly rejected^)
+            echo !padded_msg!✅ PASS ^(correctly rejected^)
             set /a fail_count+=1
         )
     )
