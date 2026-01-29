@@ -1,5 +1,5 @@
 (* ZAP! Language Grammar - EBNF Notation *)
-(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, Logical NOT Operator *)
+(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, PORT Modifier, STATIC Variables *)
 (* Lexical tokens: IDENT, NUMBER, STRING, TOK_ASM_BLOCK *)
 (* Comments: beginning with ; until end of line *)
 
@@ -23,7 +23,9 @@ type            ::= base_type [ "^" ] ;
 base_type       ::= "byte" | "word" | STRUCT_NAME ;
 
 (* ============ DECLARATIONS ============ *)
-declaration     ::= [ "const" ] type declarator_list ;
+declaration     ::= [ type_modifier { type_modifier } ] type declarator_list ;
+
+type_modifier   ::= "const" | "static" | "port" ;
 
 declarator_list ::= declarator { "," declarator } ;
 
@@ -62,7 +64,7 @@ param_list      ::= param { "," param } ;
 param           ::= type IDENT ;
 
 (* ============ STATEMENTS ============ *)
-local_decl      ::= [ "const" ] type declarator_list ;
+local_decl      ::= [ type_modifier { type_modifier } ] type declarator_list ;
 
 statement       ::= assignment
                   | call_stmt
@@ -70,6 +72,7 @@ statement       ::= assignment
                   | while_stmt
                   | for_stmt
                   | break_stmt
+                  | continue_stmt
                   | return_stmt
                   | asm_stmt
                   | segment_directive
@@ -80,7 +83,8 @@ assignment      ::= lvalue "=" expression ;
 call_stmt       ::= IDENT "(" [ expr_list ] ")" ;
 
 if_stmt         ::= "if" expression "then" { statement }
-                    { "else" { statement } }
+                    { "elseif" expression "then" { statement } }
+                    [ "else" { statement } ]
                     "endif" ;
 
 while_stmt      ::= "while" expression { statement } "end" ;
@@ -92,6 +96,8 @@ for_stmt        ::= "for" IDENT "=" expression "to" expression
 
 break_stmt      ::= "break" ;
 
+continue_stmt   ::= "continue" ;
+
 return_stmt     ::= "return" [ expression ] ;
 
 asm_stmt        ::= "asm" ASM_BLOCK "end" ;
@@ -101,7 +107,9 @@ expr_stmt       ::= expression ;
 (* ============ L-VALUES ============ *)
 lvalue          ::= IDENT
                   | IDENT "^"
-                  | IDENT "[" expression "]" ;
+                  | IDENT "[" expression "]"
+                  | IDENT "." IDENT
+                  | IDENT "^" "." IDENT ;     (* deref + field access *)
 
 (* ============ EXPRESSIONS ============ *)
 (* Operator precedence (lowest to highest):
@@ -171,6 +179,20 @@ expr_list       ::= expression { "," expression } ;
 
 (* ============ NOTES ============ *)
 (*
+   Type Modifiers:
+   - CONST: Compile-time constant values (all types: byte, word, pointers, arrays, structs)
+   - STATIC: Local variables that retain value between procedure calls (locals only)
+   - PORT: Hardware port-mapped variables (globals only, requires @ address, no init)
+   
+   Type Modifier Rules:
+   - Can be combined: CONST and STATIC cannot be used together
+   - STATIC requires initializer and @ address specification (local variables only)
+   - PORT requires @ address, no initializer, cannot be on arrays or pointers
+   - Cannot combine CONST with STATIC
+   - Cannot combine CONST with PORT
+   - Cannot combine STATIC with PORT
+
+   General Notes:
    - All identifiers are case-insensitive internally (converted to uppercase)
    - String literals preserve case
    - Character literals ('x') are converted to numeric values at tokenization time
@@ -181,7 +203,7 @@ expr_list       ::= expression { "," expression } ;
    - FOR loops require NEXT statement with loop variable
    - WHILE loops terminate with END
    - Binary \b escape sequences must have at least one binary digit following
-   - IF statements use IF-THEN-ELSE-ENDIF structure (ELSE is optional)
+   - IF statements use IF-THEN-ELSEIF-ELSE-ENDIF structure (ELSEIF/ELSE optional)
    - Module system: .module marks a file as importable, .include loads dependencies
    - .segment directive controls code/data segment placement (ca65 compatible)
    - ASM blocks embed raw 6502 assembly code
@@ -192,6 +214,12 @@ expr_list       ::= expression { "," expression } ;
    - CONST SUPPORT: All types (byte, word, pointers, arrays, structs) support const initialization
    - BITWISE OPERATORS: & (AND), | (OR), ^ (XOR) for bit manipulation
    - STRUCT ARRAYS: Arrays of structs with full initialization and field access support
+   - STATIC VARIABLES: Local variables that persist across procedure calls
+   - PORT VARIABLES: Hardware port-mapped variables (e.g., PORT byte POKEY_AUDF1 @$D200)
+   - ELSEIF SUPPORT: Multiple conditional branches (if-elseif-elseif-else-endif)
+   - CONTINUE STATEMENT: Skip to next loop iteration in for/while loops
+   - STRUCT FIELD ASSIGNMENT: Can assign to struct fields (unless const)
+   - POINTER DEREFERENCING: Both IDENT^ and @IDENT ^ IDENT syntax supported
 *)
 
 
