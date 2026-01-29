@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul
 
 rem ======================================================================
 rem ZAP Compiler Build System for Windows
@@ -323,22 +324,28 @@ if not "%2"=="" (
                                 ) else (
                                     set /a variant_fail+=1
                                     echo Simulation result does not match reference >> tests.txt
+                                    echo ❌ Simulation result does not match reference
                                 )                                
                             ) else (
                                 set /a variant_fail+=1
                                 echo Simulation failed >> tests.txt
+                                echo ❌ Simulation failed
                             )
                         ) else (
                             set /a variant_fail+=1
                             echo Linker failed >> tests.txt
+                            echo ❌ Linker failed                            
                         )
                     ) else (
                         set /a variant_fail+=1
                         echo Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
+                        echo ❌ Assemler failed on %LIBDIR%\atari\exehdr.s 
+
                     )
                 ) else (
                     set /a variant_fail+=1
                     echo Assembler failed on "!output_file!" >> tests.txt
+                    echo ❌ Assembler failed on "!output_file!"
                 )
             ) else (
                 rem Just count compilation success
@@ -348,10 +355,11 @@ if not "%2"=="" (
         ) else (
             set /a variant_fail+=1
             echo ZAP compiler failed >> tests.txt
+            echo ❌ ZAP compiler failed
         )
         echo:  >> tests.txt
         echo:  >> tests.txt
-        echo --------------------------------------------------------------- >> tests.txt        
+        echo --------------------------------------------------------------- >> tests.txt                
     )
     
     rem Output result for this test
@@ -447,22 +455,28 @@ if not "%2"=="" (
                                 ) else (
                                     set /a variant_fail+=1
                                     echo Simulation result does not match reference >> tests.txt
+                                    echo  ❌ Simulation result does not match reference
                                 )                                
                             ) else (
                                 set /a variant_fail+=1
-                                echo Simulation failed >> tests.txt
+                                echo  Simulation failed >> tests.txt
+                                echo  ❌ Simulation failed >> tests.txt
                             )
                         ) else (
                             set /a variant_fail+=1
-                            echo Linker failed >> tests.txt
+                            echo  Linker failed >> tests.txt
+                            echo  ❌ Linker failed
                         )
                     ) else (
                         set /a variant_fail+=1
                         echo Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
+                        echo  ❌ Assemler failed on %LIBDIR%\atari\exehdr.s
                     )
                 ) else (
                     set /a variant_fail+=1
                     echo Assembler failed on "!output_file!" >> tests.txt
+                    echo ❌ Assembler failed on "!output_file!"
+
                 )
             ) else (
                 rem Just count compilation success
@@ -472,6 +486,7 @@ if not "%2"=="" (
         ) else (
             set /a variant_fail+=1
             echo ZAP compiler failed >> tests.txt
+            echo ❌  ZAP compiler failed
         )
         echo:  >> tests.txt
         echo:  >> tests.txt
@@ -485,10 +500,10 @@ if not "%2"=="" (
     set "padded_msg=!padded_msg:~0,30!"
     
     if !variant_fail! equ 0 (
-        echo !padded_msg!PASS ^(all 2 variants^)
+        echo !padded_msg!✅ PASS ^(all 2 variants^)
         set /a pass_count+=1
     ) else (
-        echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
+        echo !padded_msg!❌ FAIL ^(!variant_fail!/2 variants failed^)
         set /a error_count+=1
     )
     )
@@ -512,10 +527,10 @@ if "%2"=="" (
         
         %ZC% -6502 "%%f" -o "!testdir!\!base!.s" >nul 2>&1
         if !errorlevel! equ 0 (
-            echo !padded_msg!FAIL ^(expected to fail but passed^)
+            echo !padded_msg!✗ ^(expected to fail but passed^)
             set /a error_count+=1
         ) else (
-            echo !padded_msg!PASS ^(correctly rejected^)
+            echo !padded_msg!✓ PASS ^(correctly rejected^)
             set /a fail_count+=1
         )
     )
