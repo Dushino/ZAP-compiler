@@ -24,55 +24,61 @@
 
 .module atari_stdio
 
-/*
-    exehdr data area
-    needed by linker for proper atari .com file generation
-*/
-proc atari_exehdr_data_area()
-    asm
-        .import __RAM_START__, __RAM_LAST__
-        .segment "COMHEADER"
-        .word $FFFF     		; second block marker
-        .word __RAM_START__		; RUN address
-        .word __RAM_LAST__    	; last byte
-        .segment "CODE"
-    end
-end
-
-/*
-    autostart data area
-    needed by linker for proper atari .com file generation
-*/
-proc atari_autostart_data_area()
-    asm
-        .import __RAM_START__, __RAM_LAST__
-        .segment "AUTOSTRT"
-        .word $FFFF     		; second block marker
-        .word __RAM_START__		; RUN address
-        .word __RAM_LAST__    	; last byte
-        .segment "CODE"    
-    end
-end
-
-
-
-byte ^dlstart @560
-word ^scrptr 
-byte ^vram
-
 byte cur_xpos, cur_ypos     ; cusros position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
+
+/*
+    exehdr and autostart data area
+    needed by linker for proper atari .com file generation
+*/
+proc atari_file_data_area()
+    .segment "COMHEADER"
+    asm
+        .import __RAM_START__, __RAM_LAST__
+        .word $FFFF     		; second block marker
+        .word __RAM_START__		; RUN address
+        .word __RAM_LAST__    	; last byte
+    end
+    .segment "AUTOSTRT"
+    asm
+        .import __RAM_START__, __RAM_LAST__
+        .word $FFFF     		; second block marker
+        .word __RAM_START__		; RUN address
+        .word __RAM_LAST__    	; last byte
+    end
+    .segment "CODE"
+end
+
+
+
 proc cls()
     word i
+    byte color_bk @712
+    byte ^dlstart @560      ; system storage for DL address
+    word ^dlptr             ; pointer into display list
+    byte ^vram
+        
+    dlptr = dlstart         ; copy display list address into ZP pointer        
+    dlptr = dlptr + 2       ; skip first four bytes (2xWORD) of display list
+    vram = dlptr^           ; get screen memory address from display list
+    
+    vram^ = 1
+    ;vram = vram + 1
+    ;vram^ = 2
 
+    ;vram = adr           ; get screen memory address from display list
+    ;vram^ = 1
+    ;vram  = vram + 1
+    ;vram^ = 2
+    ;dlptr^ = 1
+    ; vram = dlptr
+
+    ; vram^ = 1
+
+    color_bk = 12*16+2
     cur_xpos = 0
     cur_ypos = 0    
 
-    scrptr = dlstart
-    scrptr = scrptr + 4
-    vram = scrptr^
-
-    vram^ = 1
 end

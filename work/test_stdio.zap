@@ -5,8 +5,7 @@
 
 
 proc main()
-    atari_autostart_data_area()
-    atari_exehdr_data_area()
+    atari_file_data_area()
 
     cls()
 end
