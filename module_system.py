@@ -36,7 +36,9 @@ class ModuleSystem:
         self.loaded_modules: Dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection
         self.preprocessor = Preprocessor(predefined_symbols)  # Shared preprocessor for all modules
-        self.include_dirs = [os.path.abspath(d) for d in (include_dirs or [])]  # Normalize include directory paths
+        # Normalize include directory paths
+        # Note: include_dirs are relative to the current working directory, not base_path
+        self.include_dirs = [os.path.abspath(d) for d in (include_dirs or [])]
     
     def parse_file(self, filepath: str):
         """Parse a single file and extract module directives"""
@@ -121,12 +123,16 @@ class ModuleSystem:
         """
         Search for a file using the include path search algorithm.
         
-        1. First try the filename as-is (if absolute or relative)
-        2. Then try relative to the directory of the file being compiled (relative_to_dir)
-        3. Then try in each -I directory (in order)
+        1. If filename is an absolute path, use it directly (no -I directories considered)
+        2. If filename is relative, search in order:
+           - Relative to the directory of the file being compiled (relative_to_dir)
+           - Each -I directory (in order)
         
         Returns the absolute path if found, raises FileNotFoundError if not found.
         """
+        # Normalize the filename to remove leading ./
+        filename = os.path.normpath(filename)
+        
         # If filename is absolute, use it directly
         if os.path.isabs(filename):
             if os.path.isfile(filename):
