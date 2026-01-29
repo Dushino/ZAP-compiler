@@ -15,4 +15,6 @@ python_venv/*
 **/*.cut
 **/*.txt
 
+tests.txt
+
 
