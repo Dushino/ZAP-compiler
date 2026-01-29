@@ -145,3 +145,9 @@ end
     - then search -I path + / + filename in .include or .incbin
 
 
+[x] PORT modifier implementation
+    - implemented PORT modifier for variables mapped to hardware ports  
+
+    port byte POKEY_AUDF1 @$D200
+
+    
