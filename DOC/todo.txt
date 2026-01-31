@@ -21,9 +21,6 @@
 [ ] create sbc.zap and atari.zap to distinguish between Atari and SBC
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Describe how to use labels from ASM blocks in ZAP! code
-[ ] Export and import symbols from/to whole ZAP! program. Use case: ZAP! program is part of bigger package.
-    - import is by command line option -D
-    - export ToDo: .export directive translated to .export in ASM output 
 [ ] Introduce ZAP! to github:
 [ ] Add to GitHub Linguist (Recommended for long-term)
 You could submit your ZAP! language definition to the GitHub Linguist project. This would get ZAP1 officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.
@@ -61,7 +58,7 @@ Steps:
 [ ] Peephole optimization rework.
 [ ] Document peephole optimizations in the compiler documentation
 [ ] Review VS Code integration files
-[ ] IDE integration
+[ ] IDE integrations for other IDEs / editors (Sublime Text, JetBrains IDEs, etc.)
 [ ] Tutorials with examples.
 [ ] .error, .warning directives
 
@@ -115,7 +112,7 @@ MAIN:
 	STA _RESULT
 	RTS
 
-[ ] !!! Peephole optimization must be disabled for ASM blocks and for fixed address variables !!!
+[ ] !!! Peephole optimization must be disabled for ASM blocks and for PORT variables !!!
  
 [ ] Only if there is no label before second JMP
  	JMP endwhile_2
@@ -150,6 +147,46 @@ end
 
     port byte POKEY_AUDF1 @$D200
 
-To check
-[ ]  Pointer assignment to and from WORD 
-[ ]  -I command line option for library path
+[ ] Attribute to keep not called functions and procedures in the final binary. Or #KEEP, #NOEXPORT, attribute
+    - proc FileHeader() #KEEP #NOEXPORT
+    - useful for library functions that may be used from ASM blocks
+[ ] Consider #RD #WR for PORT variables
+    - #RD for read-only ports
+    - #WR for write-only ports
+    port byte PIA_DATA $D300 #RD
+    byte PIA_DATA $D300 #PORT #WR
+[ ] consider changing port TO #PORT to be consistent with other directives starting with #
+[ ] resolve syntaxt highlighting for # directives in VS Code extension
+
+[ ] ASM must properly ignore every ZAP! syntax inside ASM block till END
+[ ] remove .segment from ZAP directives to ASM blocks only
+
+[ ] improve and unify error messages for:
+    - undeclared identifier
+    - type mismatch
+    - wrong number of parameters in function/proc call
+    - invalid operand for operator
+    - invalid initializer for variable
+    - invalid struct field access
+    - array index out of bounds (if constant)
+    - invalid use of CONST, STATIC, PORT modifiers    
+
+To check - enhance tests
+[ ] Pointer assignment to and from WORD 
+[ ] -I command line option for library path
+[ ] Propagation of module symbols to including files
+[ ] Module constructors
+    proc CONSTRUCTOR() #KEEP #NOEXPORT
+[ ] Address-of operator @
+[ ] Const struct initialization syntax 
+[ ] Multi-dimensional arrays
+[ ] Logical NOT operator (!)
+[ ] STATIC local variable must have initial value
+[ ] CONST static local variable
+[ ] CONST without initial value should error
+[ ] STATIC on global variable should error
+[ ] STATIC on CONST variable should error
+[ ] KEEP keyword to keep unused functions and procedures in the final binary
+
+[ ] ASM / END act as comment in VSCode syntax highlighting
+[ ] Check VSCode and compiler syntax highlighting for operators - OR etc.
