@@ -42,14 +42,13 @@ const COLOR_GREEN4  = $D0
 const COLOR_YELLOW2 = $E0
 const COLOR_BROWN   = $F0
 
-
 byte cur_xpos, cur_ypos     ; cusros position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR()  ; Fixme: #KEEP #NOEXPORT
-    byte ^dlstart @560      ; system storage for DL address
+    const byte ^dlstart @560      ; system storage for DL address
     word ^dlptr             ; pointer into display list
     byte ^vram
         
@@ -72,7 +71,7 @@ proc atari_file_data_area() ; Fixme: #KEEP #NOEXPORT
         .import __RAM_START__, __RAM_LAST__
         .word $FFFF     		; second block marker
         .word __RAM_START__		; RUN address
-        .word __RAM_LAST__    	; last byte
+        .word __RAM_LAST__    	; last byte  
     end
     .segment "AUTOSTRT"
     asm
@@ -97,3 +96,16 @@ proc cls()
     cur_ypos = 0    
 
 end
+
+
+func byte getchar()
+    byte ch
+
+    asm
+        jsr $E4F6      ; ATARI KBIOS - GETCHAR
+        sta ch
+    end
+
+    return ch
+end
+

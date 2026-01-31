@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "source.zap.asm.injection",
+  "injectionSelector": "R:source.zap",
+  "patterns": [
+    {
+      "name": "meta.embedded.asm.ca65.zap",
+      "begin": "(?i)^\\s*asm\\b",
+      "end": "(?i)^\\s*end\\b",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.other.zap"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "keyword.other.zap"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.zap.ca65"
+        }
+      ]
+    }
+  ]
+}

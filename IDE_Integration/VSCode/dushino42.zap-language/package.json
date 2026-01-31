@@ -1,6 +1,6 @@
 {
   "name": "zap-language",
-  "displayName": "Zap Language Support",
+  "displayName": "Zap language support",
   "description": "Syntax highlighting and icons for the Zap programming language",
   "icon": "icons/icon.png",
   "version": "1.0.0",
@@ -14,7 +14,7 @@
     "url": "https://github.com/Dushino/ZAP-compiler/issues"
   },
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.70.0"
   },
   "categories": [
     "Programming Languages"
@@ -24,17 +24,18 @@
       {
         "id": "zap",
         "aliases": [
+          "ZAP",
           "Zap",
           "zap"
         ],
         "extensions": [
           ".zap"
         ],
+        "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/zap-icon-light.svg",
           "dark": "./icons/zap-icon-dark.svg"
-        },
-        "configuration": "./language-configuration.json"
+        }
       }
     ],
     "grammars": [
@@ -42,6 +43,17 @@
         "language": "zap",
         "scopeName": "source.zap",
         "path": "./syntaxes/zap.tmLanguage.json"
+      },
+      {
+        "scopeName": "source.zap.ca65",
+        "path": "./syntaxes/ca65.tmLanguage.json"
+      },
+      {
+        "scopeName": "source.zap.asm.injection",
+        "path": "./syntaxes/zap-ca65.injection.json",
+        "injectTo": [
+          "source.zap"
+        ]
       }
     ]
   }

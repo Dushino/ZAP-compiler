@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ca65",
+  "scopeName": "source.zap.ca65",
+  "patterns": [
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#comments"
+    }
+  ],
+  "repository": {
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.directive.asm",
+          "match": "\\.(segment|word|import|export|res|byte)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.asm",
+          "match": "\\$[0-9A-Fa-f]+"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.asm",
+          "match": ";.*$"
+        }
+      ]
+    }
+  }
+}

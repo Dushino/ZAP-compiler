@@ -1,125 +1,145 @@
 {
-  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Zap",
-  "scopeName": "source.zap",
-  "patterns": [
-    { "include": "#comments" },
-    { "include": "#preprocessor" },
-    { "include": "#keywords" },
-    { "include": "#storage-types" },
-    { "include": "#constants" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#operators" },
-    { "include": "#functions" },
-    { "include": "#directives" }
-  ],
-  "repository": {
-    "comments": {
-      "patterns": [
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Zap",
+    "scopeName": "source.zap",
+    "patterns": [
         {
-          "name": "comment.block.zap",
-          "begin": "/\\*",
-          "end": "\\*/",
-          "patterns": [
-            {
-              "name": "comment.block.zap",
-              "match": "."
-            }
-          ]
+            "include": "#comments"
         },
         {
-          "name": "comment.line.semicolon.zap",
-          "match": ";.*$"
-        }
-      ]
-    },
-    "preprocessor": {
-      "patterns": [
-        {
-          "name": "keyword.control.preprocessor.zap",
-          "match": "(?i)\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment|incbin)\\b"
-        }
-      ]
-    },
-    "keywords": {
-      "patterns": [
-        {
-          "name": "keyword.control.zap",
-          "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+            "include": "#preprocessor"
         },
         {
-          "name": "keyword.other.zap",
-          "match": "(?i)\\b(PROC|FUNC|ASM|END)\\b"
-        }
-      ]
-    },
-    "storage-types": {
-      "patterns": [
-        {
-          "name": "storage.type.zap",
-          "match": "(?i)\\b(BYTE|WORD|STRUCT)\\b"
+            "include": "#keywords"
         },
         {
-          "name": "storage.modifier.zap",
-          "match": "(?i)\\b(CONST|STATIC|PORT)\\b"
-        }
-      ]
-    },
-    "strings": {
-      "patterns": [
-        {
-          "name": "string.quoted.double.zap",
-          "begin": "\"",
-          "end": "\"",
-          "patterns": [
-            {
-              "name": "constant.character.escape.zap",
-              "match": "\\\\."
-            }
-          ]
-        }
-      ]
-    },
-    "numbers": {
-      "patterns": [
-        {
-          "name": "constant.numeric.hex.zap",
-          "match": "\\$[0-9A-Fa-f]+"
+            "include": "#storage-types"
         },
         {
-          "name": "constant.numeric.decimal.zap",
-          "match": "\\b[0-9]+"
+            "include": "#constants"
         },
         {
-            "name": "constant.numeric.binary.zap",
-            "match": "\\%[0-1]+"
-        }
-      ]
-    },
-    "operators": {
-      "patterns": [
-        {
-          "name": "keyword.operator.arithmetic.zap",
-          "match": "(?i)\\+|-|\\*|/|MOD|&|\\||\\^|<<|>>"
+            "include": "#strings"
         },
         {
-          "name": "keyword.operator.comparison.zap",
-          "match": "(?i)=|#|<|>|<=|>=|<>|AND|OR|NOT"
+            "include": "#numbers"
         },
         {
-          "name": "keyword.operator.assignment.zap",
-          "match": "="
-        }
-      ]
-    },
-    "functions": {
-      "patterns": [
+            "include": "#operators"
+        },
         {
-          "name": "entity.name.function.zap",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
+            "include": "#functions"
+        },
+        {
+            "include": "#directives"
         }
-      ]
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.block.zap",
+                    "begin": "/\\*",
+                    "end": "\\*/",
+                    "patterns": [
+                        {
+                            "name": "comment.block.zap",
+                            "match": "."
+                        }
+                    ]
+                },
+                {
+                    "name": "comment.line.semicolon.zap",
+                    "match": ";.*$"
+                }
+            ]
+        },
+        "preprocessor": {
+            "patterns": [
+                {
+                    "name": "keyword.control.preprocessor.zap",
+                    "match": "(?i)\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment|incbin)\\b"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.zap",
+                    "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+                },
+                {
+                    "name": "keyword.other.zap",
+                    "match": "(?i)\\b(PROC|FUNC|ASM|END)\\b"
+                }
+            ]
+        },
+        "storage-types": {
+            "patterns": [
+                {
+                    "name": "storage.type.zap",
+                    "match": "(?i)\\b(BYTE|WORD|STRUCT)\\b"
+                },
+                {
+                    "name": "storage.modifier.zap",
+                    "match": "(?i)\\b(CONST|STATIC|PORT)\\b"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.zap",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.zap",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.hex.zap",
+                    "match": "\\$[0-9A-Fa-f]+"
+                },
+                {
+                    "name": "constant.numeric.decimal.zap",
+                    "match": "\\b[0-9]+"
+                },
+                {
+                    "name": "constant.numeric.binary.zap",
+                    "match": "\\%[0-1]+"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.arithmetic.zap",
+                    "match": "(?i)\\+|-|\\*|/|MOD|&|\\||\\^|<<|>>"
+                },
+                {
+                    "name": "keyword.operator.comparison.zap",
+                    "match": "(?i)=|#|<|>|<=|>=|<>|AND|OR|NOT"
+                },
+                {
+                    "name": "keyword.operator.assignment.zap",
+                    "match": "="
+                }
+            ]
+        },
+        "functions": {
+            "patterns": [
+                {
+                    "name": "entity.name.function.zap",
+                    "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
+                }
+            ]
+        }
     }
-  }
 }
