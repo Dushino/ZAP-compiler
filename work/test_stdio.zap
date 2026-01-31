@@ -3,9 +3,7 @@
 
 .include "stdio.zap"
 
-
 proc main()
-    atari_file_data_area()
 
     cls()
 end

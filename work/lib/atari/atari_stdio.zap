@@ -24,16 +24,49 @@
 
 .module atari_stdio
 
+; ATARI colors
+const COLOR_BLACK   = $00
+const COLOR_YELLOW1 = $10
+const COLOR_ORANGE2 = $20
+const COLOR_RED1    = $30
+const COLOR_VIOLET1 = $40
+const COLOR_VIOLET2 = $50
+const COLOR_VIOLET3 = $60
+const COLOR_BLUE1   = $70
+const COLOR_BLUE2   = $80
+const COLOR_BLUE3   = $90
+const COLOR_GREEN1  = $A0
+const COLOR_GREEN2  = $B0
+const COLOR_GREEN3  = $C0
+const COLOR_GREEN4  = $D0
+const COLOR_YELLOW2 = $E0
+const COLOR_BROWN   = $F0
+
+
 byte cur_xpos, cur_ypos     ; cusros position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
+; initialize internals for faster screen IO
+proc CONSTRUCTOR()  ; Fixme: #KEEP #NOEXPORT
+    byte ^dlstart @560      ; system storage for DL address
+    word ^dlptr             ; pointer into display list
+    byte ^vram
+        
+    dlptr = dlstart         ; copy display list address into ZP pointer        
+    dlptr = dlptr + 2       ; skip first four bytes (2xWORD) of display list
+    vram = dlptr^           ; get screen memory address from display list
+    
+    vram^ = 1
+end
+
 
 /*
-    exehdr and autostart data area
+    COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
 */
-proc atari_file_data_area()
+; Fixme: .segment directives should be inside ASM block
+proc atari_file_data_area() ; Fixme: #KEEP #NOEXPORT
     .segment "COMHEADER"
     asm
         .import __RAM_START__, __RAM_LAST__
@@ -52,32 +85,14 @@ proc atari_file_data_area()
 end
 
 
-
+/*
+    Clear Screen and reset cursor position
+*/
 proc cls()
     word i
     byte color_bk @712
-    byte ^dlstart @560      ; system storage for DL address
-    word ^dlptr             ; pointer into display list
-    byte ^vram
-        
-    dlptr = dlstart         ; copy display list address into ZP pointer        
-    dlptr = dlptr + 2       ; skip first four bytes (2xWORD) of display list
-    vram = dlptr^           ; get screen memory address from display list
-    
-    vram^ = 1
-    ;vram = vram + 1
-    ;vram^ = 2
 
-    ;vram = adr           ; get screen memory address from display list
-    ;vram^ = 1
-    ;vram  = vram + 1
-    ;vram^ = 2
-    ;dlptr^ = 1
-    ; vram = dlptr
-
-    ; vram^ = 1
-
-    color_bk = 12*16+2
+    color_bk = COLOR_GREEN2 + 2
     cur_xpos = 0
     cur_ypos = 0    
 
