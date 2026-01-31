@@ -79,6 +79,7 @@ proc atari_file_data_area() ; Fixme: #KEEP #NOEXPORT
         .word $FFFF     		; second block marker
         .word __RAM_START__		; RUN address
         .word __RAM_LAST__    	; last byte
+        
     end
     .segment "CODE"
 end
@@ -103,7 +104,7 @@ func byte getchar()
 
     asm
         jsr $E4F6      ; ATARI KBIOS - GETCHAR
-        sta ch
+        sta _getchar_ch
     end
 
     return ch

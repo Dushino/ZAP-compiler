@@ -45,15 +45,13 @@
         "path": "./syntaxes/zap.tmLanguage.json"
       },
       {
-        "scopeName": "source.zap.ca65",
+        "scopeName": "source.ca65",
         "path": "./syntaxes/ca65.tmLanguage.json"
       },
       {
         "scopeName": "source.zap.asm.injection",
         "path": "./syntaxes/zap-ca65.injection.json",
-        "injectTo": [
-          "source.zap"
-        ]
+        "injectTo": [ "source.zap" ]
       }
     ]
   }

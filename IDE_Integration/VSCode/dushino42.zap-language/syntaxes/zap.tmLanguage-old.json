@@ -50,7 +50,7 @@
         },
         {
           "name": "keyword.other.zap",
-          "match": "(?i)\\b(PROC|FUNC|ASM|END)\\b"
+          "match": "(?i)\\b(PROC|FUNC|END)\\b"
         }
       ]
     },
