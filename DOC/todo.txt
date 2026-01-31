@@ -15,6 +15,13 @@
 [ ] malloc, free?
 [x] clean up directives with #
 [ ] improve error messages 
+    filename:line:column: severity: message
+    Příklad:
+    main.zap:12:5: error: Undefined symbol 'TEMP_VAR'
+    main.zap:45:10: warning: Unreachable code detected
+
+
+
 [x] implement module constructors? No. 
 [x] fix wrong code generation as ORA X is wrong
 [x] compiler defines in command line - tested also with conflicting defines and PROC name
@@ -158,7 +165,7 @@ end
 [ ] consider changing port TO #PORT to be consistent with other directives starting with #
 [ ] resolve syntaxt highlighting for # directives in VS Code extension
 
-[ ] ASM must properly ignore every ZAP! syntax inside ASM block till END
+[x] ASM must properly ignore every ZAP! syntax inside ASM block till END
 [ ] remove .segment from ZAP directives to ASM blocks only
 
 [ ] improve and unify error messages for:
@@ -188,5 +195,6 @@ To check - enhance tests
 [ ] STATIC on CONST variable should error
 [ ] KEEP keyword to keep unused functions and procedures in the final binary
 
-[ ] ASM / END act as comment in VSCode syntax highlighting
+[x] ASM / END act as comment in VSCode syntax highlighting
+    Hybrid syntax highlighting now works
 [ ] Check VSCode and compiler syntax highlighting for operators - OR etc.

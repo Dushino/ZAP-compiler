@@ -1,0 +1,5 @@
+{
+    "key": "ctrl+alt+z",
+    "command": "workbench.action.tasks.runTask",
+    "args": "zap: Build ZAP project"
+}

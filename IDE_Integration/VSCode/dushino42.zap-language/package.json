@@ -1,58 +1,82 @@
 {
-  "name": "zap-language",
-  "displayName": "Zap language support",
-  "description": "Syntax highlighting and icons for the Zap programming language",
-  "icon": "icons/icon.png",
-  "version": "1.0.0",
-  "publisher": "dushino42",
-  "homepage": "https://github.com/Dushino/ZAP-compiler",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Dushino/ZAP-compiler.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Dushino/ZAP-compiler/issues"
-  },
-  "engines": {
-    "vscode": "^1.70.0"
-  },
-  "categories": [
-    "Programming Languages"
-  ],
-  "contributes": {
-    "languages": [
-      {
-        "id": "zap",
-        "aliases": [
-          "ZAP",
-          "Zap",
-          "zap"
-        ],
-        "extensions": [
-          ".zap"
-        ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./icons/zap-icon-light.svg",
-          "dark": "./icons/zap-icon-dark.svg"
-        }
-      }
+    "name": "zap-language",
+    "displayName": "Zap language support",
+    "description": "Syntax highlighting and icons for the Zap programming language",
+    "icon": "icons/icon.png",
+    "version": "1.0.0",
+    "publisher": "dushino42",
+    "main": "./extension.js",
+    "engines": {
+        "vscode": "^1.70.0"
+    },
+    "categories": [
+        "Programming Languages"
     ],
-    "grammars": [
-      {
-        "language": "zap",
-        "scopeName": "source.zap",
-        "path": "./syntaxes/zap.tmLanguage.json"
-      },
-      {
-        "scopeName": "source.ca65",
-        "path": "./syntaxes/ca65.tmLanguage.json"
-      },
-      {
-        "scopeName": "source.zap.asm.injection",
-        "path": "./syntaxes/zap-ca65.injection.json",
-        "injectTo": [ "source.zap" ]
-      }
+    "contributes": {
+        "languages": [
+            {
+                "id": "zap",
+                "aliases": [
+                    "ZAP",
+                    "Zap",
+                    "zap"
+                ],
+                "extensions": [
+                    ".zap"
+                ],
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "light": "./icons/zap-icon-light.svg",
+                    "dark": "./icons/zap-icon-dark.svg"
+                }
+            }
+        ],
+        "grammars": [
+            {
+                "language": "zap",
+                "scopeName": "source.zap",
+                "path": "./syntaxes/zap.tmLanguage.json"
+            },
+            {
+                "scopeName": "source.ca65",
+                "path": "./syntaxes/ca65.tmLanguage.json"
+            },
+            {
+                "scopeName": "source.zap.asm.injection",
+                "path": "./syntaxes/zap-ca65.injection.json",
+                "injectTo": [
+                    "source.zap"
+                ]
+            }
+        ],
+        "taskDefinitions": [
+            {
+                "type": "zap"
+            }
+        ],
+        "problemMatchers": [
+            {
+                "name": "zap-matcher",
+                "owner": "zap",
+                "label": "ZAP Compiler Errors",
+                "pattern": {
+                    "regexp": "^([^\\s].*):(\\d+):(\\d+):\\s+(error|warning|info):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        ]
+    },
+    "activationEvents": [
+        "onLanguage:zap"
+    ],
+    "commands": [
+        {
+            "command": "zap.runBuild",
+            "title": "ZAP: Compile current file"
+        }
     ]
-  }
 }
