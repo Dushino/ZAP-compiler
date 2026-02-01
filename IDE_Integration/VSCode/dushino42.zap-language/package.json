@@ -68,15 +68,25 @@
                     "message": 5
                 }
             }
-        ]
+        ],
+
+        "commands": [
+            {
+                "command": "zap.runBuild",
+                "title": "ZAP: Compile current file",
+                "category": "Build"
+            }
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "zap.runBuild",
+                    "when": "editorLangId == zap"
+                }
+            ]
+        }
     },
     "activationEvents": [
         "onLanguage:zap"
-    ],
-    "commands": [
-        {
-            "command": "zap.runBuild",
-            "title": "ZAP: Compile current file"
-        }
     ]
 }
