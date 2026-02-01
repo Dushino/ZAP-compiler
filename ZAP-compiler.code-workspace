@@ -1,29 +1,2 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-    ],
-    "settings": {
-        "github.copilot.enable": {
-            "*": false,
-            "plaintext": true,
-            "markdown": true,
-            "scminput": false,
-            "python": true,
-            "ca65": true,
-            "makefile": true,
-            "zap": true
-        },
-        "editor.fontSize": 15,
-        "chat.editing.autoAcceptDelay": 60,
-        "chat.agent.maxRequests": 50,
-        "window.autoDetectColorScheme": true,
-        "workbench.colorTheme": "Solarized Light",
-        "workbench.preferredDarkColorTheme": "Solarized Dark",
-        "workbench.preferredLightColorTheme": "Solarized Light",
-        "editor.fontFamily": "'Inconsolata', 'Droid Sans Mono', monospace",
-        "editor.fontVariations": true,
-        "editor.fontWeight": "500"
-    }
 }
