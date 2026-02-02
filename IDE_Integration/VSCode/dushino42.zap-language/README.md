@@ -6,7 +6,7 @@ This extension provides syntax highlighting for the Zap programming language.
 
 - **Syntax Highlighting** for Zap source files (.zap)
 - **Comment Support** - Semicolon-based line comments, multiline C-style comments
-- **Bracket Matching** - Auto-closing and matching for (), [], {}, /* */
+- **Bracket Matching** - Auto-closing and matching for (), [], /* */
 - **Code Folding** - Fold PROC/FUNC and multiline comment blocks
 
 ## Supported Syntax
@@ -14,20 +14,20 @@ This extension provides syntax highlighting for the Zap programming language.
 ### Keywords
 - Control flow: `IF`, `THEN`, `ELSE`, `ELSEIF`, `ENDIF`, `WHILE`, `FOR`, `TO`, `STEP`, `UNTIL`, `RETURN`, `EXIT`
 - Declarations: `PROC`, `FUNC`, `END`
+- Inline assembler: `ASM`, `END` supporting ca65 syntax highlighting
 
 ### Data Types
 - `BYTE`, `WORD`, `STRUCT`
-- `CONST`, `STATIC`, `PORT` modifiers
+- `CONST`, `STATIC` modifiers
 
 ### Preprocessor Directives
 - `.ifdef`, `.ifndef`, `.else`, `.endif`
 - `.define`, `.undef`
 - `.module`, `.include`
-- `.segment`
 
 ### Operators
-- Arithmetic: `+`, `-`, `*`, `/`, `MOD`, `&`, `|`, `^`, `<<`, `>>`
-- Comparison: `=`, `#`, `<`, `>`, `<=`, `>=`, `<>`, `AND`, `OR`, `NOT`
+- Arithmetic: `+`, `-`, `*`, `/`, `%`, `&`, `|`, `^`, `<<`, `>>`
+- Comparison: `=`, `#`, `<`, `>`, `<=`, `>=`, `<>`
 
 ### Literals
 - Decimal numbers: `123`, `0`
