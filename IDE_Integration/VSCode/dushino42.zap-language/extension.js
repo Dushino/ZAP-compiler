@@ -11,7 +11,6 @@ function activate(context) {
                 const filePath = editor.document.uri.fsPath;
                 const definition = { type: 'zap' };
 
-                // Pole argumentů je nejbezpečnější pro Windows i Linux
                 const execution = new vscode.ShellExecution('zapc', [filePath]);
 
                 const task = new vscode.Task(

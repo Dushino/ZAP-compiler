@@ -29,7 +29,7 @@
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Describe how to use labels from ASM blocks in ZAP! code
 [ ] Introduce ZAP! to github:
-[ ] Add to GitHub Linguist (Recommended for long-term)
+[ ] Add to GitHub Linguist
 You could submit your ZAP! language definition to the GitHub Linguist project. This would get ZAP1 officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.
 Steps:
 - Format your language definition according to Linguist's requirements
@@ -65,7 +65,9 @@ Steps:
 [ ] Peephole optimization rework.
 [ ] Document peephole optimizations in the compiler documentation
 [ ] Review VS Code integration files
-[ ] IDE integrations for other IDEs / editors (Sublime Text, JetBrains IDEs, etc.)
+    [x] Build on Ctrl-Shift-Z 
+    [x] Ctrl+Shift+P command "Build: ZAP: Compile current file"
+    
 [ ] Tutorials with examples.
 [ ] .error, .warning directives
 

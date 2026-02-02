@@ -69,7 +69,6 @@
                 }
             }
         ],
-
         "commands": [
             {
                 "command": "zap.runBuild",
@@ -83,10 +82,31 @@
                     "command": "zap.runBuild",
                     "when": "editorLangId == zap"
                 }
+            ],
+            "editor/context": [
+                {
+                    "command": "zap.runBuild",
+                    "when": "editorLangId == zap",
+                    "group": "navigation"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "zap.runBuild",
+                    "when": "resourceExtname == .zap",
+                    "group": "navigation"
+                }            
             ]
+        },
+        "keybindings":
+        {
+            "key": "ctrl+alt+z",
+            "command": "workbench.action.tasks.runTask",
+            "args": "zap: Build ZAP project"
         }
     },
     "activationEvents": [
-        "onLanguage:zap"
+        "onLanguage:zap",
+        "onFile:*.zap"
     ]
 }
