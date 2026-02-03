@@ -207,8 +207,9 @@ class ModuleSystem:
                     resolved_path = self._find_file(item.filename, file_dir)
                     # Replace with a new IncbinDirective containing the resolved path
                     program.procs[i] = IncbinDirective(resolved_path)
-                except FileNotFoundError as e:
-                    err = SemanticError(f"Error resolving .incbin '{item.filename}' in {filepath}: {e}")
+                except SemanticError as e:
+                    # Propagate with enhanced context for .incbin directive
+                    err = SemanticError(f"Error resolving .incbin '{item.filename}' in {filepath}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
                     err.filename = filepath
                     err.source_text = '\n'.join(program.debug.get('source_lines', [])) if program and getattr(program, 'debug', None) else None
                     raise err
@@ -231,7 +232,10 @@ class ModuleSystem:
         if os.path.isabs(filename):
             if os.path.isfile(filename):
                 return os.path.abspath(filename)
-            raise FileNotFoundError(f"File not found: {filename}")
+            # Report as a SemanticError to unify user-facing error reporting
+            err = SemanticError(f"File not found: {filename}")
+            err.filename = filename
+            raise err
         
         # Try relative to the current file's directory
         current_relative_path = os.path.join(relative_to_dir, filename)
@@ -244,8 +248,10 @@ class ModuleSystem:
             if os.path.isfile(inc_path):
                 return os.path.abspath(inc_path)
         
-        # File not found
-        raise FileNotFoundError(f"File not found: {filename} (searched in: current dir, and {len(self.include_dirs)} include directories)")
+        # File not found - raise SemanticError for consistent user error reporting
+        err = SemanticError(f"File not found: {filename} (searched in: current dir, and {len(self.include_dirs)} include directories)")
+        err.filename = relative_to_dir
+        raise err
     
     def load_module(self, module_path: str) -> ModuleInfo:
         """Load a module and its dependencies"""
@@ -317,8 +323,9 @@ class ModuleSystem:
                 inc_dir = os.path.dirname(full_path)
                 try:
                     inc_path = self._find_file(inc, inc_dir)
-                except FileNotFoundError as e:
-                    err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e}")
+                except SemanticError as e:
+                    # Re-wrap with context of the including file
+                    err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
                     err.filename = full_path
                     raise err
                 # Ensure dependency is loaded

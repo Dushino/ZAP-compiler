@@ -90,7 +90,8 @@ class SemType:
             return 1
         if base_lower == "word":
             return 2
-        raise ValueError(f"Unknown type: {self.base}")
+        # Unknown type encountered during width computation - report as semantic error
+        raise SemanticError(f"Unknown type: {self.base}")
     
     def get_size(self) -> int:
         """Alias for width property"""

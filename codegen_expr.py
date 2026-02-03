@@ -2804,7 +2804,17 @@ class CodeGen:
                         if isinstance(struct_init, ListInit):
                             flattened_values.extend(struct_init.values)
                         else:
-                            raise RuntimeError(f"Expected ListInit for struct element, got {type(struct_init)}")
+                            # Include declaration source info if available
+                            info = self.global_decl_src.get(sym.name) if not sym.proc_name else self.local_decl_src.get((sym.proc_name, sym.name))
+                            if info:
+                                fname, line, col, _ = info
+                                err = SemanticError(f"Expected ListInit for struct element, got {type(struct_init)}", line=line, col=col)
+                                err.filename = fname
+                                if self.source_lines:
+                                    err.source_text = "\n".join(self.source_lines)
+                                raise err
+                            # Fall back to generic error attached to current stmt if possible
+                            self._raise_error(f"Expected ListInit for struct element, got {type(struct_init)}")
                 else:
                     # Single struct: recursively flatten any nested ListInit values
                     for field_init in sym.init.values:
@@ -2970,7 +2980,7 @@ class CodeGen:
                     self.emit(f"\tBNE {copy_loop}")
             return
 
-        raise NotImplementedError("Complex init")
+        self._raise_error("Complex initializer pattern not supported")
 
 
     def emit(self, line: str):
@@ -2993,12 +3003,16 @@ class CodeGen:
         info = self.local_decl_src.get((proc_name, var_name))
         if info:
             fname, line, col, text = info
+            # Also attach current_stmt_info so subsequent raises have context
+            self.current_stmt_info = (fname, line, col, text)
             self.emit(f"; {fname} {line}: {text}")
 
     def emit_src_comment_for_global(self, var_name: str):
         info = self.global_decl_src.get(var_name)
         if info:
             fname, line, col, text = info
+            # Also attach current_stmt_info so subsequent raises have context
+            self.current_stmt_info = (fname, line, col, text)
             self.emit(f"; {fname} {line}: {text}")
 
     def _raise_error(self, msg: str):
@@ -5841,7 +5855,7 @@ class CodeGen:
                 self.assign_target_type = prev_assign_type
             return
 
-        raise NotImplementedError(type(lhs))
+        self._raise_error(f"Assignment target type not supported: {type(lhs).__name__}")
 
     def _gen_for_const_step(self, stmt, step_expr):
         # i = start
@@ -6134,7 +6148,7 @@ class CodeGen:
             return
 
 
-        raise NotImplementedError(type(stmt))
+        self._raise_error(f"Unhandled statement type: {type(stmt).__name__}")
 
     def gen_func(self, func: AnalyzedFunc):
         prev_symtab = self.current_symtab
