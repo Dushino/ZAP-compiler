@@ -574,6 +574,10 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     
     cg.gen_globals_footer()    
 
+    # Emit module constructor calls (after all global/static inits), in dependency order
+    for ctor in getattr(program, 'constructors', []) or []:
+        cg.emit(f"\tJSR {ctor}")
+
     # Initialize stmt_src tracking for DCE
     from dce import init_stmt_src_tracking, get_updated_stmt_src
     original_debug = getattr(program, "debug", {})

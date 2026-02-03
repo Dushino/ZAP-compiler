@@ -193,6 +193,7 @@ Start here if you're just beginning:
 - [Modules Basics](ZAP_LANGUAGE_REFERENCE.md#module-system)
 - [Module Deep Dive](ADVANCED_TOPICS.md#module-system-deep-dive)
 - [Organization](ADVANCED_TOPICS.md#include-organization)
+- Module constructors support (see Module System docs)
 
 ### Compilation & Tools
 - [Build Process](ZAP_LANGUAGE_REFERENCE.md#compilation-and-linking)

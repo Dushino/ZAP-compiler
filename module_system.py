@@ -123,6 +123,49 @@ class ModuleSystem:
             except Exception:
                 pass
             raise
+
+        # Handle module CONSTRUCTOR procs:
+        # - Forbidden in non-module files
+        # - In module files, treat them as if they had #KEEP and #NOEXPORT and
+        #   rename them to a unique internal name to avoid label collisions.
+        new_procs = []
+        proc_src = program.debug.get('proc_src', {}) if program.debug else {}
+        for p in program.procs:
+            if isinstance(p, ProcDecl) and p.name.lower() == 'constructor':
+                if not is_module:
+                    # Raise error: Constructor only allowed in module files
+                    info = proc_src.get(p.name)
+                    if info:
+                        if len(info) == 3:
+                            fname, line_no, _text = info
+                            col_no = 1
+                        else:
+                            fname, line_no, col_no, _text = info
+                        err = SemanticError("Constructor procedure is only allowed in module files", line=line_no, col=col_no)
+                        err.filename = fname
+                        err.source_text = '\n'.join(program.debug.get('source_lines', []))
+                        raise err
+                    else:
+                        err = SemanticError("Constructor procedure is only allowed in module files")
+                        err.filename = filepath
+                        err.source_text = cleaned_source
+                        raise err
+                # Module file: mangle name, force keep and noexport
+                # Use module name if available, otherwise base filename
+                mod_base = module_name if module_name else os.path.splitext(os.path.basename(filepath))[0]
+                safe_mod = ''.join(ch if (ch.isalnum() or ch == '_') else '_' for ch in mod_base)
+                new_name = f"__CONSTRUCTOR__{safe_mod}"
+                # Update proc_src mapping to point to new name
+                if program.debug and 'proc_src' in program.debug:
+                    info = program.debug['proc_src'].pop(p.name, None)
+                    if info is not None:
+                        program.debug['proc_src'][new_name] = info
+                # Create new proc decl with modified flags and new name
+                new_p = ProcDecl(new_name, p.params, p.locals, p.body, keep=True, noexport=True, export=False)
+                new_procs.append(new_p)
+            else:
+                new_procs.append(p)
+        program.procs = new_procs
         
         # If this file is declared as a module, sanity-check it doesn't define PROC MAIN()
         if is_module:
@@ -386,6 +429,10 @@ class ModuleSystem:
                         # and their top-level items are considered visible here.
                         should_export = True
 
+                # Collect constructors in encountered order (deps first)
+                if isinstance(item, ProcDecl) and item.name.startswith("__CONSTRUCTOR__"):
+                    constructors.append(item.name)
+
                 if isinstance(item, ProcDecl):
                     name = item.name
                     # Only perform cross-module duplicate checks for exported items
@@ -421,11 +468,14 @@ class ModuleSystem:
                     all_procs.append(item)
         
         # Collect everything starting from main
+        constructors: list[str] = []
         collect_from_module(os.path.abspath(main_file))
         
         final_program = Program(all_decls, all_procs)
         # Attach computed exports set for later stages (codegen/cleanup)
         final_program.exports = all_exports
+        # Attach constructor call order (from most deeply included to top-level)
+        final_program.constructors = constructors
 
         # Aggregate debug maps from all modules
         agg_stmt = {}

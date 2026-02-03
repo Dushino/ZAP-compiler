@@ -46,6 +46,27 @@ PROC Main()
 END
 ```
 
+### Module constructors
+
+Modules may optionally declare a special top-level procedure named `Constructor()` to perform per-module initialization at program start. Behavior and rules:
+
+- Syntax: `PROC Constructor()` declared in a `.module "name"` file.
+- Constructors are **only** allowed in `.module` files. A `Constructor` declared in a non-module file is a compile-time error.
+- Constructors are implicitly treated as if they had `#KEEP` and `#NOEXPORT` modifiers: they are preserved from dead-code elimination and are not exported from the module.
+- The compiler internally mangles constructor names to avoid collisions; `Constructor` in a module named `foo` becomes `__CONSTRUCTOR__foo` (non-alphanumeric characters replaced with `_`).
+- After all global and static initializers are emitted, the compiler emits `JSR` calls to each module constructor in dependency order (most deeply included modules first, then upward), ensuring proper initialization order.
+- Constructors are optional — modules that do not need initialization simply omit `Constructor()`.
+
+Example:
+
+```zap
+.module "audio"
+
+PROC Constructor()
+    ; Initialize audio tables and hardware registers
+END
+```
+
 ## Features
 
 ### Automatic Dependency Resolution

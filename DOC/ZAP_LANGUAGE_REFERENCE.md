@@ -1309,6 +1309,27 @@ end
 
 ### .include Directive
 
+### Module constructors
+
+Modules may declare an optional special procedure named `Constructor()` that is invoked at program initialization. Key points:
+
+- Declaration: `PROC Constructor()` at top level inside a `.module "name"` file.
+- Constructors are forbidden in non-module files and a compile-time error is raised if found.
+- Constructors behave as if annotated `#KEEP #NOEXPORT` so they are preserved and not exported.
+- The compiler mangles constructor names to `__CONSTRUCTOR__<module_name>` to avoid label collisions.
+- Calls to all module constructors are emitted after global/static initialization as `JSR __CONSTRUCTOR__<module>`, in dependency order (deepest include first).
+
+Example:
+
+```zap
+.module "drivers"
+PROC Constructor()
+    ; driver init
+END
+```
+
+
+
 Include another module's declarations and functions:
 
 ```zap
