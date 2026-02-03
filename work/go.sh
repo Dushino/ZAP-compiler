@@ -2,9 +2,9 @@ rm *.s
 rm *.o
 rm *.com
 
-;cd ..
-;./make_dist.sh
-;cd work
+#cd ..
+#./make_dist.sh
+#cd work
 
 zapc -6502 -D ATARI -I lib -o test_stdio.s test_stdio.zap
 ca65 test_stdio.s -o test_stdio.o
