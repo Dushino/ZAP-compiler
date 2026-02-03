@@ -401,6 +401,22 @@ class Tokenizer:
                 self._emit(TOK_IDENT, self.sline, self.scol, text)
                 continue
 
+            # Declaration modifiers like #KEEP, #NOEXPORT, #EXPORT
+            if ch == '#':
+                self._advance(1)
+                start = self.pos
+                if self._peek() is None or not self._peek().isalpha():
+                    raise TokenizerError("Expected identifier after '#'", line=self.sline, col=self.scol)
+                while True:
+                    c = self._peek()
+                    if c is None or not (c.isalpha() or c.isdigit() or c == '_'):
+                        break
+                    self._advance(1)
+                text = self.src[start:self.pos]
+                # emit as DECLMOD so parser can recognize modifiers attached to PROC/FUNC
+                self._emit(TOK_DECLMOD, self.sline, self.scol, text.upper())
+                continue
+
             # two-char ops
             c1 = ch
             c2 = self._peek(1) or ''

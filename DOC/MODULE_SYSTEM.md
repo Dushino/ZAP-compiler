@@ -75,6 +75,14 @@ All top-level declarations from included modules are available:
 
 Local variables and parameters remain private to their respective procedures/functions.
 
+Declaration modifiers affect visibility and retention of top-level symbols:
+
+- `#KEEP` prevents a global variable, const, procedure, or function from being removed by dead-code elimination even if unused.
+- `#NOEXPORT` prevents a symbol from being exported from a `.module` file (modules export all top-level symbols by default unless marked `#NOEXPORT`).
+- `#EXPORT` forces exporting a symbol from a non-module file (non-module files do not export symbols by default).
+
+These modifiers can be combined (e.g., `#KEEP #NOEXPORT`) and are applied during module merging and dead-code elimination so that inclusion and generation behave predictably.
+
 ## Usage
 
 To compile a program with modules:

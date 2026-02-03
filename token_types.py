@@ -19,4 +19,5 @@ TOK_LCURLY      = "LCURLY"      # {
 TOK_RCURLY      = "RCURLY"      # }
 TOK_PREPROC     = "PREPROC"     # preprocessor
 TOK_ASM_BLOCK   = "ASM_BLOCK"   # inline assembly block
+TOK_DECLMOD     = "DECLMOD"     # declaration modifier, e.g. #KEEP, #NOEXPORT, #EXPORT
 

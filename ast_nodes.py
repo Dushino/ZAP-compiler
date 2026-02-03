@@ -101,6 +101,10 @@ class Declaration(ASTNode):
     declarators: List[Declarator]
     is_static: bool = False  # True if STATIC modifier was present
     is_port: bool = False    # True if PORT modifier was present (hardware port-mapped variable)
+    # Declaration modifiers
+    keep: bool = False      # #KEEP prevents dead-code elimination of unused globals
+    noexport: bool = False  # #NOEXPORT prevents exporting from a module
+    export: bool = False    # #EXPORT forces export even in non-module files
 
     def __repr__(self) -> str:
         c = "const " if self.is_const else ""
@@ -252,6 +256,10 @@ class ProcDecl:
     params: list[Parameter]
     locals: list[Declaration]
     body: list
+    # Declaration modifiers
+    keep: bool = False      # #KEEP prevents dead-code elimination of unused proc
+    noexport: bool = False  # #NOEXPORT prevents exporting from a module
+    export: bool = False    # #EXPORT forces export even in non-module files
 
 
 @dataclass(frozen=True)
@@ -273,6 +281,10 @@ class FuncDecl:
     params: list[Parameter]
     locals: list[Declaration]
     body: list                # statementy
+    # Declaration modifiers
+    keep: bool = False      # #KEEP prevents dead-code elimination of unused func
+    noexport: bool = False  # #NOEXPORT prevents exporting from a module
+    export: bool = False    # #EXPORT forces export even in non-module files
 
 
 @dataclass(frozen=True)
@@ -298,6 +310,8 @@ class Program:
     procs: list
     # funcs: list
     debug: dict | None = None
+    # Exports collected during module resolution
+    exports: set[str] | None = None
 
 
 @dataclass()

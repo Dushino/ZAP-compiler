@@ -112,6 +112,10 @@ class Symbol:
     array_dims: Optional[List[int]] = None  # [10, 20, 30] for 3D array
     is_static: bool = False         # true → static local variable (initialized once at program start)
     is_port: bool = False           # true → PORT modifier (hardware port-mapped variable)
+    # Declaration modifiers
+    is_keep: bool = False           # #KEEP - don't dead-strip this symbol
+    noexport: bool = False          # #NOEXPORT - do not export this symbol from .module
+    export: bool = False            # #EXPORT - force export even from non-module
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""

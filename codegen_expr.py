@@ -1820,6 +1820,16 @@ class CodeGen:
             self.emit(f"; Optimized out unused procedures (definitions and calls removed): {removed}")
         self.emit("; ==============================")
         self.emit("")
+        # Emit exports (if any) as an assembler comment so the compiler's
+        # label-cleanup step can see them, but do NOT emit .export directives
+        # into assembly (the compiler emits a single .s file and .export isn't
+        # meaningful here). Downstream `label_cleanup` recognizes this comment.
+        exports = getattr(self, 'exports', None)
+        if exports:
+            exports_list = ", ".join(sorted(exports))
+            # Comment format: ; ZAP_EXPORTS name, name
+            self.emit(f"; ZAP_EXPORTS {exports_list}")
+            self.emit("")
         self.emit(".DEBUGINFO +  ; Enable debug information for symbol names")
         self.emit("")
         #self.emit(".include \"macros.inc\"")

@@ -42,7 +42,7 @@
             "patterns": [
                 {
                     "name": "constant.other.zap",
-                    "match": "#(?i)(PORT|RD|WR|KEEP|NOEXPORT)"
+                    "match": "#(?i)(PORT|RD|WR|KEEP|EXPORT|NOEXPORT)"
                 },
                 {
                     "name": "keyword.operator.address.zap",

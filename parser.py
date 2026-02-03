@@ -277,6 +277,22 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
 
+        # Optional declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        keep = False
+        noexport = False
+        export = False
+        while self.cur.type == TOK_DECLMOD:
+            val = self.cur.value.upper()
+            if val == 'KEEP':
+                keep = True
+            elif val == 'NOEXPORT':
+                noexport = True
+            elif val == 'EXPORT':
+                export = True
+            else:
+                self.error(f"Unsupported declaration modifier '{val}'")
+            self.advance()
+
         def _is_declaration_start():
             """Check if current position starts a declaration"""
             if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
@@ -314,7 +330,7 @@ class Parser:
         self.expect(TOK_KEYWORD, "END")
 
         self.current_proc_name = None
-        return ProcDecl(name, params, locals, body)
+        return ProcDecl(name, params, locals, body, keep=keep, noexport=noexport, export=export)
 
     def parse_func(self):
         start_line = self.cur.line
@@ -363,6 +379,22 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
         
+        # Optional declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        keep = False
+        noexport = False
+        export = False
+        while self.cur.type == TOK_DECLMOD:
+            val = self.cur.value.upper()
+            if val == 'KEEP':
+                keep = True
+            elif val == 'NOEXPORT':
+                noexport = True
+            elif val == 'EXPORT':
+                export = True
+            else:
+                self.error(f"Unsupported declaration modifier '{val}'")
+            self.advance()
+        
         while self.cur.type in (TOK_TYPE, TOK_TYPEMOD) or (self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names):
             decl = self.parse_declaration()
             for d in decl.declarators:
@@ -380,7 +412,7 @@ class Parser:
         line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.proc_src[name] = (self.filename, start_line, start_col, line_text)
 
-        return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body)
+        return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body, keep=keep, noexport=noexport, export=export)
 
     def parse_parameter(self):
         # type: can be TYPE (byte/word) or STRUCT_NAME, optionally const
@@ -589,12 +621,31 @@ class Parser:
             self.advance()
             declarators.append(parse_declarator())
 
+        # Optional trailing declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        keep = False
+        noexport = False
+        export = False
+        while self.cur.type == TOK_DECLMOD:
+            val = self.cur.value.upper()
+            if val == 'KEEP':
+                keep = True
+            elif val == 'NOEXPORT':
+                noexport = True
+            elif val == 'EXPORT':
+                export = True
+            else:
+                self.error(f"Unsupported declaration modifier '{val}'")
+            self.advance()
+
         return Declaration(
             is_const=is_const,
             type=TypeNode(type_tok.value, is_pointer),
             declarators=declarators,
             is_static=is_static,
-            is_port=is_port
+            is_port=is_port,
+            keep=keep,
+            noexport=noexport,
+            export=export,
         )
 
 

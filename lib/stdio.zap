@@ -25,10 +25,10 @@
 module stdio
 
 .ifdef ATARI
-    .include "lib/atari_stdio.zap"
+    .include "./atari/atari_stdio.zap"
 .endif
 
 .ifdef SBC
-    .include "lib/sbc_stdio.zap"   
+    .include "./sbc/sbc_stdio.zap"   
 .endif
 

@@ -22,7 +22,7 @@
 */
 
 
-module stdio
+.module "stdio"
 
 .ifdef ATARI
     .include "./atari/atari_stdio.zap"
@@ -32,3 +32,5 @@ module stdio
     .include "./sbc/sbc_stdio.zap"   
 .endif
 
+PROC main1()
+End

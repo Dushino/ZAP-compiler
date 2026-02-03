@@ -5,7 +5,8 @@ JUMP_RE = re.compile(r'\b(JMP|JSR|BEQ|BNE|BCC|BCS|BRA)\s+(\w+)\b')
 # References to labels in immediates like LDA #<LABEL or LDX #>LABEL
 IMM_LO_RE = re.compile(r'#<\s*(\w+)')
 IMM_HI_RE = re.compile(r'#>\s*(\w+)')
-EXPORT_RE = re.compile(r'\.export\s+(.+)')
+# Comment-based exports emitted by the compiler to avoid adding .export directives
+ZAP_EXPORT_RE = re.compile(r';\s*ZAP_EXPORTS\s+(.+)', re.IGNORECASE)
 
 def cleanup_labels(lines: list[str]) -> list[str]:
     # Runtime math routines should always be kept even if not referenced
@@ -26,9 +27,10 @@ def cleanup_labels(lines: list[str]) -> list[str]:
         m3 = IMM_HI_RE.search(line)
         if m3:
             used.add(m3.group(1))
-        m4 = EXPORT_RE.search(line)
-        if m4:
-            exports = m4.group(1)
+        # Compiler comment-based exports (preferred)
+        m = ZAP_EXPORT_RE.search(line)
+        if m:
+            exports = m.group(1)
             for sym in re.split(r'[ ,]+', exports.strip()):
                 if sym:
                     used.add(sym)

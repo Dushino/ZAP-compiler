@@ -22,7 +22,7 @@
     * fputc     zápis jednoho znaku do souboru
 */
 
-; .module atari_stdio
+.module "atari_stdio"
 
 ; ATARI colors
 const byte COLOR_BLACK   = $00
@@ -58,7 +58,7 @@ const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
 ; initialize internals for faster screen IO
-proc CONSTRUCTOR()  ; Fixme: #KEEP #NOEXPORT
+proc CONSTRUCTOR() ; as it has #KEEP and #NOEXPORT
     byte ^dlstart @560      ; system storage for DL address
     word ^dlptr             ; pointer into display list
     byte ^vram
@@ -75,24 +75,22 @@ end
     COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
 */
-; Fixme: .segment directives should be inside ASM block
-proc atari_file_data_area() ; Fixme: #KEEP #NOEXPORT
-    .segment "COMHEADER"
+proc atari_file_data_area() #KEEP #NOEXPORT    
     asm
+        .segment "COMHEADER"
         .import __RAM_START__, __RAM_LAST__
         .word $FFFF     		; second block marker
         .word __RAM_START__		; RUN address
         .word __RAM_LAST__    	; last byte  
-    end
-    .segment "AUTOSTRT"
-    asm
+
+        .segment "AUTOSTRT"
         .import __RAM_START__, __RAM_LAST__
         .word $FFFF     		; second block marker
         .word __RAM_START__		; RUN address
         .word __RAM_LAST__    	; last byte
-        
+
+        .segment "CODE"        
     end
-    .segment "CODE"
 end
 
 
@@ -121,14 +119,3 @@ func byte getchar()
     return ch
 end
 
-
-proc main()
-    byte ch
-    
-    atari_file_data_area()
-    cls()
-    PLAYF2 = COLOR_GREEN3 + 4
-    ch = getchar()
-    PLAYF4 = COLOR_BLUE1  + 2
-
-end

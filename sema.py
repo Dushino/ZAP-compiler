@@ -338,7 +338,10 @@ class DeclarationAnalyzer:
                     is_volatile=False,
                     proc_name=getattr(self.symtab, '_proc_name', ''),
                     array_dims=None,
-                    is_port=decl.is_port
+                    is_port=decl.is_port,
+                    is_keep=getattr(decl, 'keep', False),
+                    noexport=getattr(decl, 'noexport', False),
+                    export=getattr(decl, 'export', False),
                 )
                 try:
                     self.symtab.define(sym)
@@ -368,7 +371,10 @@ class DeclarationAnalyzer:
                         is_volatile=False,
                         proc_name=getattr(self.symtab, '_proc_name', ''),
                         array_dims=array_dims if array_dims else None,
-                        is_port=decl.is_port
+                        is_port=decl.is_port,
+                        is_keep=getattr(decl, 'keep', False),
+                        noexport=getattr(decl, 'noexport', False),
+                        export=getattr(decl, 'export', False),
                     )
                     try:
                         self.symtab.define(sym)
@@ -393,7 +399,10 @@ class DeclarationAnalyzer:
                         is_volatile=False,
                         proc_name=getattr(self.symtab, '_proc_name', ''),
                         array_dims=None,
-                        is_port=decl.is_port
+                        is_port=decl.is_port,
+                        is_keep=getattr(decl, 'keep', False),
+                        noexport=getattr(decl, 'noexport', False),
+                        export=getattr(decl, 'export', False),
                     )
                     try:
                         self.symtab.define(sym)
@@ -425,7 +434,10 @@ class DeclarationAnalyzer:
                     is_volatile=False,
                     proc_name=getattr(self.symtab, '_proc_name', ''),
                     array_dims=array_dims if array_dims else None,
-                    is_port=decl.is_port
+                    is_port=decl.is_port,
+                    is_keep=getattr(decl, 'keep', False),
+                    noexport=getattr(decl, 'noexport', False),
+                    export=getattr(decl, 'export', False),
                 )
                 try:
                     self.symtab.define(sym)
@@ -562,7 +574,10 @@ class DeclarationAnalyzer:
             proc_name=getattr(self.symtab, '_proc_name', ''),
             array_dims=array_dims if array_dims else None,
             is_static=decl.is_static or d.is_static,
-            is_port=decl.is_port
+            is_port=decl.is_port,
+            is_keep=getattr(decl, 'keep', False),
+            noexport=getattr(decl, 'noexport', False),
+            export=getattr(decl, 'export', False),
         )
 
         try:

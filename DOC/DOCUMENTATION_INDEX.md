@@ -239,7 +239,7 @@ Start here if you're just beginning:
 | Control Flow | `if`, `then`, `else`, `endif` |
 | Loops | `while`, `for`, `to`, `step`, `next`, `break` |
 | Types | `byte`, `word` |
-| Modifiers | `const` |
+| Modifiers | `const`, `#KEEP`, `#NOEXPORT`, `#EXPORT` |
 | Directives | `.module`, `.include`, `.segment` |
 | Assembly | `asm`, `end` |
 

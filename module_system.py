@@ -88,9 +88,13 @@ class ModuleSystem:
         try:
             program = parser.parse_program()
         except Exception as e:
-            # Attach source text for better error reporting if it's a CompileError subtype
+            # Attach source text and filename for better error reporting if it's a CompileError subtype
             try:
                 setattr(e, "source_text", cleaned_source)
+            except Exception:
+                pass
+            try:
+                setattr(e, "filename", filepath)
             except Exception:
                 pass
             raise
@@ -179,7 +183,7 @@ class ModuleSystem:
             functions = [p for p in program.procs if isinstance(p, FuncDecl)]
             top_level_items = list(program.procs)
             
-            # Create module info
+            # Create module info (includes will be resolved to absolute paths below)
             module_info = ModuleInfo(
                 filepath=full_path,
                 is_module=is_module,
@@ -188,15 +192,16 @@ class ModuleSystem:
                 procedures=procedures,
                 functions=functions,
                 top_level_items=top_level_items,
-                includes=includes,
+                includes=[],
                 defined_symbols=defined_symbols,
                 program=program
             )
-            
+
             # Store in cache
             self.loaded_modules[full_path] = module_info
-            
-            # Load dependencies
+
+            # Load and resolve dependencies, store absolute paths
+            resolved_includes = []
             for inc in includes:
                 # Resolve include path relative to current file's directory
                 inc_dir = os.path.dirname(full_path)
@@ -204,7 +209,12 @@ class ModuleSystem:
                     inc_path = self._find_file(inc, inc_dir)
                 except FileNotFoundError as e:
                     raise Exception(f"Error loading include '{inc}' from {full_path}: {e}")
+                # Ensure dependency is loaded
                 self.load_module(inc_path)
+                resolved_includes.append(inc_path)
+
+            # Replace includes with resolved absolute paths
+            module_info.includes = resolved_includes
             
             return module_info
             
@@ -234,6 +244,9 @@ class ModuleSystem:
         # Process in dependency order (includes first, then main)
         processed = set()
         
+        # Collect exports during module resolution
+        all_exports: set[str] = set()
+
         def collect_from_module(module_path: str):
             if module_path in processed:
                 return
@@ -267,10 +280,11 @@ class ModuleSystem:
                     setattr(err, "source_text", source_text)
                 raise err
             
-            # First process dependencies
-            for inc in module_info.includes:
-                inc_dir = os.path.dirname(module_path)
-                inc_path = os.path.join(inc_dir, inc)
+            # First process dependencies (module_info.includes contains resolved absolute paths)
+            for inc_path in module_info.includes:
+                # If includes are not absolute for some reason, resolve relative to the module file
+                if not os.path.isabs(inc_path):
+                    inc_path = os.path.abspath(os.path.join(os.path.dirname(module_path), inc_path))
                 if inc_path in self.loaded_modules:
                     collect_from_module(inc_path)
             
@@ -278,13 +292,22 @@ class ModuleSystem:
             if module_info.defined_symbols:
                 all_defined_symbols.update(module_info.defined_symbols)
             
-            # Add this module's exports
+            # Add this module's declarations and collect exports for variables
             for decl in module_info.declarations:
                 for d in decl.declarators:
                     name = d.name
                     if name in seen_decls:
                         raise_dup(f"Variable '{name}' already defined", name, decl_src.get(name))
                     seen_decls.add(name)
+                    # Export rules for variables:
+                    # - In a .module file, export all variables except those with #NOEXPORT
+                    # - In non-module file, export only those variables marked with #EXPORT
+                    if module_info.is_module:
+                        if not getattr(decl, 'noexport', False):
+                            all_exports.add(name)
+                    else:
+                        if getattr(decl, 'export', False):
+                            all_exports.add(name)
                 all_decls.append(decl)
 
             # Merge top-level items, deduping procs/funcs by name, preserving directives
@@ -297,6 +320,15 @@ class ModuleSystem:
                         raise_dup(f"Procedure '{name}' conflicts with existing function", name, proc_src.get(name))
                     seen_procs.add(name)
                     all_procs.append(item)
+                    # Export rules:
+                    # - In a .module file, export all procs except those with #NOEXPORT
+                    # - In non-module file, export only those procs marked with #EXPORT
+                    if module_info.is_module:
+                        if not getattr(item, 'noexport', False):
+                            all_exports.add(name)
+                    else:
+                        if getattr(item, 'export', False):
+                            all_exports.add(name)
                 elif isinstance(item, FuncDecl):
                     name = item.name
                     if name in seen_funcs:
@@ -305,6 +337,13 @@ class ModuleSystem:
                         raise_dup(f"Function '{name}' conflicts with existing procedure", name, proc_src.get(name))
                     seen_funcs.add(name)
                     all_procs.append(item)
+                    # Same export rules for functions
+                    if module_info.is_module:
+                        if not getattr(item, 'noexport', False):
+                            all_exports.add(name)
+                    else:
+                        if getattr(item, 'export', False):
+                            all_exports.add(name)
                 else:
                     # e.g., SegmentDirective or other future top-level items
                     all_procs.append(item)
@@ -313,6 +352,8 @@ class ModuleSystem:
         collect_from_module(os.path.abspath(main_file))
         
         final_program = Program(all_decls, all_procs)
+        # Attach computed exports set for later stages (codegen/cleanup)
+        final_program.exports = all_exports
 
         # Aggregate debug maps from all modules
         agg_stmt = {}

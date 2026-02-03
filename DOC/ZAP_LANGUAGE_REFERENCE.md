@@ -284,6 +284,27 @@ proc allocate_handle()
 end
 ```
 
+#### Declaration Modifiers (#KEEP, #NOEXPORT, #EXPORT) 🔖
+
+Three declaration modifiers can be attached to top-level declarations, procedures, and functions to control exporting and dead-code elimination. Modifiers are written after the declaration header and are case-insensitive. Examples:
+
+```zap
+proc atari_file_data_area() #KEEP #NOEXPORT
+byte KEEPVAR #KEEP
+const byte CVAL = 10 #EXPORT
+```
+
+- `#KEEP` — Prevents the symbol (procedure, function, global variable, or const) from being removed by dead-code elimination even if it is not referenced elsewhere.
+- `#NOEXPORT` — When the file is declared as a `.module`, this prevents the symbol from being exported to files that include the module.
+- `#EXPORT` — When the file is *not* a `.module`, this forces the symbol to be exported (useful for small libraries implemented in plain files).
+
+Rules and notes:
+- In a `.module` file, **all** top-level symbols are exported by default except those explicitly marked `#NOEXPORT`.
+- In non-module files, **no** symbols are exported by default; use `#EXPORT` to explicitly export a symbol.
+- `#KEEP` does **not** imply exporting; use `#EXPORT` if you want the symbol to be visible to includes.
+- Modifiers may be combined (e.g., `#KEEP #NOEXPORT`) and are parsed in any order.
+- These modifiers apply to global declarations (variables, consts) and declarations of `proc`/`func`.
+
 #### Pointer Types
 
 ```zap

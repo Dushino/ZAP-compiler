@@ -218,14 +218,17 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
     global_symtab._symbols = {
         name: sym
         for name, sym in global_symtab._symbols.items()
-        if getattr(sym, "proc_name", "") != "" or name in referenced_globals or name in fixed_globals or getattr(sym, "init", None) is not None
+        if getattr(sym, "proc_name", "") != "" or name in referenced_globals or name in fixed_globals or getattr(sym, "init", None) is not None or getattr(sym, 'is_keep', False)
     }
 
     # Filter procs/funcs
-    pruned_procs = [p for p in analyzed_procs if p.ast.name in reachable_procs]
-    pruned_funcs = [f for f in analyzed_funcs if f.ast.name in reachable_funcs]
+    pruned_procs = [p for p in analyzed_procs if p.ast.name in reachable_procs or getattr(p.ast, 'keep', False)]
+    pruned_funcs = [f for f in analyzed_funcs if f.ast.name in reachable_funcs or getattr(f.ast, 'keep', False)]
 
-    removed_procs = sorted(all_proc_names - reachable_procs)
+    removed_procs = sorted(
+        name for name in all_proc_names
+        if name not in reachable_procs and not (proc_map.get(name) and getattr(proc_map[name].ast, 'keep', False))
+    )
 
     return pruned_procs, pruned_funcs, referenced_globals, removed_procs
 
@@ -488,6 +491,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         program, analyzed_procs, analyzed_funcs, global_symtab
     )
     analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
+
     # Build parameter specs for procedures and functions (name -> [(param, width, default_value)])
     def _build_param_specs_procs(procs):
         specs: dict[str, list[tuple[str, int, object]]] = {}
@@ -524,6 +528,12 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         pruned_procs=removed_procs,
         struct_registry=struct_registry,
     )
+    # Recompute exports to reflect pruned (removed) procs/funcs and globals
+    original_exports = set(getattr(program, 'exports', set()) or set())
+    final_proc_names = set(ap.ast.name for ap in analyzed_procs)
+    final_func_names = set(af.ast.name for af in analyzed_funcs)
+    final_global_names = set(sym.name for sym in global_symtab)
+    cg.exports = {name for name in original_exports if (name in final_proc_names or name in final_func_names or name in final_global_names)}
 
     # Populate fixed-address labels EARLY (before code generation) to protect hardware variables
     # from peephole optimization. Fixed-address variables may have side effects on read/write.
@@ -579,7 +589,10 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     name=ap.ast.name,
                     params=ap.ast.params,
                     locals=ap.ast.locals,
-                    body=dce_block(ap.ast.body)
+                    body=dce_block(ap.ast.body),
+                    keep=getattr(ap.ast, 'keep', False),
+                    noexport=getattr(ap.ast, 'noexport', False),
+                    export=getattr(ap.ast, 'export', False),
                 )
         elif isinstance(p, FuncDecl):
             af = next((af for af in analyzed_funcs if af.ast.name == p.name), None)
@@ -589,7 +602,10 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     ret_type=af.ast.ret_type,
                     params=af.ast.params,
                     locals=af.ast.locals,
-                    body=dce_block(af.ast.body)
+                    body=dce_block(af.ast.body),
+                    keep=getattr(af.ast, 'keep', False),
+                    noexport=getattr(af.ast, 'noexport', False),
+                    export=getattr(af.ast, 'export', False),
                 )
     
     # Update program.debug and CodeGen's stmt_src with new mappings after all DCE
