@@ -50,12 +50,14 @@ make clean
 
 ```batch
 # Compile a Zap! program to assembly
-python compiler.py program.zap -o program.s
+zapc -6502 -D ATARI -I lib -o program.s program.zap
+
 
 # Assemble and link (using cc65 tools)
-ca65 -I lib -t none --cpu 65c02 -g program.s -o program.o
-ca65 -I lib -t none --cpu 65c02 -g lib\atari\exehdr.s -o exehdr.o
+ca65 -t none --cpu 65c02 -g program.s -o program.o
 ld65 -C cfg\my_atari.cfg program.o exehdr.o -o program.com
+atari800 program.com
+
 
 # Run tests
 make.bat tests
@@ -152,23 +154,23 @@ python compiler.py program.zap --peepholes -D SBC_PLATFORM -o program.s
 
 ```bash
 # Basic compilation to stdout
-python3 compiler.py hello.zap
+zapc hello.zap
 
 # Compile to file
-python3 compiler.py hello.zap -o hello.s
+zapc hello.zap -o hello.s
 
 # Compile for original Atari (NMOS 6502) with optimizations
-python3 compiler.py game.zap --6502 --peepholes -o game.s
+zapc game.zap --6502 --peepholes -o game.s
 
 # Compile for SBC system (WDC 65C02, default)
-python3 compiler.py app.zap --peepholes -o app.s
+zapc app.zap --peepholes -o app.s
 
 # Conditional compilation for different platforms
-python3 compiler.py app.zap -D ATARI --6502 -o app_atari.s
-python3 compiler.py app.zap -D SBC --peepholes -o app_sbc.s
+zapc app.zap -D ATARI --6502 -o app_atari.s
+zapc app.zap -D SBC --peepholes -o app_sbc.s
 
 # Debug build with verbose output
-python3 compiler.py app.zap -D DEBUG -D VERBOSE -o app_debug.s
+zapc app.zap -D DEBUG -D VERBOSE -o app_debug.s
 ```
 
 ### Module constructors example
