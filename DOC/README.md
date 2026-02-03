@@ -16,6 +16,7 @@ ZAP! compiles ZAP! source code into optimized 6502 assembly for Atari 8-bit comp
 ### Language Support
 - Syntax is heavily inspired by Action! and C programming languages
 - Module system with `.module` and `.include` directives
+- Module constructors: optional `PROC Constructor()` in module files (run at program init; treated as `#KEEP #NOEXPORT` and called automatically)
 - Multi-file compilation
 - Inline assembly support
 - 65C02 instruction set support
@@ -169,6 +170,19 @@ python3 compiler.py app.zap -D SBC --peepholes -o app_sbc.s
 # Debug build with verbose output
 python3 compiler.py app.zap -D DEBUG -D VERBOSE -o app_debug.s
 ```
+
+### Module constructors example
+
+```zap
+; audio.zap (module)
+.module "audio"
+
+PROC Constructor()
+    ; Initialize audio tables and hardware registers
+END
+```
+
+When `audio` is included, the compiler emits a call to the module's constructor (mangled as `JSR __CONSTRUCTOR__audio`) immediately after global/static initializers, ensuring proper initialization order before `main()`.
 
 ## Build System
 
