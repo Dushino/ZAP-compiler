@@ -3574,8 +3574,9 @@ class CodeGen:
             # Get the type of the struct we're accessing
             parent_type = self.tc_check(current_expr.object).sem_type
             
+            from errors import SemanticError
             if not parent_type.is_struct or parent_type.struct_info is None:
-                raise Exception(f"Field access on non-struct type: {parent_type.base}")
+                raise SemanticError(f"Field access on non-struct type: {parent_type.base}", node=current_expr)
             
             struct_info = parent_type.struct_info
             
@@ -3587,7 +3588,7 @@ class CodeGen:
                     break
             
             if field_info is None:
-                raise Exception(f"Field '{current_expr.field}' not found in struct '{struct_info.name}'")
+                raise SemanticError(f"Field '{current_expr.field}' not found in struct '{struct_info.name}'", node=current_expr)
             
             total_offset += field_info.offset
             current_expr = current_expr.object

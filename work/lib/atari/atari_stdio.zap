@@ -60,12 +60,12 @@ const byte MAX_YPOS = 24
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() ; as it had #KEEP and #NOEXPORT
     byte ^dlstart @560      ; system storage for DL address
-    word ^dlptr             ; pointer into display list
+    byte ^dlptr             ; pointer into display list
     byte ^vram
         
     dlptr = dlstart         ; copy display list address into ZP pointer        
-;    dlptr = dlptr + 2       ; skip first four bytes (2xWORD) of display list - Fixme: Reports wrong error on wrong line
-;    vram = dlptr^           ; get screen memory address from display list
+    dlptr = dlptr + 4       ; skip first four bytes of display list - Fixme: Reports wrong error on wrong line
+    vram = dlptr^           ; get screen memory address from display list
     
     vram^ = 1
 end

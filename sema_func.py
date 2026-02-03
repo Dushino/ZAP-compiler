@@ -77,7 +77,12 @@ class FuncAnalyzer:
                 proc_name=func.name,
                 array_dims=None
             )
-            local_symtab.define(sym)
+            try:
+                local_symtab.define(sym)
+            except SemanticError as e:
+                # Attach parameter source location
+                raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
+
         
         decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table, global_symtab=global_symtab)
         for d in func.locals:

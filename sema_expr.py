@@ -29,7 +29,7 @@ class ExprTypeChecker:
             try:
                 sym = self.symtab.lookup(expr.name)
             except KeyError:
-                raise SemanticError(f"Variable '{expr.name}' is not defined")
+                raise SemanticError(f"Variable '{expr.name}' is not defined", node=expr)
             if sym.is_array:
                 # Array addresses are 16-bit pointers even if they point to BYTE
                 # But preserve struct information
@@ -54,7 +54,7 @@ class ExprTypeChecker:
         if isinstance(expr, DerefExpr):
             base = self.check(expr.pointer)
             if base.kind != ExprKind.ADDR or not base.sem_type.is_pointer:
-                raise SemanticError("Cannot dereference non-pointer")
+                raise SemanticError("Cannot dereference non-pointer", node=expr)
             
             # When dereferencing, preserve struct information if the pointed-to type is a struct
             result_type = SemType(
@@ -68,7 +68,7 @@ class ExprTypeChecker:
         if isinstance(expr, SubscriptExpr):
             arr_t = self.check(expr.array)
             if arr_t.kind != ExprKind.ADDR:
-                raise SemanticError("Subscript requires array address")
+                raise SemanticError("Subscript requires array address", node=expr)
             
             # Check if index is a constant and validate bounds
             if isinstance(expr.index, IntLiteral):
@@ -172,7 +172,7 @@ class ExprTypeChecker:
                 # Check for division/modulo by zero
                 if op in {BinOp.DIV, BinOp.MOD} and isinstance(expr.right, IntLiteral):
                     if expr.right.value == 0:
-                        raise SemanticError("Division by zero")
+                        raise SemanticError("Division by zero", node=expr.right)
                 
                 if lt.kind == ExprKind.ADDR or rt.kind == ExprKind.ADDR:
                     if op in (BinOp.ADD, BinOp.SUB):
@@ -180,7 +180,7 @@ class ExprTypeChecker:
                             return ExprType(lt.sem_type, ExprKind.ADDR)
                         if lt.kind == ExprKind.VALUE and rt.kind == ExprKind.ADDR:
                             return ExprType(rt.sem_type, ExprKind.ADDR)
-                    raise SemanticError("Invalid pointer arithmetic")
+                    raise SemanticError("Invalid pointer arithmetic", node=expr)
 
                 return ExprType(promote(lt.sem_type, rt.sem_type), ExprKind.VALUE)
 
@@ -190,19 +190,19 @@ class ExprTypeChecker:
                 BinOp.LT, BinOp.GT, BinOp.LE, BinOp.GE
             }:
                 if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
-                    raise SemanticError("Comparison requires values")
+                    raise SemanticError("Comparison requires values", node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
             # logické
             if op in {BinOp.LAND, BinOp.LOR}:
                 if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
-                    raise SemanticError("Logical operator requires values")
+                    raise SemanticError("Logical operator requires values", node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
             # bitové
             if op in {BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LSHIFT, BinOp.RSHIFT}:
                 if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
-                    raise SemanticError("Bitwise operator requires values")
+                    raise SemanticError("Bitwise operator requires values", node=expr)
                 return ExprType(promote(lt.sem_type, rt.sem_type), ExprKind.VALUE)
 
         # unární OP
@@ -223,7 +223,7 @@ class ExprTypeChecker:
                     # Struct field address - valid
                     pass
                 else:
-                    raise SemanticError("Cannot take address of this expression")
+                    raise SemanticError("Cannot take address of this expression", node=expr)
                 
                 # Address-of always returns WORD pointer to the operand's type
                 base_type = operand_t.sem_type.base
@@ -240,7 +240,7 @@ class ExprTypeChecker:
             if t.kind == ExprKind.LVALUE:
                 t = ExprType(t.sem_type, ExprKind.VALUE)
             if t.kind != ExprKind.VALUE:
-                raise SemanticError("Unary operator requires value")
+                raise SemanticError("Unary operator requires value", node=expr)
             
             # For bitwise NOT (~), preserve the operand type
             if expr.op.value == "~":
@@ -256,14 +256,15 @@ class ExprTypeChecker:
             if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:
                 raise SemanticError(
                     f"Function '{expr.name}' expects {fs.param_count} parameters, "
-                    f"but {len(expr.args)} were provided"
+                    f"but {len(expr.args)} were provided",
+                    node=expr
                 )
             return ExprType(fs.ret_type, ExprKind.VALUE)
 
         # struct field access: obj.field or ptr^.field
         if isinstance(expr, FieldAccess):
             if not self.struct_registry:
-                raise SemanticError("Struct registry not available")
+                raise SemanticError("Struct registry not available", node=expr)
             
             # Check the object type
             obj_type = self.check(expr.object)
@@ -271,19 +272,19 @@ class ExprTypeChecker:
             # For deref field access (ptr^.field), object is a DerefExpr which is LVALUE of struct type
             # For direct field access (obj.field), object can be LVALUE or VALUE of struct type
             if obj_type.kind not in (ExprKind.VALUE, ExprKind.LVALUE):
-                raise SemanticError("Field access requires struct value or lvalue")
+                raise SemanticError("Field access requires struct value or lvalue", node=expr)
             
             base_type_name = obj_type.sem_type.base
             
             # Look up struct definition
             struct_info = self.struct_registry.lookup(base_type_name.upper())
             if not struct_info:
-                raise SemanticError(f"'{base_type_name}' is not a defined struct")
+                raise SemanticError(f"'{base_type_name}' is not a defined struct", node=expr)
             
             # Look up field
             field_info = struct_info.get_field(expr.field.upper())
             if not field_info:
-                raise SemanticError(f"Struct '{base_type_name}' has no field '{expr.field}'")
+                raise SemanticError(f"Struct '{base_type_name}' has no field '{expr.field}'", node=expr)
             
             # Create field type, preserving struct information if the field is a struct
             field_sem_type = SemType(field_info.base_type, field_info.is_pointer)
@@ -302,7 +303,8 @@ class ExprTypeChecker:
 
         # chyba
         raise SemanticError(
-            f"Unsupported expression type: {type(expr).__name__}"
+            f"Unsupported expression type: {type(expr).__name__}",
+            node=expr
         )
 
     def _check_array_bounds(self, subscript_expr: SubscriptExpr, index_value: int):
@@ -329,7 +331,7 @@ class ExprTypeChecker:
         
         # Check negative indices
         if index_value < 0:
-            raise SemanticError(f"Array index cannot be negative: {index_value}")
+            raise SemanticError(f"Array index cannot be negative: {index_value}", node=subscript_expr)
         
         # For regular array identifiers
         if base_name and not is_field_access:
@@ -344,13 +346,15 @@ class ExprTypeChecker:
                         max_size = arr_sym.array_dims[dim_index]
                         if max_size is not None and index_value >= max_size:
                             raise SemanticError(
-                                f"Array index {index_value} is out of bounds for array dimension {dim_index + 1} with size {max_size}"
+                                f"Array index {index_value} is out of bounds for array dimension {dim_index + 1} with size {max_size}",
+                                node=subscript_expr
                             )
                     elif arr_sym.array_len and dim_index == 0:
                         # Old 1D array format with array_len
                         if index_value >= arr_sym.array_len:
                             raise SemanticError(
-                                f"Array index {index_value} is out of bounds for array dimension 1 with size {arr_sym.array_len}"
+                                f"Array index {index_value} is out of bounds for array dimension 1 with size {arr_sym.array_len}",
+                                node=subscript_expr
                             )
             except (KeyError, AttributeError):
                 # Symbol not found, skip bounds check (error will be caught elsewhere)
@@ -377,7 +381,8 @@ class ExprTypeChecker:
                                 max_size = field_info.array_sizes[dim_index]
                                 if max_size is not None and index_value >= max_size:
                                     raise SemanticError(
-                                        f"Array index {index_value} is out of bounds for struct field dimension {dim_index} with size {max_size}"
+                                        f"Array index {index_value} is out of bounds for struct field dimension {dim_index} with size {max_size}",
+                                        node=subscript_expr
                                     )
             except (KeyError, AttributeError, SemanticError) as e:
                 # Re-raise SemanticError, skip others

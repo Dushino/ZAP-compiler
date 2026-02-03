@@ -131,7 +131,12 @@ class ProcAnalyzer:
                 proc_name=proc.name,
                 array_dims=None
             )
-            local_symtab.define(sym)
+            try:
+                local_symtab.define(sym)
+            except SemanticError as e:
+                # Attach parameter source location
+                raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
+
 
         # Validate parameter ordering: parameters with defaults must come after those without
         has_default = False

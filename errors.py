@@ -1,11 +1,16 @@
 import sys
 
 class CompileError(Exception):
-    def __init__(self, message, line=None, col=None):
+    def __init__(self, message, line=None, col=None, node=None):
         super().__init__(message)
         self.message = message
-        self.line = line
-        self.col = col
+        # If a node with position info was provided, prefer that
+        if node is not None:
+            line = getattr(node, "line", line)
+            col = getattr(node, "col", col)
+        # Normalize the stored values: only positive ints are meaningful
+        self.line = line if isinstance(line, int) and line >= 1 else None
+        self.col = col if isinstance(col, int) and col >= 1 else None
         # Optional extra context
         self.filename: str | None = None
         self.source_text: str | None = None

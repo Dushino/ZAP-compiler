@@ -208,7 +208,10 @@ class ModuleSystem:
                     # Replace with a new IncbinDirective containing the resolved path
                     program.procs[i] = IncbinDirective(resolved_path)
                 except FileNotFoundError as e:
-                    raise Exception(f"Error resolving .incbin '{item.filename}' in {filepath}: {e}")
+                    err = SemanticError(f"Error resolving .incbin '{item.filename}' in {filepath}: {e}")
+                    err.filename = filepath
+                    err.source_text = '\n'.join(program.debug.get('source_lines', [])) if program and getattr(program, 'debug', None) else None
+                    raise err
     
     def _find_file(self, filename: str, relative_to_dir: str) -> str:
         """
@@ -256,7 +259,10 @@ class ModuleSystem:
         
         # Check for circular dependencies
         if full_path in self.include_stack:
-            raise Exception(f"Circular dependency detected: {' -> '.join(self.include_stack + [full_path])}")
+            msg = f"Circular dependency detected: {' -> '.join(self.include_stack + [full_path])}"
+            err = SemanticError(msg)
+            err.filename = full_path
+            raise err
         
         self.include_stack.append(full_path)
         
@@ -312,7 +318,9 @@ class ModuleSystem:
                 try:
                     inc_path = self._find_file(inc, inc_dir)
                 except FileNotFoundError as e:
-                    raise Exception(f"Error loading include '{inc}' from {full_path}: {e}")
+                    err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e}")
+                    err.filename = full_path
+                    raise err
                 # Ensure dependency is loaded
                 self.load_module(inc_path)
                 resolved_includes.append(inc_path)

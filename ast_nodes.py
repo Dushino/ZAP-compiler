@@ -135,6 +135,8 @@ class StructDef(ASTNode):
     """Struct type definition"""
     name: str
     fields: List[StructField]
+    line: int = 0
+    col: int = 0
 
     def __repr__(self) -> str:
         fields_str = ", ".join(repr(f) for f in self.fields)
@@ -148,6 +150,8 @@ class Expr(ASTNode):
 @dataclass(frozen=True)
 class IntLiteral(Expr):
     value: int
+    line: int = 0
+    col: int = 0
 
     def __repr__(self) -> str:
         return str(self.value)
@@ -156,6 +160,8 @@ class IntLiteral(Expr):
 @dataclass(frozen=True)
 class Identifier(Expr):
     name: str
+    line: int = 0
+    col: int = 0
 
     def __repr__(self) -> str:
         return self.name
@@ -163,6 +169,8 @@ class Identifier(Expr):
 @dataclass(frozen=True)
 class DerefExpr(Expr):
     pointer: Expr
+    line: int = 0
+    col: int = 0
 
     def __repr__(self):
         return f"{self.pointer}^"
@@ -177,6 +185,8 @@ class SubscriptExpr(Expr):
     """
     array: Expr
     index: Expr
+    line: int = 0
+    col: int = 0
 
     def __repr__(self):
         return f"{self.array}[{self.index}]"
@@ -188,6 +198,8 @@ class FieldAccess(Expr):
     object: Expr
     field: str
     is_deref: bool = False    # True if via pointer dereference (ptr^.field)
+    line: int = 0
+    col: int = 0
 
     def __repr__(self):
         op = "^." if self.is_deref else "."
@@ -221,6 +233,8 @@ class BinaryExpr(Expr):
     left: Expr
     op: BinOp
     right: Expr
+    line: int = 0
+    col: int = 0
 
     def __repr__(self):
         return f"({self.left} {self.op.value} {self.right})"
@@ -236,9 +250,32 @@ class UnOp(Enum):
 class UnaryExpr(Expr):
     op: UnOp
     expr: Expr
+    line: int = 0
+    col: int = 0
 
     def __repr__(self):
         return f"({self.op.value}{self.expr})"
+
+
+@dataclass(frozen=True)
+class CallExpr(Expr):
+    name: str
+    args: list
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True)
+class FuncDecl:
+    name: str
+    ret_type: TypeNode        # byte / word
+    params: list[Parameter]
+    locals: list[Declaration]
+    body: list                # statementy
+    # Declaration modifiers
+    keep: bool = False      # #KEEP prevents dead-code elimination of unused func
+    noexport: bool = False  # #NOEXPORT prevents export even in non-module files
+    export: bool = False
 
 
 @dataclass(frozen=True)
@@ -274,28 +311,12 @@ class AssignStmt:
     rhs: Expr
 
 
-@dataclass(frozen=True)
-class FuncDecl:
-    name: str
-    ret_type: TypeNode        # byte / word
-    params: list[Parameter]
-    locals: list[Declaration]
-    body: list                # statementy
-    # Declaration modifiers
-    keep: bool = False      # #KEEP prevents dead-code elimination of unused func
-    noexport: bool = False  # #NOEXPORT prevents exporting from a module
-    export: bool = False    # #EXPORT forces export even in non-module files
 
 
 @dataclass(frozen=True)
 class ReturnStmt:
     expr: Optional[Expr]
 
-
-@dataclass(frozen=True)
-class CallExpr(Expr):
-    name: str
-    args: list
 
 
 @dataclass

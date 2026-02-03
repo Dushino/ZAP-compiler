@@ -173,7 +173,9 @@ class StructAnalyzer:
         try:
             self.registry.define(struct_info)
         except SemanticError as e:
-            raise SemanticError(f"Struct definition error: {e.message}")
+            # Attach struct definition source location if available
+            raise SemanticError(f"Struct definition error: {e.message}", line=struct_def.line, col=struct_def.col)
+
 
 
 class DeclarationAnalyzer:

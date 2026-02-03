@@ -244,7 +244,7 @@ class Parser:
             fields.append(StructField(field_type, field_name, field_addr, array_sizes))
         
         self.expect(TOK_KEYWORD, "END")
-        return StructDef(struct_name, fields)
+        return StructDef(struct_name, fields, line=start_line, col=start_col)
 
 
     def parse_proc(self):
@@ -657,18 +657,22 @@ class Parser:
         if self.cur.type != TOK_IDENT:
             self.error("Expected identifier")
 
-        node = Identifier(self.cur.value)
+        name_line = self.cur.line
+        name_col = self.cur.col
+        node = Identifier(self.cur.value, line=name_line, col=name_col)
         self.advance()
 
         while True:
             if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
+                br_line = self.cur.line
+                br_col = self.cur.col
                 self.advance()
                 idx = self.parse_expr()
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "]":
                     self.advance()
                 else:
                     self.error("Expected ']' after subscript")
-                node = SubscriptExpr(node, idx)
+                node = SubscriptExpr(node, idx, line=br_line, col=br_col)
                 continue
             if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
                 # Check for ptr^.field pattern BEFORE treating ^ as postfix deref
@@ -676,13 +680,19 @@ class Parser:
                 next_tok = self._peek_next()
                 if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
                     # This is ptr^.field - consume ^ and ., then field name
+                    ptr_line = self.cur.line
+                    ptr_col = self.cur.col
                     self.advance()  # consume ^
+                    dot_line = self.cur.line
+                    dot_col = self.cur.col
                     self.advance()  # consume .
                     if self.cur.type != TOK_IDENT:
                         self.error("Expected field name after '.'")
+                    field_line = self.cur.line
+                    field_col = self.cur.col
                     field_name = self.cur.value
                     self.advance()
-                    node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
+                    node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col), field_name, is_deref=True, line=field_line, col=field_col)
                     continue
                 # Also check if this might be binary XOR (a ^ b) rather than postfix deref
                 # If next token could start an expression operand on the same line, it's probably XOR
@@ -692,17 +702,23 @@ class Parser:
                     # This looks like binary XOR (a ^ b), don't consume the ^
                     break
                 # Otherwise, treat as postfix dereference
+                deref_line = self.cur.line
+                deref_col = self.cur.col
                 self.advance()
-                node = DerefExpr(node)
+                node = DerefExpr(node, line=deref_line, col=deref_col)
                 continue
             # Handle field access: obj.field
             if self.cur.type == TOK_OP and self.cur.value == ".":
+                dot_line = self.cur.line
+                dot_col = self.cur.col
                 self.advance()
                 if self.cur.type != TOK_IDENT:
                     self.error("Expected field name after '.'")
+                field_line = self.cur.line
+                field_col = self.cur.col
                 field_name = self.cur.value
                 self.advance()
-                node = FieldAccess(node, field_name, is_deref=False)
+                node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col)
                 continue
             # Handle pointer field access: ptr^.field (handled as ptr^ then field)
             break
@@ -749,9 +765,11 @@ class Parser:
         node = self.parse_factor()
         while self.cur.type == TOK_OP and self.cur.value in ("*", "/", "%"):
             op = BinOp(self.cur.value)
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_factor()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -759,9 +777,11 @@ class Parser:
         node = self.parse_add()
         while self.cur.type == TOK_OP and self.cur.value in ("<<", ">>"):
             op = BinOp(self.cur.value)
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_add()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -769,9 +789,11 @@ class Parser:
         node = self.parse_term()
         while self.cur.type == TOK_OP and self.cur.value in ("+", "-"):
             op = BinOp(self.cur.value)
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_term()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -781,9 +803,11 @@ class Parser:
             "==", "!=", "<", "<=", ">", ">="
         ):
             op = BinOp(self.cur.value)
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_shift()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -791,9 +815,11 @@ class Parser:
         node = self.parse_rel()
         while self.cur.type == TOK_OP and self.cur.value == "&":
             op = BinOp.BAND
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_rel()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -801,9 +827,11 @@ class Parser:
         node = self.parse_bitwise_and()
         while self.cur.type == TOK_OP and self.cur.value == "^":
             op = BinOp.BXOR
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_and()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -811,9 +839,11 @@ class Parser:
         node = self.parse_bitwise_xor()
         while self.cur.type == TOK_OP and self.cur.value == "|":
             op = BinOp.BOR
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_xor()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -821,9 +851,11 @@ class Parser:
         node = self.parse_bitwise_or()
         while self.cur.type == TOK_OP and self.cur.value == "&&":
             op = BinOp.LAND
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_or()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
 
@@ -831,9 +863,11 @@ class Parser:
         node = self.parse_logic_and()
         while self.cur.type == TOK_OP and self.cur.value == "||":
             op = BinOp.LOR
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             rhs = self.parse_logic_and()
-            node = BinaryExpr(node, op, rhs)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
         return node
 
     def parse_expr(self):
@@ -843,16 +877,18 @@ class Parser:
         # Handle unary operators (prefix)
         if self.cur.type == TOK_AT:
             # Address-of operator @expr
+            op_line = self.cur.line
+            op_col = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Parse the expression to take address of
-            return UnaryExpr(UnOp.ADDROF, operand)
+            return UnaryExpr(UnOp.ADDROF, operand, line=op_line, col=op_col)
         
         if self.cur.type == TOK_OP and self.cur.value == "~":
             op_line = self.cur.line
             op_col = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
-            return UnaryExpr(UnOp.BNOT, operand)
+            return UnaryExpr(UnOp.BNOT, operand, line=op_line, col=op_col)
         
         if self.cur.type == TOK_OP and self.cur.value == "!":
             # Logical NOT operator
@@ -860,10 +896,12 @@ class Parser:
             op_col = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
-            return UnaryExpr(UnOp.NOT, operand)
+            return UnaryExpr(UnOp.NOT, operand, line=op_line, col=op_col)
         
         if self.cur.type == TOK_NUMBER:
             val = self.cur.value
+            num_line = self.cur.line
+            num_col = self.cur.col
             self.advance()
             
             # Check for consecutive character literals: 'a''b' for word values
@@ -879,13 +917,15 @@ class Parser:
                     # Format: low byte in 'a', high byte in 'b'
                     self.advance()
                     combined_val = first_val | (next_val << 8)
-                    return IntLiteral(combined_val)
+                    return IntLiteral(combined_val, line=num_line, col=num_col)
             
-            return IntLiteral(first_val)
+            return IntLiteral(first_val, line=num_line, col=num_col)
 
         if self.cur.type == TOK_IDENT:
             name = self.cur.value
-            node = Identifier(name)
+            name_line = self.cur.line
+            name_col = self.cur.col
+            node = Identifier(name, line=name_line, col=name_col)
             self.advance()
 
             while True:
@@ -908,32 +948,42 @@ class Parser:
                             else:
                                 args.append(self.parse_expr())
                     self.expect(TOK_RBRACE)
-                    return CallExpr(name, args)
+                    return CallExpr(name, args, line=name_line, col=name_col)
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
+                    br_line = self.cur.line
+                    br_col = self.cur.col
                     self.advance()
                     idx = self.parse_expr()
                     if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "]":
                         self.advance()
                     else:
                         self.error("Expected ']' after subscript")
-                    node = SubscriptExpr(node, idx)
+                    node = SubscriptExpr(node, idx, line=br_line, col=br_col)
                     continue
                 # IMPORTANT: Check for ptr^.field BEFORE checking for standalone ^
                 # This must be checked first because ^ can be consumed as postfix deref
                 if self.cur.type == TOK_PTR:
                     next_tok = self._peek_next()
                     if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
+                        ptr_line = self.cur.line
+                        ptr_col = self.cur.col
                         self.advance()  # consume ^
+                        dot_line = self.cur.line
+                        dot_col = self.cur.col
                         self.advance()  # consume .
+                        field_line = self.cur.line
+                        field_col = self.cur.col
                         field_name = self.cur.value
                         self.expect(TOK_IDENT)
-                        node = FieldAccess(DerefExpr(node), field_name, is_deref=True)
+                        node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col), field_name, is_deref=True, line=field_line, col=field_col)
                         continue
                 # For caret: only treat as postfix dereference if next token cannot start an expression
                 # If it could be an expression (IDENT, NUMBER, LBRACE, etc.), then it's likely binary XOR
                 if self.cur.type == TOK_PTR:
+                    deref_line = self.cur.line
+                    deref_col = self.cur.col
                     self.advance()
-                    node = DerefExpr(node)
+                    node = DerefExpr(node, line=deref_line, col=deref_col)
                     continue
                 # Check for caret as postfix dereference
                 # Only consume it if the next token is NOT an identifier or number (which would indicate binary XOR)
@@ -946,15 +996,21 @@ class Parser:
                         # This is likely binary XOR (a ^ b), don't consume the ^
                         break
                     # Otherwise treat as postfix dereference
+                    deref2_line = self.cur.line
+                    deref2_col = self.cur.col
                     self.advance()
-                    node = DerefExpr(node)
+                    node = DerefExpr(node, line=deref2_line, col=deref2_col)
                     continue
                 # Field access: obj.field
                 if self.cur.type == TOK_OP and self.cur.value == ".":
+                    dotline = self.cur.line
+                    dotcol = self.cur.col
                     self.advance()
+                    field_line = self.cur.line
+                    field_col = self.cur.col
                     field_name = self.cur.value
                     self.expect(TOK_IDENT)
-                    node = FieldAccess(node, field_name, is_deref=False)
+                    node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col)
                     continue
                 break
             return node
