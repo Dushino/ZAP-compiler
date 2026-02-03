@@ -20,7 +20,7 @@ def test_declaration_modifiers_parsed():
 def test_module_exports_respect_decl_modifiers(tmp_path):
     # create a module file
     p = tmp_path / "m1.zap"
-    p.write_text('.module m1\nbyte a #NOEXPORT\nbyte b\nproc main()\nend\n')
+    p.write_text('.module "m1"\nbyte a #NOEXPORT\nbyte b\nproc modentry()\nend\n')
     ms = ModuleSystem(base_path=os.getcwd())
     program, defs = ms.build_program(str(p))
     exports = getattr(program, 'exports', set())
@@ -30,8 +30,11 @@ def test_module_exports_respect_decl_modifiers(tmp_path):
 
 def test_prune_respects_keep_global(tmp_path):
     p = tmp_path / "keepvar.zap"
-    p.write_text('.module kmod\nbyte KEEPVAR #KEEP\nproc main()\nend\n')
-    out = compile_file(str(p))
+    p.write_text('.module "kmod"\nbyte KEEPVAR #KEEP\nproc modproc()\nend\n')
+    # Create a small main program that includes the module so program has a main()
+    main = tmp_path / "main.zap"
+    main.write_text('.include "keepvar.zap"\nproc main()\nend\n')
+    out = compile_file(str(main))
     # KEEPVAR should appear in exports or in generated output
     assert 'KEEPVAR' in out.upper()
 

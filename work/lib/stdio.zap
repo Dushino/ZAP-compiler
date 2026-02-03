@@ -32,5 +32,3 @@
     .include "./sbc/sbc_stdio.zap"   
 .endif
 
-PROC main1()
-End

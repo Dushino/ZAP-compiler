@@ -22,7 +22,7 @@
     * fputc     zápis jednoho znaku do souboru
 */
 
-.module atari_stdio
+.module "atari_stdio"
 
 ; ATARI colors
 const byte COLOR_BLACK   = $00

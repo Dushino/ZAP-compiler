@@ -75,7 +75,7 @@ end
     COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
 */
-proc atari_file_data_area() #KEEP #NOEXPORT    
+proc atari_file_data_area() #KEEP #NOexport 
     asm
         .segment "COMHEADER"
         .import __RAM_START__, __RAM_LAST__

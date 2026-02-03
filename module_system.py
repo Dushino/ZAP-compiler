@@ -39,6 +39,8 @@ class ModuleSystem:
         # Normalize include directory paths
         # Note: include_dirs are relative to the current working directory, not base_path
         self.include_dirs = [os.path.abspath(d) for d in (include_dirs or [])]
+        # Map module names to their defining file path to detect duplicates
+        self.module_name_to_path: Dict[str, str] = {}
     
     def parse_file(self, filepath: str):
         """Parse a single file and extract module directives"""
@@ -56,19 +58,34 @@ class ModuleSystem:
         module_name = None
         is_module = False
         includes = []
+        module_directive_info = None  # (line, col, text)
         
         lines = source.split('\n')
         cleaned_lines = []
         
-        for line in lines:
+        for ln, line in enumerate(lines, start=1):
             stripped = line.strip()
             lower_stripped = stripped.lower()
             if stripped.startswith('.module'):
-                # Extract module name from .module "filename"
+                # Extract module name from .module "filename" and validate quotes
                 is_module = True
-                parts = stripped.split('"')
-                if len(parts) >= 2:
-                    module_name = parts[1]
+                # Find quotes in the original line to get accurate column
+                first_q = line.find('"')
+                if first_q == -1:
+                    # No opening quote -> error
+                    err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module')+1)
+                    err.filename = filepath
+                    err.source_text = source
+                    raise err
+                second_q = line.find('"', first_q+1)
+                if second_q == -1:
+                    # No closing quote -> error
+                    err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q+1)
+                    err.filename = filepath
+                    err.source_text = source
+                    raise err
+                module_name = line[first_q+1:second_q]
+                module_directive_info = (ln, first_q+1, line)
             elif stripped.startswith('.include'):
                 # Extract include filename from .include "filename"
                 parts = stripped.split('"')
@@ -99,10 +116,29 @@ class ModuleSystem:
                 pass
             raise
         
+        # If this file is declared as a module, sanity-check it doesn't define PROC MAIN()
+        if is_module:
+            # Look for any top-level procedure named 'main' (case-insensitive)
+            for item in program.procs:
+                if isinstance(item, ProcDecl) and item.name.lower() == 'main':
+                    # Try to get source location from parser debug info
+                    proc_info = program.debug.get('proc_src', {}).get(item.name)
+                    if proc_info:
+                        fname, line_no, col_no, _ = proc_info
+                        err = SemanticError("Modules may not define 'main' procedure", line=line_no, col=col_no)
+                        err.filename = fname
+                        err.source_text = '\n'.join(program.debug.get('source_lines', []))
+                        raise err
+                    else:
+                        err = SemanticError("Modules may not define 'main' procedure")
+                        err.filename = filepath
+                        err.source_text = cleaned_source
+                        raise err
+
         # Resolve .incbin file paths
         self._resolve_incbin_paths(program, filepath)
         
-        return program, is_module, module_name, includes, defined_symbols
+        return program, is_module, module_name, includes, defined_symbols, module_directive_info
     
     def _resolve_incbin_paths(self, program: Program, filepath: str):
         """
@@ -175,8 +211,25 @@ class ModuleSystem:
         
         try:
             # Parse the module file
-            program, is_module, module_name, includes, defined_symbols = self.parse_file(full_path)
-            
+            program, is_module, module_name, includes, defined_symbols, module_directive_info = self.parse_file(full_path)
+
+            # If this file declares a module name, check for duplicate module names globally
+            if is_module and module_name:
+                prev = self.module_name_to_path.get(module_name)
+                if prev and os.path.abspath(prev) != full_path:
+                    # Duplicate module name found
+                    line_no, col_no, text = module_directive_info if module_directive_info else (None, None, None)
+                    err = SemanticError(f"Duplicate module name '{module_name}' already declared in {prev}", line=line_no, col=col_no)
+                    err.filename = full_path
+                    try:
+                        err.source_text = '\n'.join(program.debug.get('source_lines', []))
+                    except Exception:
+                        err.source_text = None
+                    raise err
+                else:
+                    # Register module name -> file path
+                    self.module_name_to_path[module_name] = full_path
+
             # Separate declarations, and also preserve the original top-level items
             declarations = program.decls
             procedures = [p for p in program.procs if isinstance(p, ProcDecl)]
