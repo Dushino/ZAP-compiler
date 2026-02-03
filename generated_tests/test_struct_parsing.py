@@ -54,12 +54,10 @@ try:
         print("✓ Compilation succeeded!")
         print(f"✓ Generated {len(asm.splitlines())} lines of assembly")
     except Exception as e:
-        print(f"✗ Compilation failed: {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e)
         
 except Exception as e:
-    print(f"✗ Parsing failed: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)
 

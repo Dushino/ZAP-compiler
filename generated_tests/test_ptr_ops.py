@@ -74,9 +74,11 @@ end
                     break
                     
     except Exception as e:
-        print(f"[ERROR] {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e)
+        from errors import print_exception
+        from errors import print_exception
+        print_exception(e)
 
 if __name__ == "__main__":
     test_ptr_arithmetic_ops()

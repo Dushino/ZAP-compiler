@@ -25,7 +25,8 @@ for test_path in original_failures:
         asm = compile_program(ast)
         print(f"[PASS] {name}")
     except Exception as e:
-        print(f"[FAIL] {name}: {e}")
+        from errors import print_exception
+        print_exception(e, filename=name)
         all_pass = False
 
 print("="*60)

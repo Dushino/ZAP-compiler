@@ -1,1 +1,3 @@
-proc main(byte x, byte x)  ; ERROR: Duplicate parameter 'x' 'x'
+proc main(byte x, byte x)
+  ; ERROR: Duplicate parameter 'x' 'x'
+end

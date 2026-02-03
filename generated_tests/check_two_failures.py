@@ -22,6 +22,5 @@ for test_path, name in tests:
         asm = compile_program(ast)
         print("SUCCESS")
     except Exception as e:
-        print(f"ERROR: {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e)

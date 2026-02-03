@@ -79,7 +79,7 @@ end
                 print(f"[FAIL] {struct_name} ({expected_size} bytes): Could not find ptr+1 line")
                 
         except Exception as e:
-            print(f"[ERROR] {struct_name} ({expected_size} bytes): {e}")
+            print(f"<test>:1:1: error: {struct_name} ({expected_size} bytes): {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     test_ptr_arithmetic_by_size()

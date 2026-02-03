@@ -52,7 +52,8 @@ end
                 print(f"  [FAIL] {desc} - expected '{expected}'")
             tests_total += 1
     except Exception as e:
-        print(f"  [ERROR] {e}")
+        from errors import print_exception
+        print_exception(e, filename="<test>")
         tests_total += 3
     
     # Test 2: 3-byte struct
@@ -93,7 +94,8 @@ end
                 print(f"  [FAIL] {desc} - expected '{expected}'")
             tests_total += 1
     except Exception as e:
-        print(f"  [ERROR] {e}")
+        from errors import print_exception
+        print_exception(e, filename="<test>")
         tests_total += 3
     
     # Test 3: 4-byte struct
@@ -140,7 +142,8 @@ end
                         print(f"         Found operations: {matches}")
             tests_total += 1
     except Exception as e:
-        print(f"  [ERROR] {e}")
+        from errors import print_exception
+        print_exception(e, filename="<test>")
         tests_total += 3
     
     # Test 4: Pointer to self-referential struct
@@ -178,15 +181,8 @@ end
                 print(f"  [FAIL] {desc} - expected '{expected}'")
             tests_total += 1
     except Exception as e:
-        print(f"  [ERROR] {e}")
-        tests_total += 2
-    
-    # Summary
-    print("\n" + "=" * 70)
-    print(f"SUMMARY: {tests_passed}/{tests_total} tests passed")
-    print("=" * 70)
-    
-    return tests_passed == tests_total
+            from errors import print_exception
+            print_exception(e, filename="<test>")
 
 if __name__ == "__main__":
     success = test_comprehensive_ptr_arithmetic()

@@ -63,6 +63,5 @@ try:
     print("\n[SUCCESS] Address-of operator is fully functional!")
     
 except Exception as e:
-    print(f"[FAIL] {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e, filename="<test address_of_examples>")

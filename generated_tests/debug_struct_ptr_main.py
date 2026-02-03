@@ -35,4 +35,5 @@ try:
     program = parser.parse_program()
     print(f"✓ Parsed successfully")
 except Exception as e:
-    print(f"✗ Error: {e}")
+    from errors import print_exception
+    print_exception(e)

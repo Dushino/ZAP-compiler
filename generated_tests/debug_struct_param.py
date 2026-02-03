@@ -27,6 +27,5 @@ try:
     result = compile_program(program)
     print(f"✓ Compiled successfully")
 except Exception as e:
-    print(f"✗ Error: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

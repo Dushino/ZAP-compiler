@@ -44,6 +44,5 @@ try:
         print(f"{i:3}: {line}")
     
 except Exception as e:
-    print(f"[FAIL] Test failed: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e, filename="Pointer Struct Field Access.zap")

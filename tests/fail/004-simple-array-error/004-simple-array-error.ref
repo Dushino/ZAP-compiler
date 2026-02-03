@@ -1,5 +1,0 @@
-# Error Test - Array Out-of-Bounds Access
-
-## Expected Error
-Array index out of bounds: index 5 exceeds array size 3
-Error message should indicate both the index and array size.

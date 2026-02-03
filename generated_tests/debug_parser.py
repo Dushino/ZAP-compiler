@@ -14,7 +14,8 @@ try:
     ast = p.parse_program()
     print("Success!")
 except Exception as e:
-    print(f"Error: {e}")
+    from errors import print_exception
+    print_exception(e, filename='test.zap')
     print(f"Current token: {p.cur}")
     print(f"Position: {p.pos}")
     print(f"struct_names: {p.struct_names}")

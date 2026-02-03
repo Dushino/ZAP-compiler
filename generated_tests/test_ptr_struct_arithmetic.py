@@ -32,9 +32,8 @@ end
         print(asm[:2000])  # Show first part of assembly
         return True
     except Exception as e:
-        print(f"[ERROR] Basic pointer struct test: {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e, filename="<test Basic pointer struct>")
         return False
 
 def test_ptr_arithmetic():
@@ -67,7 +66,8 @@ end
         print("[INFO] Code generated (may need inspection)")
         return True
     except Exception as e:
-        print(f"[ERROR] Pointer arithmetic test: {e}")
+        from errors import print_exception
+        print_exception(e, filename="<test Pointer arithmetic>")
         return False
 
 def test_ptr_struct_member():
@@ -105,9 +105,8 @@ end
         print("[INFO] Generated code (needs inspection)")
         return True
     except Exception as e:
-        print(f"[ERROR] Pointer struct member test: {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e, filename="<test Pointer struct member>")
         return False
 
 def test_self_referential():
@@ -133,9 +132,8 @@ end
         print("[INFO] Self-referential struct code generated")
         return True
     except Exception as e:
-        print(f"[ERROR] Self-referential struct test: {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e, filename="<test Self-referential struct>")
         return False
 
 if __name__ == "__main__":

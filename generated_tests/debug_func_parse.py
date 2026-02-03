@@ -50,6 +50,5 @@ try:
         parser.advance()
     
 except Exception as e:
-    print(f"✗ Parse error: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

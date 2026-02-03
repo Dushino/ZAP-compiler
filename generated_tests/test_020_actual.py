@@ -14,6 +14,5 @@ try:
     print("✓ 020-functions.zap compiles successfully")
     print(f"Generated {len(result)} bytes of assembly")
 except Exception as e:
-    print(f"✗ Error: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

@@ -107,7 +107,8 @@ class DebugParser(Parser):
                 print("    -> Stray ident, skipping")
                 self.advance()
             else:
-                print(f"    -> ERROR: no condition matched! type={self.cur.type}, value={self.cur.value}")
+                fname = getattr(self, "filename", "<debug_parse_prog_inst>")
+                print(f"{fname}:1:1: error: no condition matched! type={self.cur.type}, value={self.cur.value}", file=sys.stderr)
                 self.error("Expected declaration, PROC, FUNC, or STRUCT")
 
         print(f"\nSecond pass completed: {iteration} iterations")
@@ -128,4 +129,5 @@ try:
     program = parser.parse_program()
     print(f"\n✓ Success!")
 except Exception as e:
-    print(f"\n✗ Error: {e}")
+    from errors import print_exception
+    print_exception(e)

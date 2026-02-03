@@ -36,7 +36,8 @@ def test_case(name, code, should_fail=False):
             print(f"✓ [PASS] Correctly failed with: {e}")
             return True
         else:
-            print(f"❌ [FAIL] Unexpected error: {e}")
+            from errors import print_exception
+            print_exception(e, filename="<test>")
             return False
 
 # Test cases

@@ -76,7 +76,7 @@ for name, code, should_fail in tests:
     status = "[PASS]" if success else "[FAIL]"
     print(f"{status} {name}")
     if not success:
-        print(f"    Error: {msg}")
+        print(f"<test {name}>:1:1: error: {msg}", file=sys.stderr)
         failed_tests.append((name, msg))
         failed += 1
     else:

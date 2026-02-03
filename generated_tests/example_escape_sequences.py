@@ -32,6 +32,7 @@ try:
     print(f"  - text: string with null terminator")
     print(f"\n✓ All escape sequences processed successfully!")
 except Exception as e:
-    import traceback
-    print(f"✗ Error: {e}")
+    from errors import print_exception
+    from errors import print_exception
+    print_exception(e)
     # traceback.print_exc()

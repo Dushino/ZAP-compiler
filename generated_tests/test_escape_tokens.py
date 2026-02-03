@@ -34,6 +34,5 @@ try:
     print("\n✓ All escape sequences tokenized successfully!")
     
 except Exception as e:
-    import traceback
-    print(f"✗ Error: {e}")
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

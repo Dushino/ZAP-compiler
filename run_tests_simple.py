@@ -42,8 +42,8 @@ for test_file in pass_tests:
         print(f"[PASS] {base}")
         passed += 1
     except Exception as e:
-        print(f"[FAIL] {base}: {e}")
-        failed += 1
+            from errors import print_exception
+            print_exception(e, filename=base)
 
 print("\n" + "=" * 70)
 print(f"Results: {passed} passed, {failed} failed")

@@ -27,6 +27,5 @@ try:
     for proc in program.procs:
         print(f"  - {proc}")
 except Exception as e:
-    print(f"✗ Error: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

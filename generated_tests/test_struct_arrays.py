@@ -69,9 +69,8 @@ def test_struct_array(name, code):
         return True
         
     except Exception as e:
-        print(f"[FAIL] Test failed: {e}")
-        import traceback
-        traceback.print_exc()
+        from errors import print_exception
+        print_exception(e)
         return False
 
 if __name__ == "__main__":

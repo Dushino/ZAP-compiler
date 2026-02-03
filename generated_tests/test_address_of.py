@@ -109,8 +109,9 @@ for name, code in test_cases:
         print(f"[PASS] {name}")
         passed += 1
     except Exception as e:
+        from errors import print_exception
         print(f"[FAIL] {name}")
-        print(f"       Error: {str(e)[:100]}")
+        print_exception(e, filename=f"<test {name}>")
         failed += 1
         failed_tests.append((name, str(e)))
 

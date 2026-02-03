@@ -2,7 +2,7 @@
 """Debug parse_program"""
 
 from parser import Parser
-import traceback
+from errors import print_exception
 
 code = """
 func byte add_one(byte x)
@@ -22,5 +22,5 @@ try:
     print(f"  Declarations: {len(program.decls)}")
     print(f"  Procs: {len(program.procs)}")
 except Exception as e:
-    print(f"✗ Error: {e}")
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

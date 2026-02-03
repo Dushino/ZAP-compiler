@@ -23,7 +23,8 @@ for root, dirs, files in os.walk(tests_dir):
                 print(f"[PASS] {test_name}")
                 passed += 1
             except Exception as e:
-                print(f"[FAIL] {test_name}: {str(e)[:60]}")
+                from errors import print_exception
+                print_exception(e, filename=f"<quick_test {test_name}>")
                 errors.append((test_name, str(e)))
                 failed += 1
 

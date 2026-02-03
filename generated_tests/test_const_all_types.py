@@ -120,7 +120,8 @@ for name, code in test_cases:
         print(f"[PASS] {name}")
         passed += 1
     except Exception as e:
-        print(f"[FAIL] {name}: {e}")
+        from errors import print_exception
+        print_exception(e, filename=f"<test {name}>")
         failed += 1
         failed_tests.append((name, str(e)))
 
@@ -132,4 +133,4 @@ if failed > 0:
     print("\nFailed tests:")
     for name, error in failed_tests:
         print(f"  - {name}")
-        print(f"    Error: {error[:100]}...")
+        print(f"<testcase {name}>:1:1: error: {error[:100]}...", file=sys.stderr)

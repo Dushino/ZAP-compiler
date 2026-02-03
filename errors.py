@@ -1,4 +1,4 @@
-
+import sys
 
 class CompileError(Exception):
     def __init__(self, message, line=None, col=None):
@@ -22,14 +22,33 @@ class SemanticError(CompileError):
 class TokenizerError(CompileError):
     pass
 
-def print_error(src, line, col, msg, filename: str | None = None):
-    lines = src.splitlines()
-    where = f"{filename}:{line}:{col}" if filename else f"line {line}, column {col}"
-    # Print message and location
-    print(f"Error: {msg}")
-    print(f" at {where}")
-    # Show offending line with caret
-    if 1 <= line <= len(lines):
-        print(lines[line-1])
-        if col is not None and col >= 1:
-            print(" " * (col-1) + "^")
+def print_error(src, line, col, msg, filename: str | None = None, severity: str = "error"):
+    """Print a single-line error suitable for editor parsing:
+
+    Format: filename:line:column: severity: message
+    """
+    # Ensure filename and numeric line/col for one-line format
+    fname = filename or "<input>"
+    line_num = line if isinstance(line, int) and line >= 1 else 1
+    col_num = col if isinstance(col, int) and col >= 1 else 1
+    # Print a single-line message suitable for editors/linters
+    try:
+        print(f"{fname}:{line_num}:{col_num}: {severity}: {msg}", file=sys.stderr)
+    except Exception:
+        # Fallback to a very simple print if something unusual happens
+        print(f"{fname}:{line_num}:{col_num}: {severity}: {msg}")
+
+
+def print_exception(e: Exception, filename: str | None = None):
+    """Print an exception using the unified single-line format.
+
+    Handles CompileError (with line/col) specially; falls back to a generic
+    one-line message for other exceptions.
+    """
+    if isinstance(e, CompileError) and e.line is not None:
+        src = getattr(e, "source_text", None) or ""
+        fname = getattr(e, "filename", None) or filename or "<input>"
+        print_error(src, e.line, e.col, e.message, filename=fname, severity="error")
+    else:
+        fname = filename or "<internal>"
+        print(f"{fname}:1:1: error: {e.__class__.__name__}: {e}", file=sys.stderr)

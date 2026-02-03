@@ -52,6 +52,8 @@ try:
         if in_data and i < 100:
             print(line)
 except Exception as e:
-    print(f"[ERROR] {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)
+    from errors import print_exception
+    from errors import print_exception
+    print_exception(e)

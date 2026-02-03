@@ -66,6 +66,5 @@ try:
             print(line)
             
 except Exception as e:
-    print(f"[FAIL] {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

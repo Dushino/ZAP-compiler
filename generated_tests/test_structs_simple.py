@@ -108,7 +108,8 @@ def run_tests():
                 print(f"[FAIL] {test_name} - symbol not found: {expected_symbol}")
                 results.append(False)
         except Exception as e:
-            print(f"[FAIL] {test_name} - {str(e)[:50]}")
+            from errors import print_exception
+            print_exception(e, filename=f"<test {test_name}>")
             results.append(False)
     
     print("\n" + "=" * 70)

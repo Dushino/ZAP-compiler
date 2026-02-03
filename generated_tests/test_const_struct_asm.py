@@ -76,6 +76,5 @@ try:
             print(f"✗ {description}")
     
 except Exception as e:
-    print(f"✗ Error: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

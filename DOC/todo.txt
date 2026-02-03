@@ -16,7 +16,7 @@
 [x] clean up directives with #
 [ ] improve error messages 
     filename:line:column: severity: message
-    Příklad:
+    Example:
     main.zap:12:5: error: Undefined symbol 'TEMP_VAR'
     main.zap:45:10: warning: Unreachable code detected
 
@@ -27,7 +27,6 @@
 [x] compiler defines in command line - tested also with conflicting defines and PROC name
 [ ] create sbc.zap and atari.zap to distinguish between Atari and SBC
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
-[ ] Describe how to use labels from ASM blocks in ZAP! code
 [ ] Introduce ZAP! to github:
 [ ] Add to GitHub Linguist
 You could submit your ZAP! language definition to the GitHub Linguist project. This would get ZAP1 officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.
@@ -64,7 +63,7 @@ Steps:
     - Direct 16-bit arithmetic without temporary register shuffle
 [ ] Peephole optimization rework.
 [ ] Document peephole optimizations in the compiler documentation
-[ ] Review VS Code integration files
+[x] Review VS Code integration files
     [x] Build on Ctrl-Shift-Z 
     [x] Ctrl+Shift+P command "Build: ZAP: Compile current file"
     
@@ -146,9 +145,9 @@ proc main
     test1(4, , 9) ; implies b is initialized to its default value of 5
 end
 
-[x] library directory as command line -I <filename> option
-    - first search current directory
-    - then search -I path + / + filename in .include or .incbin
+[ ] library directory as command line -I <filename> option
+    - first search current file directory, thern current + relative to -I
+    - then search absolute .include or .incbin
 
 
 [x] PORT modifier implementation
@@ -156,16 +155,17 @@ end
 
     port byte POKEY_AUDF1 @$D200
 
-[ ] Attribute to keep not called functions and procedures in the final binary. Or #KEEP, #NOEXPORT, attribute
+[x] Attribute to keep not called functions and procedures in the final binary. Or #KEEP, #NOEXPORT, attribute
     - proc FileHeader() #KEEP #NOEXPORT
     - useful for library functions that may be used from ASM blocks
-[ ] Consider #RD #WR for PORT variables
+[x] Consider #RD #WR for PORT variables
     - #RD for read-only ports
     - #WR for write-only ports
-    port byte PIA_DATA $D300 #RD
-    byte PIA_DATA $D300 #PORT #WR
-[ ] consider changing port TO #PORT to be consistent with other directives starting with #
-[ ] resolve syntaxt highlighting for # directives in VS Code extension
+    byte PIA_DATA $D300 #PORT #RD
+[ ] Implemet #attributes in compiler
+
+[x] consider changing port TO #PORT to be consistent with other directives starting with #
+[x] resolve syntaxt highlighting for # directives in VS Code extension
 
 [x] ASM must properly ignore every ZAP! syntax inside ASM block till END
 [ ] remove .segment from ZAP directives to ASM blocks only
@@ -200,3 +200,7 @@ To check - enhance tests
 [x] ASM / END act as comment in VSCode syntax highlighting
     Hybrid syntax highlighting now works
 [ ] Check VSCode and compiler syntax highlighting for operators - OR etc.
+[ ] .segment between ASM and END fail for some reason
+[ ] Array can be initialized:
+    byte arr[3] = [10, 20, 30]
+[ ] Errors in Problems tab can not open file

@@ -50,6 +50,5 @@ try:
                 print(f"    expr.right.value: {expr.right.value}")
                     
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e, filename='test.zap')

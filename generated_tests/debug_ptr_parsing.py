@@ -22,6 +22,5 @@ try:
     for item in ast.procs:
         print(f"  {item}")
 except Exception as e:
-    print(f"ERROR: {e}")
-    import traceback
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

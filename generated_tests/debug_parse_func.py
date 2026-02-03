@@ -3,7 +3,7 @@
 
 from parser import Parser
 from token_types import *
-import traceback
+from errors import print_exception
 
 code = """
 func byte add_one(byte x)
@@ -42,5 +42,5 @@ try:
     func_decl = parser.parse_func()
     print(f"✓ Success: {func_decl.name}")
 except Exception as e:
-    print(f"✗ Error: {e}")
-    traceback.print_exc()
+    from errors import print_exception
+    print_exception(e)

@@ -137,7 +137,8 @@ for name, code, should_fail in enforcement_tests:
             passed += 1
         else:
             print(f"[FAIL] {name} - should have succeeded but failed")
-            print(f"       Error: {str(e)[:80]}")
+            from errors import print_exception
+            print_exception(e)
             failed += 1
             failed_tests.append((name, str(e)))
 
