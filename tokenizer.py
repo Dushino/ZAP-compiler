@@ -354,7 +354,8 @@ class Tokenizer:
                 raise TokenizerError("'_' is not allowed as first character", line=self.sline, col=self.scol)
 
             # Handle preprocessor directives (like .segment, .ifdef)
-            if ch == '.' and self._peek() and self._peek().isalpha():
+            next_ch = self._peek()
+            if ch == '.' and next_ch is not None and next_ch.isalpha():
                 start = self.pos
                 self._advance(1)
                 while True:
