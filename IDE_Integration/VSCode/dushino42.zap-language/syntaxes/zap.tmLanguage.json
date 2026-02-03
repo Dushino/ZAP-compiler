@@ -136,7 +136,7 @@
             "patterns": [
                 {
                     "name": "keyword.operator.arithmetic.zap",
-                    "match": "(?i)\\+|-|\\*|/|MOD|&|\\||\\^|<<|>>"
+                    "match": "(?i)\\+|-|\\*|/|%|&|\\||\\^|<<|>>"
                 },
                 {
                     "name": "keyword.operator.comparison.zap",

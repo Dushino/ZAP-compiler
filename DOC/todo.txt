@@ -200,7 +200,7 @@ To check - enhance tests
 [x] ASM / END act as comment in VSCode syntax highlighting
     Hybrid syntax highlighting now works
 [ ] Check VSCode and compiler syntax highlighting for operators - OR etc.
-[ ] .segment between ASM and END fail for some reason
+[x] .segment between ASM and END fail for some reason
 [ ] Array can be initialized:
-    byte arr[3] = [10, 20, 30]
+    byte arr[3] = {10, 20, 30}
 [ ] Errors in Problems tab can not open file
