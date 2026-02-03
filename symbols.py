@@ -172,19 +172,47 @@ class ProcSymbol:
     name: str
     param_count: int = 0
     required_params: int = 0  # params without defaults
+    owner_file: str | None = None    # file where this proc was defined
+    exported: bool = True            # whether this proc is visible outside its owner file
 
 
 class ProcTable:
     def __init__(self):
-        self._procs: dict[str, ProcSymbol] = {}
+        # Map name -> list of ProcSymbol (allow same name in different modules if not exported)
+        self._procs: dict[str, list[ProcSymbol]] = {}
 
     def define(self, p: ProcSymbol):
-        if p.name in self._procs:
-            raise SemanticError(f"Procedure '{p.name}' already defined")
-        self._procs[p.name] = p
+        # Ensure no duplicate definitions within same owner
+        lst = self._procs.setdefault(p.name, [])
+        for existing in lst:
+            if existing.owner_file == p.owner_file:
+                raise SemanticError(f"Procedure '{p.name}' already defined")
+            # If both are exported, that's a global conflict
+            if existing.exported and p.exported:
+                raise SemanticError(f"Procedure '{p.name}' already defined")
+        lst.append(p)
 
-    def lookup(self, name: str) -> ProcSymbol:
-        return self._procs[name]
+    def lookup(self, name: str, caller_file: str | None = None) -> ProcSymbol:
+        """Lookup a procedure symbol by name.
+        If multiple candidates exist, prefer one defined in caller_file. Otherwise prefer an exported symbol.
+        If the found symbol is not exported and caller_file is different, raises SemanticError.
+        """
+        if name not in self._procs:
+            raise SemanticError(f"Undefined procedure '{name}'")
+        candidates = self._procs[name]
+        # Prefer candidate defined in caller_file
+        if caller_file is not None:
+            for c in candidates:
+                if c.owner_file == caller_file:
+                    return c
+        # Otherwise, look for exported candidates
+        exported = [c for c in candidates if c.exported]
+        if len(exported) == 1:
+            return exported[0]
+        if len(exported) > 1:
+            raise SemanticError(f"Procedure '{name}' already defined")
+        # No exported candidate - procedure exists but is internal to some module(s)
+        raise SemanticError(f"Undefined procedure '{name}'")
 
 
 class ScopedSymbolTable:

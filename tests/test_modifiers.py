@@ -39,3 +39,19 @@ def test_export_modifier_parsed():
             break
     assert found is not None
     assert getattr(found, 'export', False) is True
+
+
+def test_calling_noexported_proc_from_outside_is_error():
+    """Ensure a proc declared #NOEXPORT in a .module cannot be called from outside the module."""
+    # Ensure the ATARI-specific stdio is included by defining ATARI
+    ms = ModuleSystem(base_path=os.getcwd(), predefined_symbols={'ATARI'})
+    program, defs = ms.build_program('work/test_stdio.zap')
+    from errors import SemanticError
+    from compiler_pipeline import compile_program
+    try:
+        compile_program(program, defined_symbols=defs)
+        # If no exception was raised, that's a failure
+        assert False, "Expected SemanticError when calling non-exported procedure from outside its module"
+    except SemanticError as e:
+        # We expect an undefined procedure / not exported kind of error
+        assert "Undefined procedure" in e.message or "Undefined" in e.message

@@ -22,8 +22,21 @@ class ProcAnalyzer:
     def analyze_decl(self, proc: ProcDecl):
         # Count required parameters (those without defaults)
         required_params = sum(1 for p in proc.params if p.default_value is None)
+        # Determine owner file and exported flag (set by module system via debug maps)
+        proc_src_map = self.debug.get('proc_src', {})
+        owner = None
+        owner_is_module = False
+        info = proc_src_map.get(proc.name)
+        if info:
+            # info may be (filename, line, col, text) or (filename, line, text)
+            owner = info[0]
+            owner_is_module = self.debug.get('file_is_module', {}).get(owner, False)
+        exported = True
+        if owner_is_module and getattr(proc, 'noexport', False):
+            exported = False
         try:
-            self.procs.define(ProcSymbol(proc.name, len(proc.params), required_params))
+            psym = ProcSymbol(proc.name, len(proc.params), required_params, owner_file=owner, exported=exported)
+            self.procs.define(psym)
         except SemanticError as e:
             # Attach location of PROC header
             info = self.debug.get("proc_src", {}).get(proc.name)
@@ -39,7 +52,27 @@ class ProcAnalyzer:
             raise
 
     def analyze_call(self, call: CallStmt):
-        proc_sym = self.procs.lookup(call.name)  # musí existovat
+        # Determine caller file if available to support module visibility checks
+        caller_file = None
+        if getattr(self, 'current_proc', None):
+            cur_info = self.debug.get('proc_src', {}).get(self.current_proc.name)
+            if cur_info:
+                caller_file = cur_info[0]
+        try:
+            proc_sym = self.procs.lookup(call.name, caller_file=caller_file)
+        except SemanticError as e:
+            # Re-raise with source location attached
+            info = self.debug.get("stmt_src", {}).get(id(call))
+            if info:
+                if len(info) == 3:
+                    fname, line, _text = info
+                    col = 1
+                else:
+                    fname, line, col, _text = info
+                err = SemanticError(e.message, line=line, col=col)
+                err.filename = fname
+                raise err
+            raise
         # Allow arguments from required_params to param_count
         if len(call.args) < proc_sym.required_params or len(call.args) > proc_sym.param_count:
             msg = (
@@ -154,6 +187,8 @@ class ProcAnalyzer:
             validate_stmt_exprs(proc.body)
 
         # validate procedure calls inside the body (must refer to defined procs)
+        # set current_proc so analyze_call can check visibility
+        self.current_proc = proc
         def walk(statements: list):
             from ast_nodes import CallStmt, IfStmt, WhileStmt, ForStmt
             for st in statements:
@@ -170,6 +205,8 @@ class ProcAnalyzer:
                 # other statements (AssignStmt, ReturnStmt, Break/Continue) need no proc validation
 
         walk(proc.body)
+        # clear current_proc after analysis
+        self.current_proc = None
 
         return AnalyzedProc(
             ast=proc,

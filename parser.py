@@ -140,7 +140,11 @@ class Parser:
                         from ast_nodes import IncbinDirective
                         procs.append(IncbinDirective(filename))
                     else:
-                        # Unknown directive, skip it
+                        # Unknown directive: try to skip optional argument (string or identifier)
+                        if self.cur.type == TOK_STRING:
+                            # skip module/include style string argument
+                            self.advance()
+                        # otherwise ignore and continue
                         pass
                 else:
                     self.error("Expected identifier after '.'")

@@ -38,7 +38,15 @@ class ModuleSystem:
         self.preprocessor = Preprocessor(predefined_symbols)  # Shared preprocessor for all modules
         # Normalize include directory paths
         # Note: include_dirs are relative to the current working directory, not base_path
-        self.include_dirs = [os.path.abspath(d) for d in (include_dirs or [])]
+        if include_dirs is None:
+            # Provide a sensible default for common workspace layout: search 'work/lib' under base_path
+            default_lib = os.path.join(self.base_path, 'work', 'lib')
+            if os.path.isdir(default_lib):
+                self.include_dirs = [os.path.abspath(default_lib)]
+            else:
+                self.include_dirs = []
+        else:
+            self.include_dirs = [os.path.abspath(d) for d in include_dirs]
         # Map module names to their defining file path to detect duplicates
         self.module_name_to_path: Dict[str, str] = {}
     
@@ -361,42 +369,53 @@ class ModuleSystem:
                     else:
                         if getattr(decl, 'export', False):
                             all_exports.add(name)
+                # Keep all declarations in the aggregated declarations list so module-internal
+                # procedures can still reference module-local globals during analysis,
+                # but they will not be considered exported unless above.
                 all_decls.append(decl)
 
             # Merge top-level items, deduping procs/funcs by name, preserving directives
             for item in module_info.top_level_items:
+                # Determine whether this item should be exported to other files
+                should_export = False
+                if isinstance(item, ProcDecl) or isinstance(item, FuncDecl):
+                    if module_info.is_module:
+                        should_export = not getattr(item, 'noexport', False)
+                    else:
+                        # Non-module files behave like part of the main compilation unit
+                        # and their top-level items are considered visible here.
+                        should_export = True
+
                 if isinstance(item, ProcDecl):
                     name = item.name
-                    if name in seen_procs:
-                        raise_dup(f"Procedure '{name}' already defined", name, proc_src.get(name))
-                    if name in seen_funcs:
-                        raise_dup(f"Procedure '{name}' conflicts with existing function", name, proc_src.get(name))
-                    seen_procs.add(name)
-                    all_procs.append(item)
-                    # Export rules:
-                    # - In a .module file, export all procs except those with #NOEXPORT
-                    # - In non-module file, export only those procs marked with #EXPORT
-                    if module_info.is_module:
-                        if not getattr(item, 'noexport', False):
+                    # Only perform cross-module duplicate checks for exported items
+                    if should_export:
+                        if name in seen_procs:
+                            raise_dup(f"Procedure '{name}' already defined", name, proc_src.get(name))
+                        if name in seen_funcs:
+                            raise_dup(f"Procedure '{name}' conflicts with existing function", name, proc_src.get(name))
+                        seen_procs.add(name)
+                        all_procs.append(item)
+                        if should_export:
                             all_exports.add(name)
                     else:
-                        if getattr(item, 'export', False):
-                            all_exports.add(name)
+                        # keep module-local procedures in the aggregate so they can be
+                        # analyzed internally, but DO NOT add them to exports nor treat
+                        # them as collisions across module boundaries
+                        all_procs.append(item)
                 elif isinstance(item, FuncDecl):
                     name = item.name
-                    if name in seen_funcs:
-                        raise_dup(f"Function '{name}' already defined", name, proc_src.get(name))
-                    if name in seen_procs:
-                        raise_dup(f"Function '{name}' conflicts with existing procedure", name, proc_src.get(name))
-                    seen_funcs.add(name)
-                    all_procs.append(item)
-                    # Same export rules for functions
-                    if module_info.is_module:
-                        if not getattr(item, 'noexport', False):
+                    if should_export:
+                        if name in seen_funcs:
+                            raise_dup(f"Function '{name}' already defined", name, proc_src.get(name))
+                        if name in seen_procs:
+                            raise_dup(f"Function '{name}' conflicts with existing procedure", name, proc_src.get(name))
+                        seen_funcs.add(name)
+                        all_procs.append(item)
+                        if should_export:
                             all_exports.add(name)
                     else:
-                        if getattr(item, 'export', False):
-                            all_exports.add(name)
+                        all_procs.append(item)
                 else:
                     # e.g., SegmentDirective or other future top-level items
                     all_procs.append(item)
@@ -434,12 +453,17 @@ class ModuleSystem:
                 if fname and lines:
                     file_lines[fname] = lines
 
+        # Map filename -> is_module flag for consumer passes that need to know which
+        # source files were declared as .module
+        file_is_module = { path: info.is_module for path, info in self.loaded_modules.items() }
+
         final_program.debug = {
             "stmt_src": agg_stmt,
             "local_decl_src": agg_local,
             "global_decl_src": agg_global,
             "proc_src": agg_proc,
             "file_lines": file_lines,
+            "file_is_module": file_is_module,
         }
 
         return final_program, all_defined_symbols
