@@ -7,6 +7,9 @@
             "include": "#comments"
         },
         {
+            "include": "#attributes"
+        }, 
+        {
             "include": "#preprocessor"
         },
         {
@@ -35,6 +38,18 @@
         }
     ],
     "repository": {
+        "attributes": {
+            "patterns": [
+                {
+                    "name": "constant.other.zap",
+                    "match": "#(?i)(PORT|RD|WR|KEEP|NOEXPORT)"
+                },
+                {
+                    "name": "keyword.operator.address.zap",
+                    "match": "@"
+                }
+            ]
+        },        
         "comments": {
             "patterns": [
                 {
@@ -125,7 +140,7 @@
                 },
                 {
                     "name": "keyword.operator.comparison.zap",
-                    "match": "(?i)=|#|<|>|<=|>=|<>"
+                    "match": "(?i)=|<|>|<=|>=|<>"
                 },
                 {
                     "name": "keyword.operator.assignment.zap",

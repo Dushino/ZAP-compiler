@@ -121,7 +121,6 @@
         }
     },
     "activationEvents": [
-        "onLanguage:zap",
         "onFile:*.zap"
     ]
 }
