@@ -23,6 +23,11 @@ FUNC BYTE Square(BYTE x)
 RETURN x * x
 ```
 
+**Notes:**
+
+- The module name in the `.module` directive **must** be enclosed in double quotes. For example: `.module "stdio"`. The compiler will report an error if the module name is not quoted.
+- A file declared as a `.module` **must not** define `PROC MAIN()`. Modules are intended to be libraries; the `main()` procedure should appear in the top-level program file that is compiled directly (the one that includes modules).
+
 ### .include "filename.act"
 
 Includes another module's declarations, procedures, and functions. The included file's symbols become available in the current file.

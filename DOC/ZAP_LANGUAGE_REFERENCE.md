@@ -1302,6 +1302,11 @@ func byte abs_diff(byte a, byte b)
 end
 ```
 
+**Notes:**
+
+- The module name in the `.module` directive **must** be enclosed in double quotes (e.g., `.module "lib_math"`). The compiler enforces this and will raise an error for unquoted module names.
+- Files declared as modules should not define `PROC MAIN()`. The `main()` entry point belongs in the top-level program that includes modules, not in library modules.
+
 ### .include Directive
 
 Include another module's declarations and functions:
