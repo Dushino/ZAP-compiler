@@ -101,6 +101,8 @@ class Declaration(ASTNode):
     declarators: List[Declarator]
     is_static: bool = False  # True if STATIC modifier was present
     is_port: bool = False    # True if PORT modifier was present (hardware port-mapped variable)
+    port_rd: bool = False    # #RD - port readable
+    port_wr: bool = False    # #WR - port writable
     # Declaration modifiers
     keep: bool = False      # #KEEP prevents dead-code elimination of unused globals
     noexport: bool = False  # #NOEXPORT prevents exporting from a module
@@ -110,8 +112,10 @@ class Declaration(ASTNode):
         c = "const " if self.is_const else ""
         s = "static " if self.is_static else ""
         p = "port " if self.is_port else ""
+        r = "rd " if self.port_rd else ""
+        w = "wr " if self.port_wr else ""
         decls = ", ".join(repr(d) for d in self.declarators)
-        return f"{c}{s}{p}Declaration({self.type}: {decls})"
+        return f"{c}{s}{p}{r}{w}Declaration({self.type}: {decls})"
 
 
 @dataclass(frozen=True)

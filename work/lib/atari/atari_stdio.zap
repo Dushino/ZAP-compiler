@@ -42,7 +42,7 @@ const byte COLOR_GREEN4  = $D0
 const byte COLOR_YELLOW2 = $E0
 const byte COLOR_BROWN   = $F0
 
-byte PCOLOR0 @704
+byte PCOLOR0 @704 
 byte PCOLOR1 @705       
 byte PCOLOR2 @706       
 byte PCOLOR3 @707       
@@ -52,8 +52,12 @@ byte PLAYF2  @710
 byte PLAYF3  @711
 byte PLAYF4  @712
 
+byte SOMEPORT1 @$D100 #PORT #RD #WR
+byte SOMEPORT2 @$D101 #PORT #RD
+byte SOMEPORT3 @$D102 #PORT #WR
 
-byte cur_xpos, cur_ypos     ; cusros position on the screen
+
+byte cur_xpos, cur_ypos     ; cusror position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 

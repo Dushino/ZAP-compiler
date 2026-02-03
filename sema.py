@@ -278,6 +278,10 @@ class DeclarationAnalyzer:
             if d.initializer is not None:
                 raise SemanticError("PORT variable cannot have initializer", line=d.line, col=d.col)
 
+        # RD/WR modifiers must be used together with #PORT
+        if (getattr(decl, 'port_rd', False) or getattr(decl, 'port_wr', False)) and not decl.is_port:
+            raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", line=d.line, col=d.col)
+
         # Extract array dimensions (supports multi-dimensional arrays)
         array_sizes_to_eval = d.array_sizes if d.array_sizes else (
             [d.array_size] if d.array_size is not None else []
@@ -328,6 +332,10 @@ class DeclarationAnalyzer:
                             line=d.line, col=d.col
                         )
 
+                rd = getattr(decl, 'port_rd', False)
+                wr = getattr(decl, 'port_wr', False)
+                if decl.is_port and not (rd or wr):
+                    rd = wr = True
                 sym = Symbol(
                     name=d.name,
                     type=sem_type,
@@ -341,6 +349,8 @@ class DeclarationAnalyzer:
                     proc_name=getattr(self.symtab, '_proc_name', ''),
                     array_dims=None,
                     is_port=decl.is_port,
+                    port_rd=rd,
+                    port_wr=wr,
                     is_keep=getattr(decl, 'keep', False),
                     noexport=getattr(decl, 'noexport', False),
                     export=getattr(decl, 'export', False),
@@ -361,6 +371,10 @@ class DeclarationAnalyzer:
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
+                    rd = getattr(decl, 'port_rd', False)
+                    wr = getattr(decl, 'port_wr', False)
+                    if decl.is_port and not (rd or wr):
+                        rd = wr = True
                     sym = Symbol(
                         name=d.name,
                         type=sem_type,
@@ -374,6 +388,8 @@ class DeclarationAnalyzer:
                         proc_name=getattr(self.symtab, '_proc_name', ''),
                         array_dims=array_dims if array_dims else None,
                         is_port=decl.is_port,
+                        port_rd=rd,
+                        port_wr=wr,
                         is_keep=getattr(decl, 'keep', False),
                         noexport=getattr(decl, 'noexport', False),
                         export=getattr(decl, 'export', False),
@@ -389,6 +405,10 @@ class DeclarationAnalyzer:
                     # Validate field count (including nested)
                     self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
                     
+                    rd = getattr(decl, 'port_rd', False)
+                    wr = getattr(decl, 'port_wr', False)
+                    if decl.is_port and not (rd or wr):
+                        rd = wr = True
                     sym = Symbol(
                         name=d.name,
                         type=sem_type,
@@ -402,6 +422,8 @@ class DeclarationAnalyzer:
                         proc_name=getattr(self.symtab, '_proc_name', ''),
                         array_dims=None,
                         is_port=decl.is_port,
+                        port_rd=rd,
+                        port_wr=wr,
                         is_keep=getattr(decl, 'keep', False),
                         noexport=getattr(decl, 'noexport', False),
                         export=getattr(decl, 'export', False),
@@ -424,6 +446,10 @@ class DeclarationAnalyzer:
                 if array_len is None:
                     array_len = len(d.initializer.value) + 1
                 
+                rd = getattr(decl, 'port_rd', False)
+                wr = getattr(decl, 'port_wr', False)
+                if decl.is_port and not (rd or wr):
+                    rd = wr = True
                 sym = Symbol(
                     name=d.name,
                     type=sem_type,
@@ -437,6 +463,8 @@ class DeclarationAnalyzer:
                     proc_name=getattr(self.symtab, '_proc_name', ''),
                     array_dims=array_dims if array_dims else None,
                     is_port=decl.is_port,
+                    port_rd=rd,
+                    port_wr=wr,
                     is_keep=getattr(decl, 'keep', False),
                     noexport=getattr(decl, 'noexport', False),
                     export=getattr(decl, 'export', False),
@@ -563,6 +591,10 @@ class DeclarationAnalyzer:
                     tc = ExprTypeChecker(self.symtab, self.func_table, self.struct_registry)
                 tc.check(d.initializer.expr)
 
+        rd = getattr(decl, 'port_rd', False)
+        wr = getattr(decl, 'port_wr', False)
+        if decl.is_port and not (rd or wr):
+            rd = wr = True
         sym = Symbol(
             name=d.name,
             type=sem_type,
@@ -577,6 +609,8 @@ class DeclarationAnalyzer:
             array_dims=array_dims if array_dims else None,
             is_static=decl.is_static or d.is_static,
             is_port=decl.is_port,
+            port_rd=rd,
+            port_wr=wr,
             is_keep=getattr(decl, 'keep', False),
             noexport=getattr(decl, 'noexport', False),
             export=getattr(decl, 'export', False),

@@ -2,18 +2,22 @@
 
 ## Overview
 
-The `PORT` modifier has been implemented to explicitly mark hardware port-mapped variables. This allows the compiler to distinguish between generic fixed-address variables and hardware port variables, enabling future optimization strategy changes.
+The `#PORT` declaration modifier has been implemented to explicitly mark hardware port-mapped variables. This allows the compiler to distinguish between generic fixed-address variables and hardware port variables, enabling future optimization strategy changes.
+
+Additionally `#RD` and `#WR` declaration modifiers are supported to indicate whether the port is readable and/or writable. If neither `#RD` nor `#WR` are specified on a `#PORT` declaration, both read and write are allowed by default.
 
 ## Syntax
 
 ```zap
-PORT type name @address
+byte NAME @address #PORT            ; simple port declaration (reads and writes allowed)
+byte NAME @address #PORT #RD        ; read-only port
+byte NAME @address #PORT #WR        ; write-only port
 ```
 
 Example:
 ```zap
-PORT byte POKEY_AUDF1 @$D200
-PORT word SCREEN_ADDR @$4000
+byte POKEY_AUDF1 @$D200 #PORT
+byte STATUS_PORT @$FFF0 #PORT #RD
 ```
 
 ## Restrictions

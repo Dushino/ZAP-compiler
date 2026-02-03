@@ -166,11 +166,44 @@ class ProcAnalyzer:
             tc = ExprTypeChecker(scoped, self.func_table, self.struct_registry)
 
             def validate_stmt_exprs(statements: list):
-                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt
+                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, Identifier, SubscriptExpr, FieldAccess
                 for st in statements:
                     if isinstance(st, AssignStmt):
-                        tc.check(st.lhs)
+                        # RHS is read context
                         tc.check(st.rhs)
+                        # LHS write context: disable read checks
+                        tc.check(st.lhs, read_check_enabled=False)
+
+                        # Check write permission for ports
+                        def _get_base_ident(node):
+                            from ast_nodes import Identifier, SubscriptExpr, FieldAccess
+                            if isinstance(node, Identifier):
+                                return node.name
+                            if isinstance(node, SubscriptExpr):
+                                return _get_base_ident(node.array)
+                            if isinstance(node, FieldAccess):
+                                return _get_base_ident(node.object)
+                            return None
+
+                        base_name = _get_base_ident(st.lhs)
+                        if base_name is not None:
+                            try:
+                                sym = tc.symtab.lookup(base_name)
+                                if getattr(sym, 'is_port', False) and not getattr(sym, 'port_wr', False):
+                                    info = self.debug.get("stmt_src", {}).get(id(st))
+                                    if info:
+                                        if len(info) == 3:
+                                            fname, line, _text = info
+                                            col = 1
+                                        else:
+                                            fname, line, col, _text = info
+                                        err = SemanticError("Write to read-only port", line=line, col=col)
+                                        err.filename = fname
+                                        raise err
+                                    raise SemanticError("Write to read-only port")
+                            except KeyError:
+                                pass
+
                     elif isinstance(st, ReturnStmt):
                         if st.expr is not None:
                             tc.check(st.expr)

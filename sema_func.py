@@ -99,9 +99,9 @@ class FuncAnalyzer:
         self.expr_tc.symtab = scoped
 
         # Helper to validate expressions with error reporting
-        def validate_expr(expr, context_stmt=None):
+        def validate_expr(expr, context_stmt=None, read_check_enabled: bool = True):
             try:
-                return self.expr_tc.check(expr)
+                return self.expr_tc.check(expr, read_check_enabled)
             except SemanticError as e:
                 info = self.debug.get("stmt_src", {}).get(id(context_stmt)) if context_stmt else None
                 if info:
@@ -120,8 +120,44 @@ class FuncAnalyzer:
             from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt
             for st in statements:
                 if isinstance(st, AssignStmt):
-                    validate_expr(st.lhs, st)
+                    # Validate RHS (reads are checked)
                     validate_expr(st.rhs, st)
+                    # Validate LHS but disable read-checking (this is a write context)
+                    validate_expr(st.lhs, st, read_check_enabled=False)
+
+                    # Now ensure write permission for port variables
+                    def _get_base_ident(node):
+                        from ast_nodes import Identifier, SubscriptExpr, FieldAccess, DerefExpr
+                        if isinstance(node, Identifier):
+                            return node.name
+                        if isinstance(node, SubscriptExpr):
+                            return _get_base_ident(node.array)
+                        if isinstance(node, FieldAccess):
+                            # obj.field -> base can be Identifier or Deref/Subscript
+                            return _get_base_ident(node.object)
+                        # Other LHS forms are ignored for port checks
+                        return None
+
+                    base_name = _get_base_ident(st.lhs)
+                    if base_name is not None:
+                        try:
+                            sym = self.expr_tc.symtab.lookup(base_name)
+                            if getattr(sym, 'is_port', False) and not getattr(sym, 'port_wr', False):
+                                # Attach contextual source info if available
+                                info = self.debug.get("stmt_src", {}).get(id(st))
+                                if info:
+                                    if len(info) == 3:
+                                        fname, line, _text = info
+                                        col = 1
+                                    else:
+                                        fname, line, col, _text = info
+                                    err = SemanticError("Write to read-only port", line=line, col=col)
+                                    err.filename = fname
+                                    raise err
+                                raise SemanticError("Write to read-only port")
+                        except KeyError:
+                            pass
+
                 elif isinstance(st, IfStmt):
                     validate_expr(st.cond, st)
                     validate_stmt_exprs(st.then_body)

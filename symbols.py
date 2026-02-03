@@ -113,6 +113,8 @@ class Symbol:
     array_dims: Optional[List[int]] = None  # [10, 20, 30] for 3D array
     is_static: bool = False         # true → static local variable (initialized once at program start)
     is_port: bool = False           # true → PORT modifier (hardware port-mapped variable)
+    port_rd: bool = False           # #RD - port readable
+    port_wr: bool = False           # #WR - port writable
     # Declaration modifiers
     is_keep: bool = False           # #KEEP - don't dead-strip this symbol
     noexport: bool = False          # #NOEXPORT - do not export this symbol from .module

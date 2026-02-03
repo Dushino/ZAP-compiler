@@ -17,7 +17,7 @@ class ExprTypeChecker:
         self.func_table = func_table
         self.struct_registry = struct_registry
 
-    def check(self, expr) -> ExprType:
+    def check(self, expr, read_check_enabled: bool = True) -> ExprType:
         if isinstance(expr, IntLiteral):
             # Small literals (0-255) are BYTE, larger are WORD
             if 0 <= expr.value <= 255:
@@ -48,6 +48,10 @@ class ExprTypeChecker:
                     sym.type,        # ← PONECHAT is_pointer = True
                     ExprKind.ADDR
                 )
+
+            # This is a read (value) use of the identifier - enforce read permission for ports
+            if sym.is_port and not getattr(sym, 'port_rd', False) and read_check_enabled:
+                raise SemanticError("Read from write-only port", node=expr)
 
             return ExprType(sym.type, ExprKind.VALUE)
 

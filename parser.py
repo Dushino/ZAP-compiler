@@ -484,18 +484,181 @@ class Parser:
         is_const = False
         is_static = False
         is_port = False
+        port_rd = False
+        port_wr = False
 
-        # CONST, STATIC, or PORT prefix (can be combined with restrictions)
+        # CONST or STATIC prefix (PORT is now a declaration modifier #PORT)
         while self.cur.type == TOK_TYPEMOD:
             if self.cur.value.upper() == "CONST":
                 is_const = True
             elif self.cur.value.upper() == "STATIC":
                 is_static = True
-            elif self.cur.value.upper() == "PORT":
-                is_port = True
             else:
                 self.error("Unsupported type modifier")
             self.advance()
+
+        # Check for pointer prefix - two possible orders:
+        # 1. ^type name (pointer prefix first - used in structs and procs)
+        # 2. type ^name (pointer suffix after type - global declarations)
+        is_pointer = False
+
+        # Try order 1: ^type name
+        if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+            is_pointer = True
+            self.advance()
+
+        # type (built-in or struct name)
+        type_tok = self.cur
+        if self.cur.type == TOK_TYPE:
+            # Built-in type (byte, word)
+            self.expect(TOK_TYPE)
+        elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
+            # Struct type
+            self.advance()
+        else:
+            self.expect(TOK_TYPE)
+
+        # Check for order 2: type ^name (pointer suffix after type)
+        if not is_pointer and (self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^")):
+            is_pointer = True
+            self.advance()
+
+        def _is_sqb(val=None):
+            # Accept either dedicated square-bracket tokens or OP tokens carrying '[' or ']'
+            if self.cur.type == TOK_SQB:
+                return val is None or self.cur.value == val
+            if self.cur.type == TOK_OP and self.cur.value in ("[", "]"):
+                return val is None or self.cur.value == val
+            return False
+
+        def _expect_sqb(val):
+            if not _is_sqb(val):
+                self.error(f"Expected '{val}'")
+            self.advance()
+
+        def parse_declarator():
+            # ident
+            name = self.cur.value
+            if name.startswith('_'):
+                self.error("Variable names cannot start with underscore")
+            decl_line = self.cur.line
+            decl_col = self.cur.col
+            self.expect(TOK_IDENT)
+
+            # Parse array dimensions (may have multiple [size] clauses)
+            array_sizes = []
+            while _is_sqb("["):
+                # [expr] or []
+                self.advance()
+                if not _is_sqb("]"):
+                    array_sizes.append(self.parse_expr())
+                else:
+                    # [] → infer size from initializer
+                    array_sizes.append(IntLiteral(-1))
+                _expect_sqb("]")  # closing ]
+
+            # For backward compatibility, keep array_size for single dimension
+            array_size = array_sizes[0] if len(array_sizes) == 1 else None
+
+            init = None
+            address = None
+
+            # init / address (any order, at most once each)
+            while True:
+                if self.cur.type == TOK_EQU and init is None:
+                    self.advance()
+
+                    # list initializer { ... }
+                    if self.cur.type == TOK_LCURLY:
+                        self.advance()
+                        values = []
+                        if self.cur.type != TOK_RCURLY:
+                            values.append(self.parse_init_value())
+                            while self.cur.type == TOK_DELIM and self.cur.value == ',':
+                                self.advance()
+                                # Allow trailing comma
+                                if self.cur.type == TOK_RCURLY:
+                                    break
+                                values.append(self.parse_init_value())
+                        self.expect(TOK_RCURLY)
+                        init = ListInit(values)
+                        continue
+
+                    # string initializer
+                    if self.cur.type == TOK_STRING:
+                        val = self.cur.value
+                        self.advance()
+                        init = StringInit(val)
+                        continue
+
+                    init = ExprInit(self.parse_expr())
+                    continue
+
+                if self.cur.type == TOK_AT and address is None:
+                    self.advance()
+                    address = self.parse_expr()
+                    continue
+                break
+
+            # record declaration source
+            line_text = self.source_lines[decl_line-1] if 1 <= decl_line <= len(self.source_lines) else ""
+            if self.current_proc_name:
+                self.local_decl_src[(self.current_proc_name, name)] = (self.filename, decl_line, decl_col, line_text)
+            else:
+                self.global_decl_src[name] = (self.filename, decl_line, decl_col, line_text)
+
+            # Create Declarator with multi-dimensional support
+            return Declarator(
+                name=name,
+                array_size=array_size,
+                address=address,
+                initializer=init,
+                array_sizes=array_sizes if array_sizes else None,
+                line=decl_line,
+                col=decl_col,
+                is_static=is_static
+            )
+
+        declarators = [parse_declarator()]
+
+        while self.cur.type == TOK_DELIM and self.cur.value == ',':
+            self.advance()
+            declarators.append(parse_declarator())
+
+        # Optional trailing declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        keep = False
+        noexport = False
+        export = False
+        while self.cur.type == TOK_DECLMOD:
+            val = self.cur.value.upper()
+            if val == 'KEEP':
+                keep = True
+            elif val == 'NOEXPORT':
+                noexport = True
+            elif val == 'EXPORT':
+                export = True
+            elif val == 'PORT':
+                is_port = True
+            elif val == 'RD':
+                port_rd = True
+            elif val == 'WR':
+                port_wr = True
+            else:
+                self.error(f"Unsupported declaration modifier '{val}'")
+            self.advance()
+
+        return Declaration(
+            is_const=is_const,
+            type=TypeNode(type_tok.value, is_pointer),
+            declarators=declarators,
+            is_static=is_static,
+            is_port=is_port,
+            port_rd=port_rd,
+            port_wr=port_wr,
+            keep=keep,
+            noexport=noexport,
+            export=export,
+        )
 
         # Check for pointer prefix - two possible orders:
         # 1. ^type name (pointer prefix first - used in structs and procs)
