@@ -74,8 +74,9 @@
                 "name": "zap-matcher",
                 "owner": "zap",
                 "label": "ZAP Compiler Errors",
+                "fileLocation": "absolute",
                 "pattern": {
-                    "regexp": "^([^\\s].*):(\\d+):(\\d+):\\s+(error|warning|info):\\s+(.*)$",
+                    "regexp": "^\\s*([^\\s].*):(\\d+):(\\d+):\\s+(error|warning|info):\\s+(.*)$",
                     "file": 1,
                     "line": 2,
                     "column": 3,
