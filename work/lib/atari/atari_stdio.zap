@@ -65,9 +65,9 @@ proc CONSTRUCTOR() ; as it had #KEEP and #NOEXPORT
         
     dlptr = dlstart         ; copy display list address into ZP pointer        
     dlptr = dlptr + 4       ; skip first four bytes of display list - Fixme: Reports wrong error on wrong line
-    vram = dlptr^           ; get screen memory address from display list
+    ;vram = dlptr^           ; get screen memory address from display list
     
-    vram^ = 1
+    ;vram^ = 1
 end
 
 
