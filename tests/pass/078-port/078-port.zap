@@ -19,8 +19,8 @@ struct VIA_STRUCT
     byte PRB     
 end
 
-port VIA_STRUCT VIA1 @40000
-port VIA_STRUCT VIA2 @40016
+VIA_STRUCT VIA1 @40000 #port
+VIA_STRUCT VIA2 @40016 #port
 
 proc helper() 
     VIA1.ORB = $01
