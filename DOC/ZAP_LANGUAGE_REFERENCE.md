@@ -60,7 +60,7 @@ A ZAP program consists of:
 
 ### Case Sensitivity
 
-ZAP! is case-insensitive for identifiers:
+ZAP! is case-insensitive:
 ```zap
 byte myVar
 byte MYVAR      ; Same variable - error: duplicate!
@@ -219,6 +219,38 @@ proc main()
 end
 ```
 
+#### port - Hardware Port Variables (#PORT, #RD, #WR) 🔌
+
+Use `#PORT` to mark a variable as a hardware port-mapped variable. Port declarations are regular (global) variable declarations with an `@` address specifier and the `#PORT` modifier. Optionally attach `#RD` and/or `#WR` to indicate read/write capabilities.
+
+**Syntax:**
+
+```zap
+byte POKEY_AUDF1 @$D200 #PORT        ; read/write port (default)
+byte STATUS_PORT @$FFF0 #PORT #RD    ; read-only port
+byte DATA_PORT @$D201 #PORT #WR      ; write-only port
+```
+
+**Rules and semantic constraints (enforced by `sema.py`):**
+- `#PORT` requires an explicit address (`@ NUMBER`); e.g., `@$D200`.
+- `#PORT` **cannot** be combined with `const` or `static`.
+- `#PORT` cannot be used on arrays or pointer types.
+- `#PORT` variables **cannot** have initializers (hardware ports cannot be initialized).
+- `#RD` and `#WR` are only valid together with `#PORT`. If neither `#RD` nor `#WR` is specified, the port allows both read and write accesses by default.
+- Attempting to `WRITE` to an `#RD`-only port or `READ` from a `#WR`-only port is flagged as a semantic error.
+
+Use cases:
+- Represent memory-mapped or I/O ports in platform-specific library modules.
+- Document hardware access permissions with `#RD`/`#WR` so semantic checks can catch misuse.
+
+Examples:
+
+```zap
+byte POKEY_AUDF1 @$D200 #PORT       ; standard read/write
+byte JOYSTICK @$D300 #PORT #RD      ; reading joystick status
+byte SOUND_OUT @$D400 #PORT #WR     ; writing audio registers
+```
+
 **Rules for static variables:**
 
 - Can **only be used on local variables** (inside procedures/functions)
@@ -284,26 +316,35 @@ proc allocate_handle()
 end
 ```
 
-#### Declaration Modifiers (#KEEP, #NOEXPORT, #EXPORT) 🔖
+#### Declaration Modifiers (#KEEP, #NOEXPORT, #EXPORT, #PORT, #RD, #WR) 🔖
 
-Three declaration modifiers can be attached to top-level declarations, procedures, and functions to control exporting and dead-code elimination. Modifiers are written after the declaration header and are case-insensitive. Examples:
+ZAP! supports a set of trailing declaration modifiers that influence export behaviour, dead-code elimination, and port semantics. Modifiers are case-insensitive and are written after a declaration header (after the `)` of `proc`/`func`, or after a variable declarator list).
+
+Examples:
 
 ```zap
 proc atari_file_data_area() #KEEP #NOEXPORT
 byte KEEPVAR #KEEP
 const byte CVAL = 10 #EXPORT
+byte POKEY_AUDF1 @$D200 #PORT #RD
+byte STATUS_PORT @$FFF0 #PORT #RD
+byte DATA_PORT @$D201 #PORT #WR
 ```
 
+Modifiers:
 - `#KEEP` — Prevents the symbol (procedure, function, global variable, or const) from being removed by dead-code elimination even if it is not referenced elsewhere.
 - `#NOEXPORT` — When the file is declared as a `.module`, this prevents the symbol from being exported to files that include the module.
 - `#EXPORT` — When the file is *not* a `.module`, this forces the symbol to be exported (useful for small libraries implemented in plain files).
+- `#PORT` — Marks a variable as a hardware port-mapped variable. See the "Port Variables" section for details.
+- `#RD` / `#WR` — Read/write qualifiers used together with `#PORT` to indicate whether the port is readable and/or writable. If neither `#RD` nor `#WR` is specified, both are allowed by default.
 
 Rules and notes:
 - In a `.module` file, **all** top-level symbols are exported by default except those explicitly marked `#NOEXPORT`.
 - In non-module files, **no** symbols are exported by default; use `#EXPORT` to explicitly export a symbol.
 - `#KEEP` does **not** imply exporting; use `#EXPORT` if you want the symbol to be visible to includes.
+- `#PORT`, `#RD`, and `#WR` are only valid on variable declarations (see "Port Variables" below). `#RD` and `#WR` are only valid when `#PORT` is present.
 - Modifiers may be combined (e.g., `#KEEP #NOEXPORT`) and are parsed in any order.
-- These modifiers apply to global declarations (variables, consts) and declarations of `proc`/`func`.
+- These modifiers apply to global declarations (variables, consts), and to top-level `proc`/`func` declarations. The parser emits these as `TOK_DECLMOD` tokens and the semantic checks enforce the constraints (see `parser.py` / `sema.py`).
 
 #### Pointer Types
 
@@ -1306,6 +1347,7 @@ end
 
 - The module name in the `.module` directive **must** be enclosed in double quotes (e.g., `.module "lib_math"`). The compiler enforces this and will raise an error for unquoted module names.
 - Files declared as modules should not define `PROC MAIN()`. The `main()` entry point belongs in the top-level program that includes modules, not in library modules.
+- The `.module` directive itself only accepts a module name (string). Use declaration modifiers (`#NOEXPORT`, `#EXPORT`, `#KEEP`) on individual declarations, `proc`, or `func` to control export and keep behavior; module directives are not (currently) interpreted for modifiers.
 
 ### .include Directive
 

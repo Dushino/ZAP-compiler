@@ -76,7 +76,7 @@ NNN-feature-name/
 ├── source.zap          # Valid ZAP source code
 ├── source.ref          # Expected memory dump (reference)
 ├── source.json         # Simulator configuration file
-└── description.txt     # Test description (optional)
+└── description.md      # Test description (optional)
 ```
 
 **source.zap**
@@ -95,7 +95,7 @@ NNN-feature-name/
 - Specifies memory ranges, breakpoints, etc.
 - Used to set up simulation environment
 
-**description.txt**
+**description.md**
 - Human-readable test description
 - Purpose of test
 - Expected behavior
@@ -108,7 +108,7 @@ For each passing test feature, create a corresponding error test:
 NNN-feature-name-error/
 ├── source.zap          # Invalid ZAP source (should fail to compile)
 ├── error.ref           # Expected compiler error message
-└── description.txt     # Description of what error should occur
+└── description.md      # Description of what error should occur
 ```
 
 **source.zap**

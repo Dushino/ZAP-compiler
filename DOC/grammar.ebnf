@@ -1,6 +1,6 @@
 (* ZAP! Language Grammar - EBNF Notation *)
 (* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, PORT Modifier, STATIC Variables *)
-(* Lexical tokens: IDENT, NUMBER, STRING, TOK_ASM_BLOCK *)
+(* Lexical tokens: IDENT, NUMBER, STRING, DECLMOD, ASM_BLOCK *)
 (* Comments: beginning with ; until end of line *)
 
 program         ::= { top_level } ;
@@ -13,7 +13,7 @@ top_level       ::= declaration
                   | module_decl
                   | include_decl ;
 
-module_decl     ::= ".module" STRING ;
+module_decl     ::= ".module" STRING [ decl_modifiers ] ;
 include_decl    ::= ".include" STRING ;
 segment_directive ::= ".segment" STRING ;
 
@@ -23,9 +23,12 @@ type            ::= base_type [ "^" ] ;
 base_type       ::= "byte" | "word" | STRUCT_NAME ;
 
 (* ============ DECLARATIONS ============ *)
-declaration     ::= [ type_modifier { type_modifier } ] type declarator_list ;
+declaration     ::= [ type_modifier { type_modifier } ] type declarator_list [ decl_modifiers ] ;
 
 type_modifier   ::= "const" | "static" | "port" ;
+
+decl_modifiers  ::= { decl_modifier } ;
+decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" ;
 
 declarator_list ::= declarator { "," declarator } ;
 
@@ -50,12 +53,12 @@ struct_body     ::= { struct_field } ;
 struct_field    ::= type IDENT [ array_spec ] [ address_spec ] ;
 
 (* ============ PROCEDURES ============ *)
-proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" proc_body "end" ;
+proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" [ decl_modifiers ] proc_body "end" ;
 
 proc_body       ::= { local_decl } { statement } ;
 
 (* ============ FUNCTIONS ============ *)
-func_decl       ::= "func" type IDENT "(" [ param_list ] ")" func_body "end" ;
+func_decl       ::= "func" type IDENT "(" [ param_list ] ")" [ decl_modifiers ] func_body "end" ;
 
 func_body       ::= { local_decl } { statement } "return" expression ;
 
@@ -216,6 +219,7 @@ expr_list       ::= expression { "," expression } ;
    - STRUCT ARRAYS: Arrays of structs with full initialization and field access support
    - STATIC VARIABLES: Local variables that persist across procedure calls
    - PORT VARIABLES: Hardware port-mapped variables (e.g., PORT byte POKEY_AUDF1 @$D200)
+   - DECLARATION MODIFIERS: Trailing modifiers may be attached to top-level declarations, procedures, and functions. Supported modifiers include `#KEEP` (prevent dead-code elimination), `#NOEXPORT` (do not export from a module), `#EXPORT` (force export from non-module file), and `#PORT` / `#RD` / `#WR` (port-related modifiers). Modifiers may be combined and are case-insensitive.
    - ELSEIF SUPPORT: Multiple conditional branches (if-elseif-elseif-else-endif)
    - CONTINUE STATEMENT: Skip to next loop iteration in for/while loops
    - STRUCT FIELD ASSIGNMENT: Can assign to struct fields (unless const)

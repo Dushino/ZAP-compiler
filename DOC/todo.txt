@@ -203,4 +203,5 @@ To check - enhance tests
 [x] .segment between ASM and END fail for some reason
 [ ] Array can be initialized:
     byte arr[3] = {10, 20, 30}
-[ ] Errors in Problems tab can not open file
+[x] Errors in Problems tab can not open file
+[ ] ENUM?
