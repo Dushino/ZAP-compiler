@@ -88,6 +88,19 @@ class Parser:
                     self.advance()
                 if self.cur.type == TOK_KEYWORD:
                     self.advance()  # skip "end"
+            elif self.cur.type == TOK_KEYWORD and self.cur.value == "ENUM":
+                # Collect enum name for first-pass recognition
+                self.advance()  # skip "enum"
+                # Optional base type (byte/word)
+                if self.cur.type == TOK_TYPE:
+                    self.advance()
+                if self.cur.type == TOK_IDENT:
+                    self.struct_names.add(self.cur.value.upper())
+                # Skip to closing '}'
+                while self.cur.type != TOK_EOF and not (self.cur.type == TOK_OP and self.cur.value == "}"):
+                    self.advance()
+                if self.cur.type == TOK_OP and self.cur.value == "}":
+                    self.advance()
             else:
                 self.advance()
         
@@ -150,6 +163,8 @@ class Parser:
                     self.error("Expected identifier after '.'")
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "STRUCT":
                 procs.append(self.parse_struct_def())
+            elif self.cur.type == TOK_KEYWORD and self.cur.value == "ENUM":
+                decls.append(self.parse_enum())
             elif self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
                 decls.append(self.parse_declaration())
             elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
@@ -184,7 +199,44 @@ class Parser:
         
         struct_name = self.cur.value
         self.expect(TOK_IDENT)
-        
+
+    def parse_enum(self):
+        """Parse enum declaration: enum [type] Name { item [, item]* }"""
+        start_line = self.cur.line
+        start_col = self.cur.col
+        self.expect(TOK_KEYWORD, "ENUM")
+        # optional base type
+        base = 'byte'
+        if self.cur.type == TOK_TYPE:
+            base = self.cur.value
+            self.advance()
+        name = self.cur.value
+        self.expect(TOK_IDENT)
+        items = []
+        # expect '{'
+        self.expect(TOK_LCURLY)
+        # empty enum allowed
+        if self.cur.type != TOK_RCURLY:
+            while True:
+                item_line = self.cur.line
+                item_col = self.cur.col
+                item_name = self.cur.value
+                if item_name.startswith('_'):
+                    self.error("Enum member names cannot start with underscore")
+                self.expect(TOK_IDENT)
+                item_value = None
+                if self.cur.type == TOK_EQU:
+                    self.advance()
+                    item_value = self.parse_expr()
+                items.append(EnumItem(item_name, item_value, line=item_line, col=item_col))
+                if self.cur.type == TOK_DELIM and self.cur.value == ',':
+                    self.advance()
+                    if self.cur.type == TOK_RCURLY:
+                        break
+                    continue
+                break
+        self.expect(TOK_RCURLY)
+        return EnumDecl(name, base, items, line=start_line, col=start_col)        
         fields = []
         seen_names: set[str] = set()
         

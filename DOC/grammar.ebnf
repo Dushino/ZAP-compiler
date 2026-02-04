@@ -1,6 +1,10 @@
 (* ZAP! Language Grammar - EBNF Notation *)
 (* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, PORT Modifier, STATIC Variables *)
 (* Lexical tokens: IDENT, NUMBER, STRING, DECLMOD, ASM_BLOCK *)
+(*
+   Enums: compile-time-only named integer constants. Default base type is `byte` unless a `word` is specified before the enum name.
+   Example: enum byte Flags { FLAG_A = 1, FLAG_B = 2 }
+*)
 (* Comments: beginning with ; until end of line *)
 
 program         ::= { top_level } ;
@@ -10,8 +14,12 @@ top_level       ::= declaration
                   | proc_decl
                   | func_decl
                   | struct_decl
+                  | enum_decl
                   | module_decl
                   | include_decl ;
+
+enum_decl       ::= "enum" [ type ] IDENT "{" [ enum_item { "," enum_item } ] [ "," ] "}" ;
+enum_item       ::= IDENT [ "=" expression ] ;
 
 module_decl     ::= ".module" STRING [ decl_modifiers ] ;
 include_decl    ::= ".include" STRING ;

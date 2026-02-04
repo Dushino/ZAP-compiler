@@ -339,6 +339,23 @@ class Program:
     exports: set[str] | None = None
 
 
+@dataclass(frozen=True)
+class EnumItem(ASTNode):
+    name: str
+    value: "Expr | None" = None
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True)
+class EnumDecl(ASTNode):
+    name: str
+    base: str  # "byte" or "word"
+    items: list[EnumItem]
+    line: int = 0
+    col: int = 0
+
+
 @dataclass()
 class IfStmt:
     cond: Expr

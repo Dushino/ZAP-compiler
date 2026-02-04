@@ -1,7 +1,7 @@
 from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl
 from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl, SegmentDirective, IncbinDirective, StructDef
 from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry
-from sema import DeclarationAnalyzer, StructAnalyzer
+from sema import DeclarationAnalyzer, StructAnalyzer, EnumAnalyzer
 from sema_expr import ExprTypeChecker
 from sema_proc import ProcAnalyzer
 from sema_func import FuncAnalyzer
@@ -374,9 +374,21 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         if isinstance(item, StructDef):
             struct_an.analyze(item)
 
+    # --- enums (compile-time constants) ---
+    enum_an = EnumAnalyzer(global_symtab)
+    # Run enum analyzer first so their members are available as consts for later declarations
+    for d in program.decls:
+        from ast_nodes import EnumDecl
+        if isinstance(d, EnumDecl):
+            enum_an.analyze(d)
+
     # --- declarations ---    
     decl_an = DeclarationAnalyzer(global_symtab, struct_registry, func_table, global_symtab=None)
     for d in program.decls:
+        # Skip enum declarations; they were processed above
+        from ast_nodes import EnumDecl
+        if isinstance(d, EnumDecl):
+            continue
         decl_an.analyze(d)
     
     # --- debug info ---

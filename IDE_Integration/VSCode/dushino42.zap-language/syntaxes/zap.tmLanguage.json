@@ -93,7 +93,7 @@
             "patterns": [
                 {
                     "name": "storage.type.zap",
-                    "match": "(?i)\\b(BYTE|WORD|STRUCT)\\b"
+                    "match": "(?i)\\b(BYTE|WORD|STRUCT|ENUM)\\b"
                 },
                 {
                     "name": "storage.modifier.zap",

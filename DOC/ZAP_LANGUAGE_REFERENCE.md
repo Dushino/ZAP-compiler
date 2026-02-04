@@ -251,6 +251,39 @@ byte JOYSTICK @$D300 #PORT #RD      ; reading joystick status
 byte SOUND_OUT @$D400 #PORT #WR     ; writing audio registers
 ```
 
+#### Enums - Compile-time named constants 🧾
+
+Enums provide a convenient syntax for defining a sequence of named integer constants. They are purely compile-time and expand into `const` symbols (no runtime storage or runtime overhead).
+
+**Syntax:**
+
+```zap
+enum [byte|word] Name { ITEM1 [= expr], ITEM2, ITEM3 = 5, ITEM4 }
+```
+
+- The base type is optional and defaults to `byte`. Use `word` when values need 16 bits.
+- Members may be assigned explicit expressions; otherwise they auto-increment from 0 or from the previous value.
+- Enum members behave as compile-time `const` symbols and may be used in initializers, array dimensions, and expressions.
+
+**Examples:**
+
+```zap
+enum Colors { RED, GREEN, BLUE }
+byte c = RED       ; c == 0
+
+enum byte Flags { FLAG_A = 1, FLAG_B, FLAG_C = 4 }
+byte f = FLAG_A | FLAG_C  ; f == 5
+
+enum Levels { LOW = 1, MEDIUM, HIGH } ; MEDIUM==2, HIGH==3
+```
+
+**Semantics / Implementation notes:**
+- Enum members are expanded into `const` symbols during semantic analysis and are available to subsequent declarations in the same translation unit.
+- Member values are range-checked against the chosen base type (`byte`: 0–255, `word`: 0–65535).
+- Duplicate member names or conflicts with existing symbols are reported as compile-time errors.
+- Enums are syntax sugar only — they do not allocate target memory and impose no runtime cost.
+
+
 **Rules for static variables:**
 
 - Can **only be used on local variables** (inside procedures/functions)

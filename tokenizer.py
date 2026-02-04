@@ -6,7 +6,7 @@ from token_types import *
 from errors import TokenizerError
 
 ESCAPES         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\","a":"\a","b":"\b","f":"\f","v":"\v","0":"\0"}
-KEYWORDS        = {"proc", "func", "struct",
+KEYWORDS        = {"proc", "func", "struct", "enum",
                    "if","else", "elseif", "then", "endif", "end", 
                    "for", "to", "step", "next",
                    "while", "repeat", "until",

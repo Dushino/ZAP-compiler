@@ -1,7 +1,7 @@
 byte result @40000 = 0
 
 proc main()
-    byte arr[5]
+    byte arr[5] = { 1, 2, 3, 4, 5}
     byte sum
     arr[0] = 10
     arr[1] = 20
