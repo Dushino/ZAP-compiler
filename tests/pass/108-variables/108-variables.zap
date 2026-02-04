@@ -1,8 +1,8 @@
 byte result @40000 = 0
 
 proc main()
-    byte x = 10
-    word y = 20
+    byte x = 100
+    word y = 200
     word z = x + y
     result = z ; implicit truncation if required
 end

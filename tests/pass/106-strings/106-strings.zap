@@ -1,8 +1,7 @@
-byte result @40000 = 0
+; byte result @40000 = 0
+
+byte msg[] @40000 = "hello\n"
 
 proc main()
-    ; simple string and escape sequences
-    const msg[] = "hello\n"
-    byte len = 6
-    result = len
+    byte len @40007 = 6
 end

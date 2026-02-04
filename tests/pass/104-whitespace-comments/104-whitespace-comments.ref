@@ -1,2 +1,1 @@
-# Expected output: result = 3
-# Verifies line and block comments are skipped by lexer
+9C40: 03 00                   

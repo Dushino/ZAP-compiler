@@ -1,2 +1,1 @@
-# Expected output: string constant of length 6 including newline
-# Validates basic strings and escape sequences such as \n
+9C40: 68 65 6C 6C 6F 0A 00 06 
