@@ -2,7 +2,7 @@
 ; working area for testing random parts of stdio.zap
 
 .define ATARI
-.include "/home/dusan/src/ZAP-compiler/work/lib/stdio.zap"
+.include "stdio.zap"
 
 proc main()
 

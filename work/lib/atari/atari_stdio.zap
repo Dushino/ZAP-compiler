@@ -79,7 +79,7 @@ end
     COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
 */
-proc atari_file_data_area() #KEEP #NOexport 
+proc atari_file_data_area() #KEEP #NOEXPORT
     asm
         .segment "COMHEADER"
         .import __RAM_START__, __RAM_LAST__
@@ -107,6 +107,9 @@ proc cls()
 end
 
 
+/*
+    Wait for keyboard key press and return ATASCII code
+*/
 func byte getchar()
     byte ch
 
