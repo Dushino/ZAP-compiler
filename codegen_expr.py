@@ -4178,7 +4178,7 @@ class CodeGen:
         return (arr_sym.asm_name(), offset)
 
     
-    def _gen_binary(self, expr: BinaryExpr):
+    def _gen_binary(self, expr: BinaryExpr, force_left_tmp=None):
         t = self.tc_check(expr)
         left_t = self.tc_check(expr.left)
         right_t = self.tc_check(expr.right)
@@ -4466,11 +4466,28 @@ class CodeGen:
             self.emit("\tLDA TMP3")  # Get low byte back
             return
 
-        # Check if left operand is complex (uses TMP0 internally)
+        # Check if left or right operand is complex (uses TMP0 internally)
         left_is_complex = isinstance(expr.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+        right_is_complex = isinstance(expr.right, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
         
-        # For complex left operands, use TMP1 to avoid clobbering TMP0 used by subscript/field calculations
-        left_tmp = "TMP1" if left_is_complex else "TMP0"
+        # Choose a temp that won't be clobbered by generating the right operand.
+        # Honor caller's request when possible (force_left_tmp). If the left side
+        # itself is complex it needs TMP1. Otherwise try to pick the opposite of
+        # what the right side would prefer so they don't collide.
+        if force_left_tmp and not left_is_complex:
+            left_tmp = force_left_tmp
+        elif left_is_complex:
+            left_tmp = "TMP1"
+        else:
+            # Predict the right sub-expression's preferred left-temp
+            if isinstance(expr.right, BinaryExpr):
+                nested_left_is_complex = isinstance(expr.right.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+                right_pref = "TMP1" if nested_left_is_complex else "TMP0"
+            elif isinstance(expr.right, (SubscriptExpr, FieldAccess, DerefExpr)):
+                right_pref = "TMP0"
+            else:
+                right_pref = "TMP0"
+            left_tmp = "TMP1" if right_pref == "TMP0" else "TMP0"
 
         # Generate left operand
         self.gen_expr(expr.left)
@@ -4481,7 +4498,10 @@ class CodeGen:
 
         # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
         if not (use_inc_opt or use_dec_opt):
-            self.gen_expr(expr.right)
+            # Ask the right sub-expression to prefer the opposite temp to avoid
+            # accidental clobbering of the saved left value.
+            right_hint = "TMP0" if left_tmp == "TMP1" else "TMP1"
+            self.gen_expr(expr.right, force_left_tmp=right_hint)
         
         # Handle different operations
         if expr.op == BinOp.ADD:
@@ -5173,7 +5193,7 @@ class CodeGen:
             return
 
 
-    def gen_expr(self, expr):
+    def gen_expr(self, expr, force_left_tmp=None):
         # Apply constant folding and algebraic simplifications
         expr = fold_expr(expr)
         
@@ -5237,7 +5257,7 @@ class CodeGen:
             }:
                 self._gen_relational(expr)
             else:
-                self._gen_binary(expr)
+                self._gen_binary(expr, force_left_tmp)
 
         elif isinstance(expr, UnaryExpr):
             self._gen_unary(expr)
