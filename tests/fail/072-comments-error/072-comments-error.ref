@@ -1,0 +1,4 @@
+# Error Test - Unterminated Comment
+
+## Expected Error
+Lexer should report an unterminated block comment or EOF reached while in comment.

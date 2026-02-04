@@ -1,0 +1,4 @@
+# Error Test - Undeclared Variable
+
+## Expected Error
+Assignment to undeclared variable `x`; semantic analyzer should report an unknown identifier error.

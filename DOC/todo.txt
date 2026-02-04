@@ -204,4 +204,34 @@ To check - enhance tests
 [x] Array can be initialized:
     byte arr[3] = {10, 20, 30}
 [x] Errors in Problems tab can not open file
-[ ] ENUM?
+[x] ENUM?
+
+
+Comprehensive tests
+Lexical & identifiers
+PASS: valid identifiers, underscores, keywords vs identifiers
+FAIL: identifiers starting with digits, invalid chars
+
+Integer literals
+PASS: decimal/hex, within range
+FAIL: malformed literal, overflow
+
+Whitespace & comments
+PASS: line/block comments, whitespace tolerance
+FAIL: unterminated comment
+
+String literals & escapes (simple)
+PASS: basic strings, allowed escapes
+FAIL: unterminated string, bad escape
+
+Variable declarations & assignments
+PASS: correct declarations and assignments
+FAIL: type mismatch assignment, undeclared variable
+
+Expressions & operator precedence
+PASS: binary/unary ops, parentheses
+FAIL: invalid expression, misuse of operator
+
+Simple control flow (if / while)
+PASS & FAIL variants for condition types and syntax
+

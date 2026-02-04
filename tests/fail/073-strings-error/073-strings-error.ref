@@ -1,0 +1,4 @@
+# Error Test - Unterminated String
+
+## Expected Error
+Lexer/parser should report unterminated string literal or missing closing quote.

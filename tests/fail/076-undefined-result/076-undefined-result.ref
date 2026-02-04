@@ -1,0 +1,7 @@
+# Error Test - Undefined LHS variable
+
+## Expected Error
+Variable 'result' is not defined
+
+## Note
+Error should be reported at the location of `result` (the assignment LHS), not at the RHS identifier.

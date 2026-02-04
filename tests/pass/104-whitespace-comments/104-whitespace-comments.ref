@@ -1,0 +1,2 @@
+# Expected output: result = 3
+# Verifies line and block comments are skipped by lexer

@@ -1,0 +1,4 @@
+# Error Test - Invalid Expression
+
+## Expected Error
+Parser should report a syntax error for malformed expression (missing operand after operator).

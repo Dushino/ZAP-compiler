@@ -1,0 +1,4 @@
+# Error Test - Integer Literal Overflow
+
+## Expected Error
+Integer literal out of range or cannot fit into target type; parser/semantics should report overflow or invalid literal.

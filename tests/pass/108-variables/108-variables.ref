@@ -1,0 +1,2 @@
+# Expected output: z = 30 (word)
+# Checks basic variable declaration and mixed-type arithmetic with promotion/truncation rules.

@@ -31,12 +31,10 @@
 
 ```zap
 proc main()
-    putc('H')
-    putc('i')
 end
 ```
 
-This simple program defines a main procedure that outputs two characters. Every ZAP program must have a `main` procedure as its entry point.
+This simple program defines a main procedure. Every ZAP program must have a `main` procedure as its entry point.
 
 ### Compilation
 

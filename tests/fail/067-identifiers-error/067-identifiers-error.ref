@@ -1,0 +1,4 @@
+# Error Test - Invalid Identifier
+
+## Expected Error
+Identifier starts with a digit or contains invalid characters; lexer/parser should report an invalid identifier token.

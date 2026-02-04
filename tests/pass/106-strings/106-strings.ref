@@ -1,0 +1,2 @@
+# Expected output: string constant of length 6 including newline
+# Validates basic strings and escape sequences such as \n
