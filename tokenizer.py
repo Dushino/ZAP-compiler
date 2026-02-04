@@ -405,7 +405,8 @@ class Tokenizer:
             if ch == '#':
                 self._advance(1)
                 start = self.pos
-                if self._peek() is None or not self._peek().isalpha():
+                nxt = self._peek()
+                if nxt is None or not nxt.isalpha():
                     raise TokenizerError("Expected identifier after '#'", line=self.sline, col=self.scol)
                 while True:
                     c = self._peek()

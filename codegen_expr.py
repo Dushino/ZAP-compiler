@@ -4768,9 +4768,9 @@ class CodeGen:
             self.emit(f"\tLDA {left_tmp}+1")
             self.emit("\tSTA TMP0+1")
         # TMP0,TMP0+1 = dividend
-        # A,X = divisor
-        self.emit("\tSTA TMP2")
-        self.emit("\tSTX TMP3")
+        # A,X = divisor (restore divisor saved earlier)
+        self.emit("\tLDA TMP2")
+        self.emit("\tLDX TMP3")
         
         if not left_16 and not right_16:
             # 8%8 = 8

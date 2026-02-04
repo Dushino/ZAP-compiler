@@ -18,7 +18,8 @@ class Parser:
         self.tok = Tokenizer(source)
         self.tok.tokenize()
         self.tokens = self.tok._getTokens()        
-        self.cur = self.tokens[0] if self.tokens else None
+        # Current token - always maintain a Token (use EOF token when empty)
+        self.cur = self.tokens[0] if self.tokens else Token(TOK_EOF, "", 1, 1)
         self.pos = 0
         # Debug maps
         self.current_proc_name: str | None = None
@@ -200,43 +201,6 @@ class Parser:
         struct_name = self.cur.value
         self.expect(TOK_IDENT)
 
-    def parse_enum(self):
-        """Parse enum declaration: enum [type] Name { item [, item]* }"""
-        start_line = self.cur.line
-        start_col = self.cur.col
-        self.expect(TOK_KEYWORD, "ENUM")
-        # optional base type
-        base = 'byte'
-        if self.cur.type == TOK_TYPE:
-            base = self.cur.value
-            self.advance()
-        name = self.cur.value
-        self.expect(TOK_IDENT)
-        items = []
-        # expect '{'
-        self.expect(TOK_LCURLY)
-        # empty enum allowed
-        if self.cur.type != TOK_RCURLY:
-            while True:
-                item_line = self.cur.line
-                item_col = self.cur.col
-                item_name = self.cur.value
-                if item_name.startswith('_'):
-                    self.error("Enum member names cannot start with underscore")
-                self.expect(TOK_IDENT)
-                item_value = None
-                if self.cur.type == TOK_EQU:
-                    self.advance()
-                    item_value = self.parse_expr()
-                items.append(EnumItem(item_name, item_value, line=item_line, col=item_col))
-                if self.cur.type == TOK_DELIM and self.cur.value == ',':
-                    self.advance()
-                    if self.cur.type == TOK_RCURLY:
-                        break
-                    continue
-                break
-        self.expect(TOK_RCURLY)
-        return EnumDecl(name, base, items, line=start_line, col=start_col)        
         fields = []
         seen_names: set[str] = set()
         
@@ -251,12 +215,10 @@ class Parser:
             
             # type (either built-in like byte/word, or a struct name)
             if self.cur.type == TOK_TYPE:
-                # Built-in type (byte, word)
                 type_name = self.cur.value
                 type_tok = self.cur
                 self.advance()
             elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
-                # Struct type (nested struct)
                 type_name = self.cur.value
                 type_tok = self.cur
                 self.advance()
@@ -297,6 +259,44 @@ class Parser:
         
         self.expect(TOK_KEYWORD, "END")
         return StructDef(struct_name, fields, line=start_line, col=start_col)
+
+    def parse_enum(self):
+        """Parse enum declaration: enum [type] Name { item [, item]* }"""
+        start_line = self.cur.line
+        start_col = self.cur.col
+        self.expect(TOK_KEYWORD, "ENUM")
+        # optional base type
+        base = 'byte'
+        if self.cur.type == TOK_TYPE:
+            base = self.cur.value
+            self.advance()
+        name = self.cur.value
+        self.expect(TOK_IDENT)
+        items = []
+        # expect '{'
+        self.expect(TOK_LCURLY)
+        # empty enum allowed
+        if self.cur.type != TOK_RCURLY:
+            while True:
+                item_line = self.cur.line
+                item_col = self.cur.col
+                item_name = self.cur.value
+                if item_name.startswith('_'):
+                    self.error("Enum member names cannot start with underscore")
+                self.expect(TOK_IDENT)
+                item_value = None
+                if self.cur.type == TOK_EQU:
+                    self.advance()
+                    item_value = self.parse_expr()
+                items.append(EnumItem(item_name, item_value, line=item_line, col=item_col))
+                if self.cur.type == TOK_DELIM and self.cur.value == ',':
+                    self.advance()
+                    if self.cur.type == TOK_RCURLY:
+                        break
+                    continue
+                break
+        self.expect(TOK_RCURLY)
+        return EnumDecl(name, base, items, line=start_line, col=start_col)
 
 
     def parse_proc(self):
@@ -471,7 +471,7 @@ class Parser:
         return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body, keep=keep, noexport=noexport, export=export)
 
     def parse_parameter(self):
-        # type: can be TYPE (byte/word) or STRUCT_NAME, optionally const
+        # Note: the 'type' token can be TOK_TYPE (byte/word) or a STRUCT_NAME, optionally const
         is_const = False
         if self.cur.type == TOK_TYPEMOD and self.cur.value.upper() == "CONST":
             is_const = True
@@ -1436,6 +1436,7 @@ class Parser:
             nxt = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
             if nxt is not None and nxt.type == TOK_LBRACE:
                 start_line = self.cur.line
+                start_col = self.cur.col
                 name = self.cur.value
                 self.advance()
                 # parse arg list
@@ -1449,7 +1450,7 @@ class Parser:
                 self.expect(TOK_RBRACE)
                 node = CallStmt(name, args)
                 line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
-                self.stmt_src[id(node)] = (self.filename, start_line, line_text)
+                self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node
 
         return self.parse_assign()
