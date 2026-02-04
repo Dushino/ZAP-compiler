@@ -1,7 +1,7 @@
 ; Test default parameters
 
-byte result @40000 = 0
-byte x      @40001 = 0
+byte result @40000 = 0  ; at the end should be $39
+byte x      @40001 = 0  ; at the end should be $17
 
 func byte test1(byte a, byte b=5)
     result = a + b
