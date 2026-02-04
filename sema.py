@@ -333,6 +333,8 @@ class DeclarationAnalyzer:
                 except SemanticError as e:
                     # Re-raise with better context for constants
                     raise SemanticError(f"Constant '{d.name}': {e.message}", line=d.line, col=d.col)
+                # Scalar const handled - no further processing for this declarator
+                return
 
     # _analyze_declarator moved earlier into DeclarationAnalyzer class
             
