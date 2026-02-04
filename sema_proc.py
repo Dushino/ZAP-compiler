@@ -169,10 +169,10 @@ class ProcAnalyzer:
                 from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, Identifier, SubscriptExpr, FieldAccess
                 for st in statements:
                     if isinstance(st, AssignStmt):
+                        # LHS write context: disable read checks (check LHS first so missing LHS is reported instead of RHS)
+                        tc.check(st.lhs, read_check_enabled=False)
                         # RHS is read context
                         tc.check(st.rhs)
-                        # LHS write context: disable read checks
-                        tc.check(st.lhs, read_check_enabled=False)
 
                         # Check write permission for ports
                         def _get_base_ident(node):

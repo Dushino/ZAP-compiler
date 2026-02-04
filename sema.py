@@ -251,7 +251,6 @@ class DeclarationAnalyzer:
             # PORT cannot have initializers (hardware ports can't be initialized)
             if d.initializer is not None:
                 raise SemanticError("PORT variable cannot have initializer", line=d.line, col=d.col)
-
         # RD/WR modifiers must be used together with #PORT
         if (getattr(decl, 'port_rd', False) or getattr(decl, 'port_wr', False)) and not decl.is_port:
             raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", line=d.line, col=d.col)
@@ -334,90 +333,6 @@ class DeclarationAnalyzer:
                 except SemanticError as e:
                     # Re-raise with better context for constants
                     raise SemanticError(f"Constant '{d.name}': {e.message}", line=d.line, col=d.col)
-
-
-class EnumAnalyzer:
-    """Analyze enum declarations and expand members into const symbols"""
-    def __init__(self, symtab: SymbolTable):
-        self.symtab = symtab
-
-    def analyze(self, enum_decl: EnumDecl):
-        base = enum_decl.base.upper() if enum_decl.base else 'BYTE'
-        if base not in ("BYTE", "WORD"):
-            raise SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)
-        current = 0
-        seen: set[str] = set()
-        for item in enum_decl.items:
-            # Evaluate explicit value if provided
-            if item.value is not None:
-                try:
-                    val = eval_const_expr(item.value, self.symtab)
-                except SemanticError as e:
-                    raise SemanticError(e.message, line=item.line, col=item.col)
-            else:
-                val = current
-
-            # Range check
-            if base == "BYTE" and (val < 0 or val > 0xFF):
-                raise SemanticError(f"Enum value {val} out of range for byte", line=item.line, col=item.col)
-            if base == "WORD" and (val < 0 or val > 0xFFFF):
-                raise SemanticError(f"Enum value {val} out of range for word", line=item.line, col=item.col)
-
-            name = item.name.upper()
-            if name in seen:
-                raise SemanticError(f"Enum member '{item.name}' duplicated in enum '{enum_decl.name}'", line=item.line, col=item.col)
-            if name in self.symtab._symbols:
-                raise SemanticError(f"Enum member '{item.name}' conflicts with existing symbol", line=item.line, col=item.col)
-
-            sym = Symbol(
-                name=name,
-                type=SemType(base=base, is_pointer=False),
-                is_const=True,
-                const_value=val,
-                is_array=False,
-                array_len=None,
-                init=None,
-                address=None,
-                is_volatile=False,
-                proc_name="",
-                array_dims=None,
-                is_static=False,
-                is_port=False,
-                port_rd=False,
-                port_wr=False,
-                is_keep=False,
-                noexport=False,
-                export=False,
-            )
-            self.symtab.define(sym)
-            seen.add(name)
-            current = val + 1
-
-    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int):
-        """Recursively validate struct initializer has correct field count and nested structs."""
-        num_fields = len(struct_info.fields)
-        num_values = len(init.values)
-        
-        if num_values != num_fields:
-            raise SemanticError(
-                f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided",
-                line=line, col=col
-            )
-        
-        # Validate nested structs
-        for field, value in zip(struct_info.fields, init.values):
-            # Check if field type is a struct by looking it up in registry
-            if self.struct_registry and not field.is_pointer:
-                # Try to lookup the field base_type as a struct
-                nested_struct_info = None
-                try:
-                    nested_struct_info = self.struct_registry.lookup(field.base_type.upper())
-                except SemanticError:
-                    # Not a struct, just a built-in type
-                    pass
-                
-                if nested_struct_info and isinstance(value, ListInit):
-                    self._validate_struct_init(value, nested_struct_info, line, col)
 
     # _analyze_declarator moved earlier into DeclarationAnalyzer class
             
@@ -680,4 +595,89 @@ class EnumAnalyzer:
         except SemanticError as e:
             # Re-raise with better context
             raise SemanticError(f"{e.message}", line=d.line, col=d.col)
+
+
+class EnumAnalyzer:
+    """Analyze enum declarations and expand members into const symbols"""
+    def __init__(self, symtab: SymbolTable):
+        self.symtab = symtab
+
+    def analyze(self, enum_decl: EnumDecl):
+        base = enum_decl.base.upper() if enum_decl.base else 'BYTE'
+        if base not in ("BYTE", "WORD"):
+            raise SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)
+        current = 0
+        seen: set[str] = set()
+        for item in enum_decl.items:
+            # Evaluate explicit value if provided
+            if item.value is not None:
+                try:
+                    val = eval_const_expr(item.value, self.symtab)
+                except SemanticError as e:
+                    raise SemanticError(e.message, line=item.line, col=item.col)
+            else:
+                val = current
+
+            # Range check
+            if base == "BYTE" and (val < 0 or val > 0xFF):
+                raise SemanticError(f"Enum value {val} out of range for byte", line=item.line, col=item.col)
+            if base == "WORD" and (val < 0 or val > 0xFFFF):
+                raise SemanticError(f"Enum value {val} out of range for word", line=item.line, col=item.col)
+
+            name = item.name.upper()
+            if name in seen:
+                raise SemanticError(f"Enum member '{item.name}' duplicated in enum '{enum_decl.name}'", line=item.line, col=item.col)
+            if name in self.symtab._symbols:
+                raise SemanticError(f"Enum member '{item.name}' conflicts with existing symbol", line=item.line, col=item.col)
+
+            sym = Symbol(
+                name=name,
+                type=SemType(base=base, is_pointer=False),
+                is_const=True,
+                const_value=val,
+                is_array=False,
+                array_len=None,
+                init=None,
+                address=None,
+                is_volatile=False,
+                proc_name="",
+                array_dims=None,
+                is_static=False,
+                is_port=False,
+                port_rd=False,
+                port_wr=False,
+                is_keep=False,
+                noexport=False,
+                export=False,
+            )
+            self.symtab.define(sym)
+            seen.add(name)
+            current = val + 1
+
+    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int):
+        """Recursively validate struct initializer has correct field count and nested structs."""
+        num_fields = len(struct_info.fields)
+        num_values = len(init.values)
+        
+        if num_values != num_fields:
+            raise SemanticError(
+                f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided",
+                line=line, col=col
+            )
+        
+        # Validate nested structs
+        for field, value in zip(struct_info.fields, init.values):
+            # Check if field type is a struct by looking it up in registry
+            if self.struct_registry and not field.is_pointer:
+                # Try to lookup the field base_type as a struct
+                nested_struct_info = None
+                try:
+                    nested_struct_info = self.struct_registry.lookup(field.base_type.upper())
+                except SemanticError:
+                    # Not a struct, just a built-in type
+                    pass
+                
+                if nested_struct_info and isinstance(value, ListInit):
+                    self._validate_struct_init(value, nested_struct_info, line, col)
+
 

@@ -5258,20 +5258,29 @@ class CodeGen:
         
         # Check for const violation: can't assign to const variables, const array elements, or const struct fields
         if isinstance(lhs, Identifier):
-            sym = self.current_symtab.lookup(lhs.name)
+            try:
+                sym = self.current_symtab.lookup(lhs.name)
+            except KeyError:
+                raise SemanticError(f"Variable '{lhs.name}' is not defined", node=lhs)
             if sym.is_const:
                 self._raise_error(f"Cannot assign to const variable '{lhs.name}'")
         elif isinstance(lhs, SubscriptExpr):
             # Check if modifying an element of a const array
             if isinstance(lhs.array, Identifier):
-                sym = self.current_symtab.lookup(lhs.array.name)
+                try:
+                    sym = self.current_symtab.lookup(lhs.array.name)
+                except KeyError:
+                    raise SemanticError(f"Variable '{lhs.array.name}' is not defined", node=lhs.array)
                 if sym.is_const:
                     self._raise_error(f"Cannot assign to element of const array '{lhs.array.name}'")
                     
             # EARLY OPTIMIZATION: Handle array subscript assignment with optimizations
             # This must be done BEFORE the general gen_expr(rhs) call to avoid duplicate code generation
             if isinstance(lhs.array, Identifier):
-                arr_sym = self.current_symtab.lookup(lhs.array.name)
+                try:
+                    arr_sym = self.current_symtab.lookup(lhs.array.name)
+                except KeyError:
+                    raise SemanticError(f"Variable '{lhs.array.name}' is not defined", node=lhs.array)
                 if arr_sym.is_array and not arr_sym.is_const and arr_sym.address is None:
                     arr_addr = arr_sym.asm_name()
                     element_width = self._calculate_element_width(arr_sym)
