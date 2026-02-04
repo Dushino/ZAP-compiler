@@ -32,13 +32,13 @@ proc main()
     ; Expected: x = 2 + 8 = 10
     
     ; Test 4: Function call with partial args
-    x = x + add(3)                          ; 10 + 13 = 23
+    x = x + add(3)                          ; 10 + 13 = 23 $17
     ; Expected: x = 3 + 10 = 13
     
     ; Test 5: Multiple parameters with defaults
     result = result + test2(1, 2, 3)        ; 12 + 6 = 18
     ; Expected: result = 1 + 2 + 3 = 6
     
-    result = result + test2(4, 5)           ; 18 + 39 = 57  
-    ; Expected: result = 4 + 5 + 30 = 39
+    result = result + test2(4, 5)           ; 18 + 39 = 57  $39
+    
 end
