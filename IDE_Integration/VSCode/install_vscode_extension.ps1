@@ -27,6 +27,17 @@ foreach ($oldPath in $oldPaths) {
     }
 }
 
+# Remove VSCode extensions cache file to avoid stale extension listings
+$extensionsJson = "$env:USERPROFILE\.vscode\extensions\extensions.json"
+if (Test-Path $extensionsJson) {
+    Write-Host "Removing VSCode extensions cache: $extensionsJson" -ForegroundColor Yellow
+    try {
+        Remove-Item $extensionsJson -Force
+    } catch {
+        Write-Host "Warning: failed to remove $extensionsJson - $_" -ForegroundColor Yellow
+    }
+}
+
 # Copy extension with correct name
 Write-Host "Copying extension to: $extensionDest" -ForegroundColor Green
 Copy-Item $extensionSource $extensionDest -Recurse
