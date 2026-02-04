@@ -205,6 +205,32 @@ class DeclarationAnalyzer:
         for d in decl.declarators:
             self._analyze_declarator(decl, d, sem_type)
 
+    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int):
+        """Recursively validate struct initializer has correct field count and nested structs."""
+        num_fields = len(struct_info.fields)
+        num_values = len(init.values)
+        
+        if num_values != num_fields:
+            raise SemanticError(
+                f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided",
+                line=line, col=col
+            )
+        
+        # Validate nested structs
+        for field, value in zip(struct_info.fields, init.values):
+            # Check if field type is a struct by looking it up in registry
+            if self.struct_registry and not field.is_pointer:
+                # Try to lookup the field base_type as a struct
+                nested_struct_info = None
+                try:
+                    nested_struct_info = self.struct_registry.lookup(field.base_type.upper())
+                except SemanticError:
+                    # Not a struct, just a built-in type
+                    pass
+                
+                if nested_struct_info and isinstance(value, ListInit):
+                    self._validate_struct_init(value, nested_struct_info, line, col)
+
     def _analyze_declarator(
         self,
         decl: Declaration,
@@ -655,31 +681,5 @@ class EnumAnalyzer:
             self.symtab.define(sym)
             seen.add(name)
             current = val + 1
-
-    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int):
-        """Recursively validate struct initializer has correct field count and nested structs."""
-        num_fields = len(struct_info.fields)
-        num_values = len(init.values)
-        
-        if num_values != num_fields:
-            raise SemanticError(
-                f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided",
-                line=line, col=col
-            )
-        
-        # Validate nested structs
-        for field, value in zip(struct_info.fields, init.values):
-            # Check if field type is a struct by looking it up in registry
-            if self.struct_registry and not field.is_pointer:
-                # Try to lookup the field base_type as a struct
-                nested_struct_info = None
-                try:
-                    nested_struct_info = self.struct_registry.lookup(field.base_type.upper())
-                except SemanticError:
-                    # Not a struct, just a built-in type
-                    pass
-                
-                if nested_struct_info and isinstance(value, ListInit):
-                    self._validate_struct_init(value, nested_struct_info, line, col)
 
 

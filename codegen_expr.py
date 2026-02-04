@@ -4489,19 +4489,104 @@ class CodeGen:
                 right_pref = "TMP0"
             left_tmp = "TMP1" if right_pref == "TMP0" else "TMP0"
 
-        # Generate left operand
-        self.gen_expr(expr.left)
-        self.emit(f"\tSTA {left_tmp}")
-        # Only save high byte if we need 16-bit result
-        if result_16_adj:
-            self.emit(f"\tSTX {left_tmp}+1")
+        # Detect if right operand contains a function call (needs special care)
+        def _contains_call(e):
+            from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, FieldAccess
+            if isinstance(e, CallExpr):
+                return True
+            if isinstance(e, BinaryExpr):
+                return _contains_call(e.left) or _contains_call(e.right)
+            if isinstance(e, UnaryExpr):
+                return _contains_call(e.expr)
+            if isinstance(e, SubscriptExpr):
+                return _contains_call(e.array) or _contains_call(e.index)
+            if isinstance(e, FieldAccess):
+                return _contains_call(e.object)
+            return False
 
-        # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
-        if not (use_inc_opt or use_dec_opt):
-            # Ask the right sub-expression to prefer the opposite temp to avoid
-            # accidental clobbering of the saved left value.
-            right_hint = "TMP0" if left_tmp == "TMP1" else "TMP1"
-            self.gen_expr(expr.right, force_left_tmp=right_hint)
+        right_has_call = _contains_call(expr.right)
+
+        if right_has_call and expr.op in {BinOp.ADD, BinOp.SUB} and not (left_is_ptr or right_is_ptr):
+            # Special-case: right contains a call. Preserve left across call.
+            if result_16_adj:
+                # 16-bit: save (A,X) → stack using PHA;TXA;PHA and restore with PLA;TAX;PLA
+                self.gen_expr(expr.left)
+                self.emit("\tPHA")
+                self.emit("\tTXA")
+                self.emit("\tPHA")
+
+                # Generate right operand (callee may clobber temps)
+                self.gen_expr(expr.right)
+
+                # Save right (A=low, X=high) to TMP0/TMP0+1
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+
+                # Restore left (low in A, high in X)
+                self.emit("\tPLA")
+                self.emit("\tTAX")
+                self.emit("\tPLA")
+
+                if expr.op == BinOp.ADD:
+                    # 16-bit add: low then high with carry
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")
+                    self.emit("\tTAY")
+                    self.emit("\tTXA")
+                    self.emit("\tADC TMP0+1")
+                    self.emit("\tTAX")
+                    self.emit("\tTYA")
+                else:
+                    # 16-bit sub: low then high with borrow
+                    self.emit("\tSEC")
+                    self.emit("\tSBC TMP0")
+                    self.emit("\tTAY")
+                    self.emit("\tTXA")
+                    self.emit("\tSBC TMP0+1")
+                    self.emit("\tTAX")
+                    self.emit("\tTYA")
+
+                # Special-case handled inline, skip generic handling
+                return
+            else:
+                # 8-bit case (existing behavior)
+                self.gen_expr(expr.left)
+                self.emit("\tPHA")
+
+                # Generate right operand (callee may clobber TMPs)
+                self.gen_expr(expr.right)
+
+                # Combine results: A contains right result; pull left from stack
+                if expr.op == BinOp.ADD:
+                    # Save right result, pull left, add
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tPLA")
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")
+                else:  # SUB: left - right
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tPLA")
+                    self.emit("\tSEC")
+                    self.emit("\tSBC TMP0")
+                # Special-case handled inline, skip the generic handlers
+                return
+            # Special-case handled inline, skip the generic handlers
+            return
+
+        else:
+            # Generate left operand
+            self.gen_expr(expr.left)
+            self.emit(f"\tSTA {left_tmp}")
+            # Only save high byte if we need 16-bit result
+            if result_16_adj:
+                self.emit(f"\tSTX {left_tmp}+1")
+
+            # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
+            if not (use_inc_opt or use_dec_opt):
+                # Ask the right sub-expression to prefer the opposite temp to avoid
+                # accidental clobbering of the saved left value.
+                right_hint = "TMP0" if left_tmp == "TMP1" else "TMP1"
+                self.gen_expr(expr.right, force_left_tmp=right_hint)
         
         # Handle different operations
         if expr.op == BinOp.ADD:
