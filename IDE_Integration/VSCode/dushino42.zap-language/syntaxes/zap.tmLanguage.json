@@ -73,7 +73,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.preprocessor.zap",
-                    "match": "(?i)\\.(ifdef|ifndef|else|endif|define|undef|module|include|segment|incbin)\\b"
+                    "match": "(?i)\\.(ifdef|ifndef|else|endif|define|undef|module|include|error|warning|info)\\b"
                 }
             ]
         },
