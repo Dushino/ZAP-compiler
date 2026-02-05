@@ -374,7 +374,7 @@ if not "%2"=="" (
         echo !padded_msg!✅ PASS ^(all 2 variants^)
         set /a pass_count+=1
     ) else (
-        echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
+        echo !padded_msg!❌ FAIL ^(!variant_fail!/2 variants failed^)
         set /a error_count+=1
     )
     )
