@@ -22,7 +22,7 @@ proc init()
     dlist[12] = 'E'
     dlist[13] = 'F'
     dlist[14] = 'G'
-    dlist[15] = $FF         ; end of display list
+    dlist[15] = $FF         ; end mark (not real displaylist command)
 end
 
 

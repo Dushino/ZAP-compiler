@@ -246,14 +246,14 @@ PASS & FAIL variants for condition types and syntax
 [ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. 
     Does it mean scopes implementation? I do not want it.
 
-[ ] Test what happens:
+[ ] Enhance STRUCT declarations:
 
-struct VIA_STRUCT 
-    byte ORB
+struct VIA_STRUCT #port 
+    byte ORB    #rd
     byte ORA
     byte DDRB
     byte DDRA
-    byte T1CL
+    byte T1CL   #wr
     byte T1CH
     byte T1LL
     byte T1LH
@@ -268,10 +268,12 @@ struct VIA_STRUCT
     byte PRB 
 end
 
-VIA_STRUCT VIA1 @40000 #port
-VIA_STRUCT VIA2 @40016 #port #rd
+VIA_STRUCT VIA1 @40000 
+VIA_STRUCT VIA2 @40016 
 
 maybe struct NAME #port #rd for all struct members?
 
-[ ] Something like VARNAME:L / VARNAME:H ? or #hi #lo?
+[ ] Something like VARNAME:L / VARNAME:H ? 
 
+[ ] Tests for STRUCT name #port #rd #wr
+[ ] Tests for ENUMs

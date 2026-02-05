@@ -246,12 +246,28 @@ class Parser:
         struct_name: str = self.cur.value
         self.expect(TOK_IDENT)
 
+        # Optional struct-level declaration modifiers: #PORT #RD #WR
+        struct_is_port: bool = False
+        struct_port_rd: Optional[bool] = None
+        struct_port_wr: Optional[bool] = None
+        while self.cur.type == TOK_DECLMOD:
+            val: str = self.cur.value.upper()
+            if val == 'PORT':
+                struct_is_port = True
+            elif val == 'RD':
+                struct_port_rd = True
+            elif val == 'WR':
+                struct_port_wr = True
+            else:
+                self.error(f"Unsupported struct modifier '{val}'")
+            self.advance()
+
         fields = []
         seen_names: set[str] = set()
         
         # Parse field list until END
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
-            # Parse: [^] type IDENT [dimensions] [ address_spec ]
+            # Parse: [^] type IDENT [dimensions] [ address_spec ] [decl_modifiers]
             # Check for pointer prefix first
             is_pointer = False
             if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
@@ -299,11 +315,28 @@ class Parser:
             if self.cur.type == TOK_AT:
                 self.advance()
                 field_addr = self.parse_expr()
-            
-            fields.append(StructField(field_type, field_name, field_addr, array_sizes))
+
+            # Optional trailing modifiers on field: #PORT, #RD, #WR
+            field_is_port = False
+            field_port_rd: Optional[bool] = None
+            field_port_wr: Optional[bool] = None
+            while self.cur.type == TOK_DECLMOD:
+                val: str = self.cur.value.upper()
+                if val == 'PORT':
+                    field_is_port = True
+                elif val == 'RD':
+                    field_port_rd = True
+                elif val == 'WR':
+                    field_port_wr = True
+                else:
+                    self.error(f"Unsupported field modifier '{val}'")
+                self.advance()
+
+            fields.append(StructField(field_type, field_name, field_addr, array_sizes,
+                                      is_port=field_is_port, port_rd=field_port_rd, port_wr=field_port_wr))
         
         self.expect(TOK_KEYWORD, "END")
-        return StructDef(struct_name, fields, line=start_line, col=start_col)
+        return StructDef(struct_name, fields, is_port=struct_is_port, port_rd=struct_port_rd, port_wr=struct_port_wr, line=start_line, col=start_col)
 
     def parse_enum(self) -> EnumDecl:
         """Parse enum declaration: enum [type] Name { item [, item]* }"""
@@ -1387,7 +1420,7 @@ class Parser:
         return node
 
 
-    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | IfStmt | WhileStmt | ForStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
+    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | ForStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")
 

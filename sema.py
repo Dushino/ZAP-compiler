@@ -184,16 +184,22 @@ class StructAnalyzer:
                 is_pointer=is_pointer,
                 offset=current_offset,
                 fixed_address=fixed_addr,
-                array_sizes=array_sizes
+                array_sizes=array_sizes,
+                is_port=getattr(field_ast, 'is_port', False),
+                port_rd=getattr(field_ast, 'port_rd', None),
+                port_wr=getattr(field_ast, 'port_wr', None),
             )
             fields.append(field_info)
             current_offset += width
 
-        # Create and register struct
+        # Create and register struct (with optional port defaults)
         struct_info = StructInfo(
             name=struct_def.name.upper(),
             fields=fields,
-            size=current_offset
+            size=current_offset,
+            is_port_default=getattr(struct_def, 'is_port', False),
+            port_rd_default=getattr(struct_def, 'port_rd', None),
+            port_wr_default=getattr(struct_def, 'port_wr', None),
         )
 
         try:
@@ -312,7 +318,8 @@ class DeclarationAnalyzer:
             [d.array_size] if d.array_size is not None else []
         )
         
-        is_array, array_dims, array_len = eval_array_dimensions(array_sizes_to_eval, self.symtab, d)
+        is_array, array_dims, array_len = eval_array_dimensions(array_sizes_to_eval, self.symtab, d)  # type: ignore[assignment]
+
         
         address_val = None
 
@@ -329,6 +336,24 @@ class DeclarationAnalyzer:
                 else:
                     processed_dims.append(dim_val)
             array_dims = processed_dims
+
+        # Compute effective port flags considering declaration and struct defaults
+        struct_info_local = sem_type.struct_info
+        # Effective: declaration-level #PORT or struct-level default (coerce to bool)
+        effective_is_port: bool = bool(getattr(decl, 'is_port', False) or (struct_info_local and bool(getattr(struct_info_local, 'is_port_default', False))))
+        # Declaration flags take precedence; if not specified, fall back to struct defaults
+        decl_rd_raw = getattr(decl, 'port_rd', None)
+        decl_wr_raw = getattr(decl, 'port_wr', None)
+        rd: bool = bool(decl_rd_raw) if decl_rd_raw is not None else False
+        wr: bool = bool(decl_wr_raw) if decl_wr_raw is not None else False
+        if not (decl_rd_raw or decl_wr_raw) and struct_info_local is not None:
+            if getattr(struct_info_local, 'port_rd_default', None) is not None:
+                rd = bool(struct_info_local.port_rd_default)
+            if getattr(struct_info_local, 'port_wr_default', None) is not None:
+                wr = bool(struct_info_local.port_wr_default)
+        # If this is a PORT (by declaration or struct default) and neither RD/WR is true, allow both by default
+        if effective_is_port and not (rd or wr):
+            rd = wr = True
 
         # const pravidla
         if decl.is_const:
@@ -357,10 +382,7 @@ class DeclarationAnalyzer:
                             line=d.line, col=d.col
                         )
 
-                rd: Any | bool = getattr(decl, 'port_rd', False)
-                wr: Any | bool = getattr(decl, 'port_wr', False)
-                if decl.is_port and not (rd or wr):
-                    rd = wr = True
+                # Use effective rd/wr computed earlier
                 sym = Symbol(
                     name=d.name,
                     type=sem_type,
@@ -373,7 +395,7 @@ class DeclarationAnalyzer:
                     is_volatile=False,
                     proc_name=getattr(self.symtab, '_proc_name', ''),
                     array_dims=None,
-                    is_port=decl.is_port,
+                    is_port=effective_is_port,
                     port_rd=rd,
                     port_wr=wr,
                     is_keep=getattr(decl, 'keep', False),
@@ -395,14 +417,12 @@ class DeclarationAnalyzer:
                 if is_array:
                     # Const array with ListInit
                     if array_len is None:
-                        array_len: int = len(d.initializer.values)
+                        array_len = len(d.initializer.values)  # type: ignore[assignment]
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
-                    rd: Any | bool = getattr(decl, 'port_rd', False)
-                    wr: Any | bool = getattr(decl, 'port_wr', False)
-                    if decl.is_port and not (rd or wr):
-                        rd = wr = True
+                # Use effective rd/wr computed earlier
+                
                     sym = Symbol(
                         name=d.name,
                         type=sem_type,
@@ -415,7 +435,7 @@ class DeclarationAnalyzer:
                         is_volatile=False,
                         proc_name=getattr(self.symtab, '_proc_name', ''),
                         array_dims=array_dims if array_dims else None,
-                        is_port=decl.is_port,
+                        is_port=effective_is_port,
                         port_rd=rd,
                         port_wr=wr,
                         is_keep=getattr(decl, 'keep', False),
@@ -433,10 +453,7 @@ class DeclarationAnalyzer:
                     # Validate field count (including nested)
                     self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
                     
-                    rd: Any | bool = getattr(decl, 'port_rd', False)
-                    wr: Any | bool = getattr(decl, 'port_wr', False)
-                    if decl.is_port and not (rd or wr):
-                        rd = wr = True
+                    # Use effective rd/wr computed earlier
                     sym = Symbol(
                         name=d.name,
                         type=sem_type,
@@ -449,7 +466,7 @@ class DeclarationAnalyzer:
                         is_volatile=False,
                         proc_name=getattr(self.symtab, '_proc_name', ''),
                         array_dims=None,
-                        is_port=decl.is_port,
+                        is_port=effective_is_port,
                         port_rd=rd,
                         port_wr=wr,
                         is_keep=getattr(decl, 'keep', False),
@@ -474,10 +491,7 @@ class DeclarationAnalyzer:
                 if array_len is None:
                     array_len: int = len(d.initializer.value) + 1
                 
-                rd: Any | bool = getattr(decl, 'port_rd', False)
-                wr: Any | bool = getattr(decl, 'port_wr', False)
-                if decl.is_port and not (rd or wr):
-                    rd = wr = True
+                # Use effective rd/wr computed earlier
                 sym = Symbol(
                     name=d.name,
                     type=sem_type,
@@ -490,7 +504,7 @@ class DeclarationAnalyzer:
                     is_volatile=False,
                     proc_name=getattr(self.symtab, '_proc_name', ''),
                     array_dims=array_dims if array_dims else None,
-                    is_port=decl.is_port,
+                    is_port=effective_is_port,
                     port_rd=rd,
                     port_wr=wr,
                     is_keep=getattr(decl, 'keep', False),
@@ -515,14 +529,16 @@ class DeclarationAnalyzer:
                 
                 if is_struct_array:
                     # For struct arrays, each element should be a nested list matching the struct field count
-                    for i, val in enumerate(d.initializer.values):
-                        if isinstance(val, ListInit):
-                            self._validate_struct_init(val, sem_type.struct_info, d.line, d.col)
+                    for i in range(len(d.initializer.values)):
+                        elem = d.initializer.values[i]
+                        # elem may be Expr or InitValue; we only accept ListInit for struct array elements
+                        if isinstance(elem, ListInit):
+                            self._validate_struct_init(elem, sem_type.struct_info, d.line, d.col)
                         else:
                             raise SemanticError(f"Struct array element {i} must be a list initializer", line=d.line, col=d.col)
                     
                     if array_len is None:
-                        array_len: int = len(d.initializer.values)
+                        array_len = len(d.initializer.values)  # type: ignore[assignment]
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
@@ -534,7 +550,7 @@ class DeclarationAnalyzer:
                 else:
                     # Regular (non-struct) array
                     if array_len is None:
-                        array_len: int = len(d.initializer.values)
+                        array_len = len(d.initializer.values)  # type: ignore[assignment]
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
@@ -619,10 +635,7 @@ class DeclarationAnalyzer:
                     tc = ExprTypeChecker(self.symtab, self.func_table, self.struct_registry)
                 tc.check(d.initializer.expr)
 
-        rd: Any | bool = getattr(decl, 'port_rd', False)
-        wr: Any | bool = getattr(decl, 'port_wr', False)
-        if decl.is_port and not (rd or wr):
-            rd = wr = True
+        # Use effective rd/wr computed earlier
         sym = Symbol(
             name=d.name,
             type=sem_type,
@@ -636,13 +649,14 @@ class DeclarationAnalyzer:
             proc_name=getattr(self.symtab, '_proc_name', ''),
             array_dims=array_dims if array_dims else None,
             is_static=decl.is_static or d.is_static,
-            is_port=decl.is_port,
+            is_port=effective_is_port,
             port_rd=rd,
             port_wr=wr,
             is_keep=getattr(decl, 'keep', False),
             noexport=getattr(decl, 'noexport', False),
             export=getattr(decl, 'export', False),
         )
+
 
         try:
             self.symtab.define(sym)

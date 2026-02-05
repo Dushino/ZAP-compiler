@@ -146,13 +146,25 @@ class StructField(ASTNode):
     name: str
     address: Optional["Expr"] = None    # None = no fixed address
     array_sizes: Optional[List["Expr"]] = None  # Multi-dimensional array: [size1, size2, ...]
+    # Port modifiers on a field: None = unspecified, True/False explicit
+    is_port: bool = False
+    port_rd: Optional[bool] = None
+    port_wr: Optional[bool] = None
 
     def __repr__(self) -> str:
         addr_str = f" @{self.address}" if self.address else ""
         array_str = ""
         if self.array_sizes:
             array_str = "".join(f"[{s}]" for s in self.array_sizes)
-        return f"StructField({self.type} {self.name}{array_str}{addr_str})"
+        mods = []
+        if self.is_port:
+            mods.append("#PORT")
+        if self.port_rd is True:
+            mods.append("#RD")
+        if self.port_wr is True:
+            mods.append("#WR")
+        mods_str = (" " + " ".join(mods)) if mods else ""
+        return f"StructField({self.type} {self.name}{array_str}{addr_str}{mods_str})"
 
 
 @dataclass(frozen=True)
@@ -160,12 +172,24 @@ class StructDef(ASTNode):
     """Struct type definition"""
     name: str
     fields: List[StructField]
+    # Optional struct-level port defaults
+    is_port: bool = False
+    port_rd: Optional[bool] = None
+    port_wr: Optional[bool] = None
     line: int = 0
     col: int = 0
 
     def __repr__(self) -> str:
+        mods = []
+        if self.is_port:
+            mods.append("#PORT")
+        if self.port_rd is True:
+            mods.append("#RD")
+        if self.port_wr is True:
+            mods.append("#WR")
+        mods_str = (" " + " ".join(mods)) if mods else ""
         fields_str = ", ".join(repr(f) for f in self.fields)
-        return f"struct {self.name} {{ {fields_str} }}"
+        return f"struct {self.name}{mods_str} {{ {fields_str} }}"
 
 
 class Expr(ASTNode):

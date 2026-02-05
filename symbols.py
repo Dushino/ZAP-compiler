@@ -12,6 +12,10 @@ class StructFieldInfo:
     offset: int           # Byte offset from struct start
     fixed_address: Optional[int] = None  # If field has @address
     array_sizes: Optional[List[int]] = None  # For arrays: [size1, size2, ...]
+    # Port modifiers on the field: None = unspecified, True/False explicit
+    is_port: bool = False
+    port_rd: Optional[bool] = None
+    port_wr: Optional[bool] = None
 
     @property
     def width(self) -> int:
@@ -43,6 +47,10 @@ class StructInfo:
     name: str
     fields: List[StructFieldInfo]
     size: int  # Total size in bytes
+    # Optional default port modifiers for this struct type
+    is_port_default: bool = False
+    port_rd_default: Optional[bool] = None
+    port_wr_default: Optional[bool] = None
 
     def get_field(self, field_name: str) -> Optional[StructFieldInfo]:
         """Get field by name"""

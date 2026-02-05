@@ -189,18 +189,35 @@ class ProcAnalyzer:
                         if base_name is not None:
                             try:
                                 sym: Symbol = tc.symtab.lookup(base_name)
-                                if getattr(sym, 'is_port', False) and not getattr(sym, 'port_wr', False):
-                                    info = self.debug.get("stmt_src", {}).get(id(st))
-                                    if info:
-                                        if len(info) == 3:
-                                            fname, line, _text = info
-                                            col = 1
+                                # If this is a field access, consider field-level override
+                                field_name = None
+                                from ast_nodes import FieldAccess
+                                if isinstance(st.lhs, FieldAccess):
+                                    field_name = st.lhs.field
+                                if getattr(sym, 'is_port', False):
+                                    # Determine whether writes are allowed: field overrides symbol
+                                    allowed = True
+                                    if field_name and sym.type.is_struct and sym.type.struct_info:
+                                        field_info = sym.type.struct_info.get_field(field_name.upper())
+                                        if field_info and (field_info.port_wr is not None or field_info.port_rd is not None):
+                                            allowed = bool(field_info.port_wr)
                                         else:
-                                            fname, line, col, _text = info
-                                        err = SemanticError("Write to read-only port", line=line, col=col)
-                                        err.filename = fname
-                                        raise err
-                                    raise SemanticError("Write to read-only port")
+                                            allowed = getattr(sym, 'port_wr', False)
+                                    else:
+                                        allowed = getattr(sym, 'port_wr', False)
+
+                                    if not allowed:
+                                        info = self.debug.get("stmt_src", {}).get(id(st))
+                                        if info:
+                                            if len(info) == 3:
+                                                fname, line, _text = info
+                                                col = 1
+                                            else:
+                                                fname, line, col, _text = info
+                                            err = SemanticError("Write to read-only port", line=line, col=col)
+                                            err.filename = fname
+                                            raise err
+                                        raise SemanticError("Write to read-only port")
                             except KeyError:
                                 pass
 

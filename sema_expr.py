@@ -102,50 +102,52 @@ class ExprTypeChecker:
             
             if base_info and not is_field_access:
                 # We found a base array identifier - check its dimensions
-                try:
-                    arr_sym: Symbol = self.symtab.lookup(base_info)
-                    if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > current_depth:
-                        # More dimensions remain after this subscript - return ADDR
-                        elem_type = SemType(
-                            base=arr_t.sem_type.base,
-                            is_pointer=True,  # Returns a pointer to next dimension
-                            is_struct=arr_t.sem_type.is_struct,
-                            struct_info=arr_t.sem_type.struct_info
-                        )
-                        return ExprType(elem_type, ExprKind.ADDR)
-                except (KeyError, AttributeError):
-                    pass
+                if isinstance(base_info, str):
+                    try:
+                        arr_sym: Symbol = self.symtab.lookup(base_info)
+                        if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > current_depth:
+                            # More dimensions remain after this subscript - return ADDR
+                            elem_type = SemType(
+                                base=arr_t.sem_type.base,
+                                is_pointer=True,  # Returns a pointer to next dimension
+                                is_struct=arr_t.sem_type.is_struct,
+                                struct_info=arr_t.sem_type.struct_info
+                            )
+                            return ExprType(elem_type, ExprKind.ADDR)
+                    except (KeyError, AttributeError):
+                        pass
             elif base_info and is_field_access:
                 # We have a field access as base - check if the field has multiple dimensions
-                field_access_expr: str | FieldAccess = base_info
-                # Get the field info from the struct registry
-                if not self.struct_registry:
-                    pass  # Will default to LVALUE below
-                else:
-                    try:
-                        # Check the object type
-                        obj_type: ExprType = self.check(field_access_expr.object)
-                        
-                        # Get struct info
-                        if field_access_expr.is_deref:
-                            base_type_name: str = obj_type.sem_type.base
-                        else:
-                            base_type_name: str = obj_type.sem_type.base
-                        
-                        struct_info = self.struct_registry.lookup(base_type_name.upper())
-                        if struct_info:
-                            field_info = struct_info.get_field(field_access_expr.field.upper())
-                            if field_info and field_info.array_sizes and len(field_info.array_sizes) > current_depth:
-                                # More dimensions remain after this subscript - return ADDR
-                                elem_type = SemType(
-                                    base=arr_t.sem_type.base,
-                                    is_pointer=True,  # Returns a pointer to next dimension
-                                    is_struct=arr_t.sem_type.is_struct,
-                                    struct_info=arr_t.sem_type.struct_info
-                                )
-                                return ExprType(elem_type, ExprKind.ADDR)
-                    except (KeyError, AttributeError, SemanticError):
-                        pass
+                if isinstance(base_info, FieldAccess):
+                    field_access_expr: FieldAccess = base_info
+                    # Get the field info from the struct registry
+                    if not self.struct_registry:
+                        pass  # Will default to LVALUE below
+                    else:
+                        try:
+                            # Check the object type
+                            obj_type: ExprType = self.check(field_access_expr.object)
+                            
+                            # Get struct info
+                            if field_access_expr.is_deref:
+                                base_type_name: str = obj_type.sem_type.base
+                            else:
+                                base_type_name: str = obj_type.sem_type.base
+                            
+                            struct_info = self.struct_registry.lookup(base_type_name.upper())
+                            if struct_info:
+                                field_info = struct_info.get_field(field_access_expr.field.upper())
+                                if field_info and field_info.array_sizes and len(field_info.array_sizes) > current_depth:
+                                    # More dimensions remain after this subscript - return ADDR
+                                    elem_type = SemType(
+                                        base=arr_t.sem_type.base,
+                                        is_pointer=True,  # Returns a pointer to next dimension
+                                        is_struct=arr_t.sem_type.is_struct,
+                                        struct_info=arr_t.sem_type.struct_info
+                                    )
+                                    return ExprType(elem_type, ExprKind.ADDR)
+                        except (KeyError, AttributeError, SemanticError):
+                            pass
             
             # Single-dimensional array or final subscript of multi-dimensional array
             # array element is LVALUE of base type
@@ -303,8 +305,31 @@ class ExprTypeChecker:
             
             # If field is an array, return ADDR (pointer to array), not LVALUE
             if field_info.array_sizes:
+                # Address-of an array field - still treat as ADDR; no read permission check here
                 return ExprType(field_sem_type, ExprKind.ADDR)
-            
+
+            # Enforce read permission for port-mapped struct variables' fields when possible
+            base_sym = None
+            try:
+                # obj.field where obj is Identifier
+                if isinstance(expr.object, Identifier):
+                    base_sym = self.symtab.lookup(expr.object.name)
+                # ptr^.field where ptr is Identifier pointing to struct variable
+                elif expr.is_deref and isinstance(expr.object, DerefExpr) and isinstance(expr.object.pointer, Identifier):
+                    base_sym = self.symtab.lookup(expr.object.pointer.name)
+            except (AttributeError, KeyError):
+                base_sym = None
+
+            if base_sym is not None and getattr(base_sym, 'is_port', False) and read_check_enabled:
+                # Field-level override: if any field-level modifier is present, treat unspecified as False
+                if field_info.port_rd is not None or field_info.port_wr is not None:
+                    allowed = bool(field_info.port_rd)
+                else:
+                    # Fall back to symbol-level flags (already resolved with declaration/struct defaults)
+                    allowed = getattr(base_sym, 'port_rd', False)
+                if not allowed:
+                    raise SemanticError("Read from write-only port", node=expr)
+
             return ExprType(field_sem_type, ExprKind.LVALUE)
 
         # chyba
