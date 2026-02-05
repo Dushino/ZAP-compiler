@@ -325,38 +325,39 @@ if not "%2"=="" (
                                     set /a variant_pass+=1
                                 ) else (
                                     set /a variant_fail+=1
-                                    echo Simulation result does not match reference >> tests.txt
+                                    echo ❌ FAIL: Simulation result does not match reference >> tests.txt
                                     echo ❌ Simulation result does not match reference
                                 )                                
                             ) else (
                                 set /a variant_fail+=1
-                                echo Simulation failed >> tests.txt
+                                echo ❌ FAIL: Simulation failed >> tests.txt
                                 echo ❌ Simulation failed
                             )
                         ) else (
                             set /a variant_fail+=1
-                            echo Linker failed >> tests.txt
+                            echo ❌ FAIL: Linker failed >> tests.txt
                             echo ❌ Linker failed                            
                         )
                     ) else (
                         set /a variant_fail+=1
-                        echo Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
+                        echo ❌ FAIL: Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
                         echo ❌ Assemler failed on %LIBDIR%\atari\exehdr.s 
 
                     )
                 ) else (
                     set /a variant_fail+=1
-                    echo Assembler failed on "!output_file!" >> tests.txt
+                    echo ❌ FAIL: Assembler failed on "!output_file!" >> tests.txt
                     echo ❌ Assembler failed on "!output_file!"
                 )
             ) else (
                 rem Just count compilation success
                 set /a variant_fail+=1
-                echo ca65 not found, compilation failed.
+                echo ❌ FAIL: ca65 not found, compilation failed.
+
             )
         ) else (
             set /a variant_fail+=1
-            echo ZAP compiler failed >> tests.txt
+            echo ❌ FAIL: ZAP compiler failed >> tests.txt
             echo ❌ ZAP compiler failed
         )
         echo:  >> tests.txt
@@ -370,7 +371,7 @@ if not "%2"=="" (
     set "padded_msg=!padded_msg:~0,40!"
     
     if !variant_fail! equ 0 (
-        echo !padded_msg!PASS ^(all 2 variants^)
+        echo !padded_msg!✅ PASS ^(all 2 variants^)
         set /a pass_count+=1
     ) else (
         echo !padded_msg!FAIL ^(!variant_fail!/2 variants failed^)
@@ -455,38 +456,39 @@ if not "%2"=="" (
                                     set /a variant_pass+=1
                                 ) else (
                                     set /a variant_fail+=1
-                                    echo Simulation result does not match reference >> tests.txt
+                                    echo ❌ FAIL: Simulation result does not match reference >> tests.txt
                                     echo  ❌ Simulation result does not match reference
                                 )                                
                             ) else (
                                 set /a variant_fail+=1
-                                echo  Simulation failed >> tests.txt
+                                echo  ❌ FAIL: Simulation failed >> tests.txt
                                 echo  ❌ Simulation failed >> tests.txt
                             )
                         ) else (
                             set /a variant_fail+=1
-                            echo  Linker failed >> tests.txt
+                            echo  ❌ FAIL: Linker failed >> tests.txt
                             echo  ❌ Linker failed
                         )
                     ) else (
                         set /a variant_fail+=1
-                        echo Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
-                        echo  ❌ Assemler failed on %LIBDIR%\atari\exehdr.s
+                        echo ❌ FAIL: Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
+                        echo ❌ Assemler failed on %LIBDIR%\atari\exehdr.s
                     )
                 ) else (
                     set /a variant_fail+=1
-                    echo Assembler failed on "!output_file!" >> tests.txt
+                    echo ❌ FAIL: Assembler failed on "!output_file!" >> tests.txt
                     echo ❌ Assembler failed on "!output_file!"
 
                 )
             ) else (
                 rem Just count compilation success
                 set /a variant_fail+=1
+                echo ❌ FAIL: ca65 not found, compilation failed. >> tests.txt
                 echo ❌ ca65 not found, compilation failed.
             )
         ) else (
             set /a variant_fail+=1
-            echo ZAP compiler failed >> tests.txt
+            echo ❌ FAIL: ZAP compiler failed >> tests.txt
             echo ❌ ZAP compiler failed
         )
         echo:  >> tests.txt
@@ -526,7 +528,7 @@ if "%2"=="" (
         
         %ZC% -6502 "%%f" -o "!testdir!\!base!.s" >nul 2>&1
         if !errorlevel! equ 0 (
-            echo !padded_msg!❌ ^(expected to fail but passed^)
+            echo !padded_msg!❌ FAIL: ^(expected to fail but passed^)
             set /a error_count+=1
         ) else (
             echo !padded_msg!✅ PASS ^(correctly rejected^)
