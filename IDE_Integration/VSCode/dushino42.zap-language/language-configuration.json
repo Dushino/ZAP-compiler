@@ -66,8 +66,8 @@
     ],
     "folding": {
         "markers": {
-            "start": "(?i)^\\s*(PROC|FUNC|IF|ELSE|ELSEIF|WHILE|ASM|STRUCT|\\.ifdef|\\.ifndef|\\.else)",
-            "end": "(?i)^\\s*(RETURN|END|\\.endif|\\.else)"
+            "start": "(?i)^\\s*(PROC|FUNC|IF|ELSE|ELSEIF|WHILE|ASM|STRUCT|ENUM|{|\\.ifdef|\\.ifndef|\\.else)",
+            "end": "(?i)^\\s*(RETURN|END|\\.endif|\\.else|})"
         },
         "offSide": true
     }

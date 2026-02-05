@@ -1,0 +1,4 @@
+# Error Test - Duplicate enum member
+
+## Expected Error
+Enum member 'RED' duplicated in enum 'Colors'

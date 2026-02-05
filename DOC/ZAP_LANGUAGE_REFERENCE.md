@@ -251,35 +251,80 @@ byte SOUND_OUT @$D400 #PORT #WR     ; writing audio registers
 
 #### Enums - Compile-time named constants 🧾
 
-Enums provide a convenient syntax for defining a sequence of named integer constants. They are purely compile-time and expand into `const` symbols (no runtime storage or runtime overhead).
+Enums provide a concise syntax for defining a set of named integer constants. They are compile-time only and are expanded into `const` symbols (no runtime storage or overhead).
 
 **Syntax:**
 
 ```zap
-enum [byte|word] Name { ITEM1 [= expr], ITEM2, ITEM3 = 5, ITEM4 }
+enum [byte|word] Name {
+    ITEM1 [= expr],
+    ITEM2,
+    ITEM3 = 5,
+    ITEM4
+}
 ```
 
-- The base type is optional and defaults to `byte`. Use `word` when values need 16 bits.
-- Members may be assigned explicit expressions; otherwise they auto-increment from 0 or from the previous value.
-- Enum members behave as compile-time `const` symbols and may be used in initializers, array dimensions, and expressions.
+**Key points:**
+- The base type is optional and defaults to `byte`. Use `word` when values may exceed the `byte` range.
+- If a member has no explicit value, it takes the previous member's value + 1, or 0 for the first member.
+- Enum members are injected into the symbol table as `const` symbols and are available for subsequent declarations in the same translation unit (order matters).
+- Values are range-checked against the chosen base type (`byte`: 0–255, `word`: 0–65535).
+- Duplicate member names or conflicts with existing symbols are reported as compile-time errors.
+- Enums are syntax sugar only — they do not allocate runtime memory.
 
 **Examples:**
 
+Basic enum (default `byte` base):
+
 ```zap
-enum Colors { RED, GREEN, BLUE }
-byte c = RED       ; c == 0
+enum Colors {
+    RED,
+    GREEN,
+    BLUE
+}
 
-enum byte Flags { FLAG_A = 1, FLAG_B, FLAG_C = 4 }
-byte f = FLAG_A | FLAG_C  ; f == 5
-
-enum Levels { LOW = 1, MEDIUM, HIGH } ; MEDIUM==2, HIGH==3
+byte c = GREEN     ; c == 1
+byte arr[BLUE + 1] ; use enum value in an array size
 ```
 
-**Semantics / Implementation notes:**
-- Enum members are expanded into `const` symbols during semantic analysis and are available to subsequent declarations in the same translation unit.
-- Member values are range-checked against the chosen base type (`byte`: 0–255, `word`: 0–65535).
-- Duplicate member names or conflicts with existing symbols are reported as compile-time errors.
-- Enums are syntax sugar only — they do not allocate target memory and impose no runtime cost.
+Explicit values and auto-increment:
+
+```zap
+enum byte E {
+    A = 1,
+    B,       ; B == 2
+    C = 5,
+    D       ; D == 6
+}
+
+const byte v = D
+```
+
+Word-sized enum and large values:
+
+```zap
+enum word Big {
+    A = 300,
+    B,
+    C = 65535
+}
+
+const word w1 = A
+```
+
+**Common errors (semantic checks performed by `EnumAnalyzer` in `sema.py`):**
+- "Enum value N out of range for byte" — when an explicit or inferred value is outside 0..255 for `byte` enums.
+- "Enum member 'NAME' duplicated in enum 'X'" — duplicate member names within the same enum.
+- "Enum member 'NAME' conflicts with existing symbol" — enum member collides with an already-declared symbol in the current symbol table.
+- "Enum base type 'TYPE' is not supported" — only `byte` and `word` are supported base types.
+
+**Usage notes:**
+- Use enums for readable, self-documenting constants and to define sets of related identifiers or flags.
+- Enum members can be used wherever `const` values are allowed: initializers, array dimensions, compile-time expressions, etc.
+
+**Tests:**
+- The test suite includes cases for: basic enums, enums with explicit values, word-sized enums, and failing cases for out-of-range values, duplicate members, name conflicts, and invalid base types.
+
 
 
 **Rules for static variables:**
@@ -402,7 +447,7 @@ Basic syntax:
 
 ```zap
 byte global_x = 0                   ; Global variable
-byte screen = 40000 @0x9C00         ; Using hex address
+byte screen = 40000 @$9C00         ; Using hex address
 word counter = 0
 const byte VERSION = 1              ; Compile-time constant
 ```

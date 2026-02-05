@@ -432,6 +432,10 @@ class ModuleSystem:
             
             # Add this module's declarations and collect exports for variables
             for decl in module_info.declarations:
+                # Skip non-variable declarations (e.g., EnumDecl, StructDef)
+                if not hasattr(decl, 'declarators'):
+                    all_decls.append(decl)
+                    continue
                 for d in decl.declarators:
                     name: str = d.name
                     if name in seen_decls:

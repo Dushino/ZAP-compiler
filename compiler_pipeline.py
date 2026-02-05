@@ -143,6 +143,9 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
 
     # Global initializers and declarations may reference globals/funcs
     for decl in program.decls:
+        # Skip items that are not variable declarations (e.g., EnumDecl, StructDef, directives)
+        if not hasattr(decl, 'declarators'):
+            continue
         for d in decl.declarators:
             if d.address is not None:
                 _walk_expr(d.address, ctx, global_symtab)

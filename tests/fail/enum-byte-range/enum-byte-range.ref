@@ -1,0 +1,4 @@
+# Error Test - Enum byte range
+
+## Expected Error
+Enum value 256 out of range for byte
