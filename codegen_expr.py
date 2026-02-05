@@ -4267,10 +4267,21 @@ class CodeGen:
         result_16_temp: bool = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
         
         # If we're in an assignment context and LHS is WORD, treat result as 16-bit
-        # If we're in an assignment context and LHS is BYTE, treat result as 8-bit even if expr promotes
+        # If we're in an assignment context and LHS is BYTE, treat result as 8-bit only when
+        # the expression and its operands are also BYTE-sized. For word/pointer operands or
+        # when the expression itself yields WORD, keep 16-bit so bitwise/shift operations
+        # are evaluated at the correct width before final truncation.
         if self.assign_target_type:
             if self.assign_target_type.base == "BYTE" and not self.assign_target_type.is_pointer:
-                result_16_temp = False  # Final assignment is to BYTE, don't promote result
+                # Only narrow to 8-bit if neither the expression nor its operands are WORD/pointer
+                if not (
+                    t.sem_type.base == "WORD" or
+                    left_t.sem_type.base == "WORD" or
+                    right_t.sem_type.base == "WORD" or
+                    (left_t.kind == ExprKind.ADDR) or
+                    (right_t.kind == ExprKind.ADDR)
+                ):
+                    result_16_temp = False  # Final assignment is to BYTE and everything is BYTE → don't promote result
             elif self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer:
                 result_16_temp = True  # Final assignment is to WORD, treat as 16-bit
         
