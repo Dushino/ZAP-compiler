@@ -14,5 +14,3 @@ proc main()
     PLAYF4 = COLOR_BLUE1  + 2
 
 end
-
-

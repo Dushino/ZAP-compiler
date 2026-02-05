@@ -5567,6 +5567,9 @@ class CodeGen:
         
         # Allow ADDR = ADDR for pointer assignments
         if lhs_t.kind == ExprKind.ADDR and lhs_t.sem_type.is_pointer:
+            # If RHS is an LVALUE (e.g., dereference expr), treat as VALUE (reading)
+            if rhs_t.kind == ExprKind.LVALUE:
+                rhs_t = ExprType(rhs_t.sem_type, ExprKind.VALUE)
             if rhs_t.kind != ExprKind.ADDR and rhs_t.kind != ExprKind.VALUE:
                 self._raise_error("Cannot assign to pointer")
             # Type compatibility for pointers (WORD base for all pointers)
