@@ -17,6 +17,7 @@ ZAP! compiles ZAP! source code into optimized 6502 assembly for Atari 8-bit comp
 - Syntax is heavily inspired by Action! and C programming languages
 - Module system with `.module` and `.include` directives
 - Module constructors: optional `PROC Constructor()` in module files (run at program init; treated as `#KEEP #NOEXPORT` and called automatically)
+- Declaration modifiers including `#PORT`, `#RD`, and `#WR` to mark hardware port variables and document read/write permissions
 - Multi-file compilation
 - Inline assembly support
 - 65C02 instruction set support

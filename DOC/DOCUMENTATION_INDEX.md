@@ -53,7 +53,10 @@ Start here if you're just beginning:
    - Operator precedence
    - Language structure
 
-5. **[Project State & Implementation](project_state.md)** - Compiler Details
+5. **[PORT Modifier Implementation](PORT_MODIFIER_IMPLEMENTATION.md)** - Details about `#PORT`, `#RD`, and `#WR` modifiers for hardware ports
+   - Syntax, semantics, restrictions, and examples
+
+6. **[Project State & Implementation](project_state.md)** - Compiler Details
    - Architecture overview
    - Compilation pipeline
    - Implementation status

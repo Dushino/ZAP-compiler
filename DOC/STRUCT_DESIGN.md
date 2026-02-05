@@ -48,6 +48,26 @@ end
 - `end` keyword terminates definition
 - Definitions are top-level (global scope only initially)
 
+#### Port Modifiers on Structs and Fields 🔌
+
+Struct definitions may optionally include port-related modifiers after the struct name to indicate that instances of the struct represent memory-mapped hardware registers (ports). These modifiers act as defaults for fields and can be overridden at the individual field level.
+
+- `#PORT` placed on a `struct` signals that instances are hardware-mapped (field-level addresses are typically provided).
+- `#RD` and `#WR` on a `struct` set default read/write permissions for all fields; individual fields may specify `#PORT`, `#RD`, and/or `#WR` to override the defaults.
+- Semantic rules (enforced by `sema.py`): explicit field-level `#RD`/`#WR` take precedence; if a field or struct is `#PORT` and neither `#RD` nor `#WR` is specified, both reads and writes are allowed by default. Attempts to write to an `#RD`-only field or read from an `#WR`-only field will raise a semantic error.
+
+Example:
+
+```zap
+struct VIA_STRUCT #PORT #RD
+    byte ORB #RD        ; Read-only field
+    byte ORA #WR        ; Write-only field
+    byte DDRB           ; Inherits #RD default (read-only) unless overridden
+end
+```
+
+(See also: [PORT Modifier Implementation](PORT_MODIFIER_IMPLEMENTATION.md) for full details and examples.)
+
 ### 1.2 Struct Instance Declaration
 
 ```zap

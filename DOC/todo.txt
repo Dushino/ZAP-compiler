@@ -209,35 +209,6 @@ To check - enhance tests
 [x] Errors in Problems tab can not open file
 [x] ENUM?
 
-
-Comprehensive tests
-Lexical & identifiers
-PASS: valid identifiers, underscores, keywords vs identifiers
-FAIL: identifiers starting with digits, invalid chars
-
-Integer literals
-PASS: decimal/hex, within range
-FAIL: malformed literal, overflow
-
-Whitespace & comments
-PASS: line/block comments, whitespace tolerance
-FAIL: unterminated comment
-
-String literals & escapes (simple)
-PASS: basic strings, allowed escapes
-FAIL: unterminated string, bad escape
-
-Variable declarations & assignments
-PASS: correct declarations and assignments
-FAIL: type mismatch assignment, undeclared variable
-
-Expressions & operator precedence
-PASS: binary/unary ops, parentheses
-FAIL: invalid expression, misuse of operator
-
-Simple control flow (if / while)
-PASS & FAIL variants for condition types and syntax
-
 [ ] Add a focused unit test that triggers the new error, or
 [ ] Tweak estimator behavior (make it less/ more conservative), or
 [ ] Proceed to improve expression flattening and constant folding to reduce temp needs so fewer expressions are rejected.
@@ -246,7 +217,7 @@ PASS & FAIL variants for condition types and syntax
 [ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. 
     Does it mean scopes implementation? I do not want it.
 
-[ ] Enhance STRUCT declarations:
+[x] Enhance STRUCT declarations:
 
 struct VIA_STRUCT #port 
     byte ORB    #rd
@@ -275,5 +246,5 @@ maybe struct NAME #port #rd for all struct members?
 
 [ ] Something like VARNAME:L / VARNAME:H ? 
 
-[ ] Tests for STRUCT name #port #rd #wr
+[x] Tests for STRUCT name #port #rd #wr
 [ ] Tests for ENUMs
