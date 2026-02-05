@@ -243,5 +243,35 @@ PASS & FAIL variants for condition types and syntax
 [ ] Proceed to improve expression flattening and constant folding to reduce temp needs so fewer expressions are rejected.
 [ ] Prepare unit test for estimator
 
-[ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. Does it mean scopes?
-    
+[ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. 
+    Does it mean scopes implementation? I do not want it.
+
+[ ] Test what happens:
+
+struct VIA_STRUCT 
+    byte ORB
+    byte ORA
+    byte DDRB
+    byte DDRA
+    byte T1CL
+    byte T1CH
+    byte T1LL
+    byte T1LH
+    byte T2CL
+    byte T2CH
+    byte SR
+    byte ACR
+    byte PCR
+    byte IFR
+    byte IER
+    byte PRA 
+    byte PRB 
+end
+
+VIA_STRUCT VIA1 @40000 #port
+VIA_STRUCT VIA2 @40016 #port #rd
+
+maybe struct NAME #port #rd for all struct members?
+
+[ ] Something like VARNAME:L / VARNAME:H ? or #hi #lo?
+

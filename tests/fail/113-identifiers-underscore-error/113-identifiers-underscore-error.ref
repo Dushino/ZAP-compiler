@@ -1,0 +1,4 @@
+# Error Test - Leading underscore
+
+## Expected Error
+Tokenizer should report: '_' is not allowed as first character (with correct line/column)

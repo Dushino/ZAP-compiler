@@ -1,0 +1,4 @@
+# Error Test - Array initializer size mismatch
+
+## Expected Error
+Array initializer size mismatch reported for declared size 2 with 3 initializers.

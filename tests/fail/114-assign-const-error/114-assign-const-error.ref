@@ -1,0 +1,4 @@
+# Error Test - Assignment to const
+
+## Expected Error
+Cannot assign to const variable 'C' (reported at the assignment location)

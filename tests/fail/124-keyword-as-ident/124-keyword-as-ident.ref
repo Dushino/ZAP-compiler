@@ -1,0 +1,4 @@
+# Error Test - Keyword used as identifier
+
+## Expected Error
+Parser/Tokenizer should report an error when a keyword is used where an identifier is expected.

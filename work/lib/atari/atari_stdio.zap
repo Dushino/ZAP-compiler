@@ -62,7 +62,7 @@ const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
 ; initialize internals for faster screen IO
-proc CONSTRUCTOR() ; as it had #KEEP and #NOEXPORT
+proc CONSTRUCTOR() 
     byte ^dlstart @560      ; system storage for DL address
     byte ^dlptr             ; pointer into display list
     byte ^vram

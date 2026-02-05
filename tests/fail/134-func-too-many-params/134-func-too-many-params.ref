@@ -1,0 +1,4 @@
+# Error Test - Function called with too many parameters
+
+## Expected Error
+Procedure/Function expects 1 parameter but 2 were provided (error reported at call site)

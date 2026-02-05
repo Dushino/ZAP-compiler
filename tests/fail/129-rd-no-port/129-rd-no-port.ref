@@ -1,0 +1,4 @@
+# Error Test - RD without PORT
+
+## Expected Error
+#RD and #WR modifiers are only valid on #PORT declarations

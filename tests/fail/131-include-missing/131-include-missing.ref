@@ -1,0 +1,4 @@
+# Error Test - Include missing file
+
+## Expected Error
+File not found: no_such_file.zap (or similar message reported by include handling)
