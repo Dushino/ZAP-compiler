@@ -26,6 +26,27 @@ class IncbinDirective(ASTNode):
 
 
 @dataclass(frozen=True)
+class ErrorDirective(ASTNode):
+    message: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True)
+class WarningDirective(ASTNode):
+    message: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True)
+class InfoDirective(ASTNode):
+    message: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True)
 class TypeNode(ASTNode):
     base: str            # "byte", "word"
     is_pointer: bool     # True pokud ^

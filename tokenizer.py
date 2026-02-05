@@ -14,7 +14,7 @@ KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
                    "return", "break", "continue", "stop",                    
                    "asm"}
 PREPROC: set[str]         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
-                   ".segment", ".incbin"}
+                   ".error", ".warning", ".info"}
 TYPES: set[str]           = {"byte", "word"}
 TYPEMOD: set[str]         = {"const", "static"}
 SINGLE_OPS: set[str]      = set("+-*/%><[]&|~^!")

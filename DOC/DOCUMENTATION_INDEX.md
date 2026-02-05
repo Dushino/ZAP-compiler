@@ -241,7 +241,7 @@ Start here if you're just beginning:
 | Loops | `while`, `for`, `to`, `step`, `next`, `break` |
 | Types | `byte`, `word` |
 | Modifiers | `const`, `#KEEP`, `#NOEXPORT`, `#EXPORT` |
-| Directives | `.module`, `.include`, `.segment` |
+| Directives | `.module`, `.include`, `.error`, `.warning`, `.info` |
 | Assembly | `asm`, `end` |
 
 ---

@@ -29,12 +29,7 @@ class Preprocessor:
             line = lines[i]
             stripped = line.strip().lower()
             
-            # .segment directive - pass through as-is when active
-            if stripped.startswith('.segment '):
-                if cond_stack[-1][0]:  # only include if active
-                    output_lines.append(line)
-                i += 1
-                continue
+
             
             # Check for directives
             if stripped.startswith('.define '):

@@ -31,7 +31,7 @@ from ast_nodes import IfStmt
 from ast_nodes import IfStmt
 from ast_nodes import WhileStmt
 from ast_nodes import ForStmt
-from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, WhileStmt
+from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, ErrorDirective, WarningDirective, InfoDirective, WhileStmt
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
@@ -145,23 +145,30 @@ class Parser:
 
         # SECOND PASS: Parse everything
         while self.cur.type != TOK_EOF:
-            if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".SEGMENT":
-                # Parse .segment directive at top level
+            if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".ERROR":
+                # Parse .error directive at top level
                 self.advance()
                 if self.cur.type != TOK_STRING:
-                    self.error("Expected string after .segment")
-                segment_name: str = self.cur.value
+                    self.error("Expected string after .error")
+                msg: str = self.cur.value
                 self.advance()
-                procs.append(SegmentDirective(segment_name))
-            elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INCBIN":
-                # Parse .incbin directive at top level
+                procs.append(ErrorDirective(msg, self.cur.line, self.cur.col))
+            elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".WARNING":
+                # Parse .warning directive at top level
                 self.advance()
                 if self.cur.type != TOK_STRING:
-                    self.error("Expected string after .incbin")
-                filename: str = self.cur.value
+                    self.error("Expected string after .warning")
+                msg: str = self.cur.value
                 self.advance()
-                from ast_nodes import IncbinDirective
-                procs.append(IncbinDirective(filename))
+                procs.append(WarningDirective(msg, self.cur.line, self.cur.col))
+            elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INFO":
+                # Parse .info directive at top level
+                self.advance()
+                if self.cur.type != TOK_STRING:
+                    self.error("Expected string after .info")
+                msg: str = self.cur.value
+                self.advance()
+                procs.append(InfoDirective(msg, self.cur.line, self.cur.col))
             elif self.cur.type == TOK_OP and self.cur.value == ".":
                 # Handle . followed by IDENT (preprocessor directive like .include)
                 self.advance()
@@ -173,19 +180,24 @@ class Parser:
                             self.error("Expected string after .include")
                         # Skip .include directives for now
                         self.advance()
-                    elif directive == "SEGMENT":
+                    elif directive == "ERROR":
                         if self.cur.type != TOK_STRING:
-                            self.error("Expected string after .segment")
-                        segment_name: str = self.cur.value
+                            self.error("Expected string after .error")
+                        msg: str = self.cur.value
                         self.advance()
-                        procs.append(SegmentDirective(segment_name))
-                    elif directive == "INCBIN":
+                        procs.append(ErrorDirective(msg, self.cur.line, self.cur.col))
+                    elif directive == "WARNING":
                         if self.cur.type != TOK_STRING:
-                            self.error("Expected string after .incbin")
-                        filename: str = self.cur.value
+                            self.error("Expected string after .warning")
+                        msg: str = self.cur.value
                         self.advance()
-                        from ast_nodes import IncbinDirective
-                        procs.append(IncbinDirective(filename))
+                        procs.append(WarningDirective(msg, self.cur.line, self.cur.col))
+                    elif directive == "INFO":
+                        if self.cur.type != TOK_STRING:
+                            self.error("Expected string after .info")
+                        msg: str = self.cur.value
+                        self.advance()
+                        procs.append(InfoDirective(msg, self.cur.line, self.cur.col))
                     else:
                         # Unknown directive: try to skip optional argument (string or identifier)
                         if self.cur.type == TOK_STRING:
@@ -1383,44 +1395,62 @@ class Parser:
         if self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "ENDIF", "ELSE"):
             self.error(f"Unexpected block terminator {self.cur.value}")
 
-        if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".SEGMENT":
-            # Parse .segment directive in statement context
+        if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".ERROR":
+            # Parse .error directive in statement context
             self.advance()
             if self.cur.type != TOK_STRING:
-                self.error("Expected string after .segment")
-            segment_name: str = self.cur.value
+                self.error("Expected string after .error")
+            msg: str = self.cur.value
             self.advance()
-            return SegmentDirective(segment_name)
+            return ErrorDirective(msg, self.cur.line, self.cur.col)
 
-        if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INCBIN":
-            # Parse .incbin directive in statement context
+        if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".WARNING":
+            # Parse .warning directive in statement context
             self.advance()
             if self.cur.type != TOK_STRING:
-                self.error("Expected string after .incbin")
-            filename: str = self.cur.value
+                self.error("Expected string after .warning")
+            msg: str = self.cur.value
             self.advance()
-            from ast_nodes import IncbinDirective
-            return IncbinDirective(filename)
+            return WarningDirective(msg, self.cur.line, self.cur.col)
 
-        # Handle . followed by IDENT (preprocessor directive like .segment or .incbin)
+        if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INFO":
+            # Parse .info directive in statement context
+            self.advance()
+            if self.cur.type != TOK_STRING:
+                self.error("Expected string after .info")
+            msg: str = self.cur.value
+            self.advance()
+            return InfoDirective(msg, self.cur.line, self.cur.col)
+
+        # Handle . followed by IDENT (preprocessor directive like .include)
         if self.cur.type == TOK_OP and self.cur.value == ".":
             self.advance()
             if self.cur.type == TOK_IDENT:
                 directive: str = self.cur.value.upper()
                 self.advance()
-                if directive == "SEGMENT":
+                if directive == "INCLUDE":
                     if self.cur.type != TOK_STRING:
-                        self.error("Expected string after .segment")
-                    segment_name: str = self.cur.value
+                        self.error("Expected string after .include")
+                    # Skip .include directives for now
                     self.advance()
-                    return SegmentDirective(segment_name)
-                elif directive == "INCBIN":
+                elif directive == "ERROR":
                     if self.cur.type != TOK_STRING:
-                        self.error("Expected string after .incbin")
-                    filename: str = self.cur.value
+                        self.error("Expected string after .error")
+                    msg: str = self.cur.value
                     self.advance()
-                    from ast_nodes import IncbinDirective
-                    return IncbinDirective(filename)
+                    return ErrorDirective(msg, self.cur.line, self.cur.col)
+                elif directive == "WARNING":
+                    if self.cur.type != TOK_STRING:
+                        self.error("Expected string after .warning")
+                    msg: str = self.cur.value
+                    self.advance()
+                    return WarningDirective(msg, self.cur.line, self.cur.col)
+                elif directive == "INFO":
+                    if self.cur.type != TOK_STRING:
+                        self.error("Expected string after .info")
+                    msg: str = self.cur.value
+                    self.advance()
+                    return InfoDirective(msg, self.cur.line, self.cur.col)
                 else:
                     self.error(f"Unknown directive '.{directive}'")
             else:

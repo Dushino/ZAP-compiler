@@ -99,9 +99,7 @@ class ModuleSystem:
                 parts: List[str] = stripped.split('"')
                 if len(parts) >= 2:
                     includes.append(parts[1])
-            elif lower_stripped.startswith('.segment'):
-                # Keep .segment directives - they're parsed as statements
-                cleaned_lines.append(line)
+
             else:
                 # Keep non-directive lines for parsing
                 cleaned_lines.append(line)
@@ -123,6 +121,20 @@ class ModuleSystem:
             except Exception:
                 pass
             raise
+
+        # Process compile-time diagnostics directives (.error/.warning/.info)
+        from ast_nodes import ErrorDirective, WarningDirective, InfoDirective
+        from errors import print_error
+        for item in program.procs:
+            if isinstance(item, ErrorDirective):
+                err = SemanticError(item.message, line=getattr(item, 'line', None), col=getattr(item, 'col', None))
+                err.filename = filepath
+                err.source_text = cleaned_source
+                raise err
+            elif isinstance(item, WarningDirective):
+                print_error(cleaned_source, getattr(item, 'line', 1), getattr(item, 'col', 1), item.message, filename=filepath, severity='warning')
+            elif isinstance(item, InfoDirective):
+                print_error(cleaned_source, getattr(item, 'line', 1), getattr(item, 'col', 1), item.message, filename=filepath, severity='info')
 
         # Handle module CONSTRUCTOR procs:
         # - Forbidden in non-module files

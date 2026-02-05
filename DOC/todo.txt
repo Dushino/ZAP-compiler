@@ -68,7 +68,7 @@ Steps:
     [x] Ctrl+Shift+P command "Build: ZAP: Compile current file"
     
 [ ] Tutorials with examples.
-[ ] .error, .warning directives
+[x] .error, .warning directives
 
 
 Generated code review checklist:
@@ -162,13 +162,16 @@ end
     - #RD for read-only ports
     - #WR for write-only ports
     byte PIA_DATA $D300 #PORT #RD
-[ ] Implemet #attributes in compiler
+[x] Implemet #attributes in compiler
 
 [x] consider changing port TO #PORT to be consistent with other directives starting with #
 [x] resolve syntaxt highlighting for # directives in VS Code extension
 
 [x] ASM must properly ignore every ZAP! syntax inside ASM block till END
-[ ] remove .segment from ZAP directives to ASM blocks only
+
+[x] remove .segment from ZAP directives - use it in ASM blocks only
+
+[x] Implement .error "string" and .warning "string"
 
 [ ] improve and unify error messages for:
     - undeclared identifier
@@ -182,9 +185,9 @@ end
 
 To check - enhance tests
 [ ] Pointer assignment to and from WORD 
-[ ] -I command line option for library path
-[ ] Propagation of module symbols to including files
-[ ] Module constructors
+[x] -I command line option for library path
+[x] Propagation of module symbols to including files
+[x] Module constructors
     proc CONSTRUCTOR() #KEEP #NOEXPORT
 [ ] Address-of operator @
 [ ] Const struct initialization syntax 
@@ -235,3 +238,7 @@ FAIL: invalid expression, misuse of operator
 Simple control flow (if / while)
 PASS & FAIL variants for condition types and syntax
 
+[ ] Add a focused unit test that triggers the new error, or
+[ ] Tweak estimator behavior (make it less/ more conservative), or
+[ ] Proceed to improve expression flattening and constant folding to reduce temp needs so fewer expressions are rejected.
+[ ] Prepare unit test for estimator

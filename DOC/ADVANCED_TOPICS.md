@@ -466,9 +466,9 @@ proc main()
 end
 ```
 
-### Segment Directives
+### Assembler-only directives
 
-Control code placement:
+Assembler directives like `.segment` and `.incbin` are only recognized inside `asm ... end` blocks and are not supported as top-level ZAP directives. Example:
 
 ```zap
 proc load_font()
@@ -478,6 +478,14 @@ proc load_font()
         .segment "CODE"    ; Switch back
     end
 end
+```
+
+For compile-time diagnostics, ZAP provides the following directives (used outside of `asm` blocks):
+
+```zap
+.error "This is a compile error"    ; Emits an error and stops compilation
+.warning "This is a warning"        ; Emits a warning but continues compilation
+.info "Informational message"       ; Emits an info message but continues compilation
 ```
 
 ### Assembly Gotchas
