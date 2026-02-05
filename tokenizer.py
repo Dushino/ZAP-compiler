@@ -5,23 +5,23 @@ from typing import Optional
 from token_types import *
 from errors import TokenizerError
 
-ESCAPES         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\","a":"\a","b":"\b","f":"\f","v":"\v","0":"\0"}
-KEYWORDS        = {"proc", "func", "struct", "enum",
+ESCAPES: dict[str, str]         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\","a":"\a","b":"\b","f":"\f","v":"\v","0":"\0"}
+KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
                    "if","else", "elseif", "then", "endif", "end", 
                    "for", "to", "step", "next",
                    "while", "repeat", "until",
                    "switch", "case", "default",
                    "return", "break", "continue", "stop",                    
                    "asm"}
-PREPROC         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
+PREPROC: set[str]         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
                    ".segment", ".incbin"}
-TYPES           = {"byte", "word"}
-TYPEMOD         = {"const", "static"}
-SINGLE_OPS      = set("+-*/%><[]&|~^!")
-TWO_CHAR_OPS    = {"==","!=","<=",">=","&&","||","<<",">>"}
-DELIMIN         = {","}
+TYPES: set[str]           = {"byte", "word"}
+TYPEMOD: set[str]         = {"const", "static"}
+SINGLE_OPS: set[str]      = set("+-*/%><[]&|~^!")
+TWO_CHAR_OPS: set[str]    = {"==","!=","<=",">=","&&","||","<<",">>"}
+DELIMIN: set[str]         = {","}
 PTR             = set()
-SQB             = {"[","]"}
+SQB: set[str]             = {"[","]"}
 
 @dataclass
 class Token:
@@ -29,13 +29,13 @@ class Token:
     value: str = ""
     line: int = 0
     col: int = 0
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Token({self.type!r}, {self.value!r}, {self.line}:{self.col})"
 
 
 class Tokenizer:
-    def __init__(self, src: str):
-        self.src = src
+    def __init__(self, src: str) -> None:
+        self.src: str = src
         self.pos = 0
         self.line = 1
         self.col = 1
@@ -43,23 +43,23 @@ class Tokenizer:
         self.pcol = 1
         self.sline = 1
         self.scol = 1
-        self.length = len(src)
+        self.length: int = len(src)
         self.tokenList: list[Token] = []
 
-    def _getTokens(self):
+    def _getTokens(self) -> list[Token]:
         return self.tokenList
 
     def _peek(self, offset=0) -> Optional[str]:
-        i = self.pos + offset
+        i: int = self.pos + offset
         if i < self.length:
             return self.src[i]
         return None
 
     def _advance(self, n=1) -> Optional[str]:
-        ch = None
+        ch: str | None = None
         for _ in range(n):
-            self.pline = self.line
-            self.pcol = self.col
+            self.pline: int = self.line
+            self.pcol: int = self.col
             if self.pos < self.length:
                 ch = self.src[self.pos]
             self.pos += 1
@@ -74,7 +74,7 @@ class Tokenizer:
             return self.src[self.pos]
         return None
 
-    def _process_escape_sequence(self):
+    def _process_escape_sequence(self) -> str:
         """Process escape sequence and return the character.
         
         Supported escape sequences:
@@ -89,16 +89,16 @@ class Tokenizer:
         
         NOTE: Binary \\b prefix is checked BEFORE \\b backspace escape to allow binary literals
         """
-        esc = self._peek()
+        esc: str | None = self._peek()
         if esc is None:
             raise TokenizerError("Unexpected EOF in escape sequence", line=self.line, col=self.col)
         
         # Binary escape: \bBBBBBBBB (1-8 binary digits) - CHECK BEFORE ESCAPES to avoid conflict with \b backspace
         if esc == 'b' and self._peek(1) in ('0', '1'):
             self._advance(1)
-            binary_digits = ""
+            binary_digits: str = ""
             for _ in range(8):
-                c = self._peek()
+                c: str | None = self._peek()
                 if c and c in "01":
                     binary_digits += c
                     self._advance(1)
@@ -119,9 +119,9 @@ class Tokenizer:
         # Hex escape: \xHH (1-2 hex digits)
         if esc == 'x':
             self._advance(1)
-            hex_digits = ""
+            hex_digits: str = ""
             for _ in range(2):
-                c = self._peek()
+                c: str | None = self._peek()
                 if c and c in "0123456789abcdefABCDEF":
                     hex_digits += c
                     self._advance(1)
@@ -136,9 +136,9 @@ class Tokenizer:
         
         # Octal escape: \OOO (1-3 octal digits)
         if esc in "01234567":
-            octal_digits = ""
+            octal_digits: str = ""
             for _ in range(3):
-                c = self._peek()
+                c: str | None = self._peek()
                 if c and c in "01234567":
                     octal_digits += c
                     self._advance(1)
@@ -151,7 +151,7 @@ class Tokenizer:
         
         raise TokenizerError(f"Unknown escape sequence: \\{esc}", line=self.line, col=self.col)
 
-    def _emit(self, ttype: str, start_line: int, start_col: int, value: Optional[str] = None):
+    def _emit(self, ttype: str, start_line: int, start_col: int, value: Optional[str] = None) -> None:
         if value is None:
             value = ""
         # Keep strings case-sensitive, but uppercase identifiers, keywords and types
@@ -161,18 +161,18 @@ class Tokenizer:
             t1 = Token(ttype, value.upper(), start_line, start_col)
         self.tokenList.append(t1)
 
-    def _consume_asm_block(self):
-        start_line = self.line
-        start_col = self.col
+    def _consume_asm_block(self) -> None:
+        start_line: int = self.line
+        start_col: int = self.col
         block_parts: list[str] = []
         while True:
             if self._peek() is None:
                 raise TokenizerError("Missing END for ASM block", line=start_line, col=start_col)
-            line_start = self.pos
+            line_start: int = self.pos
             while self._peek() not in (None, "\n"):
                 self._advance()
-            line_text = self.src[line_start:self.pos]
-            stripped = line_text.strip().upper()
+            line_text: str = self.src[line_start:self.pos]
+            stripped: str = line_text.strip().upper()
             if stripped == "END":
                 if self._peek() == "\n":
                     self._advance()
@@ -183,7 +183,7 @@ class Tokenizer:
                 self._advance()
         self._emit(TOK_ASM_BLOCK, start_line, start_col, "".join(block_parts))
 
-    def tokenize(self):
+    def tokenize(self) -> None:
         self.pos = 0
         self.line = 1
         self.col = 1
@@ -193,7 +193,7 @@ class Tokenizer:
         self.pcol = 1
 
         while True:
-            ch = self._peek(0)
+            ch: str | None = self._peek(0)
             if ch is None:
                 self._emit(TOK_EOF, self.pline, self.pcol, "")
                 return
@@ -202,8 +202,8 @@ class Tokenizer:
                 self._advance()
                 continue
 
-            self.sline = self.line
-            self.scol = self.col
+            self.sline: int = self.line
+            self.scol: int = self.col
 
             # Single-line comment
             if ch == ';':
@@ -231,12 +231,12 @@ class Tokenizer:
                 self._advance(1)
                 buf: list[str] = []
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None:
                         raise TokenizerError("Missing end of string", line=self.sline, col=self.scol)
                     if c == '\\':
                         self._advance(1)
-                        escaped_char = self._process_escape_sequence()
+                        escaped_char: str = self._process_escape_sequence()
                         buf.append(escaped_char)
                         continue
                     if c == '"':
@@ -250,75 +250,75 @@ class Tokenizer:
             # $<hex>
             if ch == '$':
                 self._advance(1)
-                startp = self.pos
+                startp: int = self.pos
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or not (c.isdigit() or c.lower() in "abcdef"):
                         break
                     self._advance(1)
                 if startp == self.pos:
                     raise TokenizerError("Hexadecimal digit expected", line=self.sline, col=self.scol)
-                text = self.src[startp:self.pos]
+                text: str = self.src[startp:self.pos]
                 self._emit(TOK_NUMBER, self.sline, self.scol, "0x" + text)
                 continue
 
             # %<binary>
             if ch == '%' and self._peek(1) in ('0', '1'):
                 self._advance(1)
-                startp = self.pos
+                startp: int = self.pos
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or c not in '01':
                         break
                     self._advance(1)
                 if startp == self.pos:
                     raise TokenizerError("Binary digit expected", line=self.sline, col=self.scol)
-                text = self.src[startp:self.pos]
+                text: str = self.src[startp:self.pos]
                 self._emit(TOK_NUMBER, self.sline, self.scol, "0b" + text)
                 continue
 
             # 0x / 0X
             if ch == '0' and (self._peek(1) in ('x', 'X')):
-                startp = self.pos
-                ch2 = self._advance(2)
+                startp: int = self.pos
+                ch2: str | None = self._advance(2)
                 if ch2 is None or not (ch2.isdigit() or ch2.lower() in 'abcdef'):
                     raise TokenizerError("Hexadecimal digit expected", line=self.sline, col=self.scol)
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or not (c.isdigit() or c.lower() in 'abcdef'):
                         break
                     self._advance(1)
-                text = self.src[startp:self.pos]
+                text: str = self.src[startp:self.pos]
                 self._emit(TOK_NUMBER, self.sline, self.scol, text)
                 continue
 
             # 0b / 0B
             if ch == '0' and (self._peek(1) in ('b', 'B')):
-                startp = self.pos
-                ch2 = self._advance(2)
+                startp: int = self.pos
+                ch2: str | None = self._advance(2)
                 if ch2 is None or ch2 not in ('0', '1'):
                     raise TokenizerError("Binary digit expected", line=self.sline, col=self.scol)
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or c not in ('0', '1'):
                         break
                     self._advance(1)
-                text = self.src[startp:self.pos]
+                text: str = self.src[startp:self.pos]
                 self._emit(TOK_NUMBER, self.sline, self.scol, text)
                 continue
 
             # ASCII character literal 'x'
             if ch == '\'':
                 self._advance(1)
-                c = self._peek()
+                c: str | None = self._peek()
                 if c is None:
                     raise TokenizerError("Unexpected EOF in character literal", line=self.sline, col=self.scol)
                 if c == '\\':
                     self._advance(1)
-                    escaped_char = self._process_escape_sequence()
-                    char_val = ord(escaped_char)
+                    escaped_char: str = self._process_escape_sequence()
+                    char_val: int = ord(escaped_char)
                 else:
-                    char_val = ord(c)
+                    char_val: int = ord(c)
                     self._advance(1)
                 if self._peek() != '\'':
                     raise TokenizerError("Expected closing quote in character literal", line=self.line, col=self.col)
@@ -328,7 +328,7 @@ class Tokenizer:
 
             # '=' and '=='
             if ch == '=':
-                ch2 = self._peek(1)
+                ch2: str | None = self._peek(1)
                 if ch2 == '=':
                     self._emit(TOK_OP, self.sline, self.scol, '==')
                     self._advance(2)
@@ -339,13 +339,13 @@ class Tokenizer:
 
             # decimal number
             if ch.isdigit():
-                start = self.pos
+                start: int = self.pos
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or not c.isdigit():
                         break
                     self._advance(1)
-                text = self.src[start:self.pos]
+                text: str = self.src[start:self.pos]
                 self._emit(TOK_NUMBER, self.sline, self.scol, text)
                 continue
 
@@ -354,16 +354,16 @@ class Tokenizer:
                 raise TokenizerError("'_' is not allowed as first character", line=self.sline, col=self.scol)
 
             # Handle preprocessor directives (like .segment, .ifdef)
-            next_ch = self._peek()
+            next_ch: str | None = self._peek()
             if ch == '.' and next_ch is not None and next_ch.isalpha():
-                start = self.pos
+                start: int = self.pos
                 self._advance(1)
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or not (c.isdigit() or c.isalpha() or c == '_') or c.isspace():
                         break
                     self._advance(1)
-                text = self.src[start:self.pos]
+                text: str = self.src[start:self.pos]
                 if text.lower() in PREPROC:
                     self._emit(TOK_PREPROC, self.sline, self.scol, text.upper())
                     continue
@@ -379,14 +379,14 @@ class Tokenizer:
 
             # identifiers, keywords, types (no longer accepts leading .)
             if ch.isalpha():
-                start = self.pos
+                start: int = self.pos
                 self._advance(1)
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or not (c.isdigit() or c.isalpha() or c == '_') or c.isspace():
                         break
                     self._advance(1)
-                text = self.src[start:self.pos]
+                text: str = self.src[start:self.pos]
                 if text.lower() in TYPES:
                     self._emit(TOK_TYPE, self.sline, self.scol, text.upper())
                     continue
@@ -404,24 +404,24 @@ class Tokenizer:
             # Declaration modifiers like #KEEP, #NOEXPORT, #EXPORT
             if ch == '#':
                 self._advance(1)
-                start = self.pos
-                nxt = self._peek()
+                start: int = self.pos
+                nxt: str | None = self._peek()
                 if nxt is None or not nxt.isalpha():
                     raise TokenizerError("Expected identifier after '#'", line=self.sline, col=self.scol)
                 while True:
-                    c = self._peek()
+                    c: str | None = self._peek()
                     if c is None or not (c.isalpha() or c.isdigit() or c == '_'):
                         break
                     self._advance(1)
-                text = self.src[start:self.pos]
+                text: str = self.src[start:self.pos]
                 # emit as DECLMOD so parser can recognize modifiers attached to PROC/FUNC
                 self._emit(TOK_DECLMOD, self.sline, self.scol, text.upper())
                 continue
 
             # two-char ops
-            c1 = ch
-            c2 = self._peek(1) or ''
-            di = (c1 or '') + (c2 or '')
+            c1: str = ch
+            c2: str = self._peek(1) or ''
+            di: str = (c1 or '') + (c2 or '')
             if di in TWO_CHAR_OPS:
                 self._emit(TOK_OP, self.sline, self.scol, di)
                 self._advance(2)

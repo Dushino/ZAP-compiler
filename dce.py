@@ -1,6 +1,6 @@
 from ast_nodes import (
-    IfStmt, WhileStmt, BreakStmt, ContinueStmt,
-    AssignStmt, CallStmt, ReturnStmt
+    Expr, Expr, IfStmt, WhileStmt, BreakStmt, ContinueStmt,
+    ReturnStmt
 )
 from ast_nodes import IntLiteral
 
@@ -9,7 +9,7 @@ from ast_nodes import IntLiteral
 _stmt_src_copy: dict = {}
 
 
-def init_stmt_src_tracking(original_stmt_src: dict):
+def init_stmt_src_tracking(original_stmt_src: dict) -> None:
     """Initialize the stmt_src copy dict with original mappings."""
     global _stmt_src_copy
     _stmt_src_copy = original_stmt_src.copy()
@@ -40,7 +40,7 @@ def dce_block(stmts: list) -> list:
 def dce_stmt(stmt):
     # IF
     if isinstance(stmt, IfStmt):
-        cond = stmt.cond
+        cond: Expr = stmt.cond
 
         if isinstance(cond, IntLiteral):
             if cond.value == 0:
@@ -59,7 +59,7 @@ def dce_stmt(stmt):
 
     # WHILE
     if isinstance(stmt, WhileStmt):
-        cond = stmt.cond
+        cond: Expr = stmt.cond
 
         if isinstance(cond, IntLiteral) and cond.value == 0:
             return None

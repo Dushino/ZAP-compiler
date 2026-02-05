@@ -5,16 +5,14 @@ from ast_nodes import (
     UnaryExpr,
     BinaryExpr,
     DerefExpr,
-    UnOp,
-    BinOp,
 )
 
-from symbols import SymbolTable
+from symbols import Symbol, SymbolTable
 
 def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
     # IDENTIFIER
     if isinstance(expr, Identifier):
-        sym = symtab.lookup(expr.name)
+        sym: Symbol = symtab.lookup(expr.name)
         if sym.is_const:
             assert sym.const_value is not None
             return IntLiteral(sym.const_value)

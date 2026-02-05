@@ -31,8 +31,8 @@ class ModuleSystem:
     Manages module loading and dependency resolution
     """
     
-    def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None, include_dirs: Optional[List[str]] = None):
-        self.base_path = os.path.abspath(base_path)
+    def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None, include_dirs: Optional[List[str]] = None) -> None:
+        self.base_path: str = os.path.abspath(base_path)
         self.loaded_modules: Dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection
         self.preprocessor = Preprocessor(predefined_symbols)  # Shared preprocessor for all modules
@@ -40,24 +40,24 @@ class ModuleSystem:
         # Note: include_dirs are relative to the current working directory, not base_path
         if include_dirs is None:
             # Provide a sensible default for common workspace layout: search 'work/lib' under base_path
-            default_lib = os.path.join(self.base_path, 'work', 'lib')
+            default_lib: str = os.path.join(self.base_path, 'work', 'lib')
             if os.path.isdir(default_lib):
-                self.include_dirs = [os.path.abspath(default_lib)]
+                self.include_dirs: List[str] = [os.path.abspath(default_lib)]
             else:
                 self.include_dirs = []
         else:
-            self.include_dirs = [os.path.abspath(d) for d in include_dirs]
+            self.include_dirs: List[str] = [os.path.abspath(d) for d in include_dirs]
         # Map module names to their defining file path to detect duplicates
         self.module_name_to_path: Dict[str, str] = {}
     
     def parse_file(self, filepath: str):
         """Parse a single file and extract module directives"""
         with open(filepath, 'r', encoding='utf-8-sig') as f:
-            source = f.read()
+            source: str = f.read()
         
         # Strip UTF-8 BOM if present
         if source.startswith('\ufeff'):
-            source = source[1:]
+            source: str = source[1:]
         
         # Apply preprocessor (handles .ifdef, .ifndef, .else, .endif, .define, .undef)
         source, defined_symbols = self.preprocessor.process(source)
@@ -68,35 +68,35 @@ class ModuleSystem:
         includes = []
         module_directive_info = None  # (line, col, text)
         
-        lines = source.split('\n')
+        lines: List[str] = source.split('\n')
         cleaned_lines = []
         
         for ln, line in enumerate(lines, start=1):
-            stripped = line.strip()
-            lower_stripped = stripped.lower()
+            stripped: str = line.strip()
+            lower_stripped: str = stripped.lower()
             if stripped.startswith('.module'):
                 # Extract module name from .module "filename" and validate quotes
                 is_module = True
                 # Find quotes in the original line to get accurate column
-                first_q = line.find('"')
+                first_q: int = line.find('"')
                 if first_q == -1:
                     # No opening quote -> error
                     err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module')+1)
                     err.filename = filepath
                     err.source_text = source
                     raise err
-                second_q = line.find('"', first_q+1)
+                second_q: int = line.find('"', first_q+1)
                 if second_q == -1:
                     # No closing quote -> error
                     err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q+1)
                     err.filename = filepath
                     err.source_text = source
                     raise err
-                module_name = line[first_q+1:second_q]
-                module_directive_info = (ln, first_q+1, line)
+                module_name: str = line[first_q+1:second_q]
+                module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
             elif stripped.startswith('.include'):
                 # Extract include filename from .include "filename"
-                parts = stripped.split('"')
+                parts: List[str] = stripped.split('"')
                 if len(parts) >= 2:
                     includes.append(parts[1])
             elif lower_stripped.startswith('.segment'):
@@ -107,11 +107,11 @@ class ModuleSystem:
                 cleaned_lines.append(line)
         
         # Parse the cleaned source
-        cleaned_source = '\n'.join(cleaned_lines)
+        cleaned_source: str = '\n'.join(cleaned_lines)
         
         parser = Parser(cleaned_source, filename=filepath)
         try:
-            program = parser.parse_program()
+            program: Program = parser.parse_program()
         except Exception as e:
             # Attach source text and filename for better error reporting if it's a CompileError subtype
             try:
@@ -152,9 +152,9 @@ class ModuleSystem:
                         raise err
                 # Module file: mangle name, force keep and noexport
                 # Use module name if available, otherwise base filename
-                mod_base = module_name if module_name else os.path.splitext(os.path.basename(filepath))[0]
-                safe_mod = ''.join(ch if (ch.isalnum() or ch == '_') else '_' for ch in mod_base)
-                new_name = f"__CONSTRUCTOR__{safe_mod}"
+                mod_base: str = module_name if module_name else os.path.splitext(os.path.basename(filepath))[0]
+                safe_mod: str = ''.join(ch if (ch.isalnum() or ch == '_') else '_' for ch in mod_base)
+                new_name: str = f"__CONSTRUCTOR__{safe_mod}"
                 # Update proc_src mapping to point to new name
                 if program.debug and 'proc_src' in program.debug:
                     info = program.debug['proc_src'].pop(p.name, None)
@@ -191,20 +191,20 @@ class ModuleSystem:
         
         return program, is_module, module_name, includes, defined_symbols, module_directive_info
     
-    def _resolve_incbin_paths(self, program: Program, filepath: str):
+    def _resolve_incbin_paths(self, program: Program, filepath: str) -> None:
         """
         Resolve .incbin file paths in the program using the include search algorithm.
         Updates IncbinDirective objects with resolved paths.
         """
         from ast_nodes import IncbinDirective
         
-        file_dir = os.path.dirname(filepath)
+        file_dir: str = os.path.dirname(filepath)
         
         # Process all top-level items
         for i, item in enumerate(program.procs):
             if isinstance(item, IncbinDirective):
                 try:
-                    resolved_path = self._find_file(item.filename, file_dir)
+                    resolved_path: str = self._find_file(item.filename, file_dir)
                     # Replace with a new IncbinDirective containing the resolved path
                     program.procs[i] = IncbinDirective(resolved_path)
                 except SemanticError as e:
@@ -238,13 +238,13 @@ class ModuleSystem:
             raise err
         
         # Try relative to the current file's directory
-        current_relative_path = os.path.join(relative_to_dir, filename)
+        current_relative_path: str = os.path.join(relative_to_dir, filename)
         if os.path.isfile(current_relative_path):
             return os.path.abspath(current_relative_path)
         
         # Try each include directory in order
         for inc_dir in self.include_dirs:
-            inc_path = os.path.join(inc_dir, filename)
+            inc_path: str = os.path.join(inc_dir, filename)
             if os.path.isfile(inc_path):
                 return os.path.abspath(inc_path)
         
@@ -257,7 +257,7 @@ class ModuleSystem:
         """Load a module and its dependencies"""
         
         # Resolve full path
-        full_path = os.path.abspath(module_path)
+        full_path: str = os.path.abspath(module_path)
         
         # Check if already loaded
         if full_path in self.loaded_modules:
@@ -265,7 +265,7 @@ class ModuleSystem:
         
         # Check for circular dependencies
         if full_path in self.include_stack:
-            msg = f"Circular dependency detected: {' -> '.join(self.include_stack + [full_path])}"
+            msg: str = f"Circular dependency detected: {' -> '.join(self.include_stack + [full_path])}"
             err = SemanticError(msg)
             err.filename = full_path
             raise err
@@ -278,7 +278,7 @@ class ModuleSystem:
 
             # If this file declares a module name, check for duplicate module names globally
             if is_module and module_name:
-                prev = self.module_name_to_path.get(module_name)
+                prev: str | None = self.module_name_to_path.get(module_name)
                 if prev and os.path.abspath(prev) != full_path:
                     # Duplicate module name found
                     line_no, col_no, text = module_directive_info if module_directive_info else (None, None, None)
@@ -295,8 +295,8 @@ class ModuleSystem:
 
             # Separate declarations, and also preserve the original top-level items
             declarations = program.decls
-            procedures = [p for p in program.procs if isinstance(p, ProcDecl)]
-            functions = [p for p in program.procs if isinstance(p, FuncDecl)]
+            procedures: List[ProcDecl] = [p for p in program.procs if isinstance(p, ProcDecl)]
+            functions: List[FuncDecl] = [p for p in program.procs if isinstance(p, FuncDecl)]
             top_level_items = list(program.procs)
             
             # Create module info (includes will be resolved to absolute paths below)
@@ -320,9 +320,9 @@ class ModuleSystem:
             resolved_includes = []
             for inc in includes:
                 # Resolve include path relative to current file's directory
-                inc_dir = os.path.dirname(full_path)
+                inc_dir: str = os.path.dirname(full_path)
                 try:
-                    inc_path = self._find_file(inc, inc_dir)
+                    inc_path: str = self._find_file(inc, inc_dir)
                 except SemanticError as e:
                     # Re-wrap with context of the including file
                     err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
@@ -350,7 +350,7 @@ class ModuleSystem:
         self.include_stack.clear()
         
         # Load main file and dependencies
-        main_info = self.load_module(main_file)
+        main_info: ModuleInfo = self.load_module(main_file)
         
         # Collect all declarations, procs, and funcs in dependency order
         all_decls = []
@@ -366,20 +366,20 @@ class ModuleSystem:
         # Collect exports during module resolution
         all_exports: set[str] = set()
 
-        def collect_from_module(module_path: str):
+        def collect_from_module(module_path: str) -> None:
             if module_path in processed:
                 return
             processed.add(module_path)
             
-            module_info = self.loaded_modules[module_path]
+            module_info: ModuleInfo = self.loaded_modules[module_path]
 
             debug = module_info.program.debug if module_info.program else {}
             decl_src = debug.get("global_decl_src", {})
             proc_src = debug.get("proc_src", {})
             source_lines = debug.get("source_lines", [])
-            source_text = "\n".join(source_lines) if source_lines else None
+            source_text: str | None = "\n".join(source_lines) if source_lines else None
 
-            def raise_dup(msg: str, name: str, info):
+            def raise_dup(msg: str, name: str, info) -> os.NoReturn:
                 line = None
                 col = None
                 if info:
@@ -403,7 +403,7 @@ class ModuleSystem:
             for inc_path in module_info.includes:
                 # If includes are not absolute for some reason, resolve relative to the module file
                 if not os.path.isabs(inc_path):
-                    inc_path = os.path.abspath(os.path.join(os.path.dirname(module_path), inc_path))
+                    inc_path: str = os.path.abspath(os.path.join(os.path.dirname(module_path), inc_path))
                 if inc_path in self.loaded_modules:
                     collect_from_module(inc_path)
             
@@ -414,7 +414,7 @@ class ModuleSystem:
             # Add this module's declarations and collect exports for variables
             for decl in module_info.declarations:
                 for d in decl.declarators:
-                    name = d.name
+                    name: str = d.name
                     if name in seen_decls:
                         raise_dup(f"Variable '{name}' already defined", name, decl_src.get(name))
                     seen_decls.add(name)
@@ -438,7 +438,7 @@ class ModuleSystem:
                 should_export = False
                 if isinstance(item, ProcDecl) or isinstance(item, FuncDecl):
                     if module_info.is_module:
-                        should_export = not getattr(item, 'noexport', False)
+                        should_export: bool = not getattr(item, 'noexport', False)
                     else:
                         # Non-module files behave like part of the main compilation unit
                         # and their top-level items are considered visible here.
@@ -449,7 +449,7 @@ class ModuleSystem:
                     constructors.append(item.name)
 
                 if isinstance(item, ProcDecl):
-                    name = item.name
+                    name: str = item.name
                     # Only perform cross-module duplicate checks for exported items
                     if should_export:
                         if name in seen_procs:
@@ -466,7 +466,7 @@ class ModuleSystem:
                         # them as collisions across module boundaries
                         all_procs.append(item)
                 elif isinstance(item, FuncDecl):
-                    name = item.name
+                    name: str = item.name
                     if should_export:
                         if name in seen_funcs:
                             raise_dup(f"Function '{name}' already defined", name, proc_src.get(name))
@@ -500,7 +500,7 @@ class ModuleSystem:
         file_lines = {}
 
         for module_path, module_info in self.loaded_modules.items():
-            prog = module_info.program
+            prog: Program | None = module_info.program
             if prog and prog.debug:
                 dbg = prog.debug
                 # Merge maps
@@ -520,7 +520,7 @@ class ModuleSystem:
 
         # Map filename -> is_module flag for consumer passes that need to know which
         # source files were declared as .module
-        file_is_module = { path: info.is_module for path, info in self.loaded_modules.items() }
+        file_is_module: Dict[str, bool] = { path: info.is_module for path, info in self.loaded_modules.items() }
 
         final_program.debug = {
             "stmt_src": agg_stmt,

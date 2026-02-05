@@ -1,8 +1,8 @@
 
-from typing import cast
+from typing import Any, Any, Any, Literal, Any, NoReturn, Literal, Any, Any, cast
 from constfold import fold_expr
 from constsubst import subst_const
-from symbols import Symbol, SymbolTable, SemType, StructRegistry
+from symbols import StructInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructFieldInfo, Symbol, SymbolTable, SemType, StructRegistry
 from sema_types import ExprKind
 from ast_nodes import (
     BinOp,
@@ -32,13 +32,13 @@ class CodeGen:
     label_id = 0
     loop_stack = []
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None):
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None) -> None:
         # global symbol table (globals)
         self.global_symtab: SymbolTable = symtab
         # currently active table (can be scoped for PROC/FUNC)
         self.current_symtab: SymbolTable = symtab
-        self.tc = type_checker
-        self.struct_registry = struct_registry or StructRegistry()
+        self.tc: ExprTypeChecker = type_checker
+        self.struct_registry: StructRegistry = struct_registry or StructRegistry()
         self.code: list[str] = []
         self.for_id = 0
         self.string_literals = {}  # Maps string content to label name
@@ -48,14 +48,16 @@ class CodeGen:
         self.copy_bytes_needed = False
         self.arrcpy_needed = False  # Flag to emit ARRCPY subroutine
         self.math_routines_needed: set[str] = set()
-        self.is_65c02 = is_65c02
-        self.used_globals = used_globals or set()
+        self.is_65c02: bool = is_65c02
+        self.used_globals: set[str] = used_globals or set()
         self.used_temps: set[str] = set()
-        self.command_line = command_line
+        self.command_line: str | None = command_line
         # Parameter specs: mapping name -> list of (param_name, width_bytes)
         self.proc_param_specs: dict[str, list[tuple[str, int, object]]] = proc_param_specs or {}
         self.func_param_specs: dict[str, list[tuple[str, int, object]]] = func_param_specs or {}
-        self.pruned_procs = pruned_procs or []
+        self.pruned_procs: list[str] = pruned_procs or []
+        # Exports set (populated by pipeline)
+        self.exports: set[str] = set()
         # Debug/source maps
         self.debug = debug_info or {}
         self.stmt_src = self.debug.get("stmt_src", {})
@@ -74,7 +76,7 @@ class CodeGen:
         # Track assignment context for optimizations that need target type
         self.assign_target_type: SemType | None = None  # Current assignment LHS type
 
-    def tc_check(self, expr):
+    def tc_check(self, expr) -> ExprType:
         # Wrapper to attach source location to type-checker errors
         try:
             return self.tc.check(expr)
@@ -84,24 +86,24 @@ class CodeGen:
                 self._raise_error(e.message)
             raise
 
-    def new_label(self, prefix):
+    def new_label(self, prefix) -> str:
         self.label_id += 1
         return f"{prefix}_{self.label_id}"
 
-    def new_for_var(self, base):
+    def new_for_var(self, base) -> str:
         self.for_id += 1
         return f"__FOR_{base}_{self.for_id}"
 
-    def _stz(self, operand: str):
+    def _stz(self, operand: str) -> None:
         if self.is_65c02:
             self.emit(f"\tSTZ {operand}")
         else:
             self.emit("\tLDA #$00")
             self.emit(f"\tSTA {operand}")
 
-    def _emit_store_byte_const(self, sym: Symbol, value: int):
+    def _emit_store_byte_const(self, sym: Symbol, value: int) -> None:
         value &= 0xFF
-        asm = sym.asm_name()
+        asm: str = sym.asm_name()
         if value == 0:
             self._stz(asm)
         else:
@@ -116,7 +118,7 @@ class CodeGen:
         # For BYTE types (not pointers)
         if target_type.base == "BYTE" and not target_type.is_pointer:
             if value < 0 or value > 0xFF:
-                error_msg = f"Constant value {value} (0x{value:X}) does not fit in BYTE (0-255)"
+                error_msg: str = f"Constant value {value} (0x{value:X}) does not fit in BYTE (0-255)"
                 if context:
                     error_msg += f" ({context})"
                 self._raise_error(error_msg)
@@ -125,7 +127,7 @@ class CodeGen:
         # For WORD types and pointers
         if target_type.base == "WORD" or target_type.is_pointer:
             if value < 0 or value > 0xFFFF:
-                error_msg = f"Constant value {value} (0x{value:X}) does not fit in WORD (0-65535)"
+                error_msg: str = f"Constant value {value} (0x{value:X}) does not fit in WORD (0-65535)"
                 if context:
                     error_msg += f" ({context})"
                 self._raise_error(error_msg)
@@ -133,11 +135,11 @@ class CodeGen:
         
         return True
 
-    def _emit_store_word_const(self, sym: Symbol, value: int):
+    def _emit_store_word_const(self, sym: Symbol, value: int) -> None:
         value &= 0xFFFF
-        lo = value & 0xFF
-        hi = (value >> 8) & 0xFF
-        asm = sym.asm_name()
+        lo: int = value & 0xFF
+        hi: int = (value >> 8) & 0xFF
+        asm: str = sym.asm_name()
         if lo == 0:
             self._stz(asm)
         else:
@@ -149,15 +151,15 @@ class CodeGen:
             self.emit(f"\tLDA #${hi:02X}")
             self.emit(f"\tSTA {asm}+1")
 
-    def _emit_inc_word(self, asm: str):
-        lbl = self.new_label("INC_WORD")
+    def _emit_inc_word(self, asm: str) -> None:
+        lbl: str = self.new_label("INC_WORD")
         self.emit(f"\tINC {asm}")
         self.emit(f"\tBNE {lbl}")
         self.emit(f"\tINC {asm}+1")
         self.emit(f"{lbl}:")
 
-    def _emit_dec_word(self, asm: str):
-        lbl = self.new_label("DEC_WORD")
+    def _emit_dec_word(self, asm: str) -> None:
+        lbl: str = self.new_label("DEC_WORD")
         self.emit(f"\tLDA {asm}")
         self.emit(f"\tBNE {lbl}")
         self.emit(f"\tDEC {asm}+1")
@@ -166,10 +168,10 @@ class CodeGen:
 
     def _lda_const(self, line: str) -> int | None:
         """Return immediate value for LDA #imm or None if not a match."""
-        stripped = line.strip().upper()
+        stripped: str = line.strip().upper()
         if not stripped.startswith("LDA #"):
             return None
-        imm = stripped[5:]  # after 'LDA #' (includes possible $)
+        imm: str = stripped[5:]  # after 'LDA #' (includes possible $)
         try:
             if imm.startswith("$"):
                 return int(imm[1:], 16)
@@ -181,13 +183,13 @@ class CodeGen:
         return line.strip().upper().startswith("STA ")
 
     def _inc_operand(self, line: str) -> str | None:
-        stripped = line.strip().upper()
+        stripped: str = line.strip().upper()
         if stripped.startswith("INC "):
             return stripped[4:].strip()
         return None
 
     def _dec_operand(self, line: str) -> str | None:
-        stripped = line.strip().upper()
+        stripped: str = line.strip().upper()
         if stripped.startswith("DEC "):
             return stripped[4:].strip()
         return None
@@ -199,9 +201,9 @@ class CodeGen:
         may have side effects (clearing flags, triggering hardware, etc.).
         """
         # Extract label from operand (handle indexed modes like "LABEL,X" or "LABEL,Y" or "LABEL+1")
-        label = operand.split(',')[0].strip()  # Remove ,X or ,Y
-        label = label.split('+')[0].strip()    # Remove +1
-        label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
+        label: str = operand.split(',')[0].strip()  # Remove ,X or ,Y
+        label: str = label.split('+')[0].strip()    # Remove +1
+        label: str = label.split('-')[0].strip()    # Remove -1 (rare but possible)
         return label in self.fixed_address_labels
 
     def _is_port_variable(self, operand: str) -> bool:
@@ -210,9 +212,9 @@ class CodeGen:
         PORT variables are hardware port-mapped and cannot be optimized.
         """
         # Extract label from operand (handle indexed modes like "LABEL,X" or "LABEL,Y" or "LABEL+1")
-        label = operand.split(',')[0].strip()  # Remove ,X or ,Y
-        label = label.split('+')[0].strip()    # Remove +1
-        label = label.split('-')[0].strip()    # Remove -1 (rare but possible)
+        label: str = operand.split(',')[0].strip()  # Remove ,X or ,Y
+        label: str = label.split('+')[0].strip()    # Remove +1
+        label: str = label.split('-')[0].strip()    # Remove -1 (rare but possible)
         return label in self.port_labels
 
     def _modifies_memory_operand(self, line: str, operand: str) -> bool:
@@ -220,26 +222,26 @@ class CodeGen:
         
         Instructions like DEC, INC, ASL, LSR, ROL, ROR can modify memory directly.
         """
-        stripped = line.strip().upper()
+        stripped: str = line.strip().upper()
         if not stripped or stripped.endswith(":") or stripped.startswith(";"):
             return False
         
         # Normalize the operand to uppercase for comparison
-        operand_upper = operand.upper()
+        operand_upper: str = operand.upper()
         
         # Instructions that modify memory: DEC, INC, ASL, LSR, ROL, ROR
-        memory_mod_ops = {"DEC", "INC", "ASL", "LSR", "ROL", "ROR"}
-        parts = stripped.split(maxsplit=1)
+        memory_mod_ops: set[str] = {"DEC", "INC", "ASL", "LSR", "ROL", "ROR"}
+        parts: list[str] = stripped.split(maxsplit=1)
         if not parts:
             return False
         
-        opcode = parts[0]
+        opcode: str = parts[0]
         if opcode not in memory_mod_ops:
             return False
         
         # Check if operand matches
         if len(parts) == 2:
-            instr_operand = parts[1].strip()
+            instr_operand: str = parts[1].strip()
             # Compare operands, considering A form vs memory form
             if opcode in {"ASL", "LSR", "ROL", "ROR"}:
                 # These can be A form (no operand or "A") or memory form
@@ -252,11 +254,11 @@ class CodeGen:
 
     def _sets_nz_flags(self, line: str) -> bool:
         """Return True if instruction overwrites N/Z so earlier flags cannot be observed."""
-        stripped = line.strip().upper()
+        stripped: str = line.strip().upper()
         if not stripped or stripped.endswith(":") or stripped.startswith(";"):
             return False
-        opcode = stripped.split()[0]
-        nz_ops = {
+        opcode: str = stripped.split()[0]
+        nz_ops: set[str] = {
             "ADC", "AND", "ASL", "BIT", "CMP", "CPX", "CPY", "DEC", "DEX", "DEY",
             "EOR", "INC", "INX", "INY", "LDA", "LDX", "LDY", "LSR", "ORA", "PLA",
             "PLX", "PLY", "ROL", "ROR", "SBC", "TAX", "TAY", "TSX", "TXA", "TYA",
@@ -265,13 +267,13 @@ class CodeGen:
 
     def _clobbers_a(self, line: str) -> bool:
         """Return True if instruction changes accumulator contents."""
-        stripped = line.strip().upper()
+        stripped: str = line.strip().upper()
         if not stripped or stripped.endswith(":") or stripped.startswith(";"):
             return False
-        parts = stripped.split()
+        parts: list[str] = stripped.split()
         if not parts:
             return False
-        op = parts[0]
+        op: str = parts[0]
         # Ops that always write A
         if op in {"LDA", "PLA", "ADC", "SBC", "ORA", "AND", "EOR"}:
             return True
@@ -281,17 +283,17 @@ class CodeGen:
             return len(parts) == 1 or parts[1] == "A"
         return False
 
-    def peephole_optimize(self):
+    def peephole_optimize(self) -> None:
         """Apply lightweight peepholes to emitted code for both 6502 and 65c02."""
         # If code uses PHA/PLA, apply a very conservative fold for adjacent PHA…PLA
         # then skip other peepholes to avoid unsafe changes around stack-based temps.
-        has_pha_pla = any("PHA" in line.upper() or "PLA" in line.upper() for line in self.code)
+        has_pha_pla: bool = any("PHA" in line.upper() or "PLA" in line.upper() for line in self.code)
         if has_pha_pla:
             new_code: list[str] = []
             i = 0
             while i < len(self.code):
-                cur = self.code[i].strip()
-                curU = cur.upper()
+                cur: str = self.code[i].strip()
+                curU: str = cur.upper()
                 if curU == "PHA":
                     # Look ahead for a matching PLA with no A writes or risky ops in between
                     j = i + 1
@@ -380,18 +382,18 @@ class CodeGen:
             # BUT: Never optimize stores/loads involving TMP0-TMP4 (used for pointer arithmetic)
             # NEVER optimize stores to fixed-address (hardware) variables
             if i + 1 < len(self.code):
-                cur = self.code[i].strip()
-                nxt = self.code[i + 1].strip()
-                curU = cur.upper()
-                nxtU = nxt.upper()
+                cur: str = self.code[i].strip()
+                nxt: str = self.code[i + 1].strip()
+                curU: str = cur.upper()
+                nxtU: str = nxt.upper()
                 
                 # Check for duplicate stores (same instruction and operand)
                 if curU.startswith(("STA ", "STX ", "STY ")):
                     if curU == nxtU:
                         # Extract operand to check if it's a fixed address
-                        cur_parts = curU.split(maxsplit=1)
+                        cur_parts: list[str] = curU.split(maxsplit=1)
                         if len(cur_parts) == 2:
-                            cur_operand = cur_parts[1].strip()
+                            cur_operand: str = cur_parts[1].strip()
                             # Skip optimization for fixed-address variables AND temp registers
                             if not self._is_fixed_address(cur_operand) and not any(tmp in cur_operand for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]):
                                 # Duplicate store - skip the second one
@@ -404,17 +406,17 @@ class CodeGen:
             #   STX addr ; LDX addr  → STX addr
             #   STY addr ; LDY addr  → STY addr
             if i + 1 < len(self.code):
-                cur = self.code[i].strip()
-                nxt = self.code[i + 1].strip()
-                curU = cur.upper()
-                nxtU = nxt.upper()
+                cur: str = self.code[i].strip()
+                nxt: str = self.code[i + 1].strip()
+                curU: str = cur.upper()
+                nxtU: str = nxt.upper()
                 # Drop consecutive LDA/LDX/LDY when the next meaningful instruction overwrites the same register
                 # NEVER optimize loads from fixed-address (hardware) variables - reads may have side effects
                 # ALSO NEVER optimize loads from pointer variables - they're critical for dereferencing
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
                     # Extract operand and check if it's a fixed address or pointer variable
-                    cur_parts = curU.split(maxsplit=1)
-                    cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    cur_parts: list[str] = curU.split(maxsplit=1)
+                    cur_operand: str = cur_parts[1].strip() if len(cur_parts) == 2 else ""
                     
                     # Skip optimization for fixed-address variables
                     if self._is_fixed_address(cur_operand):
@@ -435,9 +437,9 @@ class CodeGen:
                     reg_used = False
                     label_between = False
                     # Determine which register we're checking
-                    checking_a = curU.startswith("LDA ")
-                    checking_x = curU.startswith("LDX ")
-                    checking_y = curU.startswith("LDY ")
+                    checking_a: bool = curU.startswith("LDA ")
+                    checking_x: bool = curU.startswith("LDX ")
+                    checking_y: bool = curU.startswith("LDY ")
                     
                     while j < len(self.code) and j < i + 20:  # Limit lookahead
                         look = self.code[j].strip()
@@ -486,7 +488,7 @@ class CodeGen:
                                             break
                                         # Check if register was stored to ANY location (STX, STY, STA)
                                         # If so, don't assume register value is preserved
-                                        stored_to = self.code[k].strip().upper()
+                                        stored_to: str = self.code[k].strip().upper()
                                         if (checking_a and stored_to.startswith("STA ")) or \
                                            (checking_x and stored_to.startswith("STX ")) or \
                                            (checking_y and stored_to.startswith("STY ")):
@@ -504,9 +506,9 @@ class CodeGen:
                     if redundant_load and not jsr_seen:
                         # Check if the redundant load is from a pointer variable - if so, keep it anyway
                         # because pointer variables need to be loaded fresh for dereference operations
-                        look_at_redundant = self.code[redundant_at].strip().upper() if redundant_at >= 0 else ""
-                        redundant_parts = look_at_redundant.split(maxsplit=1)
-                        redundant_operand = redundant_parts[1].strip() if len(redundant_parts) == 2 else ""
+                        look_at_redundant: str = self.code[redundant_at].strip().upper() if redundant_at >= 0 else ""
+                        redundant_parts: list[str] = look_at_redundant.split(maxsplit=1)
+                        redundant_operand: str = redundant_parts[1].strip() if len(redundant_parts) == 2 else ""
                         
                         if "_PTR" not in redundant_operand:
                             # Not a pointer variable load, so it's safe to mark as redundant
@@ -520,7 +522,7 @@ class CodeGen:
 
                 # Drop repeated LDA #imm when nothing in between clobbers A or N/Z flags
                 if curU.startswith("LDA #"):
-                    cur_val = self._lda_const(cur)
+                    cur_val: int | None = self._lda_const(cur)
                     if cur_val is not None:
                         j = i + 1
                         seen_clobber = False
@@ -542,7 +544,7 @@ class CodeGen:
                                 seen_clobber = True
                                 break
                             if lookU.startswith("LDA #"):
-                                look_val = self._lda_const(look_raw)
+                                look_val: int | None = self._lda_const(look_raw)
                                 if look_val is not None and look_val == cur_val and not seen_clobber:
                                     skip_indices.add(j)
                                 break
@@ -554,7 +556,7 @@ class CodeGen:
                 
                 # Drop repeated LDX #imm when nothing in between clobbers X or N/Z flags
                 if curU.startswith("LDX #"):
-                    cur_val = self._lda_const(cur)  # Reuse immediate extraction logic
+                    cur_val: int | None = self._lda_const(cur)  # Reuse immediate extraction logic
                     if cur_val is not None:
                         j = i + 1
                         seen_clobber = False
@@ -574,7 +576,7 @@ class CodeGen:
                                 seen_clobber = True
                                 break
                             if lookU.startswith("LDX #"):
-                                look_val = self._lda_const(look_raw)
+                                look_val: int | None = self._lda_const(look_raw)
                                 if look_val is not None and look_val == cur_val and not seen_clobber:
                                     skip_indices.add(j)
                                 break
@@ -582,7 +584,7 @@ class CodeGen:
                 
                 # Drop repeated LDY #imm when nothing in between clobbers Y or N/Z flags
                 if curU.startswith("LDY #"):
-                    cur_val = self._lda_const(cur)  # Reuse immediate extraction logic
+                    cur_val: int | None = self._lda_const(cur)  # Reuse immediate extraction logic
                     if cur_val is not None:
                         j = i + 1
                         seen_clobber = False
@@ -602,7 +604,7 @@ class CodeGen:
                                 seen_clobber = True
                                 break
                             if lookU.startswith("LDY #"):
-                                look_val = self._lda_const(look_raw)
+                                look_val: int | None = self._lda_const(look_raw)
                                 if look_val is not None and look_val == cur_val and not seen_clobber:
                                     skip_indices.add(j)
                                 break
@@ -622,15 +624,15 @@ class CodeGen:
                     # Look ahead to see if this register is stored to a fixed-address variable or temporary
                     protect_load = False
                     for lookahead_i in range(i + 1, min(i + 6, len(self.code))):
-                        lookahead = self.code[lookahead_i].strip().upper()
+                        lookahead: str = self.code[lookahead_i].strip().upper()
                         # Skip comments and labels
                         if not lookahead or lookahead.endswith(":") or lookahead.startswith(";"):
                             continue
                         # Check if this is a store of the loaded register to fixed-address or temp register
                         if lookahead.startswith(store_prefix):
-                            lookahead_parts = lookahead.split(maxsplit=1)
+                            lookahead_parts: list[str] = lookahead.split(maxsplit=1)
                             if len(lookahead_parts) == 2:
-                                lookahead_operand = lookahead_parts[1].strip()
+                                lookahead_operand: str = lookahead_parts[1].strip()
                                 # Protect the load if storing to fixed-address OR temp registers (used for indirect addressing)
                                 if self._is_fixed_address(lookahead_operand) or lookahead_operand in ("TMP0", "TMP0+1", "TMP1", "TMP1+1", "TMP2", "TMP2+1", "TMP3", "TMP3+1", "TMP4", "TMP4+1", "TMP5", "TMP5+1"):
                                     # Protect the load - it's needed for the store
@@ -655,20 +657,20 @@ class CodeGen:
                     # Check if instruction after second LDA is a store to fixed-address
                     skip_opt = False
                     if i + 2 < len(self.code):
-                        third = self.code[i + 2].strip().upper()
+                        third: str = self.code[i + 2].strip().upper()
                         if third.startswith("STA "):
-                            third_operand = third[4:].strip()
+                            third_operand: str = third[4:].strip()
                             if self._is_fixed_address(third_operand):
                                 skip_opt = True
                     if not skip_opt:
                         i += 1
                         continue
-                store_load_pairs = [("STA", "LDA"), ("STX", "LDX"), ("STY", "LDY")]
+                store_load_pairs: list[tuple[str, str]] = [("STA", "LDA"), ("STX", "LDX"), ("STY", "LDY")]
                 matched = False
                 for st, ld in store_load_pairs:
                     if curU.startswith(st + " ") and nxtU.startswith(ld + " "):
-                        op1 = curU[len(st) + 1:].strip()
-                        op2 = nxtU[len(ld) + 1:].strip()
+                        op1: str = curU[len(st) + 1:].strip()
+                        op2: str = nxtU[len(ld) + 1:].strip()
                         if op1 == op2:
                             # Skip optimization for fixed-address variables AND temp registers
                             # Temp registers must never have store/load pairs optimized away
@@ -683,9 +685,9 @@ class CodeGen:
                 # Remove redundant consecutive stores (STA/STX/STY) to same location when no JSR between
                 # NEVER optimize stores to fixed-address (hardware) variables
                 if curU.startswith(("STA ", "STX ", "STY ")):
-                    cur_parts = curU.split(maxsplit=1)
+                    cur_parts: list[str] = curU.split(maxsplit=1)
                     if len(cur_parts) == 2:
-                        cur_operand = cur_parts[1].strip()
+                        cur_operand: str = cur_parts[1].strip()
                         # Skip optimization for fixed-address variables
                         if self._is_fixed_address(cur_operand):
                             optimized.append(self.code[i])
@@ -727,10 +729,10 @@ class CodeGen:
 
                 # Elide spaced redundant STA when A is unchanged between
                 if curU.startswith("STA "):
-                    cur_parts = cur.split(maxsplit=1)
+                    cur_parts: list[str] = cur.split(maxsplit=1)
                     if len(cur_parts) == 2:
-                        cur_operand = cur_parts[1].strip()
-                        cur_operand_upper = cur_operand.upper()
+                        cur_operand: str = cur_parts[1].strip()
+                        cur_operand_upper: str = cur_operand.upper()
                         # Skip temps and fixed addresses and indirect operands
                         if not self._is_fixed_address(cur_operand) and "TMP" not in cur_operand_upper and "(" not in cur_operand_upper:
                             j = i + 1
@@ -756,10 +758,10 @@ class CodeGen:
                 
                 # Elide spaced redundant STX when X is unchanged between
                 if curU.startswith("STX "):
-                    cur_parts = cur.split(maxsplit=1)
+                    cur_parts: list[str] = cur.split(maxsplit=1)
                     if len(cur_parts) == 2:
-                        cur_operand = cur_parts[1].strip()
-                        cur_operand_upper = cur_operand.upper()
+                        cur_operand: str = cur_parts[1].strip()
+                        cur_operand_upper: str = cur_operand.upper()
                         if not self._is_fixed_address(cur_operand) and "TMP" not in cur_operand_upper and "(" not in cur_operand_upper:
                             j = i + 1
                             while j < len(self.code) and j < i + 20:
@@ -783,10 +785,10 @@ class CodeGen:
                 
                 # Elide spaced redundant STY when Y is unchanged between
                 if curU.startswith("STY "):
-                    cur_parts = cur.split(maxsplit=1)
+                    cur_parts: list[str] = cur.split(maxsplit=1)
                     if len(cur_parts) == 2:
-                        cur_operand = cur_parts[1].strip()
-                        cur_operand_upper = cur_operand.upper()
+                        cur_operand: str = cur_parts[1].strip()
+                        cur_operand_upper: str = cur_operand.upper()
                         if not self._is_fixed_address(cur_operand) and "TMP" not in cur_operand_upper and "(" not in cur_operand_upper:
                             j = i + 1
                             while j < len(self.code) and j < i + 20:
@@ -811,18 +813,18 @@ class CodeGen:
             # Remove orphaned register loads (LDA/LDX/LDY) when register is never used
             # Scan forward until RTS/JMP/JSR or until register is used/overwritten
             if i + 1 < len(self.code):
-                cur = self.code[i].strip().upper()
+                cur: str = self.code[i].strip().upper()
                 
                 # Check if current instruction is a register load
-                loads_a = cur.startswith("LDA ")
-                loads_x = cur.startswith("LDX ")
-                loads_y = cur.startswith("LDY ")
+                loads_a: bool = cur.startswith("LDA ")
+                loads_x: bool = cur.startswith("LDX ")
+                loads_y: bool = cur.startswith("LDY ")
                 
                 if loads_a or loads_x or loads_y:
                     # Extract the operand being loaded
-                    cur_parts = cur.split(maxsplit=1)
-                    load_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
-                    load_operand_upper = load_operand.upper()
+                    cur_parts: list[str] = cur.split(maxsplit=1)
+                    load_operand: str = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    load_operand_upper: str = load_operand.upper()
                     
                     # Never optimize loads from pointer variables - they're the result of prior computation
                     # and removing them can break subsequent uses like dereferencing
@@ -840,19 +842,19 @@ class CodeGen:
                     # Determine which register and what constitutes "use"
                     if loads_a:
                         # A is used by: STA, PHA, arithmetic (ADC, SBC, AND, OR, EOR, CMP), TAX, TAY
-                        use_patterns = ["STA ", "PHA", "ADC ", "SBC ", "AND ", "EOR ", "ORA ", "CMP ", "TAX", "TAY"]
-                        reload_patterns = ["LDA ", "PLA"]
+                        use_patterns: list[str] = ["STA ", "PHA", "ADC ", "SBC ", "AND ", "EOR ", "ORA ", "CMP ", "TAX", "TAY"]
+                        reload_patterns: list[str] = ["LDA ", "PLA"]
                         # A is affected by indexed addressing modes
                         index_check = lambda s: ",X" in s or ",Y" in s
                     elif loads_x:
                         # X is used by: STX, INX, DEX, CPX, TXA, TXS, and indexed addressing
-                        use_patterns = ["STX ", "INX", "DEX", "CPX ", "TXA", "TXS"]
-                        reload_patterns = ["LDX ", "TAX", "PLX"]
+                        use_patterns: list[str] = ["STX ", "INX", "DEX", "CPX ", "TXA", "TXS"]
+                        reload_patterns: list[str] = ["LDX ", "TAX", "PLX"]
                         index_check = lambda s: ",X" in s
                     else:  # loads_y
                         # Y is used by: STY, INY, DEY, CPY, TYA, and indexed addressing
-                        use_patterns = ["STY ", "INY", "DEY", "CPY ", "TYA"]
-                        reload_patterns = ["LDY ", "TAY", "PLY"]
+                        use_patterns: list[str] = ["STY ", "INY", "DEY", "CPY ", "TYA"]
+                        reload_patterns: list[str] = ["LDY ", "TAY", "PLY"]
                         index_check = lambda s: ",Y" in s
                     
                     # Initialize register_used
@@ -861,7 +863,7 @@ class CodeGen:
                     # Quick check: if next non-comment/non-label instruction is a branch,
                     # the load is used to set flags for the branch condition
                     for k in range(i + 1, min(i + 2, len(self.code))):
-                        peek = self.code[k].strip().upper()
+                        peek: str = self.code[k].strip().upper()
                         if not peek or peek.endswith(":") or peek.startswith(";"):
                             continue
                         # If next instruction is a branch, the load sets the flags for it
@@ -878,7 +880,7 @@ class CodeGen:
                     
                     # Quick check: if next non-comment/non-label instruction is a store with indirect addressing, keep the load
                     for k in range(i + 1, min(i + 5, len(self.code))):
-                        peek = self.code[k].strip().upper()
+                        peek: str = self.code[k].strip().upper()
                         if not peek or peek.endswith(":") or peek.startswith(";"):
                             continue
                         # If next meaningful instruction is indirect store, preserve the load
@@ -939,7 +941,7 @@ class CodeGen:
                         # Double-check: is the next instruction RTS or RTI?
                         next_is_return = False
                         for check_return in range(i + 1, min(i + 3, len(self.code))):
-                            peek_return = self.code[check_return].strip().upper()
+                            peek_return: str = self.code[check_return].strip().upper()
                             if not peek_return or peek_return.startswith(";"):
                                 continue
                             if peek_return in ("RTS", "RTI"):
@@ -951,13 +953,13 @@ class CodeGen:
                             continue
 
             # Drop dead stores that are overwritten before any read (small window)
-            cur_strip = self.code[i].strip()
-            cur_upper = cur_strip.upper()
+            cur_strip: str = self.code[i].strip()
+            cur_upper: str = cur_strip.upper()
             if cur_upper.startswith("STA ") or cur_upper.startswith("STZ "):
-                parts = cur_strip.split(maxsplit=1)
+                parts: list[str] = cur_strip.split(maxsplit=1)
                 if len(parts) == 2:
-                    operand = parts[1].strip()
-                    operand_upper = operand.upper()
+                    operand: str = parts[1].strip()
+                    operand_upper: str = operand.upper()
                     
                     # NEVER optimize away stores to indirect addresses - they always have side effects
                     if "(" in operand and ")" in operand:
@@ -999,14 +1001,14 @@ class CodeGen:
                         if operand_upper.startswith("TMP"):
                             # Check if next meaningful instruction is STX TMP+1
                             for k in range(i + 1, min(i + 5, len(self.code))):
-                                nxt_check = self.code[k].strip().upper()
+                                nxt_check: str = self.code[k].strip().upper()
                                 if not nxt_check or nxt_check.endswith(":"):
                                     continue
                                 # Check if it's STX to TMP+1
                                 if nxt_check.startswith("STX "):
-                                    parts_check = nxt_check.split(maxsplit=1)
+                                    parts_check: list[str] = nxt_check.split(maxsplit=1)
                                     if len(parts_check) == 2:
-                                        opnd_check = parts_check[1].strip().upper()
+                                        opnd_check: str = parts_check[1].strip().upper()
                                         # Check if this is storing to the +1 location
                                         if opnd_check == operand_upper + "+1":
                                             is_16bit_pair = True
@@ -1020,7 +1022,7 @@ class CodeGen:
                         
                         # Check if this is result of computation (previous instruction modifies accumulator)
                         if i > 0:
-                            prev = self.code[i - 1].strip().upper()
+                            prev: str = self.code[i - 1].strip().upper()
                             # If previous instruction is arithmetic/logic, keep the store (don't remove)
                             if any(prev.startswith(op) for op in ["ADC", "SBC", "ORA", "AND", "EOR", "ASL", "LSR", "ROL", "ROR"]):
                                 # This store is result of computation; keep it to maintain code structure
@@ -1034,8 +1036,8 @@ class CodeGen:
                             continue
 
             # Drop dead LDA loads if A is clobbered before any read (small window)
-            cur_strip = self.code[i].strip()
-            cur_upper = cur_strip.upper()
+            cur_strip: str = self.code[i].strip()
+            cur_upper: str = cur_strip.upper()
             if cur_upper.startswith("LDA "):
                 # Skip if implied/accumulator forms (none expected here)
                 overwritten = False
@@ -1068,11 +1070,11 @@ class CodeGen:
                     continue
 
             # Replace illegal 'OP X' with safe sequence using TMP4
-            line_upper = self.code[i].strip().upper()
+            line_upper: str = self.code[i].strip().upper()
             if line_upper.endswith(" X"):
-                parts = line_upper.split()
+                parts: list[str] = line_upper.split()
                 if len(parts) == 2 and parts[1] == "X":
-                    op = parts[0]
+                    op: str = parts[0]
                     if op in {"ORA", "AND", "EOR", "ADC", "SBC", "CMP"}:
                         optimized.append("\tSTX TMP4")
                         optimized.append(f"\t{op} TMP4")
@@ -1080,9 +1082,9 @@ class CodeGen:
                         continue
 
             # Drop unused LDX/LDY if the register is not read before a call/return or reload
-            line_upper = self.code[i].strip().upper()
+            line_upper: str = self.code[i].strip().upper()
             if line_upper.startswith("LDX ") or line_upper.startswith("LDY "):
-                is_x = line_upper.startswith("LDX ")
+                is_x: bool = line_upper.startswith("LDX ")
                 used = False
                 j = i + 1
                 while j < len(self.code):
@@ -1108,9 +1110,9 @@ class CodeGen:
             if i + 1 < len(self.code):
                 # 65c02: LDA #0 / STA addr → STZ addr
                 if self.is_65c02:
-                    c0 = self._lda_const(self.code[i])
+                    c0: int | None = self._lda_const(self.code[i])
                     if c0 == 0 and self._is_sta(self.code[i + 1]):
-                        sta_parts = self.code[i + 1].strip().split(maxsplit=1)
+                        sta_parts: list[str] = self.code[i + 1].strip().split(maxsplit=1)
                         if len(sta_parts) == 2:
                             optimized.append(f"\tSTZ {sta_parts[1]}")
                             i += 2
@@ -1118,7 +1120,7 @@ class CodeGen:
                     
                     # 65c02: LDX #0 followed by STX → replace all STX with STZ until X is modified
                     # Pattern: LDX #0 ... STX addr1 ... STX addr2 ... (until LDX/DEX/INX/TXA/etc)
-                    cur = self.code[i].strip().upper()
+                    cur: str = self.code[i].strip().upper()
                     if cur == "LDX #0":
                         # Scan forward to find all STX instructions before X is modified/reloaded
                         stx_positions = []
@@ -1143,11 +1145,11 @@ class CodeGen:
                             # Skip LDX #0
                             skip_count = 1
                             for pos in range(i + 1, stx_positions[-1] + 1):
-                                line = self.code[pos].strip()
-                                line_upper = line.upper()
+                                line: str = self.code[pos].strip()
+                                line_upper: str = line.upper()
                                 if pos in stx_positions:
                                     # Replace STX with STZ
-                                    parts = line.split(maxsplit=1)
+                                    parts: list[str] = line.split(maxsplit=1)
                                     if len(parts) == 2:
                                         optimized.append(f"\tSTZ {parts[1]}")
                                 else:
@@ -1175,9 +1177,9 @@ class CodeGen:
                         if sty_positions:
                             skip_count = 1
                             for pos in range(i + 1, sty_positions[-1] + 1):
-                                line = self.code[pos].strip()
+                                line: str = self.code[pos].strip()
                                 if pos in sty_positions:
-                                    parts = line.split(maxsplit=1)
+                                    parts: list[str] = line.split(maxsplit=1)
                                     if len(parts) == 2:
                                         optimized.append(f"\tSTZ {parts[1]}")
                                 else:
@@ -1185,14 +1187,14 @@ class CodeGen:
                             i = sty_positions[-1] + 1
                             continue
 
-                inc_op = self._inc_operand(self.code[i])
-                dec_op = self._dec_operand(self.code[i + 1])
+                inc_op: str | None = self._inc_operand(self.code[i])
+                dec_op: str | None = self._dec_operand(self.code[i + 1])
                 if inc_op is not None and dec_op is not None and inc_op == dec_op:
                     i += 2
                     continue
 
-                dec_op = self._dec_operand(self.code[i])
-                inc_op = self._inc_operand(self.code[i + 1])
+                dec_op: str | None = self._dec_operand(self.code[i])
+                inc_op: str | None = self._inc_operand(self.code[i + 1])
                 if dec_op is not None and inc_op is not None and dec_op == inc_op:
                     i += 2
                     continue
@@ -1200,14 +1202,14 @@ class CodeGen:
                 # Drop no-op ADC/SBC #0 immediately after CLC/SEC when flags are safely overwritten
                 if curU in ("CLC", "SEC") and nxtU.startswith(("ADC #", "SBC #")):
                     # Require literal zero (decimal or $00)
-                    imm_str = nxtU.split("#", 1)[1].strip() if "#" in nxtU else ""
-                    is_zero = imm_str in {"0", "$0", "$00"}
+                    imm_str: str = nxtU.split("#", 1)[1].strip() if "#" in nxtU else ""
+                    is_zero: bool = imm_str in {"0", "$0", "$00"}
                     if is_zero:
                         k = i + 2
                         safe = False
                         while k < len(self.code) and k < i + 20:
-                            look = self.code[k].strip()
-                            lookU = look.upper()
+                            look: str = self.code[k].strip()
+                            lookU: str = look.upper()
                             if not look or look.endswith(":") or look.startswith(";"):
                                 k += 1
                                 continue
@@ -1228,11 +1230,11 @@ class CodeGen:
                             continue
 
                 # Tail call optimization: JSR followed by RTS → JMP
-                cur = self.code[i].strip().upper()
-                nxt = self.code[i + 1].strip().upper()
+                cur: str = self.code[i].strip().upper()
+                nxt: str = self.code[i + 1].strip().upper()
                 if cur.startswith("JSR ") and nxt == "RTS":
                     # Replace JSR with JMP and skip RTS
-                    target = self.code[i].strip().split(maxsplit=1)
+                    target: list[str] = self.code[i].strip().split(maxsplit=1)
                     if len(target) == 2:
                         optimized.append(f"\tJMP {target[1]}")
                         i += 2
@@ -1240,12 +1242,12 @@ class CodeGen:
 
                 # Drop branches that target the very next instruction (ignoring blank/comment lines)
                 branch_mnems = ("BEQ", "BNE", "BCC", "BCS", "BMI", "BPL", "BVC", "BVS")
-                cur_raw = self.code[i].strip()
-                cur_upper = cur_raw.upper()
+                cur_raw: str = self.code[i].strip()
+                cur_upper: str = cur_raw.upper()
                 if any(cur_upper.startswith(m + " ") for m in branch_mnems):
-                    parts = cur_raw.split(maxsplit=1)
+                    parts: list[str] = cur_raw.split(maxsplit=1)
                     if len(parts) == 2:
-                        target_label = parts[1].strip()
+                        target_label: str = parts[1].strip()
                         j = i + 1
                         while j < len(self.code):
                             look_raw = self.code[j]
@@ -1264,7 +1266,7 @@ class CodeGen:
                             continue
 
                 # Drop TXA…TAX and TYA…TAY round-trips when flags are not observed
-                cur_upper = cur
+                cur_upper: str = cur
                 if cur_upper in ("TXA", "TYA"):
                     j = i + 1
                     between_non_exec: list[str] = []
@@ -1293,7 +1295,7 @@ class CodeGen:
                             else:
                                 after_upper = self.code[k].strip().upper()
                                 if not after_upper.startswith(("BEQ ", "BNE ", "BMI ", "BPL ", "PHP")):
-                                    safe_to_drop = self._sets_nz_flags(after_upper)
+                                    safe_to_drop: bool = self._sets_nz_flags(after_upper)
                             if safe_to_drop:
                                 optimized.extend(between_non_exec)
                                 i = j + 1
@@ -1352,10 +1354,10 @@ class CodeGen:
                 # Short-circuit STA addr + LDA addr: drop LDA when A value not clobbered in between
                 # Pattern: STA addr followed by LDA addr (same operand) with no A-clobber between
                 if curU.startswith("STA "):
-                    sta_parts = cur.split(maxsplit=1)
+                    sta_parts: list[str] = cur.split(maxsplit=1)
                     if len(sta_parts) == 2:
-                        sta_operand = sta_parts[1].strip()
-                        sta_operand_upper = sta_operand.upper()
+                        sta_operand: str = sta_parts[1].strip()
+                        sta_operand_upper: str = sta_operand.upper()
                         # Skip if storing to fixed-address or temps (side effects)
                         if not self._is_fixed_address(sta_operand) and "TMP" not in sta_operand_upper and "(" not in sta_operand_upper:
                             j = i + 1
@@ -1394,10 +1396,10 @@ class CodeGen:
                 
                 # Short-circuit STX addr + LDX addr: drop LDX when X value not clobbered in between
                 if curU.startswith("STX "):
-                    stx_parts = cur.split(maxsplit=1)
+                    stx_parts: list[str] = cur.split(maxsplit=1)
                     if len(stx_parts) == 2:
-                        stx_operand = stx_parts[1].strip()
-                        stx_operand_upper = stx_operand.upper()
+                        stx_operand: str = stx_parts[1].strip()
+                        stx_operand_upper: str = stx_operand.upper()
                         if not self._is_fixed_address(stx_operand) and "TMP" not in stx_operand_upper and "(" not in stx_operand_upper:
                             j = i + 1
                             x_clobbered = False
@@ -1432,10 +1434,10 @@ class CodeGen:
                 
                 # Short-circuit STY addr + LDY addr: drop LDY when Y value not clobbered in between
                 if curU.startswith("STY "):
-                    sty_parts = cur.split(maxsplit=1)
+                    sty_parts: list[str] = cur.split(maxsplit=1)
                     if len(sty_parts) == 2:
-                        sty_operand = sty_parts[1].strip()
-                        sty_operand_upper = sty_operand.upper()
+                        sty_operand: str = sty_parts[1].strip()
+                        sty_operand_upper: str = sty_operand.upper()
                         if not self._is_fixed_address(sty_operand) and "TMP" not in sty_operand_upper and "(" not in sty_operand_upper:
                             j = i + 1
                             y_clobbered = False
@@ -1471,18 +1473,18 @@ class CodeGen:
                 # Drop useless INC/DEC of temps when overwritten before any read
                 # Pattern: INC TMPx / DEC TMPx followed by STA TMPx before TMPx is read
                 # BUT: Never drop DEC/INC if immediately followed by a branch (the flags matter!)
-                cur_strip = self.code[i].strip()
-                cur_upper = cur_strip.upper()
-                inc_op = self._inc_operand(cur_upper)
-                dec_op = self._dec_operand(cur_upper)
-                op_str = inc_op or dec_op
+                cur_strip: str = self.code[i].strip()
+                cur_upper: str = cur_strip.upper()
+                inc_op: str | None = self._inc_operand(cur_upper)
+                dec_op: str | None = self._dec_operand(cur_upper)
+                op_str: str | None = inc_op or dec_op
                 if op_str is not None and "TMP" in op_str.upper():
-                    temp_name = op_str.upper()
+                    temp_name: str = op_str.upper()
                     
                     # Check if next non-comment instruction is a branch (if so, DEC/INC sets flags for it)
                     next_is_branch = False
                     for peek_i in range(i + 1, min(i + 3, len(self.code))):
-                        peek_line = self.code[peek_i].strip().upper()
+                        peek_line: str = self.code[peek_i].strip().upper()
                         if not peek_line or peek_line.startswith(";"):
                             continue
                         if peek_line.startswith(("BEQ ", "BNE ", "BCC ", "BCS ", "BMI ", "BPL ", "BVC ", "BVS ")):
@@ -1531,8 +1533,8 @@ class CodeGen:
                 # Also: INC zp / INC zp+1 when A holds low-byte and X holds high-byte
                 #   → CLC / ADC #k when adding small constants
                 if cur_upper.startswith(("INC ", "DEC ")):
-                    op_type = cur_upper.split()[0]  # "INC" or "DEC"
-                    operand = cur_upper.split(maxsplit=1)[1] if " " in cur_upper else ""
+                    op_type: str = cur_upper.split()[0]  # "INC" or "DEC"
+                    operand: str = cur_upper.split(maxsplit=1)[1] if " " in cur_upper else ""
                     
                     # Look ahead for matching operations on zp and zp+1
                     j = i + 1
@@ -1560,8 +1562,8 @@ class CodeGen:
                             if operand and next_operand:
                                 # Try to parse as hex addresses
                                 try:
-                                    curr_addr = int(operand, 16) if operand.startswith("$") else None
-                                    next_addr = int(next_operand, 16) if next_operand.startswith("$") else None
+                                    curr_addr: int | None = int(operand, 16) if operand.startswith("$") else None
+                                    next_addr: int | None = int(next_operand, 16) if next_operand.startswith("$") else None
                                     if curr_addr is not None and next_addr is not None and next_addr == curr_addr + 1:
                                         # Found 16-bit pattern: INC $80 / INC $81
                                         has_16bit_pattern = True
@@ -1645,14 +1647,14 @@ class CodeGen:
                     # - JSR (which will likely overwrite X)
                     # - LDX (which overwrites X)
                     # - or another instruction that doesn't read X
-                    stx_operand = nxt[4:].strip()  # Get operand from "STX addr"
+                    stx_operand: str = nxt[4:].strip()  # Get operand from "STX addr"
                     safe_to_optimize = False
                     
                     # Check what comes after STX
                     if i + 2 < len(self.code):
                         k = i + 2
                         while k < len(self.code):
-                            next_inst = self.code[k].strip().upper()
+                            next_inst: str = self.code[k].strip().upper()
                             if not next_inst or next_inst.endswith(":") or next_inst.startswith(";"):
                                 k += 1
                                 continue
@@ -1671,8 +1673,8 @@ class CodeGen:
                         continue
 
             if i + 3 < len(self.code):
-                c0 = self._lda_const(self.code[i])
-                c1 = self._lda_const(self.code[i + 2])
+                c0: int | None = self._lda_const(self.code[i])
+                c1: int | None = self._lda_const(self.code[i + 2])
                 if c0 is not None and c0 == c1 and self._is_sta(self.code[i + 1]) and self._is_sta(self.code[i + 3]):
                     optimized.append(self.code[i])
                     optimized.append(self.code[i + 1])
@@ -1684,13 +1686,13 @@ class CodeGen:
             # Pattern: BEQ L1 ; JMP L1  → JMP L1 (safe, preserves semantics)
             # Branch range cannot be reliably computed here; prefer keeping JMP only.
             if i + 1 < len(self.code):
-                cur_line = self.code[i].strip().upper()
-                nxt_line = self.code[i + 1].strip().upper()
+                cur_line: str = self.code[i].strip().upper()
+                nxt_line: str = self.code[i + 1].strip().upper()
                 if cur_line.startswith("BEQ ") and nxt_line.startswith("JMP "):
-                    cur_parts = cur_line.split(maxsplit=1)
-                    nxt_parts = nxt_line.split(maxsplit=1)
-                    cur_label = cur_parts[1] if len(cur_parts) == 2 else ""
-                    nxt_label = nxt_parts[1] if len(nxt_parts) == 2 else ""
+                    cur_parts: list[str] = cur_line.split(maxsplit=1)
+                    nxt_parts: list[str] = nxt_line.split(maxsplit=1)
+                    cur_label: str = cur_parts[1] if len(cur_parts) == 2 else ""
+                    nxt_label: str = nxt_parts[1] if len(nxt_parts) == 2 else ""
                     if cur_label and cur_label == nxt_label:
                         # Replace pair with single JMP to preserve behavior
                         optimized.append(self.code[i + 1])
@@ -1708,24 +1710,24 @@ class CodeGen:
         i = 0
         while i < len(self.code):
             if i + 1 < len(self.code):
-                cur = self.code[i]
-                curU = cur.strip().upper()
+                cur: str = self.code[i]
+                curU: str = cur.strip().upper()
                 if curU.startswith(("LDA ", "LDX ", "LDY ")):
                     # Check if this is a fixed-address load
-                    cur_parts = curU.split(maxsplit=1)
-                    cur_operand = cur_parts[1].strip() if len(cur_parts) == 2 else ""
+                    cur_parts: list[str] = curU.split(maxsplit=1)
+                    cur_operand: str = cur_parts[1].strip() if len(cur_parts) == 2 else ""
                     if self._is_fixed_address(cur_operand):
                         # Never optimize fixed-address loads
                         cleaned.append(cur)
                         i += 1
                         continue
                     
-                    k = i + 1
+                    k: int = i + 1
                     pending_non_exec: list[str] = []
                     while k < len(self.code):
-                        nxt_raw = self.code[k]
-                        nxt = nxt_raw.strip()
-                        nxtU = nxt.upper()
+                        nxt_raw: str = self.code[k]
+                        nxt: str = nxt_raw.strip()
+                        nxtU: str = nxt.upper()
                         # Skip blanks, labels, and comments (lines starting with ';')
                         if not nxt or nxt.endswith(":") or nxt.startswith(";"):
                             pending_non_exec.append(self.code[k])
@@ -1737,7 +1739,7 @@ class CodeGen:
                             # Keep first load, drop subsequent redundant load, preserve comments/labels between
                             cleaned.append(cur)
                             cleaned.extend(pending_non_exec)
-                            i = k + 1  # Skip the redundant load
+                            i: int = k + 1  # Skip the redundant load
                             break
                         else:
                             break
@@ -1755,7 +1757,7 @@ class CodeGen:
                 i += 1
         self.code = cleaned
 
-    def legalize_illegal_ops(self):
+    def legalize_illegal_ops(self) -> None:
         """Ensure emitted code is assemblable even without peephole optimizations.
 
         Currently replaces illegal 'OP X' sequences with a safe temp-based variant.
@@ -1763,11 +1765,11 @@ class CodeGen:
         legalized: list[str] = []
         i = 0
         while i < len(self.code):
-            line_upper = self.code[i].strip().upper()
+            line_upper: str = self.code[i].strip().upper()
             if line_upper.endswith(" X"):
-                parts = line_upper.split()
+                parts: list[str] = line_upper.split()
                 if len(parts) == 2 and parts[1] == "X":
-                    op = parts[0]
+                    op: str = parts[0]
                     if op in {"ORA", "AND", "EOR", "ADC", "SBC", "CMP"}:
                         legalized.append("\tSTX TMP4")
                         legalized.append(f"\t{op} TMP4")
@@ -1779,14 +1781,14 @@ class CodeGen:
 
     def gen_vars_block(self, procs=None, funcs=None) -> list[str]:
         """Generate variable declarations into a separate list without altering current code."""
-        saved = self.code
+        saved: list[str] = self.code
         self.code = []
         self.gen_vars(procs, funcs, code=saved)
-        vars_block = self.code
+        vars_block: list[str] = self.code
         self.code = saved
         return vars_block
 
-    def _declare_temp(self, name: str):
+    def _declare_temp(self, name: str) -> Symbol:
         sym = Symbol(
             name=name,
             type=SemType("WORD", False),
@@ -1800,23 +1802,23 @@ class CodeGen:
             proc_name=""
         )
         # vložení do aktuální tabulky (lokální, jinak globální)
-        target = getattr(self.current_symtab, "local", None)
+        target: Any | None = getattr(self.current_symtab, "local", None)
         if target is None:
-            target = self.current_symtab
+            target: SymbolTable = self.current_symtab
         # attach procedure name if available for proper ASM naming
-        proc_name = getattr(target, "_proc_name", "")
+        proc_name: Any | str = getattr(target, "_proc_name", "")
         if proc_name:
             sym.proc_name = proc_name
         target._symbols[sym.name] = sym
         return sym
 
 
-    def gen_file_header(self):
+    def gen_file_header(self) -> None:
         self.emit("; Generated by Zap Compiler")
-        cmd = self.command_line if self.command_line else "(command line not provided)"
+        cmd: str = self.command_line if self.command_line else "(command line not provided)"
         self.emit(f"; Command: {cmd}")
         if self.pruned_procs:
-            removed = ", ".join(sorted(self.pruned_procs))
+            removed: str = ", ".join(sorted(self.pruned_procs))
             self.emit(f"; Optimized out unused procedures (definitions and calls removed): {removed}")
         self.emit("; ==============================")
         self.emit("")
@@ -1824,9 +1826,9 @@ class CodeGen:
         # label-cleanup step can see them, but do NOT emit .export directives
         # into assembly (the compiler emits a single .s file and .export isn't
         # meaningful here). Downstream `label_cleanup` recognizes this comment.
-        exports = getattr(self, 'exports', None)
+        exports: Any | None = getattr(self, 'exports', None)
         if exports:
-            exports_list = ", ".join(sorted(exports))
+            exports_list: str = ", ".join(sorted(exports))
             # Comment format: ; ZAP_EXPORTS name, name
             self.emit(f"; ZAP_EXPORTS {exports_list}")
             self.emit("")
@@ -1835,7 +1837,7 @@ class CodeGen:
         #self.emit(".include \"macros.inc\"")
         #self.emit(".include \"variables.inc\"\n")
 
-    def gen_file_footer(self):
+    def gen_file_footer(self) -> None:
         # Ensure runtime helpers and data live in CODE segment
         self.emit("\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
@@ -1844,7 +1846,7 @@ class CodeGen:
         self._gen_math_routines()
         self.emit("\n; End of file")
 
-    def _gen_copy_bytes_routine(self):
+    def _gen_copy_bytes_routine(self) -> None:
         """Shared byte copy routine to shrink init code for large const data"""
         if not self.copy_bytes_needed:
             return
@@ -1869,7 +1871,7 @@ class CodeGen:
         self.emit("COPY_BYTES_DONE:")
         self.emit("\tRTS\n")
     
-    def _gen_arrcpy_routine(self):
+    def _gen_arrcpy_routine(self) -> None:
         """Generate ARRCPY subroutine for array copying.
         
         Only emitted if arrcpy_needed flag is set.
@@ -1911,7 +1913,7 @@ class CodeGen:
         self.emit("\tRTS\n")
 
     
-    def _gen_string_data(self):
+    def _gen_string_data(self) -> None:
         """Generate string literal data in code segment"""
         if not self.string_literals and not self.array_literals:
             return
@@ -1939,7 +1941,7 @@ class CodeGen:
         
         self.emit("")
     
-    def _gen_string_copy(self, dst_sym, src_sym):
+    def _gen_string_copy(self, dst_sym, src_sym) -> None:
         """Generate code to call ARRCPY subroutine.
         
         Sets up parameters and calls shared ARRCPY subroutine which copies
@@ -2000,7 +2002,7 @@ class CodeGen:
         # Call ARRCPY routine
         self.emit("\tJSR ARRCPY")
 
-    def _gen_const_struct_copy(self, dst_sym, src_const_sym):
+    def _gen_const_struct_copy(self, dst_sym, src_const_sym) -> None:
         """Generate code to copy const struct data from ROM to destination.
         
         Copies constant struct bytes from ROM data (ARRAY_DATA_*) to destination variable.
@@ -2018,10 +2020,10 @@ class CodeGen:
             self._raise_error(f"Cannot determine size of struct '{src_const_sym.name}'")
         
         # Extract values from const struct initialization
-        values = [ex.value for ex in src_const_sym.init.values if isinstance(ex, IntLiteral)]
+        values: list[int] = [ex.value for ex in src_const_sym.init.values if isinstance(ex, IntLiteral)]
         
         # Generate ROM data label for this struct
-        data_key = (tuple(values), False)
+        data_key: tuple[tuple[int, ...], Literal[False]] = (tuple(values), False)
         if data_key not in self.array_literals:
             self.array_id += 1
             self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
@@ -2049,19 +2051,19 @@ class CodeGen:
         self.emit("\tJSR COPY_BYTES")
 
     
-    def _gen_math_routines(self):
+    def _gen_math_routines(self) -> None:
         """Generate runtime math routines for *, /, %"""
         if not self.math_routines_needed:
             return
 
-        needed = set(self.math_routines_needed)
+        needed: set[str] = set(self.math_routines_needed)
         # Include dependencies (MUL16_8 uses MUL8)
         if "MUL16_8" in needed:
             needed.add("MUL8")
 
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
 
-        def emit_mul8():
+        def emit_mul8() -> None:
             self.emit("; MUL8: 8x8=16 multiply")
             self.emit("; Input: TMP0 (multiplicand), TMP2 (multiplier)")
             self.emit("; Output: A=low, X=high")
@@ -2083,7 +2085,7 @@ class CodeGen:
             self.emit("\tLDA TMP3")
             self.emit("\tRTS")
 
-        def emit_mul16_8():
+        def emit_mul16_8() -> None:
             self.emit("; MUL16_8: 16x8=16 multiply")
             self.emit("; Input: TMP0,TMP0+1 (multiplicand), TMP2 (multiplier)")
             self.emit("; Output: A=low, X=high")
@@ -2110,7 +2112,7 @@ class CodeGen:
             self.emit("\tLDA TMP1")           # A = low byte from first multiplication
             self.emit("\tRTS")
 
-        def emit_mul16():
+        def emit_mul16() -> None:
             self.emit("; MUL16: 16x16=16 multiply")
             self.emit("; Input: TMP0,TMP1 (multiplicand), TMP2,TMP3 (multiplier)")
             self.emit("; Output: A=low, X=high")
@@ -2137,7 +2139,7 @@ class CodeGen:
             self.emit("\tLDX TMP2+3")
             self.emit("\tRTS")
 
-        def emit_div8():
+        def emit_div8() -> None:
             self.emit("; DIV8: 8/8=8 divide")
             self.emit("; Input: TMP0 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=quotient, X=0")
@@ -2159,7 +2161,7 @@ class CodeGen:
             self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
-        def emit_div16_8():
+        def emit_div16_8() -> None:
             self.emit("; DIV16_8: 16/8=16 divide")
             self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=low, X=high")
@@ -2185,7 +2187,7 @@ class CodeGen:
             self.emit("\tLDX TMP0+1")
             self.emit("\tRTS")
 
-        def emit_div8_16():
+        def emit_div8_16() -> None:
             self.emit("; DIV8_16: 8/16=8 divide")
             self.emit("; Input: TMP0 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=quotient (0 or 1), X=0")
@@ -2203,7 +2205,7 @@ class CodeGen:
             self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
-        def emit_div16():
+        def emit_div16() -> None:
             self.emit("; DIV16: 16/16=16 divide")
             self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=low, X=high")
@@ -2237,7 +2239,7 @@ class CodeGen:
             self.emit("\tLDX TMP0+1")
             self.emit("\tRTS")
 
-        def emit_mod8():
+        def emit_mod8() -> None:
             self.emit("; MOD8: 8%8=8 modulo")
             self.emit("; Input: TMP0 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=remainder, X=0")
@@ -2257,7 +2259,7 @@ class CodeGen:
             self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
-        def emit_mod16_8():
+        def emit_mod16_8() -> None:
             self.emit("; MOD16_8: 16%8=8 modulo")
             self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2 (divisor)")
             self.emit("; Output: A=remainder, X=0")
@@ -2281,7 +2283,7 @@ class CodeGen:
             self.emit("\tLDX #0")
             self.emit("\tRTS")
 
-        def emit_mod8_16():
+        def emit_mod8_16() -> None:
             self.emit("; MOD8_16: 8%16=8 modulo")
             self.emit("; Input: TMP0 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=remainder, X=0")
@@ -2300,7 +2302,7 @@ class CodeGen:
             self.emit("\tLDX #0")
             self.emit("\tRTS")
 
-        def emit_mod16():
+        def emit_mod16() -> None:
             self.emit("; MOD16: 16%16=16 modulo")
             self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=low, X=high")
@@ -2332,7 +2334,7 @@ class CodeGen:
             self.emit("\tLDX TMP2+3")
             self.emit("\tRTS")
 
-        emitters = [
+        emitters: list[tuple[str, Callable[[], None]]] = [
             ("MUL8", emit_mul8),
             ("MUL16_8", emit_mul16_8),
             ("MUL16", emit_mul16),
@@ -2357,14 +2359,14 @@ class CodeGen:
                 self.emit("")
 
 
-    def gen_var_header(self):
+    def gen_var_header(self) -> None:
         self.emit("; Variables")
         self.emit("; ------------------------------")   
 
     def _detect_temp_usage(self, code: list[str] | None = None) -> set[str]:
         """Scan generated code for temp usage and combine with flagged temps."""
-        temp_names = {"TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
-        temps = set(self.used_temps)
+        temp_names: set[str] = {"TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
+        temps: set[str] = set(self.used_temps)
         code = self.code if code is None else code
 
         if self.copy_bytes_needed or self.math_routines_needed or self.arrcpy_needed:
@@ -2378,26 +2380,26 @@ class CodeGen:
             temps.update({"TMP0", "TMP1"})
         return temps
 
-    def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None):
-        temp_sizes = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 2, "TMP5": 2}
-        temps_in_use = self._detect_temp_usage(code)
+    def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None) -> None:
+        temp_sizes: dict[str, int] = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 2, "TMP5": 2}
+        temps_in_use: set[str] = self._detect_temp_usage(code)
 
         self.emit(".segment \"ZEROPAGE\"")
         self.emit("; System variables")
         for name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
             if name in temps_in_use:
-                size = temp_sizes[name]
+                size: int = temp_sizes[name]
                 self.emit(f"{name}:\t.res {size}")
         self.emit("")
 
         # Collect all variables (globals + locals from procs and funcs)
-        all_vars = list(self.global_symtab)
+        all_vars: list[Symbol] = list(self.global_symtab)
         if procs:
             for proc in procs:
                 # include analyzed locals
                 all_vars.extend(proc.locals)
                 # include any temps declared during codegen in the scoped local table
-                local_tbl = getattr(proc.symtab, "local", None)
+                local_tbl: Any | None = getattr(proc.symtab, "local", None)
                 if local_tbl is not None:
                     all_vars.extend(list(local_tbl))
         if funcs:
@@ -2408,9 +2410,9 @@ class CodeGen:
         uniq: dict[str, Symbol] = {}
         for s in all_vars:
             uniq[s.asm_name()] = s
-        all_vars = list(uniq.values())
+        all_vars: list[Symbol] = list(uniq.values())
 
-        fixed = [s for s in all_vars if getattr(s, "address", None) is not None]
+        fixed: list[Symbol] = [s for s in all_vars if getattr(s, "address", None) is not None]
         if fixed:
             self.emit("; Fixed-address variables")
             for sym in fixed:
@@ -2423,11 +2425,11 @@ class CodeGen:
             self.emit("")
 
         # Zero page offset tracking (starts after emitted system variables)
-        zp_offset = sum(temp_sizes[n] for n in temps_in_use)
+        zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
         ZEROPAGE_SIZE = 256
         
         # Step 1: ALL POINTERS MUST fit in zero page - fail if they don't
-        pointers = [s for s in all_vars if not s.is_const and s.address is None and s.type.is_pointer]
+        pointers: list[Symbol] = [s for s in all_vars if not s.is_const and s.address is None and s.type.is_pointer]
         if pointers:
             self.emit("; Pointer variables")
             for sym in pointers:
@@ -2437,7 +2439,7 @@ class CodeGen:
                 zp_offset += 2
         
         # Step 2: Try to put BYTE variables in zero page, overflow to BSS
-        byte_vars = [s for s in all_vars 
+        byte_vars: list[Symbol] = [s for s in all_vars 
                      if not s.is_const and s.address is None 
                      and not s.type.is_pointer and not s.is_array
                      and s.type.base == "BYTE"]
@@ -2457,7 +2459,7 @@ class CodeGen:
                 self.emit(f"{sym.asm_name()}:\t.res 1")
         
         # Step 3: WORD (non-pointer, non-array) variables - try zero page first
-        word_vars = [s for s in all_vars 
+        word_vars: list[Symbol] = [s for s in all_vars 
                      if not s.is_const and s.address is None 
                      and not s.type.is_pointer and not s.is_array
                      and s.type.base == "WORD"]
@@ -2477,16 +2479,16 @@ class CodeGen:
                 self.emit(f"{sym.asm_name()}:\t.res 2")
         
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
-        struct_vars = [s for s in all_vars 
+        struct_vars: list[Symbol] = [s for s in all_vars 
                        if not s.is_const and s.address is None 
                        and not s.type.is_pointer and not s.is_array
                        and s.type.is_struct]
         
-        bss_struct_vars = struct_vars  # All struct vars go to BSS
+        bss_struct_vars: list[Symbol] = struct_vars  # All struct vars go to BSS
 
         
         # Step 4: ALL ARRAYS must go to BSS segment (always)
-        array_vars = [s for s in all_vars if not s.is_const and s.address is None and s.is_array]
+        array_vars: list[Symbol] = [s for s in all_vars if not s.is_const and s.address is None and s.is_array]
         
         # Switch to BSS for overflow, struct vars, and arrays
         if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars:
@@ -2506,7 +2508,7 @@ class CodeGen:
                 self.emit("; Struct variables (BSS)")
                 for sym in bss_struct_vars:
                     if sym.type.is_struct and sym.type.struct_info:
-                        struct_size = sym.type.struct_info.size
+                        struct_size: int = sym.type.struct_info.size
                         self.emit(f"{sym.asm_name()}:\t.res {struct_size}")
                     else:
                         # Fallback (shouldn't happen if is_struct is correct)
@@ -2516,34 +2518,34 @@ class CodeGen:
                 self.emit("; Array variables (BSS)")
                 for sym in array_vars:
                     # Use the new get_total_array_size() method for multi-dimensional support
-                    total_size = sym.get_total_array_size()
+                    total_size: int = sym.get_total_array_size()
                     if total_size == 0:
                         # Fallback for old-style arrays without array_dims
-                        size = sym.array_len if sym.array_len else 1
+                        size: int = sym.array_len if sym.array_len else 1
                         # Calculate element size based on type
                         if sym.type.is_struct and sym.type.struct_info:
-                            element_size = sym.type.struct_info.size
+                            element_size: int = sym.type.struct_info.size
                         elif sym.type.base == "WORD":
                             element_size = 2
                         else:
                             element_size = 1
-                        total_size = size * element_size
+                        total_size: int = size * element_size
                     self.emit(f"{sym.asm_name()}:\t.res {total_size}")
 
 
-    def gen_globals_header(self):
+    def gen_globals_header(self) -> None:
         self.emit("\n.segment \"CODE\"")
         self.emit("; Globals initialization")
         self.emit("; ------------------------------") 
                
 
-    def gen_globals_footer(self):
+    def gen_globals_footer(self) -> None:
         self.emit("\n; Call MAIN")
         self.emit("; ------------------------------")        
         self.emit("\tJSR MAIN")       
         self.emit("\tJMP *\n")       
 
-    def gen_init(self, sym: Symbol, is_global_init: bool = False):
+    def gen_init(self, sym: Symbol, is_global_init: bool = False) -> None:
         # Skip const values - they don't need runtime initialization
         # Const arrays are stored in ROM (ARRAY_DATA_*) and accessed directly
         # Const scalars are baked into code at usage points
@@ -2575,10 +2577,10 @@ class CodeGen:
         if isinstance(sym.init, ExprInit):
             # Immediate initializer
             if isinstance(sym.init.expr, IntLiteral):
-                val = sym.init.expr.value
+                val: int = sym.init.expr.value
                 # Check if constant fits in target type
                 self._check_constant_fits(val, sym.type, f"initialization of {sym.name}")
-                val = val & 0xFFFF  # Mask after check
+                val: int = val & 0xFFFF  # Mask after check
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
                     self._emit_store_byte_const(sym, val)
                 else:  # WORD or pointer → store both bytes
@@ -2587,7 +2589,7 @@ class CodeGen:
             
             # Special case: struct initialized from const struct identifier
             if isinstance(sym.init.expr, Identifier) and sym.type.is_struct:
-                src_sym = self.current_symtab.lookup(sym.init.expr.name)
+                src_sym: Symbol = self.current_symtab.lookup(sym.init.expr.name)
                 if src_sym.is_const and src_sym.init and isinstance(src_sym.init, ListInit):
                     # Copy const struct bytes to destination
                     self._gen_const_struct_copy(sym, src_sym)
@@ -2595,21 +2597,21 @@ class CodeGen:
 
             # Optimization: Direct word ADD/SUB initialization without temporaries
             # e.g., word z = x + y;
-            expr = sym.init.expr
+            expr: Identifier | Expr = sym.init.expr
             if (isinstance(expr, BinaryExpr) and expr.op in {BinOp.ADD, BinOp.SUB} and
                 sym.type.base == "WORD" and not sym.type.is_pointer and not sym.is_array and 
                 sym.address is None and
                 isinstance(expr.left, Identifier) and isinstance(expr.right, Identifier)):
                 
-                left_sym = self.current_symtab.lookup(expr.left.name)
-                right_sym = self.current_symtab.lookup(expr.right.name)
+                left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
+                right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
                 
                 if (not left_sym.is_array and left_sym.address is None and
                     not right_sym.is_array and right_sym.address is None):
                     
-                    dest_asm = sym.asm_name()
-                    left_asm = left_sym.asm_name()
-                    right_asm = right_sym.asm_name()
+                    dest_asm: str = sym.asm_name()
+                    left_asm: str = left_sym.asm_name()
+                    right_asm: str = right_sym.asm_name()
                     
                     # Direct 16-bit ADD/SUB without temporaries
                     self.emit(f"\tLDA {left_asm}")
@@ -2631,14 +2633,14 @@ class CodeGen:
 
             # Optimization: Chained word ADD/SUB with immediate during initialization
             # e.g., word z = x + y + 5;
-            expr = sym.init.expr
+            expr: Identifier | Expr = sym.init.expr
             if (isinstance(expr, BinaryExpr) and expr.op in {BinOp.ADD, BinOp.SUB} and
                 sym.type.base == "WORD" and not sym.type.is_pointer and not sym.is_array and 
                 sym.address is None and
                 isinstance(expr.left, BinaryExpr) and isinstance(expr.right, IntLiteral)):
                 
-                left_expr = expr.left
-                imm_val = expr.right.value & 0xFFFF
+                left_expr: BinaryExpr = expr.left
+                imm_val: int = expr.right.value & 0xFFFF
                 
                 # Check if left operand is ADD/SUB of two identifiers
                 if (left_expr.op in {BinOp.ADD, BinOp.SUB} and
@@ -2646,18 +2648,18 @@ class CodeGen:
                     isinstance(left_expr.right, Identifier)):
                     
                     # Lookup all symbols
-                    x_sym = self.current_symtab.lookup(left_expr.left.name)
-                    y_sym = self.current_symtab.lookup(left_expr.right.name)
+                    x_sym: Symbol = self.current_symtab.lookup(left_expr.left.name)
+                    y_sym: Symbol = self.current_symtab.lookup(left_expr.right.name)
                     
                     # Check all are simple variables
                     if (not x_sym.is_array and x_sym.address is None and
                         not y_sym.is_array and y_sym.address is None):
                         
-                        dest_asm = sym.asm_name()
-                        x_asm = x_sym.asm_name()
-                        y_asm = y_sym.asm_name()
-                        imm_low = imm_val & 0xFF
-                        imm_high = (imm_val >> 8) & 0xFF
+                        dest_asm: str = sym.asm_name()
+                        x_asm: str = x_sym.asm_name()
+                        y_asm: str = y_sym.asm_name()
+                        imm_low: int = imm_val & 0xFF
+                        imm_high: int = (imm_val >> 8) & 0xFF
                         
                         # Step 1: Compute (x op1 y) and store in destination
                         self.emit(f"\tLDA {x_asm}")
@@ -2701,7 +2703,7 @@ class CodeGen:
 
             # Fallback: general expression (non-const)
             # Set assignment target type context for optimizations
-            prev_assign_type = self.assign_target_type
+            prev_assign_type: SemType | None = self.assign_target_type
             self.assign_target_type = sym.type
             try:
                 self.gen_expr(sym.init.expr)
@@ -2716,10 +2718,10 @@ class CodeGen:
             return
 
         if isinstance(sym.init, StringInit):
-            content = sym.init.value
-            str_len = len(content) + 1  # Include null terminator
-            dest_var = sym.asm_name()
-            is_word = sym.type.base == "WORD"
+            content: str = sym.init.value
+            str_len: int = len(content) + 1  # Include null terminator
+            dest_var: str = sym.asm_name()
+            is_word: bool = sym.type.base == "WORD"
             COPY_THRESHOLD = 8  # bytes; above this, call shared copy to save space
             
             # Optimized string copy using loop
@@ -2727,14 +2729,14 @@ class CodeGen:
             if str_len <= 3:
                 # Inline for very short strings (no string data needed)
                 for i, ch in enumerate(content.encode('ascii')):
-                    elem_offset = i * 2 if is_word else i
+                    elem_offset: int = i * 2 if is_word else i
                     self.emit(f"\tLDA #${ch:02X}")
                     self.emit(f"\tSTA {dest_var}+{elem_offset}")
                     if is_word:
                         self.emit(f"\tLDX #0")
                         self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
                 # Add null terminator
-                term_offset = len(content) * (2 if is_word else 1)
+                term_offset: int = len(content) * (2 if is_word else 1)
                 self.emit(f"\tLDA #0")
                 self.emit(f"\tSTA {dest_var}+{term_offset}")
                 if is_word:
@@ -2781,7 +2783,7 @@ class CodeGen:
                     self.emit("\tSTX TMP2+1")
 
                     # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
-                    copy_len = str_len * (2 if is_word else 1)
+                    copy_len: int = str_len * (2 if is_word else 1)
                     self.emit(f"\tLDX #{copy_len}") # Fixme: assumes length fits in one byte
                     self.emit("\tLDY #0")
                     self.emit("\tJSR COPY_BYTES")
@@ -2789,12 +2791,12 @@ class CodeGen:
 
         if isinstance(sym.init, ListInit):
             # Check if this is a struct (array or single)
-            struct_info = sym.type.struct_info
-            is_struct_type = sym.type.is_struct and struct_info is not None
+            struct_info: StructInfo | None = sym.type.struct_info
+            is_struct_type: bool = sym.type.is_struct and struct_info is not None
             
             if is_struct_type and struct_info is not None:
                 assert struct_info is not None  # Help Pylance understand struct_info is not None
-                struct_size = struct_info.size
+                struct_size: int = struct_info.size
                 flattened_values = []
                 
                 if sym.is_array:
@@ -2826,28 +2828,28 @@ class CodeGen:
                             flattened_values.append(field_init)
                 
                 # Now treat as a regular constant array of bytes/words
-                is_const_array = all(isinstance(ex, IntLiteral) for ex in flattened_values)
+                is_const_array: bool = all(isinstance(ex, IntLiteral) for ex in flattened_values)
                 
                 if not is_const_array:
                     # Non-constant values
                     for i, ex in enumerate(flattened_values):
                         self.gen_expr(ex)
                         # Calculate offset: (struct_index * struct_size) + field_offset
-                        field_offset = i % struct_size
-                        struct_index = i // struct_size
-                        base_offset = struct_index * struct_size + field_offset
+                        field_offset: int = i % struct_size
+                        struct_index: int = i // struct_size
+                        base_offset: int = struct_index * struct_size + field_offset
                         
-                        elem_offset = base_offset * 2 if sym.type.base == "WORD" else base_offset
+                        elem_offset: int = base_offset * 2 if sym.type.base == "WORD" else base_offset
                         self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
                         if sym.type.base == "WORD":
                             self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
                     return
                 
                 # Constant struct array - optimize with loop copy
-                values = [ex.value for ex in flattened_values if isinstance(ex, IntLiteral)]
-                array_len = len(values)
-                is_word = sym.type.base == "WORD"
-                dest_var = sym.asm_name()
+                values: list[int] = [ex.value for ex in flattened_values if isinstance(ex, IntLiteral)]
+                array_len: int = len(values)
+                is_word: bool = sym.type.base == "WORD"
+                dest_var: str = sym.asm_name()
                 
                 # Generate as regular array initialization
                 COPY_THRESHOLD = 8
@@ -2856,21 +2858,21 @@ class CodeGen:
                     # Inline for very short arrays
                     for i, ex in enumerate(flattened_values):
                         self.gen_expr(ex)
-                        elem_offset = i * 2 if is_word else i
+                        elem_offset: int = i * 2 if is_word else i
                         self.emit(f"\tSTA {dest_var}+{elem_offset}")
                         if is_word:
                             self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
                 else:
                     # Use loop for longer arrays
-                    data_key = (tuple(values), is_word)
+                    data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
                     
                     arr_label = self.array_literals[data_key]
-                    elem_size = 2 if is_word else 1
-                    total_bytes = array_len * elem_size
-                    use_shared = total_bytes > COPY_THRESHOLD and total_bytes <= 255
+                    elem_size: int = 2 if is_word else 1
+                    total_bytes: int = array_len * elem_size
+                    use_shared: bool = total_bytes > COPY_THRESHOLD and total_bytes <= 255
 
                     if use_shared:
                         self.copy_bytes_needed = True
@@ -2889,7 +2891,7 @@ class CodeGen:
                     else:
                         self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
                         self.emit(f"\tLDX #0")
-                        copy_loop = self.new_label("ARR_COPY")
+                        copy_loop: str = self.new_label("ARR_COPY")
                         self.emit(f"{copy_loop}:")
                         self.emit(f"\tLDA {arr_label},X")
                         self.emit(f"\tSTA {dest_var},X")
@@ -2904,13 +2906,13 @@ class CodeGen:
             
             # Regular (non-struct) array
             # Check if all values are constant integers
-            is_const_array = all(isinstance(ex, IntLiteral) for ex in sym.init.values)
+            is_const_array: bool = all(isinstance(ex, IntLiteral) for ex in sym.init.values)
             
             if not is_const_array:
                 # Non-constant values - use old method
                 for i, ex in enumerate(sym.init.values):
                     self.gen_expr(ex)
-                    elem_offset = i * 2 if sym.type.base == "WORD" else i
+                    elem_offset: int = i * 2 if sym.type.base == "WORD" else i
                     self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
                     if sym.type.base == "WORD":
                         self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
@@ -2918,10 +2920,10 @@ class CodeGen:
             
             # Constant array - optimize with loop copy
             # Type narrowing: we've verified all elements are IntLiteral above
-            values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-            array_len = len(values)
-            is_word = sym.type.base == "WORD"
-            dest_var = sym.asm_name()
+            values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+            array_len: int = len(values)
+            is_word: bool = sym.type.base == "WORD"
+            dest_var: str = sym.asm_name()
             COPY_THRESHOLD = 8  # bytes; above this, call shared copy to save space
             
             # For very short arrays (1-2 elements), inline is better
@@ -2929,22 +2931,22 @@ class CodeGen:
                 # Inline for very short arrays
                 for i, ex in enumerate(sym.init.values):
                     self.gen_expr(ex)
-                    elem_offset = i * 2 if is_word else i
+                    elem_offset: int = i * 2 if is_word else i
                     self.emit(f"\tSTA {dest_var}+{elem_offset}")
                     if is_word:
                         self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
             else:
                 # Use loop for longer arrays
                 # Create unique key for this array data
-                data_key = (tuple(values), is_word)
+                data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                 if data_key not in self.array_literals:
                     self.array_id += 1
                     self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
                 
                 arr_label = self.array_literals[data_key]
-                elem_size = 2 if is_word else 1
-                total_bytes = array_len * elem_size
-                use_shared = total_bytes > COPY_THRESHOLD and total_bytes <= 255
+                elem_size: int = 2 if is_word else 1
+                total_bytes: int = array_len * elem_size
+                use_shared: bool = total_bytes > COPY_THRESHOLD and total_bytes <= 255
 
                 if use_shared:
                     # Shared copy routine saves space for larger initializers (<=255 bytes)
@@ -2967,7 +2969,7 @@ class CodeGen:
                 else:
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
                     self.emit(f"\tLDX #0")
-                    copy_loop = self.new_label("ARR_COPY")
+                    copy_loop: str = self.new_label("ARR_COPY")
                     self.emit(f"{copy_loop}:")
                     self.emit(f"\tLDA {arr_label},X")
                     self.emit(f"\tSTA {dest_var},X")
@@ -2983,10 +2985,10 @@ class CodeGen:
         self._raise_error("Complex initializer pattern not supported")
 
 
-    def emit(self, line: str):
+    def emit(self, line: str) -> None:
         self.code.append(line)
 
-    def emit_src_comment_for_stmt(self, stmt):
+    def emit_src_comment_for_stmt(self, stmt) -> None:
         info = self.stmt_src.get(id(stmt))
         if info:
             # Support both 3-tuple and 4-tuple forms
@@ -2999,7 +3001,7 @@ class CodeGen:
                 self.current_stmt_info = (fname, line, col, text)
             self.emit(f"; {fname} {line}: {text}")
 
-    def emit_src_comment_for_local(self, proc_name: str, var_name: str):
+    def emit_src_comment_for_local(self, proc_name: str, var_name: str) -> None:
         info = self.local_decl_src.get((proc_name, var_name))
         if info:
             fname, line, col, text = info
@@ -3007,7 +3009,7 @@ class CodeGen:
             self.current_stmt_info = (fname, line, col, text)
             self.emit(f"; {fname} {line}: {text}")
 
-    def emit_src_comment_for_global(self, var_name: str):
+    def emit_src_comment_for_global(self, var_name: str) -> None:
         info = self.global_decl_src.get(var_name)
         if info:
             fname, line, col, text = info
@@ -3015,7 +3017,7 @@ class CodeGen:
             self.current_stmt_info = (fname, line, col, text)
             self.emit(f"; {fname} {line}: {text}")
 
-    def _raise_error(self, msg: str):
+    def _raise_error(self, msg: str) -> NoReturn:
         # Attach line/col and source text for better error output
         from errors import SemanticError
         if self.current_stmt_info:
@@ -3029,31 +3031,31 @@ class CodeGen:
         else:
             raise SemanticError(msg)
 
-    def _load_sym_addr(self, sym_name: str):
+    def _load_sym_addr(self, sym_name: str) -> None:
         self.emit(f"\tLDA #<{sym_name}")
         self.emit(f"\tLDX #>{sym_name}")
 
-    def _gen_literal(self, expr: IntLiteral):
-        t = self.tc_check(expr)
-        val = expr.value
+    def _gen_literal(self, expr: IntLiteral) -> None:
+        t: ExprType = self.tc_check(expr)
+        val: int = expr.value
         self.emit(f"\tLDA #${val & 0xFF:02X}")
         # self.emit(f'; {t}')
         if t.sem_type.base == "WORD":
             self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
 
 
-    def _gen_identifier(self, expr: Identifier):
-        t = self.tc_check(expr)
-        sym = self.current_symtab.lookup(expr.name)
+    def _gen_identifier(self, expr: Identifier) -> None:
+        t: ExprType = self.tc_check(expr)
+        sym: Symbol = self.current_symtab.lookup(expr.name)
 
         if sym.is_const:
             # Handle const arrays specially - they have addresses to ROM data
             if sym.is_array:
                 # Const arrays: get address of ROM data
                 if sym.init and isinstance(sym.init, ListInit):
-                    values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    is_word = sym.type.base == "WORD"
-                    data_key = (tuple(values), is_word)
+                    values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+                    is_word: bool = sym.type.base == "WORD"
+                    data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
@@ -3066,8 +3068,8 @@ class CodeGen:
             # Handle const structs - they have addresses to ROM data
             if sym.type.is_struct:
                 if sym.init and isinstance(sym.init, ListInit):
-                    values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    data_key = (tuple(values), False)
+                    values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+                    data_key: tuple[tuple[int, ...], Literal[False]] = (tuple(values), False)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
@@ -3081,7 +3083,7 @@ class CodeGen:
             if sym.const_value is None:
                 self._raise_error(f"Constant '{sym.name}' has no value")
             # Use the symbol's declared type, not the inferred literal type
-            val = sym.const_value
+            val: int = sym.const_value
             self.emit(f"\tLDA #${val & 0xFF:02X}")
             # Pointers are always word-sized even when base type is BYTE
             if sym.type.base == "WORD" or sym.type.is_pointer:
@@ -3092,7 +3094,7 @@ class CodeGen:
         if t.kind == ExprKind.ADDR:
             if sym.type.is_pointer and not sym.is_array:
                 # Load pointer value stored in the variable (A=low, X=high)
-                asm = sym.asm_name()
+                asm: str = sym.asm_name()
                 self.emit(f"\tLDA {asm}")
                 self.emit(f"\tLDX {asm}+1")
             else:
@@ -3101,22 +3103,22 @@ class CodeGen:
             return
 
         # VALUE
-        asm = sym.asm_name()
+        asm: str = sym.asm_name()
         self.emit(f"\tLDA {asm}")
         if t.sem_type.base == "WORD":
             self.emit(f"\tLDX {asm}+1")
         else:
             # BYTE → X = 0
             # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
-            target_is_byte = (self.assign_target_type and 
+            target_is_byte: None | bool = (self.assign_target_type and 
                             hasattr(self.assign_target_type, 'base') and
                             self.assign_target_type.base == "BYTE" and 
                             not getattr(self.assign_target_type, 'is_pointer', False))
             if not target_is_byte:
                 self.emit("\tLDX #0     ; note 3056")
 
-    def _gen_deref(self, expr: DerefExpr):
-        t = self.tc_check(expr)
+    def _gen_deref(self, expr: DerefExpr) -> None:
+        t: ExprType = self.tc_check(expr)
 
         # 1) vygeneruj adresu pointeru → A/X
         self.gen_expr(expr.pointer)
@@ -3147,13 +3149,13 @@ class CodeGen:
         For struct_var.array_field[i][j], returns ([j, i], FieldAccess(...))
         (indices are collected in reverse order as we traverse the nesting)
         """
-        indices = [expr.index]
-        current = expr.array
+        indices: list[Expr] = [expr.index]
+        current: Expr = expr.array
         
         # Traverse nested subscripts
         while isinstance(current, SubscriptExpr):
             indices.append(current.index)
-            current = current.array
+            current: Expr = current.array
         
         # current should now be an Identifier or FieldAccess
         if not isinstance(current, (Identifier, FieldAccess)):
@@ -3196,7 +3198,7 @@ class CodeGen:
             return 1
 
     def _gen_multidim_subscript(self, indices: list, sym: Symbol, 
-                                load_only: bool, calc_addr_only: bool = False):
+                                load_only: bool, calc_addr_only: bool = False) -> None:
         """Generate code for multi-dimensional subscript with known dimensions.
         
         For arr[i][j][k] with dimensions [d1, d2, d3] and element width E:
@@ -3210,17 +3212,17 @@ class CodeGen:
         if not dims:
             self._raise_error("Multi-dimensional array dimensions must be known")
         
-        element_width = self._calculate_element_width(sym)
+        element_width: int = self._calculate_element_width(sym)
         
         # Calculate strides (least significant to most)
         strides = []
-        stride = element_width
+        stride: int = element_width
         for i in range(len(dims) - 1, -1, -1):
             strides.insert(0, stride)
             stride *= dims[i]
         
         # OPTIMIZATION: Check if all indices are compile-time constants
-        all_indices_const = all(isinstance(idx, IntLiteral) for idx in indices)
+        all_indices_const: bool = all(isinstance(idx, IntLiteral) for idx in indices)
         
         if all_indices_const:
             # Compile-time address calculation - OPTIMIZED
@@ -3327,7 +3329,7 @@ class CodeGen:
                     self.emit("\tLDA TMP5")
                     self.emit("\tADC TMP3")
                     self.emit("\tSTA TMP3")
-                    carry_lbl = self.new_label("STRIDE_CARRY")
+                    carry_lbl: str = self.new_label("STRIDE_CARRY")
                     self.emit(f"\tBCC {carry_lbl}")
                     self.emit("\tINX")
                     self.emit(f"{carry_lbl}:")
@@ -3383,13 +3385,13 @@ class CodeGen:
                 self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")
 
-    def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False):
+    def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False) -> None:
         # Check if this is a multi-dimensional subscript
         indices, base = self._collect_subscript_indices(expr)
         
         # For multi-index subscripts with Identifier base, use multi-dimensional code generation
         if len(indices) > 1 and isinstance(base, Identifier):
-            sym = self.current_symtab.lookup(base.name)
+            sym: Symbol = self.current_symtab.lookup(base.name)
             self._gen_multidim_subscript(indices, sym, load_only, calc_addr_only)
             return
         
@@ -3397,13 +3399,13 @@ class CodeGen:
         # Pattern: arr[1] where index is known at compile time
         if (load_only and isinstance(base, Identifier) and isinstance(expr.index, IntLiteral) and
             not calc_addr_only):
-            sym = self.current_symtab.lookup(base.name)
+            sym: Symbol = self.current_symtab.lookup(base.name)
             if sym.is_array and not sym.is_const and sym.address is None:
                 # This is a simple array with runtime base address
-                arr_addr = sym.asm_name()
-                element_width = self._calculate_element_width(sym)
-                index_val = expr.index.value
-                offset = index_val * element_width
+                arr_addr: str = sym.asm_name()
+                element_width: int = self._calculate_element_width(sym)
+                index_val: int = expr.index.value
+                offset: int = index_val * element_width
                 
                 # Direct load from arr+offset
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
@@ -3418,18 +3420,18 @@ class CodeGen:
         # Single index or FieldAccess base - use original 1D implementation
         if isinstance(base, Identifier):
             # Original code for array identifiers
-            sym = self.current_symtab.lookup(base.name)
+            sym: Symbol = self.current_symtab.lookup(base.name)
             
             # Calculate element width based on array element type
-            element_width = self._calculate_element_width(sym)
+            element_width: int = self._calculate_element_width(sym)
 
             # For const arrays, load address of ROM data (ARRAY_DATA_*) instead of RAM variable
             if sym.is_const and sym.is_array:
                 # Generate the ARRAY_DATA label from the const values
                 if sym.init and isinstance(sym.init, ListInit):
-                    values = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    is_word = sym.type.base == "WORD"
-                    data_key = (tuple(values), is_word)
+                    values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+                    is_word: bool = sym.type.base == "WORD"
+                    data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
@@ -3457,11 +3459,11 @@ class CodeGen:
             self.emit("\tSTX TMP0+1")
             
             # Get field info to determine element width
-            obj_type = self.tc_check(base.object).sem_type
+            obj_type: SemType = self.tc_check(base.object).sem_type
             if not obj_type.is_struct:
                 self._raise_error("Field access base must be struct")
             
-            struct_info = obj_type.struct_info
+            struct_info: StructInfo | None = obj_type.struct_info
             if struct_info is None:
                 self._raise_error(f"Struct '{obj_type.base}' not found")
             
@@ -3469,7 +3471,7 @@ class CodeGen:
             field_info = None
             for f in struct_info.fields:
                 if f.name == base.field:
-                    field_info = f
+                    field_info: StructFieldInfo = f
                     break
             
             if field_info is None:
@@ -3495,7 +3497,7 @@ class CodeGen:
                 # Optimization: use ASL to multiply by 2
                 self.emit("\tASL A")
                 # Handle carry from multiplication
-                carry_lbl = self.new_label("NOCARRY_MULT")
+                carry_lbl: str = self.new_label("NOCARRY_MULT")
                 self.emit(f"\tBCC {carry_lbl}")
                 self.emit(f"{carry_lbl}:")
                 # For indices that fit in a byte, X should be 0 after ASL
@@ -3516,7 +3518,7 @@ class CodeGen:
                     self.emit("\tLDA TMP3")
                     self.emit("\tADC TMP4")
                     self.emit("\tSTA TMP4")
-                    multiply_carry_lbl = self.new_label("MULT_CARRY")
+                    multiply_carry_lbl: str = self.new_label("MULT_CARRY")
                     self.emit(f"\tBCC {multiply_carry_lbl}")
                     self.emit("\tINC TMP4+1")
                     self.emit(f"{multiply_carry_lbl}:")
@@ -3583,34 +3585,34 @@ class CodeGen:
         total_offset = 0
         
         # Walk down the chain of field accesses to calculate total offset
-        current_expr = expr
+        current_expr: FieldAccess = expr
         while isinstance(current_expr, FieldAccess):
             # Get the type of the struct we're accessing
-            parent_type = self.tc_check(current_expr.object).sem_type
+            parent_type: SemType = self.tc_check(current_expr.object).sem_type
             
             from errors import SemanticError
             if not parent_type.is_struct or parent_type.struct_info is None:
                 raise SemanticError(f"Field access on non-struct type: {parent_type.base}", node=current_expr)
             
-            struct_info = parent_type.struct_info
+            struct_info: StructInfo = parent_type.struct_info
             
             # Find this field's offset in the parent struct
             field_info = None
             for f in struct_info.fields:
                 if f.name == current_expr.field:
-                    field_info = f
+                    field_info: StructFieldInfo = f
                     break
             
             if field_info is None:
                 raise SemanticError(f"Field '{current_expr.field}' not found in struct '{struct_info.name}'", node=current_expr)
             
             total_offset += field_info.offset
-            current_expr = current_expr.object
+            current_expr: Expr = current_expr.object
         
         # current_expr is now the base (Identifier, SubscriptExpr, or other)
         return (total_offset, current_expr)
 
-    def _gen_field_access(self, expr: FieldAccess, load_only: bool):
+    def _gen_field_access(self, expr: FieldAccess, load_only: bool) -> None:
         """Generate code for struct field access (obj.field or ptr^.field).
         
         For direct field access (obj.field):
@@ -3622,15 +3624,15 @@ class CodeGen:
           
         For array fields, return the address instead of value.
         """
-        t = self.tc_check(expr)
-        field_type = t.sem_type
+        t: ExprType = self.tc_check(expr)
+        field_type: SemType = t.sem_type
         
         # Get struct info
-        struct_type = self.tc_check(expr.object).sem_type
+        struct_type: SemType = self.tc_check(expr.object).sem_type
         if not struct_type.is_struct:
             self._raise_error("Object is not a struct")
         
-        struct_info = struct_type.struct_info
+        struct_info: StructInfo | None = struct_type.struct_info
         if struct_info is None:
             self._raise_error(f"Struct '{struct_type.base}' not found")
         
@@ -3638,7 +3640,7 @@ class CodeGen:
         field_info = None
         for f in struct_info.fields:
             if f.name == expr.field.upper():
-                field_info = f
+                field_info: StructFieldInfo = f
                 break
         
         if field_info is None:
@@ -3647,7 +3649,7 @@ class CodeGen:
         # Special handling for array fields - return address instead of loading value
         if field_info.array_sizes:
             # This field is an array, return its address
-            field_offset = field_info.offset
+            field_offset: int = field_info.offset
             
             if expr.is_deref:
                 # ptr^.field where field is array - load pointer, add offset
@@ -3664,13 +3666,13 @@ class CodeGen:
             else:
                 # obj.field where field is array - get address of array within struct
                 if isinstance(expr.object, Identifier):
-                    sym = self.current_symtab.lookup(expr.object.name)
-                    base_asm = sym.asm_name()
+                    sym: Symbol = self.current_symtab.lookup(expr.object.name)
+                    base_asm: str = sym.asm_name()
                     
                     # Calculate field address
-                    field_asm = base_asm
+                    field_asm: str = base_asm
                     if field_offset > 0:
-                        field_asm = f"{base_asm}+{field_offset}"
+                        field_asm: str = f"{base_asm}+{field_offset}"
                     
                     # Load address of field into A/X
                     self.emit(f"\tLDA #<{field_asm}")
@@ -3699,8 +3701,8 @@ class CodeGen:
             
             return
         
-        field_offset = field_info.offset
-        field_width = 2 if field_info.base_type == "WORD" else 1
+        field_offset: int = field_info.offset
+        field_width: int = 2 if field_info.base_type == "WORD" else 1
         
         if expr.is_deref:
             # ptr^.field - expr.object should be a DerefExpr(pointer)
@@ -3710,9 +3712,9 @@ class CodeGen:
             
             if isinstance(expr.object.pointer, Identifier):
                 # Simple case: pp^.field where pp is a pointer variable
-                ptr_name = expr.object.pointer.name
-                sym = self.current_symtab.lookup(ptr_name)
-                ptr_asm = sym.asm_name()
+                ptr_name: str = expr.object.pointer.name
+                sym: Symbol = self.current_symtab.lookup(ptr_name)
+                ptr_asm: str = sym.asm_name()
                 
                 # Load the pointer value (which is the struct address)
                 self.emit(f"\tLDA {ptr_asm}")
@@ -3768,13 +3770,13 @@ class CodeGen:
             
             if isinstance(expr.object, Identifier):
                 # Simple variable: Point p1; p1.x = ...
-                sym = self.current_symtab.lookup(expr.object.name)
-                base_asm = sym.asm_name()
+                sym: Symbol = self.current_symtab.lookup(expr.object.name)
+                base_asm: str = sym.asm_name()
                 
                 # Calculate field address
-                field_asm = base_asm
+                field_asm: str = base_asm
                 if field_offset > 0:
-                    field_asm = f"{base_asm}+{field_offset}"
+                    field_asm: str = f"{base_asm}+{field_offset}"
                 
                 # Load field value
                 self.emit(f"\tLDA {field_asm}")
@@ -3784,7 +3786,7 @@ class CodeGen:
                 else:
                     # BYTE field -> X = 0
                     # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
-                    target_is_byte = (self.assign_target_type and 
+                    target_is_byte: None | bool = (self.assign_target_type and 
                                     hasattr(self.assign_target_type, 'base') and
                                     self.assign_target_type.base == "BYTE" and 
                                     not getattr(self.assign_target_type, 'is_pointer', False))
@@ -3819,7 +3821,7 @@ class CodeGen:
                 else:
                     # BYTE field -> X = 0
                     # Optimization: skip LDX #0 if assignment target is BYTE
-                    target_is_byte = (self.assign_target_type and 
+                    target_is_byte: None | bool = (self.assign_target_type and 
                                     hasattr(self.assign_target_type, 'base') and
                                     self.assign_target_type.base == "BYTE" and 
                                     not getattr(self.assign_target_type, 'is_pointer', False))
@@ -3836,13 +3838,13 @@ class CodeGen:
                 # Now generate code based on what the base is
                 if isinstance(base_expr, Identifier):
                     # Base case: simple variable
-                    sym = self.current_symtab.lookup(base_expr.name)
-                    base_asm = sym.asm_name()
+                    sym: Symbol = self.current_symtab.lookup(base_expr.name)
+                    base_asm: str = sym.asm_name()
                     
                     # Load field value from total offset
-                    field_asm = base_asm
+                    field_asm: str = base_asm
                     if total_offset > 0:
-                        field_asm = f"{base_asm}+{total_offset}"
+                        field_asm: str = f"{base_asm}+{total_offset}"
                     
                     self.emit(f"\tLDA {field_asm}")
                     
@@ -3851,7 +3853,7 @@ class CodeGen:
                     else:
                         # BYTE field -> X = 0
                         # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
-                        target_is_byte = (self.assign_target_type and 
+                        target_is_byte: None | bool = (self.assign_target_type and 
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and 
                                         not getattr(self.assign_target_type, 'is_pointer', False))
@@ -3885,7 +3887,7 @@ class CodeGen:
                     else:
                         # BYTE field -> X = 0
                         # Optimization: skip LDX #0 if assignment target is BYTE
-                        target_is_byte = (self.assign_target_type and 
+                        target_is_byte: None | bool = (self.assign_target_type and 
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and 
                                         not getattr(self.assign_target_type, 'is_pointer', False))
@@ -3910,9 +3912,9 @@ class CodeGen:
                     self.emit("\tSTA (TMP0),Y")
             elif isinstance(expr.object, Identifier):
                 # Direct store to simple variable
-                sym = self.current_symtab.lookup(expr.object.name)
-                base_asm = sym.asm_name()
-                field_asm = base_asm if field_offset == 0 else f"{base_asm}+{field_offset}"
+                sym: Symbol = self.current_symtab.lookup(expr.object.name)
+                base_asm: str = sym.asm_name()
+                field_asm: str = base_asm if field_offset == 0 else f"{base_asm}+{field_offset}"
                 
                 self.emit(f"\tLDA TMP2")
                 self.emit(f"\tSTA {field_asm}")
@@ -3939,9 +3941,9 @@ class CodeGen:
                 
                 if isinstance(base_expr, Identifier):
                     # Base case: simple variable
-                    sym = self.current_symtab.lookup(base_expr.name)
-                    base_asm = sym.asm_name()
-                    field_asm = base_asm if total_offset == 0 else f"{base_asm}+{total_offset}"
+                    sym: Symbol = self.current_symtab.lookup(base_expr.name)
+                    base_asm: str = sym.asm_name()
+                    field_asm: str = base_asm if total_offset == 0 else f"{base_asm}+{total_offset}"
                     
                     self.emit(f"\tLDA TMP2")
                     self.emit(f"\tSTA {field_asm}")
@@ -3992,26 +3994,26 @@ class CodeGen:
         if isinstance(expr.right, SubscriptExpr):
             if (isinstance(expr.right.array, Identifier) and 
                 isinstance(expr.right.index, IntLiteral)):
-                arr_sym = self.current_symtab.lookup(expr.right.array.name)
+                arr_sym: Symbol = self.current_symtab.lookup(expr.right.array.name)
                 if (arr_sym.is_array and not arr_sym.is_const and 
                     arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
-                    element_type = arr_sym.type.base
+                    element_type: str = arr_sym.type.base
                     result.append((expr.op, expr.right.array.name, expr.right.index.value))
         else:
             return None  # Right must be subscript
         
         # Check left operand - can be another subscript or another ADD/SUB chain
-        left = expr.left
+        left: Expr = expr.left
         while left:
             if isinstance(left, SubscriptExpr):
                 if (isinstance(left.array, Identifier) and 
                     isinstance(left.index, IntLiteral)):
-                    arr_sym = self.current_symtab.lookup(left.array.name)
+                    arr_sym: Symbol = self.current_symtab.lookup(left.array.name)
                     if (arr_sym.is_array and not arr_sym.is_const and 
                         arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
                         # Verify all elements same type
                         if element_type is None:
-                            element_type = arr_sym.type.base
+                            element_type: str = arr_sym.type.base
                         elif arr_sym.type.base != element_type:
                             return None  # Mixed BYTE/WORD not allowed
                         # For the leftmost element, the operation is implicit ADD
@@ -4024,16 +4026,16 @@ class CodeGen:
                 if isinstance(left.right, SubscriptExpr):
                     if (isinstance(left.right.array, Identifier) and 
                         isinstance(left.right.index, IntLiteral)):
-                        arr_sym = self.current_symtab.lookup(left.right.array.name)
+                        arr_sym: Symbol = self.current_symtab.lookup(left.right.array.name)
                         if (arr_sym.is_array and not arr_sym.is_const and 
                             arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
                             # Verify element type consistency
                             if element_type is None:
-                                element_type = arr_sym.type.base
+                                element_type: str = arr_sym.type.base
                             elif arr_sym.type.base != element_type:
                                 return None
                             result.append((left.op, left.right.array.name, left.right.index.value))
-                            left = left.left
+                            left: Expr = left.left
                             continue
                 return None
             else:
@@ -4050,7 +4052,7 @@ class CodeGen:
         
         return list(reversed(result))  # Reverse to get left-to-right order
     
-    def _gen_array_subscript_chain(self, chain: list, array_name: str, result_is_16bit: bool = False):
+    def _gen_array_subscript_chain(self, chain: list, array_name: str, result_is_16bit: bool = False) -> None:
         """
         Generate optimized code for array subscript chain with mixed ADD/SUB.
         chain: list of (op, array_name, index_value) tuples in order
@@ -4063,9 +4065,9 @@ class CodeGen:
         For WORD arrays (16-bit elements):
           Uses TMP1/TMP2 to accumulate: accumulation strategy
         """
-        arr_sym = self.current_symtab.lookup(array_name)
-        arr_addr = arr_sym.asm_name()
-        is_word_array = arr_sym.type.base == "WORD"
+        arr_sym: Symbol = self.current_symtab.lookup(array_name)
+        arr_addr: str = arr_sym.asm_name()
+        is_word_array: bool = arr_sym.type.base == "WORD"
         
         # Load first element
         op0, _, idx0_val = chain[0]
@@ -4092,8 +4094,8 @@ class CodeGen:
                 offset_low = idx_val * 2
                 offset_high = offset_low + 1
                 
-                lbl_no_carry = self.new_label("WORD_ADD_NO_CARRY")
-                lbl_no_borrow = self.new_label("WORD_SUB_NO_BORROW")
+                lbl_no_carry: str = self.new_label("WORD_ADD_NO_CARRY")
+                lbl_no_borrow: str = self.new_label("WORD_SUB_NO_BORROW")
                 
                 if op == BinOp.ADD:
                     # 16-bit ADD: TMP1/TMP2 += arr[idx_val]
@@ -4131,7 +4133,7 @@ class CodeGen:
                     
                     if result_is_16bit:
                         # Propagate carry to high byte (X register)
-                        no_carry_lbl = self.new_label("ARRAY_NO_CARRY")
+                        no_carry_lbl: str = self.new_label("ARRAY_NO_CARRY")
                         self.emit(f"\tBCC {no_carry_lbl}")
                         self.emit("\tINX")  # Increment high byte if carry
                         self.emit(f"{no_carry_lbl}:")
@@ -4141,7 +4143,7 @@ class CodeGen:
                     
                     if result_is_16bit:
                         # Propagate borrow to high byte (X register)
-                        no_borrow_lbl = self.new_label("ARRAY_NO_BORROW")
+                        no_borrow_lbl: str = self.new_label("ARRAY_NO_BORROW")
                         self.emit(f"\tBCS {no_borrow_lbl}")
                         self.emit("\tDEX")  # Decrement high byte if borrow
                         self.emit(f"{no_borrow_lbl}:")
@@ -4169,19 +4171,19 @@ class CodeGen:
         if not isinstance(expr.index, IntLiteral):
             return None
         
-        arr_sym = self.current_symtab.lookup(expr.array.name)
+        arr_sym: Symbol = self.current_symtab.lookup(expr.array.name)
         if not (arr_sym.is_array and not arr_sym.is_const and 
                 arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
             return None
         
-        offset = expr.index.value * self._calculate_element_width(arr_sym)
+        offset: int = expr.index.value * self._calculate_element_width(arr_sym)
         return (arr_sym.asm_name(), offset)
 
     
-    def _gen_binary(self, expr: BinaryExpr, force_left_tmp=None):
-        t = self.tc_check(expr)
-        left_t = self.tc_check(expr.left)
-        right_t = self.tc_check(expr.right)
+    def _gen_binary(self, expr: BinaryExpr, force_left_tmp=None) -> None:
+        t: ExprType = self.tc_check(expr)
+        left_t: ExprType = self.tc_check(expr.left)
+        right_t: ExprType = self.tc_check(expr.right)
         
         # OPTIMIZATION: Detect ADD/SUB with immediate array subscripts
         # Pattern: arr[0] + value --> LDA arr[0]; CLC; ADC value
@@ -4201,7 +4203,7 @@ class CodeGen:
                     if isinstance(expr.right, IntLiteral):
                         self.emit(f"\tADC #{expr.right.value & 0xFF:02X}")
                     elif isinstance(expr.right, Identifier):
-                        right_sym = self.current_symtab.lookup(expr.right.name)
+                        right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
                         self.emit(f"\tADC {right_sym.asm_name()}")
                     elif isinstance(expr.right, SubscriptExpr):
                         # Check if it's also an immediate array subscript
@@ -4220,7 +4222,7 @@ class CodeGen:
                     if isinstance(expr.right, IntLiteral):
                         self.emit(f"\tSBC #${expr.right.value & 0xFF:02X}")
                     elif isinstance(expr.right, Identifier):
-                        right_sym = self.current_symtab.lookup(expr.right.name)
+                        right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
                         self.emit(f"\tSBC {right_sym.asm_name()}")
                     elif isinstance(expr.right, SubscriptExpr):
                         right_info = self._is_immediate_array_subscript(expr.right)
@@ -4247,7 +4249,7 @@ class CodeGen:
                 if isinstance(expr.left, IntLiteral):
                     self.emit(f"\tLDA #${expr.left.value & 0xFF:02X}")
                 elif isinstance(expr.left, Identifier):
-                    left_sym = self.current_symtab.lookup(expr.left.name)
+                    left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
                     self.emit(f"\tLDA {left_sym.asm_name()}")
                 elif isinstance(expr.left, SubscriptExpr):
                     left_info = self._is_immediate_array_subscript(expr.left)
@@ -4274,7 +4276,7 @@ class CodeGen:
         # OPTIMIZATION: Detect and optimize array subscript chains
         # Pattern: arr[0] + arr[1] - arr[2]
         # Determine result type: use assignment target type if available, else expression result type
-        result_16_temp = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
+        result_16_temp: bool = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
         
         # If we're in an assignment context and LHS is WORD, treat result as 16-bit
         # If we're in an assignment context and LHS is BYTE, treat result as 8-bit even if expr promotes
@@ -4292,14 +4294,14 @@ class CodeGen:
         
         # Determine operand sizes
         # IMPORTANT: Pointers are always 16-bit, even if pointing to BYTE
-        left_16 = left_t.sem_type.base == "WORD" or (left_t.kind == ExprKind.ADDR and left_t.sem_type.is_pointer)
-        right_16 = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
-        result_16 = result_16_temp
+        left_16: bool = left_t.sem_type.base == "WORD" or (left_t.kind == ExprKind.ADDR and left_t.sem_type.is_pointer)
+        right_16: bool = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
+        result_16: bool = result_16_temp
         
         # Check if left operand is a BYTE arithmetic expression that can overflow
         # If so, treat it as 16-bit because it will have carry promotion applied
         # UNLESS the final result will be assigned to BYTE, in which case we want 8-bit wrapping
-        left_is_promoted_byte_arith = (
+        left_is_promoted_byte_arith: bool = (
             isinstance(expr.left, BinaryExpr) and 
             not left_16 and  # Type system says it's BYTE
             expr.left.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD} and
@@ -4310,7 +4312,7 @@ class CodeGen:
         
         # Check if right operand is a BYTE arithmetic expression that can overflow
         # UNLESS the final result will be assigned to BYTE, in which case we want 8-bit wrapping
-        right_is_promoted_byte_arith = (
+        right_is_promoted_byte_arith: bool = (
             isinstance(expr.right, BinaryExpr) and 
             not right_16 and  # Type system says it's BYTE
             expr.right.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD} and
@@ -4321,35 +4323,35 @@ class CodeGen:
         
         # Also check if result type should be promoted due to operand promotion
         # If either operand was promoted to 16-bit and we're doing arithmetic, result should be 16-bit
-        result_16_adj = result_16 or (left_is_promoted_byte_arith and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
-        result_16_adj = result_16_adj or (right_is_promoted_byte_arith and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
+        result_16_adj: bool = result_16 or (left_is_promoted_byte_arith and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
+        result_16_adj: bool = result_16_adj or (right_is_promoted_byte_arith and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.DIV, BinOp.MOD})
         
         # Detect pointer arithmetic: determine if this is pointer +/- value
         # Check sem_type.is_pointer to detect both @-created addresses and pointer variables
-        left_is_ptr = left_t.sem_type.is_pointer
-        right_is_ptr = right_t.sem_type.is_pointer
+        left_is_ptr: bool = left_t.sem_type.is_pointer
+        right_is_ptr: bool = right_t.sem_type.is_pointer
         
         # For pointer arithmetic, we need the element size of the pointer
         ptr_elem_size = 1  # default
         if left_is_ptr:
             if left_t.sem_type.is_struct and left_t.sem_type.struct_info:
-                ptr_elem_size = left_t.sem_type.struct_info.size
+                ptr_elem_size: int = left_t.sem_type.struct_info.size
             else:
-                ptr_elem_size = 2 if left_t.sem_type.base == "WORD" else 1
+                ptr_elem_size: int = 2 if left_t.sem_type.base == "WORD" else 1
         elif right_is_ptr:
             if right_t.sem_type.is_struct and right_t.sem_type.struct_info:
-                ptr_elem_size = right_t.sem_type.struct_info.size
+                ptr_elem_size: int = right_t.sem_type.struct_info.size
             else:
-                ptr_elem_size = 2 if right_t.sem_type.base == "WORD" else 1
+                ptr_elem_size: int = 2 if right_t.sem_type.base == "WORD" else 1
 
         # Check for constant 1 optimization BEFORE generating code
-        right_is_const_1 = isinstance(expr.right, IntLiteral) and expr.right.value == 1
-        use_inc_opt = (expr.op == BinOp.ADD and right_is_const_1 and left_is_ptr and ptr_elem_size == 1 and not result_16)
-        use_dec_opt = (expr.op == BinOp.SUB and right_is_const_1 and left_is_ptr and ptr_elem_size == 1)
+        right_is_const_1: bool = isinstance(expr.right, IntLiteral) and expr.right.value == 1
+        use_inc_opt: bool = (expr.op == BinOp.ADD and right_is_const_1 and left_is_ptr and ptr_elem_size == 1 and not result_16)
+        use_dec_opt: bool = (expr.op == BinOp.SUB and right_is_const_1 and left_is_ptr and ptr_elem_size == 1)
 
         # Fast path: Pure byte arithmetic with simple operands (Identifier or IntLiteral)
         # For: byte z = x + y or byte z = x + 5 --> LDA x; CLC; ADC y/5; STA z
-        is_simple_byte_add_sub = (
+        is_simple_byte_add_sub: bool = (
             expr.op in {BinOp.ADD, BinOp.SUB} and 
             not left_16 and not right_16 and not result_16 and
             not left_is_ptr and not right_is_ptr and
@@ -4361,11 +4363,11 @@ class CodeGen:
         if is_simple_byte_add_sub:
             # Generate left operand (just LDA, no X handling needed)
             if isinstance(expr.left, Identifier):
-                left_sym = self.current_symtab.lookup(expr.left.name)
-                left_asm = left_sym.asm_name()
+                left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
+                left_asm: str = left_sym.asm_name()
                 self.emit(f"\tLDA {left_asm}")
             elif isinstance(expr.left, IntLiteral):
-                val = expr.left.value & 0xFF
+                val: int = expr.left.value & 0xFF
                 self.emit(f"\tLDA #${val:02X}")
             
             # Set carry for ADD, clear for SUB
@@ -4376,14 +4378,14 @@ class CodeGen:
             
             # Generate right operand and perform operation directly
             if isinstance(expr.right, Identifier):
-                right_sym = self.current_symtab.lookup(expr.right.name)
-                right_asm = right_sym.asm_name()
+                right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
+                right_asm: str = right_sym.asm_name()
                 if expr.op == BinOp.ADD:
                     self.emit(f"\tADC {right_asm}")
                 else:
                     self.emit(f"\tSBC {right_asm}")
             elif isinstance(expr.right, IntLiteral):
-                val = expr.right.value & 0xFF
+                val: int = expr.right.value & 0xFF
                 if expr.op == BinOp.ADD:
                     self.emit(f"\tADC #${val:02X}")
                 else:
@@ -4393,7 +4395,7 @@ class CodeGen:
         # Fast path: Pure word arithmetic with simple operands (Identifier or IntLiteral)
         # For: word z = x + y or word z = x + 5
         # Generates direct 16-bit ADD/SUB without temporaries
-        is_simple_word_add_sub = (
+        is_simple_word_add_sub: bool = (
             expr.op in {BinOp.ADD, BinOp.SUB} and 
             left_16 and right_16 and result_16 and
             not left_is_ptr and not right_is_ptr and
@@ -4405,11 +4407,11 @@ class CodeGen:
         if is_simple_word_add_sub:
             # Generate left operand low byte
             if isinstance(expr.left, Identifier):
-                left_sym = self.current_symtab.lookup(expr.left.name)
-                left_asm = left_sym.asm_name()
+                left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
+                left_asm: str = left_sym.asm_name()
                 self.emit(f"\tLDA {left_asm}")
             elif isinstance(expr.left, IntLiteral):
-                val = expr.left.value & 0xFF
+                val: int = expr.left.value & 0xFF
                 self.emit(f"\tLDA #${val:02X}")
             
             # Set carry for ADD, clear for SUB
@@ -4420,14 +4422,14 @@ class CodeGen:
             
             # Generate right operand low byte and perform operation
             if isinstance(expr.right, Identifier):
-                right_sym = self.current_symtab.lookup(expr.right.name)
-                right_asm = right_sym.asm_name()
+                right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
+                right_asm: str = right_sym.asm_name()
                 if expr.op == BinOp.ADD:
                     self.emit(f"\tADC {right_asm}")
                 else:
                     self.emit(f"\tSBC {right_asm}")
             elif isinstance(expr.right, IntLiteral):
-                val = expr.right.value & 0xFF
+                val: int = expr.right.value & 0xFF
                 if expr.op == BinOp.ADD:
                     self.emit(f"\tADC #${val:02X}")
                 else:
@@ -4439,23 +4441,23 @@ class CodeGen:
             # Now do high byte (with carry propagation from low byte)
             # Load left operand high byte
             if isinstance(expr.left, Identifier):
-                left_sym = self.current_symtab.lookup(expr.left.name)
-                left_asm = left_sym.asm_name()
+                left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
+                left_asm: str = left_sym.asm_name()
                 self.emit(f"\tLDA {left_asm}+1")
             elif isinstance(expr.left, IntLiteral):
-                val = (expr.left.value >> 8) & 0xFF
+                val: int = (expr.left.value >> 8) & 0xFF
                 self.emit(f"\tLDA #${val:02X}")
             
             # ADC/SBC high byte (carry is already set/clear from low byte operation)
             if isinstance(expr.right, Identifier):
-                right_sym = self.current_symtab.lookup(expr.right.name)
-                right_asm = right_sym.asm_name()
+                right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
+                right_asm: str = right_sym.asm_name()
                 if expr.op == BinOp.ADD:
                     self.emit(f"\tADC {right_asm}+1")
                 else:
                     self.emit(f"\tSBC {right_asm}+1")
             elif isinstance(expr.right, IntLiteral):
-                val = (expr.right.value >> 8) & 0xFF
+                val: int = (expr.right.value >> 8) & 0xFF
                 if expr.op == BinOp.ADD:
                     self.emit(f"\tADC #${val:02X}")
                 else:
@@ -4467,8 +4469,8 @@ class CodeGen:
             return
 
         # Check if left or right operand is complex (uses TMP0 internally)
-        left_is_complex = isinstance(expr.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
-        right_is_complex = isinstance(expr.right, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+        left_is_complex: bool = isinstance(expr.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+        right_is_complex: bool = isinstance(expr.right, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
         
         # Choose a temp that won't be clobbered by generating the right operand.
         # Honor caller's request when possible (force_left_tmp). If the left side
@@ -4481,30 +4483,34 @@ class CodeGen:
         else:
             # Predict the right sub-expression's preferred left-temp
             if isinstance(expr.right, BinaryExpr):
-                nested_left_is_complex = isinstance(expr.right.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
-                right_pref = "TMP1" if nested_left_is_complex else "TMP0"
+                nested_left_is_complex: bool = isinstance(expr.right.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+                right_pref: str = "TMP1" if nested_left_is_complex else "TMP0"
             elif isinstance(expr.right, (SubscriptExpr, FieldAccess, DerefExpr)):
                 right_pref = "TMP0"
             else:
                 right_pref = "TMP0"
-            left_tmp = "TMP1" if right_pref == "TMP0" else "TMP0"
+            left_tmp: str = "TMP1" if right_pref == "TMP0" else "TMP0"
 
         # Detect if right operand contains a function call (needs special care)
-        def _contains_call(e):
+        def _contains_call_or_math(e):
             from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, FieldAccess
+            # Detect explicit calls
             if isinstance(e, CallExpr):
                 return True
+            # Detect nested math operations that call runtime routines (MUL/DIV/MOD)
             if isinstance(e, BinaryExpr):
-                return _contains_call(e.left) or _contains_call(e.right)
+                if e.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
+                    return True
+                return _contains_call_or_math(e.left) or _contains_call_or_math(e.right)
             if isinstance(e, UnaryExpr):
-                return _contains_call(e.expr)
+                return _contains_call_or_math(e.expr)
             if isinstance(e, SubscriptExpr):
-                return _contains_call(e.array) or _contains_call(e.index)
+                return _contains_call_or_math(e.array) or _contains_call_or_math(e.index)
             if isinstance(e, FieldAccess):
-                return _contains_call(e.object)
+                return _contains_call_or_math(e.object)
             return False
 
-        right_has_call = _contains_call(expr.right)
+        right_has_call = _contains_call_or_math(expr.right)
 
         if right_has_call and expr.op in {BinOp.ADD, BinOp.SUB} and not (left_is_ptr or right_is_ptr):
             # Special-case: right contains a call. Preserve left across call.
@@ -4585,7 +4591,7 @@ class CodeGen:
             if not (use_inc_opt or use_dec_opt):
                 # Ask the right sub-expression to prefer the opposite temp to avoid
                 # accidental clobbering of the saved left value.
-                right_hint = "TMP0" if left_tmp == "TMP1" else "TMP1"
+                right_hint: str = "TMP0" if left_tmp == "TMP1" else "TMP1"
                 self.gen_expr(expr.right, force_left_tmp=right_hint)
         
         # Handle different operations
@@ -4614,7 +4620,7 @@ class CodeGen:
         # The carry is automatically handled by 8-bit wrapping (overflow wraps around 0-255)
         # We only need carry promotion if the result will be promoted somewhere else (checked via result_16_adj)
     
-    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True, left_tmp: str = "TMP0"):
+    def _gen_add(self, is_16bit: bool, ptr_elem_size: int = 1, use_inc: bool = False, right_16: bool = True, left_tmp: str = "TMP0") -> None:
         """Generate addition (inline)
         ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD, or struct size)
         use_inc: if True and ptr_elem_size == 1, use INC on left_tmp for adding 1 (optimization)
@@ -4625,7 +4631,7 @@ class CodeGen:
         """
         # OPTIMIZATION: If we're adding to a BYTE target and the result is artificially 16-bit
         # just due to intermediate promotion, collapse back to 8-bit for the final result
-        final_target_is_byte = (self.assign_target_type and 
+        final_target_is_byte: None | bool = (self.assign_target_type and 
                                self.assign_target_type.base == "BYTE" and 
                                not self.assign_target_type.is_pointer)
         
@@ -4708,7 +4714,7 @@ class CodeGen:
                 self.emit("\tCLC")
                 self.emit(f"\tADC {left_tmp}")
     
-    def _gen_sub(self, is_16bit: bool, ptr_elem_size: int = 1, use_dec: bool = False, left_tmp: str = "TMP0"):
+    def _gen_sub(self, is_16bit: bool, ptr_elem_size: int = 1, use_dec: bool = False, left_tmp: str = "TMP0") -> None:
         """Generate subtraction (inline): left_tmp - A
         ptr_elem_size: if doing pointer arithmetic, the size of elements (1 for BYTE, 2 for WORD)
         use_dec: if True and ptr_elem_size == 1, use DEC on left_tmp for subtracting 1 (optimization)
@@ -4752,7 +4758,7 @@ class CodeGen:
                 self.emit(f"\tLDA {left_tmp}")
                 self.emit("\tSBC TMP2")
     
-    def _gen_mul(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_mul(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate multiplication (call runtime routine)"""
         if not left_16 and not right_16:
             self.math_routines_needed.add("MUL8")
@@ -4769,6 +4775,10 @@ class CodeGen:
         # Store right operand
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
+        # Pre-adjust: if this is a 16x16 multiply, ensure multiplicand high byte is in TMP1
+        if left_tmp != "TMP0" and left_16 and right_16:
+            self.emit(f"\tLDA {left_tmp}+1")
+            self.emit("\tSTA TMP1")
         
         # Move left operand to TMP0 if not already there
         if left_tmp != "TMP0":
@@ -4792,9 +4802,12 @@ class CodeGen:
             self.emit("\tJSR MUL16_8")
         else:
             # 16x16 = 16
+            # Ensure high byte is in TMP1 (MUL16 expects multiplicand low in TMP0, high in TMP1)
+            self.emit("\tLDA TMP0+1")
+            self.emit("\tSTA TMP1")
             self.emit("\tJSR MUL16")
     
-    def _gen_div(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_div(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate division (call runtime routine)"""
         if not left_16 and not right_16:
             self.math_routines_needed.add("DIV8")
@@ -4830,7 +4843,7 @@ class CodeGen:
             # 16/16 = 16
             self.emit("\tJSR DIV16")
     
-    def _gen_mod(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_mod(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate modulo (call runtime routine)"""
         if not left_16 and not right_16:
             self.math_routines_needed.add("MOD8")
@@ -4870,7 +4883,7 @@ class CodeGen:
             # 16%16 = 16
             self.emit("\tJSR MOD16")
 
-    def _gen_bitwise_and(self, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_bitwise_and(self, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate bitwise AND: left_tmp & A (or left_tmp/left_tmp+1 & A/X for 16-bit)"""
         if result_16:
             # 16-bit AND: (left_tmp,left_tmp+1) & (A,X) → (A,X)
@@ -4884,7 +4897,7 @@ class CodeGen:
             # 8-bit AND: left_tmp & A → A
             self.emit(f"\tAND {left_tmp}")
 
-    def _gen_bitwise_or(self, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_bitwise_or(self, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate bitwise OR: left_tmp | A (or left_tmp/left_tmp+1 | A/X for 16-bit)"""
         if result_16:
             # 16-bit OR: (left_tmp,left_tmp+1) | (A,X) → (A,X)
@@ -4898,7 +4911,7 @@ class CodeGen:
             # 8-bit OR: left_tmp | A → A
             self.emit(f"\tORA {left_tmp}")
 
-    def _gen_bitwise_xor(self, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_bitwise_xor(self, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate bitwise XOR: left_tmp ^ A (or left_tmp/left_tmp+1 ^ A/X for 16-bit)"""
         if result_16:
             # 16-bit XOR: (left_tmp,left_tmp+1) ^ (A,X) → (A,X)
@@ -4912,7 +4925,7 @@ class CodeGen:
             # 8-bit XOR: left_tmp ^ A → A
             self.emit(f"\tEOR {left_tmp}")
 
-    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate left shift: left_tmp << A (shift count in A)"""
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
@@ -4928,8 +4941,8 @@ class CodeGen:
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
             
-            lbl_loop = self.new_label("LSHIFT_LOOP")
-            lbl_end = self.new_label("LSHIFT_END")
+            lbl_loop: str = self.new_label("LSHIFT_LOOP")
+            lbl_end: str = self.new_label("LSHIFT_END")
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
@@ -4953,8 +4966,8 @@ class CodeGen:
             if left_tmp != "TMP0":
                 self.emit("\tSTA TMP0")
             
-            lbl_loop = self.new_label("LSHIFT8_LOOP")
-            lbl_end = self.new_label("LSHIFT8_END")
+            lbl_loop: str = self.new_label("LSHIFT8_LOOP")
+            lbl_end: str = self.new_label("LSHIFT8_END")
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
@@ -4966,7 +4979,7 @@ class CodeGen:
             self.emit(f"{lbl_end}:")
             self.emit("\tLDA TMP0")    # Load result
 
-    def _gen_rshift(self, result_16: bool, left_tmp: str = "TMP0"):
+    def _gen_rshift(self, result_16: bool, left_tmp: str = "TMP0") -> None:
         """Generate right shift: left_tmp >> A (shift count in A)"""
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
@@ -4982,8 +4995,8 @@ class CodeGen:
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
             
-            lbl_loop = self.new_label("RSHIFT_LOOP")
-            lbl_end = self.new_label("RSHIFT_END")
+            lbl_loop: str = self.new_label("RSHIFT_LOOP")
+            lbl_end: str = self.new_label("RSHIFT_END")
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
@@ -5007,8 +5020,8 @@ class CodeGen:
             if left_tmp != "TMP0":
                 self.emit("\tSTA TMP0")
             
-            lbl_loop = self.new_label("RSHIFT8_LOOP")
-            lbl_end = self.new_label("RSHIFT8_END")
+            lbl_loop: str = self.new_label("RSHIFT8_LOOP")
+            lbl_end: str = self.new_label("RSHIFT8_END")
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
@@ -5020,9 +5033,9 @@ class CodeGen:
             self.emit(f"{lbl_end}:")
             self.emit("\tLDA TMP0")    # Load result
 
-    def _gen_unary(self, expr: UnaryExpr):
+    def _gen_unary(self, expr: UnaryExpr) -> None:
         """Generate code for unary operators (@, !, ~)"""
-        operand_t = self.tc_check(expr.expr)
+        operand_t: ExprType = self.tc_check(expr.expr)
         
         if expr.op == UnOp.ADDROF:  # Address-of (@)
             # Generate code to load address of operand into A (low) and X (high)
@@ -5032,7 +5045,7 @@ class CodeGen:
             # Generate operand, then apply EOR #$FF to invert bits
             self.gen_expr(expr.expr)
             
-            result_16 = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
+            result_16: bool = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
             
             if result_16:
                 # For WORD: invert both bytes
@@ -5050,10 +5063,10 @@ class CodeGen:
         elif expr.op == UnOp.NOT:  # Logical NOT (!)
             # Generate operand and test it
             self.gen_expr(expr.expr)
-            lbl_zero = self.new_label("NOT_ZERO")
-            lbl_end = self.new_label("NOT_END")
+            lbl_zero: str = self.new_label("NOT_ZERO")
+            lbl_end: str = self.new_label("NOT_END")
             
-            result_16 = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
+            result_16: bool = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
             
             if result_16:
                 # Test if A or X is nonzero
@@ -5076,12 +5089,12 @@ class CodeGen:
                 self.emit("\tLDA #$00")
                 self.emit(f"{lbl_end}:")
     
-    def _gen_address_of(self, operand: Expr):
+    def _gen_address_of(self, operand: Expr) -> None:
         """Generate code to load address of operand into A (low byte) and X (high byte)"""
         if isinstance(operand, Identifier):
             # Simple variable: load its address
-            sym = self.current_symtab.lookup(operand.name)
-            label = self._get_label_for_symbol(sym)
+            sym: Symbol = self.current_symtab.lookup(operand.name)
+            label: str = self._get_label_for_symbol(sym)
             
             # Load address into A (low) and X (high)
             self.emit(f"\tLDA #<{label}")
@@ -5093,11 +5106,11 @@ class CodeGen:
             if not isinstance(operand.array, Identifier):
                 raise SemanticError("Complex array subscripts not supported with @")
             
-            array_sym = self.current_symtab.lookup(operand.array.name)
-            label = self._get_label_for_symbol(array_sym)
+            array_sym: Symbol = self.current_symtab.lookup(operand.array.name)
+            label: str = self._get_label_for_symbol(array_sym)
             
             # Get element size
-            elem_size = array_sym.type.get_size()
+            elem_size: int = array_sym.type.get_size()
             
             # Generate index value into TMP0
             self.gen_expr(operand.index)
@@ -5163,11 +5176,11 @@ class CodeGen:
             if not isinstance(operand.object, Identifier):
                 raise SemanticError("Complex field access not supported with @")
             
-            struct_sym = self.current_symtab.lookup(operand.object.name)
-            struct_label = self._get_label_for_symbol(struct_sym)
+            struct_sym: Symbol = self.current_symtab.lookup(operand.object.name)
+            struct_label: str = self._get_label_for_symbol(struct_sym)
             
             # Get field offset
-            field_offset = self._get_field_offset(operand.object, operand.field)
+            field_offset: int = self._get_field_offset(operand.object, operand.field)
             
             # Load base address
             self.emit(f"\tLDA #<{struct_label}")
@@ -5175,7 +5188,7 @@ class CodeGen:
             
             # Add field offset
             if field_offset > 0:
-                lbl_no_carry = self.new_label("ADDROF_NO_CARRY")
+                lbl_no_carry: str = self.new_label("ADDROF_NO_CARRY")
                 self.emit("\tSTA TMP0")
                 self.emit("\tCLC")
                 self.emit(f"\tADC #${field_offset:02X}")
@@ -5193,7 +5206,7 @@ class CodeGen:
             return f"${sym.address:04X}"
         else:
             # Dynamic address - use symbol name as label
-            prefix = sym.proc_name + "_" if sym.proc_name else ""
+            prefix: str = sym.proc_name + "_" if sym.proc_name else ""
             return f"_{prefix}{sym.name.upper()}"
     
     def _get_field_offset(self, struct_expr: Expr, field_name: str) -> int:
@@ -5201,7 +5214,7 @@ class CodeGen:
         if not isinstance(struct_expr, Identifier):
             raise SemanticError("Complex struct access not supported")
         
-        sym = self.current_symtab.lookup(struct_expr.name)
+        sym: Symbol = self.current_symtab.lookup(struct_expr.name)
         if not sym.type.is_struct or not sym.type.struct_info:
             raise SemanticError("Not a struct")
         
@@ -5213,12 +5226,12 @@ class CodeGen:
         
         raise SemanticError(f"Field '{field_name}' not found in struct")
 
-    def _gen_logical(self, expr: BinaryExpr):
+    def _gen_logical(self, expr: BinaryExpr) -> None:
         # TMP4 used to combine A/X when testing word values
         self.used_temps.add("TMP4")
         if expr.op == BinOp.LAND:
-            lbl_false = self.new_label("LAND_FALSE")
-            lbl_end   = self.new_label("LAND_END")
+            lbl_false: str = self.new_label("LAND_FALSE")
+            lbl_end: str   = self.new_label("LAND_END")
 
             # lhs
             self.gen_expr(expr.left)
@@ -5248,8 +5261,8 @@ class CodeGen:
             return
         
         if expr.op == BinOp.LOR:
-            lbl_true = self.new_label("LOR_TRUE")
-            lbl_end  = self.new_label("LOR_END")
+            lbl_true: str = self.new_label("LOR_TRUE")
+            lbl_end: str  = self.new_label("LOR_END")
 
             # lhs
             self.gen_expr(expr.left)
@@ -5278,9 +5291,9 @@ class CodeGen:
             return
 
 
-    def gen_expr(self, expr, force_left_tmp=None):
+    def gen_expr(self, expr, force_left_tmp=None) -> None:
         # Apply constant folding and algebraic simplifications
-        expr = fold_expr(expr)
+        expr: Expr = fold_expr(expr)
         
         if isinstance(expr, IntLiteral):
             self._gen_literal(expr)
@@ -5299,7 +5312,7 @@ class CodeGen:
                 fname, line, text = info
                 self.emit(f"; {fname} {line}: {text}")
             # Evaluate and pass arguments to function parameters
-            specs = self.func_param_specs.get(expr.name)
+            specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(expr.name)
             if specs is not None:
                 for i, spec in enumerate(specs):
                     pname, width, default_value = spec
@@ -5310,14 +5323,14 @@ class CodeGen:
                         arg = expr.args[i]
                     elif default_value is not None:
                         # Use default value
-                        arg = default_value
+                        arg: object = default_value
                     else:
                         # No argument and no default - skip this parameter
                         continue
                     
-                    arg_type = self.tc_check(arg)
+                    arg_type: ExprType = self.tc_check(arg)
                     self.gen_expr(arg)
-                    asm = f"_{expr.name}_{pname}"
+                    asm: str = f"_{expr.name}_{pname}"
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
@@ -5347,15 +5360,15 @@ class CodeGen:
         elif isinstance(expr, UnaryExpr):
             self._gen_unary(expr)
 
-    def gen_assign(self, lhs: Expr, rhs: Expr):
+    def gen_assign(self, lhs: Expr, rhs: Expr) -> None:
         # Apply constant substitution and folding to RHS
         from constsubst import subst_const
         from typing import cast
         rhs = subst_const(rhs, cast(SymbolTable, self.current_symtab))
         rhs = fold_expr(rhs)
 
-        lhs_t = self.tc_check(lhs)
-        rhs_t = self.tc_check(rhs)
+        lhs_t: ExprType = self.tc_check(lhs)
+        rhs_t: ExprType = self.tc_check(rhs)
 
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr, FieldAccess)):
@@ -5364,7 +5377,7 @@ class CodeGen:
         # Check for const violation: can't assign to const variables, const array elements, or const struct fields
         if isinstance(lhs, Identifier):
             try:
-                sym = self.current_symtab.lookup(lhs.name)
+                sym: Symbol = self.current_symtab.lookup(lhs.name)
             except KeyError:
                 raise SemanticError(f"Variable '{lhs.name}' is not defined", node=lhs)
             if sym.is_const:
@@ -5373,7 +5386,7 @@ class CodeGen:
             # Check if modifying an element of a const array
             if isinstance(lhs.array, Identifier):
                 try:
-                    sym = self.current_symtab.lookup(lhs.array.name)
+                    sym: Symbol = self.current_symtab.lookup(lhs.array.name)
                 except KeyError:
                     raise SemanticError(f"Variable '{lhs.array.name}' is not defined", node=lhs.array)
                 if sym.is_const:
@@ -5383,17 +5396,17 @@ class CodeGen:
             # This must be done BEFORE the general gen_expr(rhs) call to avoid duplicate code generation
             if isinstance(lhs.array, Identifier):
                 try:
-                    arr_sym = self.current_symtab.lookup(lhs.array.name)
+                    arr_sym: Symbol = self.current_symtab.lookup(lhs.array.name)
                 except KeyError:
                     raise SemanticError(f"Variable '{lhs.array.name}' is not defined", node=lhs.array)
                 if arr_sym.is_array and not arr_sym.is_const and arr_sym.address is None:
-                    arr_addr = arr_sym.asm_name()
-                    element_width = self._calculate_element_width(arr_sym)
+                    arr_addr: str = arr_sym.asm_name()
+                    element_width: int = self._calculate_element_width(arr_sym)
                     
                     # Case 1: Immediate index - calculate offset at compile time
                     if isinstance(lhs.index, IntLiteral):
-                        index_val = lhs.index.value
-                        offset = index_val * element_width
+                        index_val: int = lhs.index.value
+                        offset: int = index_val * element_width
                         
                         # Generate RHS value into A/X
                         self.gen_expr(rhs)
@@ -5429,7 +5442,7 @@ class CodeGen:
                     elif element_width == 2:
                         # WORD elements: address = arr_addr + index * 2
                         self.emit(f"\tASL A")  # Multiply index by 2
-                        carry_lbl = self.new_label("ARR_CARRY")
+                        carry_lbl: str = self.new_label("ARR_CARRY")
                         self.emit(f"\tBCC {carry_lbl}")
                         self.emit(f"\tINC TMP0+1")
                         self.emit(f"{carry_lbl}:")
@@ -5459,15 +5472,15 @@ class CodeGen:
         elif isinstance(lhs, FieldAccess):
             # Check if accessing a field of a const struct
             if isinstance(lhs.object, Identifier):
-                sym = self.current_symtab.lookup(lhs.object.name)
+                sym: Symbol = self.current_symtab.lookup(lhs.object.name)
                 if sym.is_const:
                     self._raise_error(f"Cannot assign to field of const struct '{lhs.object.name}'")
 
         # Special case: array-to-array assignment (string copy)
         # str3 = str2 -> copy str2 content into str3 until NUL or max length
         if isinstance(lhs, Identifier) and isinstance(rhs, Identifier):
-            lhs_sym = self.current_symtab.lookup(lhs.name)
-            rhs_sym = self.current_symtab.lookup(rhs.name)
+            lhs_sym: Symbol = self.current_symtab.lookup(lhs.name)
+            rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
             
             if lhs_sym.is_array and rhs_sym.is_array and \
                lhs_t.sem_type.base == "BYTE" and rhs_t.sem_type.base == "BYTE":
@@ -5505,7 +5518,7 @@ class CodeGen:
 
         # Peepholes: constant assign and small +/-
         if isinstance(lhs, Identifier):
-            sym_lhs = self.current_symtab.lookup(lhs.name)
+            sym_lhs: Symbol = self.current_symtab.lookup(lhs.name)
 
             # Direct constant assignment
             if isinstance(rhs, IntLiteral) and sym_lhs.address is None:
@@ -5518,21 +5531,21 @@ class CodeGen:
                 return
 
             if isinstance(rhs, BinaryExpr):
-                asm = sym_lhs.asm_name()
+                asm: str = sym_lhs.asm_name()
                 # Pointers are always 16-bit even if base type is BYTE
-                is_word = lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer
+                is_word: bool = lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer
 
-                def is_self(opnd):
+                def is_self(opnd) -> bool:
                     return isinstance(opnd, Identifier) and opnd.name == lhs.name
 
-                def small_const(opnd):
+                def small_const(opnd) -> int | None:
                     if isinstance(opnd, IntLiteral) and opnd.value in {1, 2, 3}:
                         return opnd.value
                     return None
 
                 # var = var + k (k=1..3)
-                k_left = small_const(rhs.left)
-                k_right = small_const(rhs.right)
+                k_left: int | None = small_const(rhs.left)
+                k_right: int | None = small_const(rhs.right)
 
                 if rhs.op == BinOp.ADD:
                     k: int | None = None
@@ -5548,10 +5561,10 @@ class CodeGen:
                         scale = 1
                         if lhs_t.sem_type.is_pointer:
                             if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
-                                scale = lhs_t.sem_type.struct_info.size
+                                scale: int = lhs_t.sem_type.struct_info.size
                             elif lhs_t.sem_type.base == "WORD":
                                 scale = 2
-                        total_inc = k * scale
+                        total_inc: int = k * scale
                         
                         if is_word:
                             # For 16-bit values, use proper ADD instead of looping INC
@@ -5561,7 +5574,7 @@ class CodeGen:
                                 self.emit(f"\tCLC")
                                 self.emit(f"\tADC #${total_inc:02X}")
                                 self.emit(f"\tSTA {asm}")
-                                lbl = self.new_label("CARRY_ADD_PTR")
+                                lbl: str = self.new_label("CARRY_ADD_PTR")
                                 self.emit(f"\tBCC {lbl}")
                                 self.emit(f"\tINC {asm}+1")
                                 self.emit(f"{lbl}:")
@@ -5582,10 +5595,10 @@ class CodeGen:
                     scale = 1
                     if lhs_t.sem_type.is_pointer:
                         if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
-                            scale = lhs_t.sem_type.struct_info.size
+                            scale: int = lhs_t.sem_type.struct_info.size
                         elif lhs_t.sem_type.base == "WORD":
                             scale = 2
-                    total_dec = k * scale
+                    total_dec: int = k * scale
                     
                     if is_word:
                         # For 16-bit values, use proper SBC instead of looping DEC
@@ -5595,7 +5608,7 @@ class CodeGen:
                             self.emit(f"\tSEC")
                             self.emit(f"\tSBC #${total_dec:02X}")
                             self.emit(f"\tSTA {asm}")
-                            lbl = self.new_label("CARRY_SUB_PTR")
+                            lbl: str = self.new_label("CARRY_SUB_PTR")
                             self.emit(f"\tBCS {lbl}")
                             self.emit(f"\tDEC {asm}+1")
                             self.emit(f"{lbl}:")
@@ -5611,16 +5624,16 @@ class CodeGen:
                 if is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
                     # Check if both operands are simple identifier references
                     if isinstance(rhs.left, Identifier) and isinstance(rhs.right, Identifier):
-                        left_sym = self.current_symtab.lookup(rhs.left.name)
-                        right_sym = self.current_symtab.lookup(rhs.right.name)
+                        left_sym: Symbol = self.current_symtab.lookup(rhs.left.name)
+                        right_sym: Symbol = self.current_symtab.lookup(rhs.right.name)
                         
                         # Only optimize if both are simple memory variables (not arrays, not at fixed addresses)
                         if (not left_sym.is_array and left_sym.address is None and
                             not right_sym.is_array and right_sym.address is None):
 
                             
-                            left_asm = left_sym.asm_name()
-                            right_asm = right_sym.asm_name()
+                            left_asm: str = left_sym.asm_name()
+                            right_asm: str = right_sym.asm_name()
                             
                             if rhs.op == BinOp.ADD:
                                 # word_var = word_var1 + word_var2
@@ -5650,20 +5663,20 @@ class CodeGen:
                     imm_opnd = None
                     
                     if isinstance(rhs.left, Identifier) and isinstance(rhs.right, IntLiteral):
-                        var_opnd = rhs.left
-                        imm_opnd = rhs.right
+                        var_opnd: Identifier = rhs.left
+                        imm_opnd: IntLiteral = rhs.right
                         is_sub_reversed = False
                     elif isinstance(rhs.right, Identifier) and isinstance(rhs.left, IntLiteral) and rhs.op == BinOp.ADD:
                         # For addition, const + var is same as var + const
-                        var_opnd = rhs.right
-                        imm_opnd = rhs.left
+                        var_opnd: Identifier = rhs.right
+                        imm_opnd: IntLiteral = rhs.left
                         is_sub_reversed = False
                     
                     if var_opnd and imm_opnd:
-                        var_sym = self.current_symtab.lookup(var_opnd.name)
+                        var_sym: Symbol = self.current_symtab.lookup(var_opnd.name)
                         if not var_sym.is_array and var_sym.address is None:
-                            var_asm = var_sym.asm_name()
-                            imm_val = imm_opnd.value & 0xFF
+                            var_asm: str = var_sym.asm_name()
+                            imm_val: int = imm_opnd.value & 0xFF
                             
                             if rhs.op == BinOp.ADD:
                                 # byte_var = other_var + imm
@@ -5684,8 +5697,8 @@ class CodeGen:
                 # Pattern: z = (x + y) + imm or z = (x - y) - imm
                 # This uses destination as temporary to avoid register shuffling
                 if is_word and isinstance(rhs.left, BinaryExpr) and isinstance(rhs.right, IntLiteral):
-                    left_expr = rhs.left
-                    imm_val = rhs.right.value & 0xFFFF
+                    left_expr: BinaryExpr = rhs.left
+                    imm_val: int = rhs.right.value & 0xFFFF
                     
                     # Check if left operand is ADD/SUB of two identifiers
                     if (left_expr.op in {BinOp.ADD, BinOp.SUB} and
@@ -5693,17 +5706,17 @@ class CodeGen:
                         isinstance(left_expr.right, Identifier)):
                         
                         # Lookup all symbols
-                        x_sym = self.current_symtab.lookup(left_expr.left.name)
-                        y_sym = self.current_symtab.lookup(left_expr.right.name)
+                        x_sym: Symbol = self.current_symtab.lookup(left_expr.left.name)
+                        y_sym: Symbol = self.current_symtab.lookup(left_expr.right.name)
                         
                         # Check all are simple variables
                         if (not x_sym.is_array and x_sym.address is None and
                             not y_sym.is_array and y_sym.address is None):
                             
-                            x_asm = x_sym.asm_name()
-                            y_asm = y_sym.asm_name()
-                            imm_low = imm_val & 0xFF
-                            imm_high = (imm_val >> 8) & 0xFF
+                            x_asm: str = x_sym.asm_name()
+                            y_asm: str = y_sym.asm_name()
+                            imm_low: int = imm_val & 0xFF
+                            imm_high: int = (imm_val >> 8) & 0xFF
                             
                             # Step 1: Compute (x op1 y) and store in destination
                             self.emit(f"\tLDA {x_asm}")
@@ -5749,20 +5762,20 @@ class CodeGen:
         # This handles z = x + y for WORD variables
         if (isinstance(lhs, Identifier) and isinstance(rhs, BinaryExpr) and 
             rhs.op in {BinOp.ADD, BinOp.SUB}):
-            lhs_sym = self.current_symtab.lookup(lhs.name)
+            lhs_sym: Symbol = self.current_symtab.lookup(lhs.name)
             if (lhs_sym.type.base == "WORD" and not lhs_sym.type.is_pointer and 
                 not lhs_sym.is_array and lhs_sym.address is None and
                 isinstance(rhs.left, Identifier) and isinstance(rhs.right, Identifier)):
                 
-                left_sym = self.current_symtab.lookup(rhs.left.name)
-                right_sym = self.current_symtab.lookup(rhs.right.name)
+                left_sym: Symbol = self.current_symtab.lookup(rhs.left.name)
+                right_sym: Symbol = self.current_symtab.lookup(rhs.right.name)
                 
                 if (not left_sym.is_array and left_sym.address is None and
                     not right_sym.is_array and right_sym.address is None):
                     
-                    lhs_asm = lhs_sym.asm_name()
-                    left_asm = left_sym.asm_name()
-                    right_asm = right_sym.asm_name()
+                    lhs_asm: str = lhs_sym.asm_name()
+                    left_asm: str = left_sym.asm_name()
+                    right_asm: str = right_sym.asm_name()
                     
                     # Direct 16-bit ADD/SUB without temporaries
                     self.emit(f"\tLDA {left_asm}")
@@ -5798,15 +5811,15 @@ class CodeGen:
         # Optimization: Direct pointer dereference for simple identifiers
         # Pattern: ptr^ = value where ptr is a simple identifier in zero page
         if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
-            ptr_sym = self.current_symtab.lookup(lhs.pointer.name)
+            ptr_sym: Symbol = self.current_symtab.lookup(lhs.pointer.name)
             if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
                 # Pointer is in zero page, can use direct indirect addressing
-                ptr_addr = ptr_sym.asm_name()
+                ptr_addr: str = ptr_sym.asm_name()
                 
                 # Special optimization for simple RHS (identifier or immediate)
                 if isinstance(rhs, Identifier):
-                    rhs_sym = self.current_symtab.lookup(rhs.name)
-                    rhs_addr = rhs_sym.asm_name()
+                    rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
+                    rhs_addr: str = rhs_sym.asm_name()
                     
                     # Load RHS and store directly
                     self.emit(f"\tLDA {rhs_addr}")
@@ -5824,8 +5837,8 @@ class CodeGen:
                     return
                 elif isinstance(rhs, IntLiteral):
                     # Immediate value
-                    val_low = rhs.value & 0xFF
-                    val_high = (rhs.value >> 8) & 0xFF
+                    val_low: int = rhs.value & 0xFF
+                    val_high: int = (rhs.value >> 8) & 0xFF
                     
                     self.emit(f"\tLDA #${val_low:02X}")
                     if lhs_t.sem_type.base == "WORD":
@@ -5863,11 +5876,11 @@ class CodeGen:
             
             # For IntLiteral RHS, emit directly; otherwise generate RHS now
             if isinstance(rhs, IntLiteral):
-                val = rhs.value & 0xFF
+                val: int = rhs.value & 0xFF
                 self.emit(f"\tLDA #{val}")
             else:
                 # Generate RHS expression
-                prev_assign_type = self.assign_target_type
+                prev_assign_type: SemType | None = self.assign_target_type
                 self.assign_target_type = lhs_t.sem_type
                 try:
                     self.gen_expr(rhs)
@@ -5881,7 +5894,7 @@ class CodeGen:
 
         # vygeneruj RHS
         # Set assignment target type context for optimizations
-        prev_assign_type = self.assign_target_type
+        prev_assign_type: SemType | None = self.assign_target_type
         self.assign_target_type = lhs_t.sem_type
         try:
             self.gen_expr(rhs)
@@ -5893,8 +5906,8 @@ class CodeGen:
         # BUT: Don't clear X if the RHS is a multiply (MUL8 returns 16-bit result in A,X)
         # Also: Don't clear X for any arithmetic expression since ADD/SUB/DIV/MOD may have carry
         # Also: Don't clear X if RHS is a simple identifier/literal - gen_expr already handled widening
-        is_arith = isinstance(rhs, BinaryExpr) and rhs.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD}
-        is_simple_rhs = isinstance(rhs, (Identifier, IntLiteral))
+        is_arith: bool = isinstance(rhs, BinaryExpr) and rhs.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD}
+        is_simple_rhs: bool = isinstance(rhs, (Identifier, IntLiteral))
         if (rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer and
             lhs_t.sem_type.base == "WORD" and not is_arith and not is_simple_rhs):
             if self.is_65c02:
@@ -5904,12 +5917,12 @@ class CodeGen:
 
         if isinstance(lhs, Identifier):
 
-            sym = self.current_symtab.lookup(lhs.name)
+            sym: Symbol = self.current_symtab.lookup(lhs.name)
 
             if sym.is_const:
                 self._raise_error("Cannot assign to const")
 
-            asm = sym.asm_name()
+            asm: str = sym.asm_name()
             if sym.type.base == "BYTE" and not sym.type.is_pointer:
                 self.emit(f"\tSTA {asm}")
             else:
@@ -5961,7 +5974,7 @@ class CodeGen:
             
             # Set assignment target type to the field type for optimizations
             # This helps skip unnecessary LDX #0 when the field is BYTE
-            prev_assign_type = self.assign_target_type
+            prev_assign_type: SemType | None = self.assign_target_type
             self.assign_target_type = lhs_t.sem_type
             try:
                 self._gen_field_access(lhs, load_only=False)
@@ -5971,12 +5984,12 @@ class CodeGen:
 
         self._raise_error(f"Assignment target type not supported: {type(lhs).__name__}")
 
-    def _gen_for_const_step(self, stmt, step_expr):
+    def _gen_for_const_step(self, stmt, step_expr) -> None:
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
         # end
-        end_name = self.new_for_var("END")
+        end_name: str = self.new_for_var("END")
         self._declare_temp(end_name)
         end_var = Identifier(end_name)
         self.gen_assign(end_var, stmt.end)
@@ -6000,13 +6013,13 @@ class CodeGen:
         while_stmt = WhileStmt(cond, body)
         self.gen_stmt(while_stmt)
 
-    def _gen_for_general(self, stmt):
+    def _gen_for_general(self, stmt) -> None:
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
         # vytvoř skryté proměnné
-        end_name = self.new_for_var("END")
-        step_name = self.new_for_var("STEP")
+        end_name: str = self.new_for_var("END")
+        step_name: str = self.new_for_var("STEP")
 
         self._declare_temp(end_name)
         self._declare_temp(step_name)
@@ -6046,10 +6059,10 @@ class CodeGen:
         self.gen_stmt(while_stmt)
 
 
-    def gen_proc(self, proc: AnalyzedProc):
+    def gen_proc(self, proc: AnalyzedProc) -> None:
         # přepni na lokální tabulku + typechecker
-        prev_symtab = self.current_symtab
-        prev_tc_symtab = getattr(self.tc, "symtab", None)
+        prev_symtab: SymbolTable = self.current_symtab
+        prev_tc_symtab: Any | None = getattr(self.tc, "symtab", None)
         self.current_symtab = cast(SymbolTable, proc.symtab)
         self.tc.symtab = proc.symtab
 
@@ -6100,7 +6113,7 @@ class CodeGen:
 
         if isinstance(stmt, CallStmt):
             # Pass arguments to callee parameters (simple ABI via memory)
-            specs = self.proc_param_specs.get(stmt.name)
+            specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(stmt.name)
             if specs is not None:
                 for i, spec in enumerate(specs):
                     pname, width, default_value = spec
@@ -6111,15 +6124,15 @@ class CodeGen:
                         arg = stmt.args[i]
                     elif default_value is not None:
                         # Use default value
-                        arg = default_value
+                        arg: object = default_value
                     else:
                         # No argument and no default - skip this parameter
                         continue
                     
-                    arg_type = self.tc_check(arg)
+                    arg_type: ExprType = self.tc_check(arg)
                     # evaluate arg into A/(X)
                     self.gen_expr(arg)
-                    asm = f"_{stmt.name}_{pname}"
+                    asm: str = f"_{stmt.name}_{pname}"
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
@@ -6152,12 +6165,12 @@ class CodeGen:
             return
         
         if isinstance(stmt, IfStmt):
-            cond = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
-            cond = fold_expr(cond)
+            cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
+            cond: Expr = fold_expr(cond)
 
-            lbl_else = self.new_label("else")
-            lbl_end  = self.new_label("endif")
-            lbl_then = self.new_label("then")
+            lbl_else: str = self.new_label("else")
+            lbl_end: str  = self.new_label("endif")
+            lbl_then: str = self.new_label("then")
 
             # Fast-path for relational comparisons: generate direct compare/branches
             from ast_nodes import BinaryExpr
@@ -6202,16 +6215,16 @@ class CodeGen:
             return
 
         if isinstance(stmt, WhileStmt):
-            lbl_start = self.new_label("while")
-            lbl_end   = self.new_label("endwhile")
-            lbl_body  = self.new_label("while_body")
+            lbl_start: str = self.new_label("while")
+            lbl_end: str   = self.new_label("endwhile")
+            lbl_body: str  = self.new_label("while_body")
 
             # PUSH
             self.loop_stack.append((lbl_start, lbl_end))
 
             self.emit(f"{lbl_start}:")
-            cond = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
-            cond = fold_expr(cond)
+            cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
+            cond: Expr = fold_expr(cond)
 
             from ast_nodes import BinaryExpr
             if isinstance(cond, BinaryExpr) and cond.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
@@ -6253,7 +6266,7 @@ class CodeGen:
         # (Duplicate IfStmt handler removed; handled earlier with const folding)
         
         if isinstance(stmt, ForStmt):
-            step_expr = stmt.step if stmt.step else IntLiteral(1)
+            step_expr: Expr | IntLiteral = stmt.step if stmt.step else IntLiteral(1)
 
             if isinstance(step_expr, IntLiteral):
                 self._gen_for_const_step(stmt, step_expr)
@@ -6264,10 +6277,10 @@ class CodeGen:
 
         self._raise_error(f"Unhandled statement type: {type(stmt).__name__}")
 
-    def gen_func(self, func: AnalyzedFunc):
-        prev_symtab = self.current_symtab
-        prev_tc_symtab = getattr(self.tc, "symtab", None)
-        prev_func_return_type = self.current_func_return_type
+    def gen_func(self, func: AnalyzedFunc) -> None:
+        prev_symtab: SymbolTable = self.current_symtab
+        prev_tc_symtab: Any | None = getattr(self.tc, "symtab", None)
+        prev_func_return_type: str | None = self.current_func_return_type
         
         self.current_symtab = cast(SymbolTable, func.symtab)
         self.tc.symtab = func.symtab
@@ -6292,10 +6305,10 @@ class CodeGen:
             self.tc.symtab = prev_tc_symtab
         self.current_func_return_type = prev_func_return_type
 
-    def _gen_relational(self, expr: BinaryExpr):
-        left_t = self.tc_check(expr.left)
-        right_t = self.tc_check(expr.right)
-        is_16bit = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
+    def _gen_relational(self, expr: BinaryExpr) -> None:
+        left_t: ExprType = self.tc_check(expr.left)
+        right_t: ExprType = self.tc_check(expr.right)
+        is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
 
         # Try a fast 8-bit compare when the right operand is a simple byte value
         cmp_operand: str | None = None
@@ -6309,7 +6322,7 @@ class CodeGen:
                 return f"#{rhs.value & 0xFF}"
 
             if isinstance(rhs, Identifier):
-                sym = self.current_symtab.lookup(rhs.name)
+                sym: Symbol = self.current_symtab.lookup(rhs.name)
 
                 if sym.is_array or sym.address is not None:
                     return None
@@ -6344,8 +6357,8 @@ class CodeGen:
 
             cmp_operand = "TMP0"
 
-        lbl_true = self.new_label("REL_TRUE")
-        lbl_end  = self.new_label("REL_END")
+        lbl_true: str = self.new_label("REL_TRUE")
+        lbl_end: str  = self.new_label("REL_END")
 
         if is_16bit:
             # 16-bit comparison: compare high byte first, then low byte
@@ -6423,14 +6436,14 @@ class CodeGen:
         # Comparison always returns a BYTE result, clear X
         self.emit("\tLDX #0     ; note 6178")
 
-    def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str):
+    def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
         """Emit relational test that jumps to lbl_true or lbl_false using only short local branches and absolute JMPs.
 
         This avoids boolean materialization and keeps conditional branches within range by funneling through local labels.
         """
-        left_t = self.tc_check(cond.left)
-        right_t = self.tc_check(cond.right)
-        is_16bit = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
+        left_t: ExprType = self.tc_check(cond.left)
+        right_t: ExprType = self.tc_check(cond.right)
+        is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
 
         cmp_lo = "TMP0"
         cmp_hi = "TMP0+1"
@@ -6445,7 +6458,7 @@ class CodeGen:
                 return f"#{rhs.value & 0xFF}"
 
             if isinstance(rhs, Identifier):
-                sym = self.current_symtab.lookup(rhs.name)
+                sym: Symbol = self.current_symtab.lookup(rhs.name)
 
                 if sym.is_array or sym.address is not None:
                     return None
@@ -6460,22 +6473,22 @@ class CodeGen:
         # Optimize: if right side is a constant, use immediate addressing
         from ast_nodes import IntLiteral
         from typing import cast
-        use_immediate = isinstance(cond.right, IntLiteral)
+        use_immediate: bool = isinstance(cond.right, IntLiteral)
         
         if use_immediate:
-            right_literal = cast(IntLiteral, cond.right)
-            const_val = right_literal.value & 0xFFFF
-            const_lo = const_val & 0xFF
-            const_hi = (const_val >> 8) & 0xFF
-            cmp_lo = f"#${const_lo:02X}"
-            cmp_hi = f"#${const_hi:02X}"
+            right_literal: IntLiteral = cast(IntLiteral, cond.right)
+            const_val: int = right_literal.value & 0xFFFF
+            const_lo: int = const_val & 0xFF
+            const_hi: int = (const_val >> 8) & 0xFF
+            cmp_lo: str = f"#${const_lo:02X}"
+            cmp_hi: str = f"#${const_hi:02X}"
 
             # Fast path: word identifier vs constant → defer loading X until low byte matches
             if is_16bit and isinstance(cond.left, Identifier):
-                sym = self.current_symtab.lookup(cond.left.name)
-                asm = sym.asm_name()
+                sym: Symbol = self.current_symtab.lookup(cond.left.name)
+                asm: str = sym.asm_name()
                 if cond.op == BinOp.EQ:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDA {asm}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBNE {lbl_else_tmp}")
@@ -6496,7 +6509,7 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.LT:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDX {asm}+1")
                     self.emit(f"\tCMP {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
@@ -6507,8 +6520,8 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.LE:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
-                    lbl_chk_hi = self.new_label("LE_CHK_HI")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_chk_hi: str = self.new_label("LE_CHK_HI")
                     # Compare low byte first
                     self.emit(f"\tLDA {asm}")
                     self.emit(f"\tCMP {cmp_lo}")
@@ -6525,7 +6538,7 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GT:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDX {asm}+1")
                     self.emit(f"\tCMP {cmp_hi}")
                     self.emit(f"\tBCS {lbl_true}")
@@ -6538,7 +6551,7 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDX {asm}+1")
                     self.emit(f"\tCMP {cmp_hi}")
                     self.emit(f"\tBCS {lbl_true}")
@@ -6553,10 +6566,10 @@ class CodeGen:
 
             # Fast path: byte identifier vs constant → simple CMP without LDX
             if not is_16bit and isinstance(cond.left, Identifier):
-                sym = self.current_symtab.lookup(cond.left.name)
-                asm = sym.asm_name()
+                sym: Symbol = self.current_symtab.lookup(cond.left.name)
+                asm: str = sym.asm_name()
                 if cond.op == BinOp.EQ:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDA {asm}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBNE {lbl_else_tmp}")
@@ -6584,7 +6597,7 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GT:
-                    lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDA {asm}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBEQ {lbl_else_tmp}")
@@ -6605,18 +6618,18 @@ class CodeGen:
                 self.emit("\tLDX #0     ; note 6311")
         else:
             # Try simple byte operand optimization for 8-bit compares
-            cmp_operand = simple_byte_operand(cond.right)
+            cmp_operand: str | None = simple_byte_operand(cond.right)
             
             if cmp_operand is not None:
                 # Left operand only; right is accessed directly in CMP
                 # Optimize: if left is also simple BYTE, load it directly without gen_expr to avoid unnecessary LDX #0
                 # This avoids the unneeded "LDX #0" that would normally follow "LDA byte_var" (optimization at 6321)
-                left_operand = simple_byte_operand(cond.left)
+                left_operand: str | None = simple_byte_operand(cond.left)
                 if left_operand is not None:
                     self.emit(f"\tLDA {left_operand}")
                 else:
                     self.gen_expr(cond.left)
-                cmp_lo = cmp_operand
+                cmp_lo: str = cmp_operand
                 # cmp_hi stays as "TMP0+1" but won't be used for 8-bit
             else:
                 # Evaluate right into TMP0/(TMP0+1)
@@ -6635,7 +6648,7 @@ class CodeGen:
 
         if is_16bit:
             if cond.op == BinOp.EQ:
-                lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 # Compare low byte first (faster for early mismatch)
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBNE {lbl_else_tmp}")
@@ -6652,8 +6665,8 @@ class CodeGen:
                 self.emit(f"\tBNE {lbl_true}")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.LT:
-                lbl_else_tmp = self.new_label("REL_ELSE_TMP")
-                lbl_check_hi = self.new_label("CHECK_HI")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                lbl_check_hi: str = self.new_label("CHECK_HI")
                 # Compare low byte first
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBCC {lbl_true}")
@@ -6664,8 +6677,8 @@ class CodeGen:
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.LE:
-                lbl_else_tmp = self.new_label("REL_ELSE_TMP")
-                lbl_chk_hi = self.new_label("LE_CHK_HI")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                lbl_chk_hi: str = self.new_label("LE_CHK_HI")
                 # Compare low byte first
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBCC {lbl_true}")
@@ -6679,7 +6692,7 @@ class CodeGen:
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GT:
-                lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 # Compare low byte first
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBEQ {lbl_else_tmp}")
@@ -6691,7 +6704,7 @@ class CodeGen:
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GE:
-                lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 # Compare low byte first
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBCS {lbl_true}")
@@ -6704,7 +6717,7 @@ class CodeGen:
         else:
             # 8-bit patterns
             if cond.op == BinOp.EQ:
-                lbl_else_tmp = self.new_label("REL_ELSE_TMP")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit(f"\tBEQ {lbl_true}")

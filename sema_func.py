@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from ast_nodes import FuncDecl, ReturnStmt
+from sema_types import ExprType
+from sema_types import ExprType
 from symbols import Symbol, SymbolTable, ScopedSymbolTable, SymbolLookup, SemType, FuncTable, FuncSymbol
 from errors import SemanticError
 from sema import DeclarationAnalyzer
@@ -15,16 +17,16 @@ class AnalyzedFunc:
 
 
 class FuncAnalyzer:
-    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None, struct_registry=None):
-        self.func_table = func_table
-        self.expr_tc = expr_tc
+    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None, struct_registry=None) -> None:
+        self.func_table: FuncTable = func_table
+        self.expr_tc: ExprTypeChecker = expr_tc
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
 
-    def analyze_decl(self, func: FuncDecl):
+    def analyze_decl(self, func: FuncDecl) -> None:
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
         # Count required parameters (those without defaults)
-        required_params = sum(1 for p in func.params if p.default_value is None)
+        required_params: int = sum(1 for p in func.params if p.default_value is None)
         try:
             self.func_table.define(
                 FuncSymbol(func.name, ret_sem, len(func.params), required_params)
@@ -50,7 +52,7 @@ class FuncAnalyzer:
         # add parameters to local symbol table
         for param in func.params:
             # Check if parameter type is a struct
-            base_name = param.type.base.upper()
+            base_name: str = param.type.base.upper()
             is_struct = False
             struct_info = None
             
@@ -95,11 +97,11 @@ class FuncAnalyzer:
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
 
         # update expr_tc to use scoped symbol table
-        prev_symtab = self.expr_tc.symtab
+        prev_symtab: SymbolLookup = self.expr_tc.symtab
         self.expr_tc.symtab = scoped
 
         # Helper to validate expressions with error reporting
-        def validate_expr(expr, context_stmt=None, read_check_enabled: bool = True):
+        def validate_expr(expr, context_stmt=None, read_check_enabled: bool = True) -> ExprType:
             try:
                 return self.expr_tc.check(expr, read_check_enabled)
             except SemanticError as e:
@@ -116,7 +118,7 @@ class FuncAnalyzer:
                 raise
 
         # Validate all expressions in all statements
-        def validate_stmt_exprs(statements: list):
+        def validate_stmt_exprs(statements: list) -> None:
             from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt
             for st in statements:
                 if isinstance(st, AssignStmt):
@@ -141,7 +143,7 @@ class FuncAnalyzer:
                     base_name = _get_base_ident(st.lhs)
                     if base_name is not None:
                         try:
-                            sym = self.expr_tc.symtab.lookup(base_name)
+                            sym: Symbol = self.expr_tc.symtab.lookup(base_name)
                             if getattr(sym, 'is_port', False) and not getattr(sym, 'port_wr', False):
                                 # Attach contextual source info if available
                                 info = self.debug.get("stmt_src", {}).get(id(st))
@@ -181,7 +183,7 @@ class FuncAnalyzer:
                 has_return = True
                 # Type-check return expression; attach location if error occurs
                 try:
-                    et = self.expr_tc.check(stmt.expr) if stmt.expr is not None else None
+                    et: ExprType | None = self.expr_tc.check(stmt.expr) if stmt.expr is not None else None
                 except SemanticError as e:
                     info = self.debug.get("stmt_src", {}).get(id(stmt))
                     if info:
@@ -210,7 +212,7 @@ class FuncAnalyzer:
                                 col = 1
                             else:
                                 fname, line, col, _text = info
-                            msg = f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}"
+                            msg: str = f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}"
                             err = SemanticError(msg, line=line, col=col)
                             err.filename = fname
                             raise err

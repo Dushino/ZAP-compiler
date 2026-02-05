@@ -1,25 +1,58 @@
 ﻿
+from typing import NoReturn
+from ast_nodes import Program
+from ast_nodes import StructDef
+from ast_nodes import EnumDecl
+from ast_nodes import ProcDecl
+from ast_nodes import Parameter
+from ast_nodes import Parameter
+from ast_nodes import Declaration
+from ast_nodes import Declarator
+from ast_nodes import FuncDecl
+from ast_nodes import Parameter
+from ast_nodes import Parameter
+from ast_nodes import Declaration
+from ast_nodes import Declarator
+from ast_nodes import Parameter
+from ast_nodes import Declaration
+from ast_nodes import Declarator
+from ast_nodes import Declarator
+from ast_nodes import DerefExpr, FieldAccess, Identifier, SubscriptExpr
+from ast_nodes import AssignStmt, CallStmt
+from ast_nodes import DerefExpr, FieldAccess, Identifier, SubscriptExpr
+from ast_nodes import BinOp
+from ast_nodes import BinOp
+from ast_nodes import BinOp
+from ast_nodes import BinOp
+from ast_nodes import BinOp
+from ast_nodes import IfStmt
+from ast_nodes import IfStmt
+from ast_nodes import IfStmt
+from ast_nodes import IfStmt
+from ast_nodes import WhileStmt
+from ast_nodes import ForStmt
+from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, WhileStmt
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
 from errors import SyntaxError
 
 class Parser:
-    def __init__(self, source: str, filename: str | None = None):
-        self.filename = filename or "<input.act>"
+    def __init__(self, source: str, filename: str | None = None) -> None:
+        self.filename: str = filename or "<input.act>"
         # Remove BOM if present (can be \ufeff or UTF-8 BOM misinterpreted as 'ï»¿')
         if source.startswith('\ufeff'):
             source = source[1:]
         elif source.startswith('ï»¿'):
             # UTF-8 BOM misinterpreted by non-UTF-8-aware decoder
             source = source[3:]
-        self.source = source
-        self.source_lines = source.splitlines()
+        self.source: str = source
+        self.source_lines: list[str] = source.splitlines()
         self.tok = Tokenizer(source)
         self.tok.tokenize()
-        self.tokens = self.tok._getTokens()        
+        self.tokens: list[Token] = self.tok._getTokens()        
         # Current token - always maintain a Token (use EOF token when empty)
-        self.cur = self.tokens[0] if self.tokens else Token(TOK_EOF, "", 1, 1)
+        self.cur: Token = self.tokens[0] if self.tokens else Token(TOK_EOF, "", 1, 1)
         self.pos = 0
         # Debug maps
         self.current_proc_name: str | None = None
@@ -34,21 +67,21 @@ class Parser:
         # Struct names for type checking in parse_declaration
         self.struct_names: set[str] = set()
 
-    def advance(self):
+    def advance(self) -> None:
         self.pos += 1
         if self.pos < len(self.tokens):
-            self.cur = self.tokens[self.pos]
+            self.cur: Token = self.tokens[self.pos]
         else:
             self.cur = Token(TOK_EOF, "", self.cur.line, self.cur.col)
 
-    def _peek_next(self):
+    def _peek_next(self) -> Token | None:
         """Peek at the token after the current one without advancing"""
-        next_pos = self.pos + 1
+        next_pos: int = self.pos + 1
         if next_pos < len(self.tokens):
             return self.tokens[next_pos]
         return None
 
-    def expect(self, kind, value=None):
+    def expect(self, kind, value=None) -> None:
         if self.cur.type != kind:
             raise SyntaxError(
                 f'Expected token {kind}, got {self.cur.type} ({self.cur.value})',
@@ -63,7 +96,7 @@ class Parser:
             )
         self.advance()
 
-    def error(self, msg):
+    def error(self, msg) -> NoReturn:
         raise SyntaxError(
             msg,
             line=self.cur.line,
@@ -71,14 +104,14 @@ class Parser:
         )
 
 
-    def parse_program(self):
+    def parse_program(self) -> Program:
         decls = []
         procs = []
 
         # FIRST PASS: Collect struct names
         # This allows us to recognize struct names as types in declarations
-        temp_pos = self.pos
-        temp_cur = self.cur
+        temp_pos: int = self.pos
+        temp_cur: Token = self.cur
         while self.cur.type != TOK_EOF:
             if self.cur.type == TOK_KEYWORD and self.cur.value == "STRUCT":
                 self.advance()  # skip "struct"
@@ -106,9 +139,9 @@ class Parser:
                 self.advance()
         
         # RESET to beginning
-        self.pos = temp_pos
+        self.pos: int = temp_pos
         if self.pos < len(self.tokens):
-            self.cur = self.tokens[self.pos]
+            self.cur: Token = self.tokens[self.pos]
 
         # SECOND PASS: Parse everything
         while self.cur.type != TOK_EOF:
@@ -117,7 +150,7 @@ class Parser:
                 self.advance()
                 if self.cur.type != TOK_STRING:
                     self.error("Expected string after .segment")
-                segment_name = self.cur.value
+                segment_name: str = self.cur.value
                 self.advance()
                 procs.append(SegmentDirective(segment_name))
             elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INCBIN":
@@ -125,7 +158,7 @@ class Parser:
                 self.advance()
                 if self.cur.type != TOK_STRING:
                     self.error("Expected string after .incbin")
-                filename = self.cur.value
+                filename: str = self.cur.value
                 self.advance()
                 from ast_nodes import IncbinDirective
                 procs.append(IncbinDirective(filename))
@@ -133,7 +166,7 @@ class Parser:
                 # Handle . followed by IDENT (preprocessor directive like .include)
                 self.advance()
                 if self.cur.type == TOK_IDENT:
-                    directive = self.cur.value.upper()
+                    directive: str = self.cur.value.upper()
                     self.advance()
                     if directive == "INCLUDE":
                         if self.cur.type != TOK_STRING:
@@ -143,13 +176,13 @@ class Parser:
                     elif directive == "SEGMENT":
                         if self.cur.type != TOK_STRING:
                             self.error("Expected string after .segment")
-                        segment_name = self.cur.value
+                        segment_name: str = self.cur.value
                         self.advance()
                         procs.append(SegmentDirective(segment_name))
                     elif directive == "INCBIN":
                         if self.cur.type != TOK_STRING:
                             self.error("Expected string after .incbin")
-                        filename = self.cur.value
+                        filename: str = self.cur.value
                         self.advance()
                         from ast_nodes import IncbinDirective
                         procs.append(IncbinDirective(filename))
@@ -192,13 +225,13 @@ class Parser:
         return program
 
 
-    def parse_struct_def(self):
+    def parse_struct_def(self) -> StructDef:
         """Parse struct definition: struct Name field_list end"""
-        start_line = self.cur.line
-        start_col = self.cur.col
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "STRUCT")
         
-        struct_name = self.cur.value
+        struct_name: str = self.cur.value
         self.expect(TOK_IDENT)
 
         fields = []
@@ -215,12 +248,12 @@ class Parser:
             
             # type (either built-in like byte/word, or a struct name)
             if self.cur.type == TOK_TYPE:
-                type_name = self.cur.value
-                type_tok = self.cur
+                type_name: str = self.cur.value
+                type_tok: Token = self.cur
                 self.advance()
             elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
-                type_name = self.cur.value
-                type_tok = self.cur
+                type_name: str = self.cur.value
+                type_tok: Token = self.cur
                 self.advance()
             else:
                 self.error(f"Expected type in struct field, got {self.cur.type} {self.cur.value}")
@@ -228,7 +261,7 @@ class Parser:
             field_type = TypeNode(type_name, is_pointer)
             
             # field name
-            field_name = self.cur.value
+            field_name: str = self.cur.value
             if field_name.startswith('_'):
                 self.error("Field names cannot start with underscore")
             self.expect(TOK_IDENT)
@@ -260,17 +293,17 @@ class Parser:
         self.expect(TOK_KEYWORD, "END")
         return StructDef(struct_name, fields, line=start_line, col=start_col)
 
-    def parse_enum(self):
+    def parse_enum(self) -> EnumDecl:
         """Parse enum declaration: enum [type] Name { item [, item]* }"""
-        start_line = self.cur.line
-        start_col = self.cur.col
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "ENUM")
         # optional base type
         base = 'byte'
         if self.cur.type == TOK_TYPE:
-            base = self.cur.value
+            base: str = self.cur.value
             self.advance()
-        name = self.cur.value
+        name: str = self.cur.value
         self.expect(TOK_IDENT)
         items = []
         # expect '{'
@@ -278,9 +311,9 @@ class Parser:
         # empty enum allowed
         if self.cur.type != TOK_RCURLY:
             while True:
-                item_line = self.cur.line
-                item_col = self.cur.col
-                item_name = self.cur.value
+                item_line: int = self.cur.line
+                item_col: int = self.cur.col
+                item_name: str = self.cur.value
                 if item_name.startswith('_'):
                     self.error("Enum member names cannot start with underscore")
                 self.expect(TOK_IDENT)
@@ -299,15 +332,15 @@ class Parser:
         return EnumDecl(name, base, items, line=start_line, col=start_col)
 
 
-    def parse_proc(self):
-        start_line = self.cur.line
-        start_col = self.cur.col
+    def parse_proc(self) -> ProcDecl:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "PROC")
-        name = self.cur.value
+        name: str = self.cur.value
         self.expect(TOK_IDENT)
 
         # record proc source info
-        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.proc_src[name] = (self.filename, start_line, start_col, line_text)
         self.current_proc_name = name
 
@@ -319,14 +352,14 @@ class Parser:
         self.expect(TOK_LBRACE)
         # parse parameter list
         if self.cur.type != TOK_RBRACE:
-            p = self.parse_parameter()
+            p: Parameter = self.parse_parameter()
             if p.name in seen_names:
                 raise SyntaxError(f"Duplicate parameter '{p.name}' in procedure", line=p.line, col=p.col)
             seen_names.add(p.name)
             params.append(p)
             while self.cur.type == TOK_DELIM and self.cur.value == ',':
                 self.advance()
-                p = self.parse_parameter()
+                p: Parameter = self.parse_parameter()
                 if p.name in seen_names:
                     raise SyntaxError(f"Duplicate parameter '{p.name}' in procedure", line=p.line, col=p.col)
                 seen_names.add(p.name)
@@ -338,7 +371,7 @@ class Parser:
         noexport = False
         export = False
         while self.cur.type == TOK_DECLMOD:
-            val = self.cur.value.upper()
+            val: str = self.cur.value.upper()
             if val == 'KEEP':
                 keep = True
             elif val == 'NOEXPORT':
@@ -349,7 +382,7 @@ class Parser:
                 self.error(f"Unsupported declaration modifier '{val}'")
             self.advance()
 
-        def _is_declaration_start():
+        def _is_declaration_start() -> bool:
             """Check if current position starts a declaration"""
             if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
                 return True
@@ -360,7 +393,7 @@ class Parser:
             if self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
                 # Look ahead to see if next token is an identifier or [ or @ or = or ^ (pointer)
                 # If it's a dot, this is a statement, not a declaration
-                next_tok = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
+                next_tok: Token | None = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
                 if next_tok and (next_tok.type == TOK_IDENT or 
                                 next_tok.type == TOK_PTR or
                                 next_tok.type in (TOK_SQB, TOK_AT) or
@@ -372,7 +405,7 @@ class Parser:
             return False
 
         while _is_declaration_start():
-            decl = self.parse_declaration()
+            decl: Declaration = self.parse_declaration()
             for d in decl.declarators:
                 if d.name in seen_names:
                     raise SyntaxError(f"Duplicate local '{d.name}' in procedure", line=d.line, col=d.col)
@@ -388,19 +421,19 @@ class Parser:
         self.current_proc_name = None
         return ProcDecl(name, params, locals, body, keep=keep, noexport=noexport, export=export)
 
-    def parse_func(self):
-        start_line = self.cur.line
-        start_col = self.cur.col
+    def parse_func(self) -> FuncDecl:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "FUNC")
         
         # return type: can be TYPE (byte/word) or STRUCT_NAME
-        ret_type_tok = self.cur
+        ret_type_tok: Token = self.cur
         if self.cur.type == TOK_TYPE:
             self.advance()
-            ret_type_base = ret_type_tok.value
+            ret_type_base: str = ret_type_tok.value
         elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
             # Struct return type
-            ret_type_base = self.cur.value
+            ret_type_base: str = self.cur.value
             self.advance()
         else:
             self.error(f"Expected type for function return, got {self.cur.type}")
@@ -410,7 +443,7 @@ class Parser:
             ret_is_pointer = True
             self.advance()
         
-        name = self.cur.value
+        name: str = self.cur.value
         self.expect(TOK_IDENT)
         
         locals = []
@@ -421,14 +454,14 @@ class Parser:
         self.expect(TOK_LBRACE)
         # parse parameter list
         if self.cur.type != TOK_RBRACE:
-            p = self.parse_parameter()
+            p: Parameter = self.parse_parameter()
             if p.name in seen_names:
                 raise SyntaxError(f"Duplicate parameter '{p.name}' in function", line=p.line, col=p.col)
             seen_names.add(p.name)
             params.append(p)
             while self.cur.type == TOK_DELIM and self.cur.value == ',':
                 self.advance()
-                p = self.parse_parameter()
+                p: Parameter = self.parse_parameter()
                 if p.name in seen_names:
                     raise SyntaxError(f"Duplicate parameter '{p.name}' in function", line=p.line, col=p.col)
                 seen_names.add(p.name)
@@ -440,7 +473,7 @@ class Parser:
         noexport = False
         export = False
         while self.cur.type == TOK_DECLMOD:
-            val = self.cur.value.upper()
+            val: str = self.cur.value.upper()
             if val == 'KEEP':
                 keep = True
             elif val == 'NOEXPORT':
@@ -452,7 +485,7 @@ class Parser:
             self.advance()
         
         while self.cur.type in (TOK_TYPE, TOK_TYPEMOD) or (self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names):
-            decl = self.parse_declaration()
+            decl: Declaration = self.parse_declaration()
             for d in decl.declarators:
                 if d.name in seen_names:
                     raise SyntaxError(f"Duplicate local '{d.name}' in function", line=d.line, col=d.col)
@@ -465,25 +498,25 @@ class Parser:
         # consume END keyword
         self.expect(TOK_KEYWORD, "END")
 
-        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.proc_src[name] = (self.filename, start_line, start_col, line_text)
 
         return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body, keep=keep, noexport=noexport, export=export)
 
-    def parse_parameter(self):
+    def parse_parameter(self) -> Parameter:
         # Note: the 'type' token can be TOK_TYPE (byte/word) or a STRUCT_NAME, optionally const
         is_const = False
         if self.cur.type == TOK_TYPEMOD and self.cur.value.upper() == "CONST":
             is_const = True
             self.advance()
         
-        type_tok = self.cur
+        type_tok: Token = self.cur
         if self.cur.type == TOK_TYPE:
             self.advance()
-            type_base = type_tok.value
+            type_base: str = type_tok.value
         elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
             # Struct parameter type
-            type_base = self.cur.value
+            type_base: str = self.cur.value
             self.advance()
         else:
             self.error(f"Expected type for parameter, got {self.cur.type}")
@@ -493,9 +526,9 @@ class Parser:
             is_pointer = True
             self.advance()
         
-        name = self.cur.value
-        name_line = self.cur.line
-        name_col = self.cur.col
+        name: str = self.cur.value
+        name_line: int = self.cur.line
+        name_col: int = self.cur.col
         self.expect(TOK_IDENT)
         
         is_array = False
@@ -532,7 +565,7 @@ class Parser:
             # Regular expression
             return self.parse_expr()
 
-    def parse_declaration(self):
+    def parse_declaration(self) -> Declaration:
         is_const = False
         is_static = False
         is_port = False
@@ -560,7 +593,7 @@ class Parser:
             self.advance()
 
         # type (built-in or struct name)
-        type_tok = self.cur
+        type_tok: Token = self.cur
         if self.cur.type == TOK_TYPE:
             # Built-in type (byte, word)
             self.expect(TOK_TYPE)
@@ -583,18 +616,18 @@ class Parser:
                 return val is None or self.cur.value == val
             return False
 
-        def _expect_sqb(val):
+        def _expect_sqb(val) -> None:
             if not _is_sqb(val):
                 self.error(f"Expected '{val}'")
             self.advance()
 
-        def parse_declarator():
+        def parse_declarator() -> Declarator:
             # ident
-            name = self.cur.value
+            name: str = self.cur.value
             if name.startswith('_'):
                 self.error("Variable names cannot start with underscore")
-            decl_line = self.cur.line
-            decl_col = self.cur.col
+            decl_line: int = self.cur.line
+            decl_col: int = self.cur.col
             self.expect(TOK_IDENT)
 
             # Parse array dimensions (may have multiple [size] clauses)
@@ -638,7 +671,7 @@ class Parser:
 
                     # string initializer
                     if self.cur.type == TOK_STRING:
-                        val = self.cur.value
+                        val: str = self.cur.value
                         self.advance()
                         init = StringInit(val)
                         continue
@@ -653,7 +686,7 @@ class Parser:
                 break
 
             # record declaration source
-            line_text = self.source_lines[decl_line-1] if 1 <= decl_line <= len(self.source_lines) else ""
+            line_text: str = self.source_lines[decl_line-1] if 1 <= decl_line <= len(self.source_lines) else ""
             if self.current_proc_name:
                 self.local_decl_src[(self.current_proc_name, name)] = (self.filename, decl_line, decl_col, line_text)
             else:
@@ -671,7 +704,7 @@ class Parser:
                 is_static=is_static
             )
 
-        declarators = [parse_declarator()]
+        declarators: list[Declarator] = [parse_declarator()]
 
         while self.cur.type == TOK_DELIM and self.cur.value == ',':
             self.advance()
@@ -682,7 +715,7 @@ class Parser:
         noexport = False
         export = False
         while self.cur.type == TOK_DECLMOD:
-            val = self.cur.value.upper()
+            val: str = self.cur.value.upper()
             if val == 'KEEP':
                 keep = True
             elif val == 'NOEXPORT':
@@ -868,19 +901,19 @@ class Parser:
         )
 
 
-    def parse_lvalue(self):
+    def parse_lvalue(self) -> Identifier | SubscriptExpr | FieldAccess | DerefExpr:
         if self.cur.type != TOK_IDENT:
             self.error("Expected identifier")
 
-        name_line = self.cur.line
-        name_col = self.cur.col
+        name_line: int = self.cur.line
+        name_col: int = self.cur.col
         node = Identifier(self.cur.value, line=name_line, col=name_col)
         self.advance()
 
         while True:
             if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
-                br_line = self.cur.line
-                br_col = self.cur.col
+                br_line: int = self.cur.line
+                br_col: int = self.cur.col
                 self.advance()
                 idx = self.parse_expr()
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "]":
@@ -892,20 +925,20 @@ class Parser:
             if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
                 # Check for ptr^.field pattern BEFORE treating ^ as postfix deref
                 # This MUST be checked first because ^ can also be binary XOR operator
-                next_tok = self._peek_next()
+                next_tok: Token | None = self._peek_next()
                 if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
                     # This is ptr^.field - consume ^ and ., then field name
-                    ptr_line = self.cur.line
-                    ptr_col = self.cur.col
+                    ptr_line: int = self.cur.line
+                    ptr_col: int = self.cur.col
                     self.advance()  # consume ^
-                    dot_line = self.cur.line
-                    dot_col = self.cur.col
+                    dot_line: int = self.cur.line
+                    dot_col: int = self.cur.col
                     self.advance()  # consume .
                     if self.cur.type != TOK_IDENT:
                         self.error("Expected field name after '.'")
-                    field_line = self.cur.line
-                    field_col = self.cur.col
-                    field_name = self.cur.value
+                    field_line: int = self.cur.line
+                    field_col: int = self.cur.col
+                    field_name: str = self.cur.value
                     self.advance()
                     node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col), field_name, is_deref=True, line=field_line, col=field_col)
                     continue
@@ -917,21 +950,21 @@ class Parser:
                     # This looks like binary XOR (a ^ b), don't consume the ^
                     break
                 # Otherwise, treat as postfix dereference
-                deref_line = self.cur.line
-                deref_col = self.cur.col
+                deref_line: int = self.cur.line
+                deref_col: int = self.cur.col
                 self.advance()
                 node = DerefExpr(node, line=deref_line, col=deref_col)
                 continue
             # Handle field access: obj.field
             if self.cur.type == TOK_OP and self.cur.value == ".":
-                dot_line = self.cur.line
-                dot_col = self.cur.col
+                dot_line: int = self.cur.line
+                dot_col: int = self.cur.col
                 self.advance()
                 if self.cur.type != TOK_IDENT:
                     self.error("Expected field name after '.'")
-                field_line = self.cur.line
-                field_col = self.cur.col
-                field_name = self.cur.value
+                field_line: int = self.cur.line
+                field_col: int = self.cur.col
+                field_name: str = self.cur.value
                 self.advance()
                 node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col)
                 continue
@@ -940,10 +973,10 @@ class Parser:
 
         return node
 
-    def parse_assign(self):
-        start_line = self.cur.line
-        start_col = self.cur.col
-        lhs = self.parse_lvalue()
+    def parse_assign(self) -> CallStmt | AssignStmt:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
+        lhs: Identifier | SubscriptExpr | FieldAccess | DerefExpr = self.parse_lvalue()
 
         # defensive: if after lvalue we see '(', treat as a call statement
         if self.cur.type == TOK_LBRACE:
@@ -972,7 +1005,7 @@ class Parser:
 
         rhs = self.parse_expr()
         node = AssignStmt(lhs, rhs)
-        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
@@ -980,8 +1013,8 @@ class Parser:
         node = self.parse_factor()
         while self.cur.type == TOK_OP and self.cur.value in ("*", "/", "%"):
             op = BinOp(self.cur.value)
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_factor()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -992,8 +1025,8 @@ class Parser:
         node = self.parse_add()
         while self.cur.type == TOK_OP and self.cur.value in ("<<", ">>"):
             op = BinOp(self.cur.value)
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_add()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1004,8 +1037,8 @@ class Parser:
         node = self.parse_term()
         while self.cur.type == TOK_OP and self.cur.value in ("+", "-"):
             op = BinOp(self.cur.value)
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_term()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1018,8 +1051,8 @@ class Parser:
             "==", "!=", "<", "<=", ">", ">="
         ):
             op = BinOp(self.cur.value)
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_shift()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1029,9 +1062,9 @@ class Parser:
     def parse_bitwise_and(self):
         node = self.parse_rel()
         while self.cur.type == TOK_OP and self.cur.value == "&":
-            op = BinOp.BAND
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op: BinOp = BinOp.BAND
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_rel()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1041,9 +1074,9 @@ class Parser:
     def parse_bitwise_xor(self):
         node = self.parse_bitwise_and()
         while self.cur.type == TOK_OP and self.cur.value == "^":
-            op = BinOp.BXOR
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op: BinOp = BinOp.BXOR
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_and()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1053,9 +1086,9 @@ class Parser:
     def parse_bitwise_or(self):
         node = self.parse_bitwise_xor()
         while self.cur.type == TOK_OP and self.cur.value == "|":
-            op = BinOp.BOR
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op: BinOp = BinOp.BOR
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_xor()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1065,9 +1098,9 @@ class Parser:
     def parse_logic_and(self):
         node = self.parse_bitwise_or()
         while self.cur.type == TOK_OP and self.cur.value == "&&":
-            op = BinOp.LAND
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op: BinOp = BinOp.LAND
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_or()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1077,9 +1110,9 @@ class Parser:
     def parse_logic_or(self):
         node = self.parse_logic_and()
         while self.cur.type == TOK_OP and self.cur.value == "||":
-            op = BinOp.LOR
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op: BinOp = BinOp.LOR
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_logic_and()
             node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
@@ -1092,31 +1125,31 @@ class Parser:
         # Handle unary operators (prefix)
         if self.cur.type == TOK_AT:
             # Address-of operator @expr
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Parse the expression to take address of
             return UnaryExpr(UnOp.ADDROF, operand, line=op_line, col=op_col)
         
         if self.cur.type == TOK_OP and self.cur.value == "~":
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
             return UnaryExpr(UnOp.BNOT, operand, line=op_line, col=op_col)
         
         if self.cur.type == TOK_OP and self.cur.value == "!":
             # Logical NOT operator
-            op_line = self.cur.line
-            op_col = self.cur.col
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
             return UnaryExpr(UnOp.NOT, operand, line=op_line, col=op_col)
         
         if self.cur.type == TOK_NUMBER:
-            val = self.cur.value
-            num_line = self.cur.line
-            num_col = self.cur.col
+            val: str = self.cur.value
+            num_line: int = self.cur.line
+            num_col: int = self.cur.col
             self.advance()
             
             # Check for consecutive character literals: 'a''b' for word values
@@ -1131,15 +1164,15 @@ class Parser:
                     # This looks like 'a''b' - combine into word value
                     # Format: low byte in 'a', high byte in 'b'
                     self.advance()
-                    combined_val = first_val | (next_val << 8)
+                    combined_val: int = first_val | (next_val << 8)
                     return IntLiteral(combined_val, line=num_line, col=num_col)
             
             return IntLiteral(first_val, line=num_line, col=num_col)
 
         if self.cur.type == TOK_IDENT:
-            name = self.cur.value
-            name_line = self.cur.line
-            name_col = self.cur.col
+            name: str = self.cur.value
+            name_line: int = self.cur.line
+            name_col: int = self.cur.col
             node = Identifier(name, line=name_line, col=name_col)
             self.advance()
 
@@ -1165,8 +1198,8 @@ class Parser:
                     self.expect(TOK_RBRACE)
                     return CallExpr(name, args, line=name_line, col=name_col)
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
-                    br_line = self.cur.line
-                    br_col = self.cur.col
+                    br_line: int = self.cur.line
+                    br_col: int = self.cur.col
                     self.advance()
                     idx = self.parse_expr()
                     if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "]":
@@ -1178,25 +1211,25 @@ class Parser:
                 # IMPORTANT: Check for ptr^.field BEFORE checking for standalone ^
                 # This must be checked first because ^ can be consumed as postfix deref
                 if self.cur.type == TOK_PTR:
-                    next_tok = self._peek_next()
+                    next_tok: Token | None = self._peek_next()
                     if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
-                        ptr_line = self.cur.line
-                        ptr_col = self.cur.col
+                        ptr_line: int = self.cur.line
+                        ptr_col: int = self.cur.col
                         self.advance()  # consume ^
-                        dot_line = self.cur.line
-                        dot_col = self.cur.col
+                        dot_line: int = self.cur.line
+                        dot_col: int = self.cur.col
                         self.advance()  # consume .
-                        field_line = self.cur.line
-                        field_col = self.cur.col
-                        field_name = self.cur.value
+                        field_line: int = self.cur.line
+                        field_col: int = self.cur.col
+                        field_name: str = self.cur.value
                         self.expect(TOK_IDENT)
                         node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col), field_name, is_deref=True, line=field_line, col=field_col)
                         continue
                 # For caret: only treat as postfix dereference if next token cannot start an expression
                 # If it could be an expression (IDENT, NUMBER, LBRACE, etc.), then it's likely binary XOR
                 if self.cur.type == TOK_PTR:
-                    deref_line = self.cur.line
-                    deref_col = self.cur.col
+                    deref_line: int = self.cur.line
+                    deref_col: int = self.cur.col
                     self.advance()
                     node = DerefExpr(node, line=deref_line, col=deref_col)
                     continue
@@ -1204,26 +1237,26 @@ class Parser:
                 # Only consume it if the next token is NOT an identifier or number (which would indicate binary XOR)
                 if self.cur.type == TOK_OP and self.cur.value == "^":
                     # Look ahead to see if this might be binary XOR
-                    next_tok = self._peek_next()
+                    next_tok: Token | None = self._peek_next()
                     # If next token is IDENT or NUMBER on the SAME line, it's likely binary XOR
                     # If it's on a different line, it's the start of a new statement, so ^ is postfix deref
                     if next_tok and next_tok.type in (TOK_IDENT, TOK_NUMBER) and next_tok.line == self.cur.line:
                         # This is likely binary XOR (a ^ b), don't consume the ^
                         break
                     # Otherwise treat as postfix dereference
-                    deref2_line = self.cur.line
-                    deref2_col = self.cur.col
+                    deref2_line: int = self.cur.line
+                    deref2_col: int = self.cur.col
                     self.advance()
                     node = DerefExpr(node, line=deref2_line, col=deref2_col)
                     continue
                 # Field access: obj.field
                 if self.cur.type == TOK_OP and self.cur.value == ".":
-                    dotline = self.cur.line
-                    dotcol = self.cur.col
+                    dotline: int = self.cur.line
+                    dotcol: int = self.cur.col
                     self.advance()
-                    field_line = self.cur.line
-                    field_col = self.cur.col
-                    field_name = self.cur.value
+                    field_line: int = self.cur.line
+                    field_col: int = self.cur.col
+                    field_name: str = self.cur.value
                     self.expect(TOK_IDENT)
                     node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col)
                     continue
@@ -1239,9 +1272,9 @@ class Parser:
         self.error(f"Expected expression, got {self.cur.type}")
 
             
-    def parse_if(self):
-        start_line = self.cur.line
-        start_col = self.cur.col
+    def parse_if(self) -> IfStmt:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "IF")
         cond = self.parse_expr()
         self.expect(TOK_KEYWORD, "THEN")        
@@ -1254,7 +1287,7 @@ class Parser:
             then_body.append(self.parse_stmt())
 
         root_if = IfStmt(cond, then_body, None)
-        cur_if = root_if
+        cur_if: IfStmt = root_if
 
         # ELSEIF*
         while self.cur.type == TOK_KEYWORD and self.cur.value == "ELSEIF":
@@ -1271,7 +1304,7 @@ class Parser:
 
             next_if = IfStmt(cond, body, None)
             cur_if.else_body = [next_if]
-            cur_if = next_if
+            cur_if: IfStmt = next_if
 
         # ELSE
         if self.cur.type == TOK_KEYWORD and self.cur.value == "ELSE":
@@ -1285,15 +1318,15 @@ class Parser:
             cur_if.else_body = else_body
 
         self.expect(TOK_KEYWORD, "ENDIF")
-        node = root_if
-        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        node: IfStmt = root_if
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
 
-    def parse_while(self):
-        start_line = self.cur.line
-        start_col = self.cur.col
+    def parse_while(self) -> WhileStmt:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "WHILE")
         cond = self.parse_expr()
 
@@ -1303,13 +1336,13 @@ class Parser:
 
         self.expect(TOK_KEYWORD, "END")
         node = WhileStmt(cond, body)
-        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
-    def parse_for(self):
-        start_line = self.cur.line
-        start_col = self.cur.col
+    def parse_for(self) -> ForStmt:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "FOR")
 
         # i
@@ -1337,12 +1370,12 @@ class Parser:
         # Action requires: NEXT <var>
         self.expect(TOK_IDENT)
         node = ForStmt(var, start, end, step, body)
-        line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
 
-    def parse_stmt(self):
+    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | IfStmt | WhileStmt | ForStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")
 
@@ -1355,7 +1388,7 @@ class Parser:
             self.advance()
             if self.cur.type != TOK_STRING:
                 self.error("Expected string after .segment")
-            segment_name = self.cur.value
+            segment_name: str = self.cur.value
             self.advance()
             return SegmentDirective(segment_name)
 
@@ -1364,7 +1397,7 @@ class Parser:
             self.advance()
             if self.cur.type != TOK_STRING:
                 self.error("Expected string after .incbin")
-            filename = self.cur.value
+            filename: str = self.cur.value
             self.advance()
             from ast_nodes import IncbinDirective
             return IncbinDirective(filename)
@@ -1373,18 +1406,18 @@ class Parser:
         if self.cur.type == TOK_OP and self.cur.value == ".":
             self.advance()
             if self.cur.type == TOK_IDENT:
-                directive = self.cur.value.upper()
+                directive: str = self.cur.value.upper()
                 self.advance()
                 if directive == "SEGMENT":
                     if self.cur.type != TOK_STRING:
                         self.error("Expected string after .segment")
-                    segment_name = self.cur.value
+                    segment_name: str = self.cur.value
                     self.advance()
                     return SegmentDirective(segment_name)
                 elif directive == "INCBIN":
                     if self.cur.type != TOK_STRING:
                         self.error("Expected string after .incbin")
-                    filename = self.cur.value
+                    filename: str = self.cur.value
                     self.advance()
                     from ast_nodes import IncbinDirective
                     return IncbinDirective(filename)
@@ -1398,7 +1431,7 @@ class Parser:
                 self.advance()
                 if self.cur.type != TOK_ASM_BLOCK:
                     self.error("Expected ASM block after ASM")
-                block_text = self.cur.value
+                block_text: str = self.cur.value
                 self.advance()
                 return AsmBlock(block_text)
             if self.cur.value == "IF":
@@ -1424,20 +1457,20 @@ class Parser:
                     if self.cur.type not in (TOK_KEYWORD,):
                         expr = self.parse_expr()
                 node = ReturnStmt(expr)
-                ret_line = self.cur.line
-                ret_col = self.cur.col
-                line_text = self.source_lines[ret_line-1] if 1 <= ret_line <= len(self.source_lines) else ""
+                ret_line: int = self.cur.line
+                ret_col: int = self.cur.col
+                line_text: str = self.source_lines[ret_line-1] if 1 <= ret_line <= len(self.source_lines) else ""
                 self.stmt_src[id(node)] = (self.filename, ret_line, ret_col, line_text)
                 return node
 
         # Call statement: IDENT(...)
         if self.cur.type == TOK_IDENT:
             # peek next token
-            nxt = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
+            nxt: Token | None = self.tokens[self.pos+1] if self.pos+1 < len(self.tokens) else None
             if nxt is not None and nxt.type == TOK_LBRACE:
-                start_line = self.cur.line
-                start_col = self.cur.col
-                name = self.cur.value
+                start_line: int = self.cur.line
+                start_col: int = self.cur.col
+                name: str = self.cur.value
                 self.advance()
                 # parse arg list
                 self.expect(TOK_LBRACE)
@@ -1449,7 +1482,7 @@ class Parser:
                         args.append(self.parse_expr())
                 self.expect(TOK_RBRACE)
                 node = CallStmt(name, args)
-                line_text = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+                line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
                 self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node
 

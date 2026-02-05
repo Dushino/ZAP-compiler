@@ -6,7 +6,6 @@ from ast_nodes import (
     UnOp,
     BinOp,
 )
-from sema_expr import ExprTypeChecker
 from errors import SemanticError
 
 
@@ -15,21 +14,21 @@ def fold_expr(expr: Expr) -> Expr:
         return expr
 
     if isinstance(expr, UnaryExpr):
-        inner = fold_expr(expr.expr)
+        inner: Expr = fold_expr(expr.expr)
         if isinstance(inner, IntLiteral):
             return _eval_unary(expr.op, inner.value)
         return UnaryExpr(expr.op, inner)
 
     if isinstance(expr, BinaryExpr):
-        l = fold_expr(expr.left)
-        r = fold_expr(expr.right)
+        l: Expr = fold_expr(expr.left)
+        r: Expr = fold_expr(expr.right)
         
         # Constant folding: const op const
         if isinstance(l, IntLiteral) and isinstance(r, IntLiteral):
             return _eval_binary(expr.op, l.value, r.value)
         
         # Neutral element removal and algebraic simplifications
-        op = expr.op
+        op: BinOp = expr.op
         
         # Addition: x + 0 = x, 0 + x = x
         if op == BinOp.ADD:

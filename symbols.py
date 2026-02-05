@@ -1,5 +1,5 @@
 ﻿from dataclasses import dataclass
-from typing import Optional, Protocol, List
+from typing import Iterator, Optional, Protocol, List
 from errors import SemanticError
 
 
@@ -54,10 +54,10 @@ class StructInfo:
 
 class StructRegistry:
     """Registry for struct definitions"""
-    def __init__(self):
+    def __init__(self) -> None:
         self._structs: dict[str, StructInfo] = {}
 
-    def define(self, struct_info: StructInfo):
+    def define(self, struct_info: StructInfo) -> None:
         """Register a struct definition"""
         if struct_info.name.upper() in self._structs:
             raise SemanticError(f"Struct '{struct_info.name}' already defined")
@@ -85,7 +85,7 @@ class SemType:
             return 2
         if self.is_struct and self.struct_info:
             return self.struct_info.size
-        base_lower = self.base.lower() if isinstance(self.base, str) else ""
+        base_lower: str = self.base.lower() if isinstance(self.base, str) else ""
         if base_lower == "byte":
             return 1
         if base_lower == "word":
@@ -132,10 +132,10 @@ class Symbol:
             return 0
         
         # Get element size based on type
-        element_width = self.type.width
+        element_width: int = self.type.width
         
         # Multiply by all dimension sizes
-        total = element_width
+        total: int = element_width
         if self.array_dims:
             # Check for any None values (should be resolved during semantic analysis)
             if any(d is None for d in self.array_dims):
@@ -151,10 +151,10 @@ class Symbol:
 
 
 class SymbolTable:
-    def __init__(self):
+    def __init__(self) -> None:
         self._symbols: dict[str, Symbol] = {}
 
-    def define(self, sym: Symbol):
+    def define(self, sym: Symbol) -> None:
         if sym.name in self._symbols:
             raise SemanticError(f"Variable '{sym.name}' already defined")
         self._symbols[sym.name] = sym
@@ -162,7 +162,7 @@ class SymbolTable:
     def lookup(self, name: str) -> Symbol:
         return self._symbols[name]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Symbol]:
         return iter(self._symbols.values())
 
 
@@ -180,13 +180,13 @@ class ProcSymbol:
 
 
 class ProcTable:
-    def __init__(self):
+    def __init__(self) -> None:
         # Map name -> list of ProcSymbol (allow same name in different modules if not exported)
         self._procs: dict[str, list[ProcSymbol]] = {}
 
-    def define(self, p: ProcSymbol):
+    def define(self, p: ProcSymbol) -> None:
         # Ensure no duplicate definitions within same owner
-        lst = self._procs.setdefault(p.name, [])
+        lst: List[ProcSymbol] = self._procs.setdefault(p.name, [])
         for existing in lst:
             if existing.owner_file == p.owner_file:
                 raise SemanticError(f"Procedure '{p.name}' already defined")
@@ -202,14 +202,14 @@ class ProcTable:
         """
         if name not in self._procs:
             raise SemanticError(f"Undefined procedure '{name}'")
-        candidates = self._procs[name]
+        candidates: List[ProcSymbol] = self._procs[name]
         # Prefer candidate defined in caller_file
         if caller_file is not None:
             for c in candidates:
                 if c.owner_file == caller_file:
                     return c
         # Otherwise, look for exported candidates
-        exported = [c for c in candidates if c.exported]
+        exported: List[ProcSymbol] = [c for c in candidates if c.exported]
         if len(exported) == 1:
             return exported[0]
         if len(exported) > 1:
@@ -219,11 +219,11 @@ class ProcTable:
 
 
 class ScopedSymbolTable:
-    def __init__(self, parent: SymbolTable):
-        self.parent = parent
+    def __init__(self, parent: SymbolTable) -> None:
+        self.parent: SymbolTable = parent
         self.local = SymbolTable()
 
-    def lookup(self, name: str):
+    def lookup(self, name: str) -> Symbol:
         try:
             return self.local.lookup(name)
         except KeyError:
@@ -238,10 +238,10 @@ class FuncSymbol:
 
 
 class FuncTable:
-    def __init__(self):
+    def __init__(self) -> None:
         self._funcs: dict[str, FuncSymbol] = {}
 
-    def define(self, f: FuncSymbol):
+    def define(self, f: FuncSymbol) -> None:
         if f.name in self._funcs:
             raise SemanticError(f"Function '{f.name}' already defined")
         self._funcs[f.name] = f

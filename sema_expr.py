@@ -1,7 +1,9 @@
-from symbols import SemType, SemType, SymbolLookup, FuncTable
+from typing import Literal
+from typing import Literal
+from symbols import FuncSymbol, SemType, SemType, Symbol, Symbol, StructInfo, Symbol, SymbolLookup, FuncTable
 from sema import SemanticError
 from sema_types import ExprKind, ExprType
-from ast_nodes import IntLiteral, Identifier, DerefExpr, CallExpr
+from ast_nodes import Expr, Expr, IntLiteral, Identifier, DerefExpr, CallExpr
 from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess
 
 
@@ -12,9 +14,9 @@ def promote(a: SemType, b: SemType) -> SemType:
 
 
 class ExprTypeChecker:
-    def __init__(self, symtab: SymbolLookup, func_table: FuncTable, struct_registry=None):
-        self.symtab = symtab
-        self.func_table = func_table
+    def __init__(self, symtab: SymbolLookup, func_table: FuncTable, struct_registry=None) -> None:
+        self.symtab: SymbolLookup = symtab
+        self.func_table: FuncTable = func_table
         self.struct_registry = struct_registry
 
     def check(self, expr, read_check_enabled: bool = True) -> ExprType:
@@ -27,7 +29,7 @@ class ExprTypeChecker:
 
         if isinstance(expr, Identifier):
             try:
-                sym = self.symtab.lookup(expr.name)
+                sym: Symbol = self.symtab.lookup(expr.name)
             except KeyError:
                 raise SemanticError(f"Variable '{expr.name}' is not defined", node=expr)
             if sym.is_array:
@@ -56,7 +58,7 @@ class ExprTypeChecker:
             return ExprType(sym.type, ExprKind.VALUE)
 
         if isinstance(expr, DerefExpr):
-            base = self.check(expr.pointer)
+            base: ExprType = self.check(expr.pointer)
             if base.kind != ExprKind.ADDR or not base.sem_type.is_pointer:
                 raise SemanticError("Cannot dereference non-pointer", node=expr)
             
@@ -70,7 +72,7 @@ class ExprTypeChecker:
             return ExprType(result_type, ExprKind.LVALUE)
 
         if isinstance(expr, SubscriptExpr):
-            arr_t = self.check(expr.array)
+            arr_t: ExprType = self.check(expr.array)
             if arr_t.kind != ExprKind.ADDR:
                 raise SemanticError("Subscript requires array address", node=expr)
             
@@ -83,13 +85,13 @@ class ExprTypeChecker:
             # Only final subscript returns LVALUE (actual element)
             
             # Helper function to count subscript depth and find base array
-            def get_subscript_info(sub_expr):
+            def get_subscript_info(sub_expr) -> tuple[str, int, Literal[False]] | tuple[FieldAccess, int, Literal[True]] | tuple[None, int, Literal[False]]:
                 """Returns (base_identifier, subscript_depth, base_is_field_access)"""
                 depth = 0
                 current = sub_expr
                 while isinstance(current, SubscriptExpr):
                     depth += 1
-                    current = current.array
+                    current: Expr = current.array
                 if isinstance(current, Identifier):
                     return current.name, depth, False
                 elif isinstance(current, FieldAccess):
@@ -101,7 +103,7 @@ class ExprTypeChecker:
             if base_info and not is_field_access:
                 # We found a base array identifier - check its dimensions
                 try:
-                    arr_sym = self.symtab.lookup(base_info)
+                    arr_sym: Symbol = self.symtab.lookup(base_info)
                     if arr_sym.is_array and arr_sym.array_dims and len(arr_sym.array_dims) > current_depth:
                         # More dimensions remain after this subscript - return ADDR
                         elem_type = SemType(
@@ -115,20 +117,20 @@ class ExprTypeChecker:
                     pass
             elif base_info and is_field_access:
                 # We have a field access as base - check if the field has multiple dimensions
-                field_access_expr = base_info
+                field_access_expr: str | FieldAccess = base_info
                 # Get the field info from the struct registry
                 if not self.struct_registry:
                     pass  # Will default to LVALUE below
                 else:
                     try:
                         # Check the object type
-                        obj_type = self.check(field_access_expr.object)
+                        obj_type: ExprType = self.check(field_access_expr.object)
                         
                         # Get struct info
                         if field_access_expr.is_deref:
-                            base_type_name = obj_type.sem_type.base
+                            base_type_name: str = obj_type.sem_type.base
                         else:
-                            base_type_name = obj_type.sem_type.base
+                            base_type_name: str = obj_type.sem_type.base
                         
                         struct_info = self.struct_registry.lookup(base_type_name.upper())
                         if struct_info:
@@ -157,9 +159,9 @@ class ExprTypeChecker:
             return ExprType(elem_type, ExprKind.LVALUE)
 
         if isinstance(expr, BinaryExpr):
-            lt = self.check(expr.left)
-            rt = self.check(expr.right)
-            op = expr.op
+            lt: ExprType = self.check(expr.left)
+            rt: ExprType = self.check(expr.right)
+            op: BinOp = expr.op
 
             # Convert LVALUE to VALUE when used in expression context (reading)
             # LVALUE means "location that can be written to", but when used in
@@ -214,7 +216,7 @@ class ExprTypeChecker:
             # Handle address-of operator (@)
             if expr.op == UnOp.ADDROF:
                 # @ can only be applied to lvalues (variables, array elements, struct fields)
-                operand_t = self.check(expr.expr)
+                operand_t: ExprType = self.check(expr.expr)
                 
                 # Check that operand is addressable
                 if isinstance(expr.expr, Identifier):
@@ -230,16 +232,16 @@ class ExprTypeChecker:
                     raise SemanticError("Cannot take address of this expression", node=expr)
                 
                 # Address-of always returns WORD pointer to the operand's type
-                base_type = operand_t.sem_type.base
-                is_struct = operand_t.sem_type.is_struct
-                struct_info = operand_t.sem_type.struct_info
+                base_type: str = operand_t.sem_type.base
+                is_struct: bool = operand_t.sem_type.is_struct
+                struct_info: StructInfo | None = operand_t.sem_type.struct_info
                 
                 return ExprType(
                     SemType(base=base_type, is_pointer=True, is_struct=is_struct, struct_info=struct_info),
                     ExprKind.ADDR
                 )
             
-            t = self.check(expr.expr)
+            t: ExprType = self.check(expr.expr)
             # Convert LVALUE to VALUE when reading (e.g., !ptr^ or -ptr^ or ~ptr^)
             if t.kind == ExprKind.LVALUE:
                 t = ExprType(t.sem_type, ExprKind.VALUE)
@@ -255,7 +257,7 @@ class ExprTypeChecker:
 
         # funkce
         if isinstance(expr, CallExpr):
-            fs = self.func_table.lookup(expr.name)
+            fs: FuncSymbol = self.func_table.lookup(expr.name)
             # Allow arguments from required_params to param_count
             if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:
                 raise SemanticError(
@@ -271,14 +273,14 @@ class ExprTypeChecker:
                 raise SemanticError("Struct registry not available", node=expr)
             
             # Check the object type
-            obj_type = self.check(expr.object)
+            obj_type: ExprType = self.check(expr.object)
             
             # For deref field access (ptr^.field), object is a DerefExpr which is LVALUE of struct type
             # For direct field access (obj.field), object can be LVALUE or VALUE of struct type
             if obj_type.kind not in (ExprKind.VALUE, ExprKind.LVALUE):
                 raise SemanticError("Field access requires struct value or lvalue", node=expr)
             
-            base_type_name = obj_type.sem_type.base
+            base_type_name: str = obj_type.sem_type.base
             
             # Look up struct definition
             struct_info = self.struct_registry.lookup(base_type_name.upper())
@@ -311,20 +313,20 @@ class ExprTypeChecker:
             node=expr
         )
 
-    def _check_array_bounds(self, subscript_expr: SubscriptExpr, index_value: int):
+    def _check_array_bounds(self, subscript_expr: SubscriptExpr, index_value: int) -> None:
         """Check if a constant array index is within bounds.
         
         For multi-dimensional arrays, finds the base array and checks the index
         against the appropriate dimension based on subscript depth.
         """
         # Helper to get base array info and subscript depth
-        def get_subscript_info(sub_expr):
+        def get_subscript_info(sub_expr) -> tuple[str, int, Literal[False], None] | tuple[None, int, Literal[True], FieldAccess] | tuple[None, int, Literal[False], None]:
             """Returns (base_identifier, subscript_depth, is_field_access, base_field_access)"""
             depth = 0
             current = sub_expr
             while isinstance(current, SubscriptExpr):
                 depth += 1
-                current = current.array
+                current: Expr = current.array
             if isinstance(current, Identifier):
                 return current.name, depth, False, None
             elif isinstance(current, FieldAccess):
@@ -340,14 +342,14 @@ class ExprTypeChecker:
         # For regular array identifiers
         if base_name and not is_field_access:
             try:
-                arr_sym = self.symtab.lookup(base_name)
+                arr_sym: Symbol = self.symtab.lookup(base_name)
                 if arr_sym.is_array:
                     # Get the dimension to check based on subscript depth
                     # depth=1 means first subscript, check first dimension
-                    dim_index = depth - 1
+                    dim_index: int = depth - 1
                     
                     if arr_sym.array_dims and dim_index < len(arr_sym.array_dims):
-                        max_size = arr_sym.array_dims[dim_index]
+                        max_size: int = arr_sym.array_dims[dim_index]
                         if max_size is not None and index_value >= max_size:
                             raise SemanticError(
                                 f"Array index {index_value} is out of bounds for array dimension {dim_index + 1} with size {max_size}",
@@ -367,20 +369,20 @@ class ExprTypeChecker:
         # For field access (struct field arrays)
         elif is_field_access and field_access_expr:
             try:
-                obj_type = self.check(field_access_expr.object)
+                obj_type: ExprType = self.check(field_access_expr.object)
                 
                 # Get struct info
                 if field_access_expr.is_deref:
-                    base_type_name = obj_type.sem_type.base
+                    base_type_name: str = obj_type.sem_type.base
                 else:
-                    base_type_name = obj_type.sem_type.base
+                    base_type_name: str = obj_type.sem_type.base
                 
                 if self.struct_registry:
                     struct_info = self.struct_registry.lookup(base_type_name.upper())
                     if struct_info:
                         field_info = struct_info.get_field(field_access_expr.field.upper())
                         if field_info and field_info.array_sizes:
-                            dim_index = depth - 1
+                            dim_index: int = depth - 1
                             if dim_index < len(field_info.array_sizes):
                                 max_size = field_info.array_sizes[dim_index]
                                 if max_size is not None and index_value >= max_size:

@@ -1,10 +1,36 @@
 ﻿# 
 
+from errors import SemanticError
+from typing import Any
+from typing import Any
+from typing import Any
+from typing import Any
+from errors import SemanticError
+from errors import SemanticError
+from errors import SemanticError
+from typing import List
+from errors import SemanticError
+from typing import Any
+from typing import Any
+from errors import SemanticError
+from typing import Any
+from typing import Any
+from errors import SemanticError
+from typing import Any
+from typing import Any
+from errors import SemanticError
+from typing import Any
+from typing import Any
+from errors import SemanticError
+from typing import Any
+from typing import Any
+from errors import SemanticError
+from errors import SemanticError
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
 from errors import *
-from ast_nodes import IntLiteral, Identifier, DerefExpr, BinaryExpr, BinOp
+from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp
 from ast_nodes import ListInit, StringInit, ExprInit
-from ast_nodes import Declaration, Declarator, StructDef, StructField, EnumDecl, EnumItem
+from ast_nodes import Declaration, Declarator, StructDef, EnumDecl
 
 
 def eval_const_expr(expr, symtab=None):
@@ -61,16 +87,16 @@ def eval_array_dimensions(array_sizes, symtab, d_obj=None):
             try:
                 sz_val = eval_const_expr(size_expr, symtab)
             except SemanticError as e:
-                line = getattr(d_obj, 'line', 0)
-                col = getattr(d_obj, 'col', 0)
+                line: Any | int = getattr(d_obj, 'line', 0)
+                col: Any | int = getattr(d_obj, 'col', 0)
                 raise SemanticError(e.message, line=line, col=col)
             
             if sz_val == -1:
                 # [] → will be inferred from initializer
                 array_dims.append(None)
             elif sz_val <= 0:
-                line = getattr(d_obj, 'line', 0)
-                col = getattr(d_obj, 'col', 0)
+                line: Any | int = getattr(d_obj, 'line', 0)
+                col: Any | int = getattr(d_obj, 'col', 0)
                 raise SemanticError("Array dimension must be positive", line=line, col=col)
             else:
                 array_dims.append(sz_val)
@@ -85,10 +111,10 @@ def eval_array_dimensions(array_sizes, symtab, d_obj=None):
 
 class StructAnalyzer:
     """Analyzes and registers struct definitions"""
-    def __init__(self, struct_registry: StructRegistry):
-        self.registry = struct_registry
+    def __init__(self, struct_registry: StructRegistry) -> None:
+        self.registry: StructRegistry = struct_registry
 
-    def analyze(self, struct_def: StructDef):
+    def analyze(self, struct_def: StructDef) -> None:
         """Analyze a struct definition and register it"""
         # Calculate field offsets
         fields: list[StructFieldInfo] = []
@@ -96,8 +122,8 @@ class StructAnalyzer:
 
         for field_ast in struct_def.fields:
             # Get field type
-            field_type = field_ast.type.base.upper()
-            is_pointer = field_ast.type.is_pointer
+            field_type: str = field_ast.type.base.upper()
+            is_pointer: bool = field_ast.type.is_pointer
 
             # Get element width (for a single element, not array)
             if field_type == "BYTE":
@@ -106,8 +132,8 @@ class StructAnalyzer:
                 elem_width = 2
             elif field_type in self.registry._structs:
                 # Nested struct type
-                nested_struct = self.registry._structs[field_type]
-                elem_width = nested_struct.size
+                nested_struct: StructInfo = self.registry._structs[field_type]
+                elem_width: int = nested_struct.size
             elif is_pointer and field_type == struct_def.name.upper():
                 # Self-referential struct pointer (or forward-referenced struct)
                 # Pointers are always 16-bit (2 bytes)
@@ -136,7 +162,7 @@ class StructAnalyzer:
                         raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}")
 
             # Calculate total width
-            width = elem_width
+            width: int = elem_width
             if array_sizes:
                 total_elements = 1
                 for size in array_sizes:
@@ -179,15 +205,15 @@ class StructAnalyzer:
 
 
 class DeclarationAnalyzer:
-    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None, global_symtab=None):
-        self.symtab = symtab
+    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None, global_symtab=None) -> None:
+        self.symtab: SymbolTable = symtab
         self.struct_registry = struct_registry
         self.func_table = func_table
         self.global_symtab = global_symtab
 
-    def analyze(self, decl: Declaration):
+    def analyze(self, decl: Declaration) -> None:
         # Check if this is a struct type or a built-in type
-        base_name = decl.type.base.upper()
+        base_name: str = decl.type.base.upper()
         is_struct = False
         struct_info = None
         
@@ -205,10 +231,10 @@ class DeclarationAnalyzer:
         for d in decl.declarators:
             self._analyze_declarator(decl, d, sem_type)
 
-    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int):
+    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int) -> None:
         """Recursively validate struct initializer has correct field count and nested structs."""
-        num_fields = len(struct_info.fields)
-        num_values = len(init.values)
+        num_fields: int = len(struct_info.fields)
+        num_values: int = len(init.values)
         
         if num_values != num_fields:
             raise SemanticError(
@@ -236,7 +262,7 @@ class DeclarationAnalyzer:
         decl: Declaration,
         d: Declarator,
         sem_type: SemType
-        ):
+        ) -> None:
 
         # Validate STATIC modifier
         if decl.is_static or d.is_static:
@@ -282,7 +308,7 @@ class DeclarationAnalyzer:
             raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", line=d.line, col=d.col)
 
         # Extract array dimensions (supports multi-dimensional arrays)
-        array_sizes_to_eval = d.array_sizes if d.array_sizes else (
+        array_sizes_to_eval: List[Expr] = d.array_sizes if d.array_sizes else (
             [d.array_size] if d.array_size is not None else []
         )
         
@@ -331,8 +357,8 @@ class DeclarationAnalyzer:
                             line=d.line, col=d.col
                         )
 
-                rd = getattr(decl, 'port_rd', False)
-                wr = getattr(decl, 'port_wr', False)
+                rd: Any | bool = getattr(decl, 'port_rd', False)
+                wr: Any | bool = getattr(decl, 'port_wr', False)
                 if decl.is_port and not (rd or wr):
                     rd = wr = True
                 sym = Symbol(
@@ -369,12 +395,12 @@ class DeclarationAnalyzer:
                 if is_array:
                     # Const array with ListInit
                     if array_len is None:
-                        array_len = len(d.initializer.values)
+                        array_len: int = len(d.initializer.values)
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
-                    rd = getattr(decl, 'port_rd', False)
-                    wr = getattr(decl, 'port_wr', False)
+                    rd: Any | bool = getattr(decl, 'port_rd', False)
+                    wr: Any | bool = getattr(decl, 'port_wr', False)
                     if decl.is_port and not (rd or wr):
                         rd = wr = True
                     sym = Symbol(
@@ -407,8 +433,8 @@ class DeclarationAnalyzer:
                     # Validate field count (including nested)
                     self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
                     
-                    rd = getattr(decl, 'port_rd', False)
-                    wr = getattr(decl, 'port_wr', False)
+                    rd: Any | bool = getattr(decl, 'port_rd', False)
+                    wr: Any | bool = getattr(decl, 'port_wr', False)
                     if decl.is_port and not (rd or wr):
                         rd = wr = True
                     sym = Symbol(
@@ -446,10 +472,10 @@ class DeclarationAnalyzer:
                     raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
                 
                 if array_len is None:
-                    array_len = len(d.initializer.value) + 1
+                    array_len: int = len(d.initializer.value) + 1
                 
-                rd = getattr(decl, 'port_rd', False)
-                wr = getattr(decl, 'port_wr', False)
+                rd: Any | bool = getattr(decl, 'port_rd', False)
+                wr: Any | bool = getattr(decl, 'port_wr', False)
                 if decl.is_port and not (rd or wr):
                     rd = wr = True
                 sym = Symbol(
@@ -485,7 +511,7 @@ class DeclarationAnalyzer:
         if is_array:
             if isinstance(d.initializer, ListInit):
                 # Check if this is a struct array with nested initializers
-                is_struct_array = sem_type.is_struct and sem_type.struct_info is not None
+                is_struct_array: bool = sem_type.is_struct and sem_type.struct_info is not None
                 
                 if is_struct_array:
                     # For struct arrays, each element should be a nested list matching the struct field count
@@ -496,26 +522,26 @@ class DeclarationAnalyzer:
                             raise SemanticError(f"Struct array element {i} must be a list initializer", line=d.line, col=d.col)
                     
                     if array_len is None:
-                        array_len = len(d.initializer.values)
+                        array_len: int = len(d.initializer.values)
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
                     # Resolve inferred dimensions in array_dims from initializer
                     if array_dims and None in array_dims:
                         # For struct arrays, infer last dimension
-                        inferred_size = len(d.initializer.values)
+                        inferred_size: int = len(d.initializer.values)
                         array_dims[-1] = inferred_size
                 else:
                     # Regular (non-struct) array
                     if array_len is None:
-                        array_len = len(d.initializer.values)
+                        array_len: int = len(d.initializer.values)
                     elif array_len != len(d.initializer.values):
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
                     # Resolve inferred dimensions in array_dims from initializer
                     if array_dims and None in array_dims:
                         # For regular arrays, infer last dimension
-                        inferred_size = len(d.initializer.values)
+                        inferred_size: int = len(d.initializer.values)
                         array_dims[-1] = inferred_size
 
             elif isinstance(d.initializer, StringInit):
@@ -523,7 +549,7 @@ class DeclarationAnalyzer:
                     raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
                 
                 # Check if string fits in the specified array size
-                string_len = len(d.initializer.value) + 1  # +1 for NUL terminator
+                string_len: int = len(d.initializer.value) + 1  # +1 for NUL terminator
                 if array_len is not None and string_len > array_len:
                     raise SemanticError(
                         f"String length {len(d.initializer.value)} + 1 (NUL) = {string_len} exceeds array size {array_len}",
@@ -531,12 +557,12 @@ class DeclarationAnalyzer:
                     )
                 
                 if array_len is None:
-                    array_len = string_len
+                    array_len: int = string_len
                 
                 # Resolve inferred dimensions in array_dims from string initializer
                 if array_dims and None in array_dims:
                     # For string arrays, infer size (string length + NUL terminator)
-                    inferred_size = string_len
+                    inferred_size: int = string_len
                     array_dims[-1] = inferred_size
 
             elif d.initializer is not None:
@@ -562,7 +588,7 @@ class DeclarationAnalyzer:
             
             # Check if initializer is a constant that fits in the type
             if isinstance(d.initializer, ExprInit) and isinstance(d.initializer.expr, IntLiteral):
-                val = d.initializer.expr.value
+                val: int = d.initializer.expr.value
                 # Check range
                 if sem_type.base == "BYTE" and not sem_type.is_pointer:
                     if val < 0 or val > 0xFF:
@@ -593,8 +619,8 @@ class DeclarationAnalyzer:
                     tc = ExprTypeChecker(self.symtab, self.func_table, self.struct_registry)
                 tc.check(d.initializer.expr)
 
-        rd = getattr(decl, 'port_rd', False)
-        wr = getattr(decl, 'port_wr', False)
+        rd: Any | bool = getattr(decl, 'port_rd', False)
+        wr: Any | bool = getattr(decl, 'port_wr', False)
         if decl.is_port and not (rd or wr):
             rd = wr = True
         sym = Symbol(
@@ -627,11 +653,11 @@ class DeclarationAnalyzer:
 
 class EnumAnalyzer:
     """Analyze enum declarations and expand members into const symbols"""
-    def __init__(self, symtab: SymbolTable):
-        self.symtab = symtab
+    def __init__(self, symtab: SymbolTable) -> None:
+        self.symtab: SymbolTable = symtab
 
-    def analyze(self, enum_decl: EnumDecl):
-        base = enum_decl.base.upper() if enum_decl.base else 'BYTE'
+    def analyze(self, enum_decl: EnumDecl) -> None:
+        base: str = enum_decl.base.upper() if enum_decl.base else 'BYTE'
         if base not in ("BYTE", "WORD"):
             raise SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)
         current = 0
@@ -652,7 +678,7 @@ class EnumAnalyzer:
             if base == "WORD" and (val < 0 or val > 0xFFFF):
                 raise SemanticError(f"Enum value {val} out of range for word", line=item.line, col=item.col)
 
-            name = item.name.upper()
+            name: str = item.name.upper()
             if name in seen:
                 raise SemanticError(f"Enum member '{item.name}' duplicated in enum '{enum_decl.name}'", line=item.line, col=item.col)
             if name in self.symtab._symbols:

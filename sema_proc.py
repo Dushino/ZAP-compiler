@@ -13,15 +13,15 @@ class AnalyzedProc:
 
 
 class ProcAnalyzer:
-    def __init__(self, procs: ProcTable, debug_info: dict | None = None, struct_registry=None, func_table=None):
-        self.procs = procs
+    def __init__(self, procs: ProcTable, debug_info: dict | None = None, struct_registry=None, func_table=None) -> None:
+        self.procs: ProcTable = procs
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
         self.func_table = func_table
 
-    def analyze_decl(self, proc: ProcDecl):
+    def analyze_decl(self, proc: ProcDecl) -> None:
         # Count required parameters (those without defaults)
-        required_params = sum(1 for p in proc.params if p.default_value is None)
+        required_params: int = sum(1 for p in proc.params if p.default_value is None)
         # Determine owner file and exported flag (set by module system via debug maps)
         proc_src_map = self.debug.get('proc_src', {})
         owner = None
@@ -51,7 +51,7 @@ class ProcAnalyzer:
                 raise err
             raise
 
-    def analyze_call(self, call: CallStmt):
+    def analyze_call(self, call: CallStmt) -> None:
         # Determine caller file if available to support module visibility checks
         caller_file = None
         if getattr(self, 'current_proc', None):
@@ -59,7 +59,7 @@ class ProcAnalyzer:
             if cur_info:
                 caller_file = cur_info[0]
         try:
-            proc_sym = self.procs.lookup(call.name, caller_file=caller_file)
+            proc_sym: ProcSymbol = self.procs.lookup(call.name, caller_file=caller_file)
         except SemanticError as e:
             # Re-raise with source location attached
             info = self.debug.get("stmt_src", {}).get(id(call))
@@ -75,7 +75,7 @@ class ProcAnalyzer:
             raise
         # Allow arguments from required_params to param_count
         if len(call.args) < proc_sym.required_params or len(call.args) > proc_sym.param_count:
-            msg = (
+            msg: str = (
                 f"Procedure '{call.name}' expects {proc_sym.param_count} parameters, "
                 f"but {len(call.args)} were provided"
             )
@@ -104,7 +104,7 @@ class ProcAnalyzer:
         for param in proc.params:
             from symbols import SemType, Symbol
             # Check if parameter type is a struct
-            base_name = param.type.base.upper()
+            base_name: str = param.type.base.upper()
             is_struct = False
             struct_info = None
             
@@ -165,7 +165,7 @@ class ProcAnalyzer:
             from sema_expr import ExprTypeChecker
             tc = ExprTypeChecker(scoped, self.func_table, self.struct_registry)
 
-            def validate_stmt_exprs(statements: list):
+            def validate_stmt_exprs(statements: list) -> None:
                 from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, Identifier, SubscriptExpr, FieldAccess
                 for st in statements:
                     if isinstance(st, AssignStmt):
@@ -188,7 +188,7 @@ class ProcAnalyzer:
                         base_name = _get_base_ident(st.lhs)
                         if base_name is not None:
                             try:
-                                sym = tc.symtab.lookup(base_name)
+                                sym: Symbol = tc.symtab.lookup(base_name)
                                 if getattr(sym, 'is_port', False) and not getattr(sym, 'port_wr', False):
                                     info = self.debug.get("stmt_src", {}).get(id(st))
                                     if info:
@@ -226,8 +226,8 @@ class ProcAnalyzer:
 
         # validate procedure calls inside the body (must refer to defined procs)
         # set current_proc so analyze_call can check visibility
-        self.current_proc = proc
-        def walk(statements: list):
+        self.current_proc: ProcDecl = proc
+        def walk(statements: list) -> None:
             from ast_nodes import CallStmt, IfStmt, WhileStmt, ForStmt
             for st in statements:
                 if isinstance(st, CallStmt):

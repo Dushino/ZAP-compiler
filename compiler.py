@@ -1,7 +1,6 @@
 from errors import CompileError, print_error, print_exception
 from parser import Parser
 from compiler_pipeline import compile_program
-import compiler_pipeline as cp
 from module_system import ModuleSystem
 from preprocessor import Preprocessor
 import os

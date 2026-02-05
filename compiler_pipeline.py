@@ -1,17 +1,12 @@
-from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl
-from ast_nodes import Program, AssignStmt, ProcDecl, FuncDecl, SegmentDirective, IncbinDirective, StructDef
+from ast_nodes import Program, ProcDecl, FuncDecl
+from ast_nodes import Program, ProcDecl, FuncDecl, SegmentDirective, IncbinDirective, StructDef
 from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry
 from sema import DeclarationAnalyzer, StructAnalyzer, EnumAnalyzer
 from sema_expr import ExprTypeChecker
 from sema_proc import ProcAnalyzer
 from sema_func import FuncAnalyzer
-from constsubst import subst_const
-from constfold import fold_expr
 from codegen_expr import CodeGen
 from dce import dce_block
-import sys
-from jump_threading import jump_threading
-from label_cleanup import cleanup_labels
 from collections import deque
 from typing import Optional, Set
 

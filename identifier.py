@@ -47,11 +47,11 @@ class Identifier:
     declLine:   int     = 0         # line where has been declared
     declCol:    int     = 0         # column where has been declared
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # automaticky převést jméno na UPPERCASE
         self.name       = self.name.upper()  
 
-    def _reset(self):
+    def _reset(self) -> None:
         self.name       = ''        # name in UPPERCASE
         self.bytes      = 0         # bytes to reserve for variable
         self.isPtr      = False     # true if is pointer
@@ -80,11 +80,11 @@ class Identifiers:
     _identifiers: list[Identifier]
     pos: int
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._identifiers = []
         self.pos = 0
 
-    def _error(self, errtxt:str):
+    def _error(self, errtxt:str) -> sys.NoReturn:
         print(f'IDENTIFIER ERROR: {errtxt}.', file = sys.stderr)        
         exit(1)
 
@@ -97,38 +97,38 @@ class Identifiers:
         """
         if not isinstance(ide, Identifier):
             raise TypeError("add expects Identifier")
-        ide_copy = copy.deepcopy(ide)
+        ide_copy: Identifier = copy.deepcopy(ide)
         ide_copy.name = ide_copy.name.upper() if ide_copy.name is not None else ''
         self._identifiers.append(ide_copy)
         self.pos += 1
         return ide_copy
        
-    def findByName(self, nm: str):
+    def findByName(self, nm: str) -> Identifier | None:
         if nm is None:
             return None
-        target = nm.upper()
+        target: str = nm.upper()
         return next((i for i in self._identifiers if (i.localName == target and i.isProc == False and i.isFunc == False)), None) # Fixme: filter search for PROC and FUNC names only
 
-    def findAllByName(self, nm: str):
+    def findAllByName(self, nm: str) -> list[Identifier]:
         if nm is None:
             return None
-        target = nm.upper()
+        target: str = nm.upper()
         return [i for i in self._identifiers if (i.localName == target and i.isProc == False and i.isFunc == False)]                   
         
-    def findByPROCName(self, nm: str):
+    def findByPROCName(self, nm: str) -> Identifier | None:
         if nm is None:
             return None
-        target = nm.upper()
+        target: str = nm.upper()
         return next((i for i in self._identifiers if (i.name == target and i.isProc == True)), None) # Fixme: filter search for PROC and FUNC names only
 
-    def findAllByPROCName(self, nm:str):
+    def findAllByPROCName(self, nm:str) -> list[Identifier]:
         if nm is None:
             return None
-        mn = nm.upper()        
+        mn: str = nm.upper()        
         return [i for i in self._identifiers if (i.name == mn and i.isProc == True)]           
     
-    def _peek(self, offset:int):        
-        i = self.pos + offset
+    def _peek(self, offset:int) -> Identifier | None:        
+        i: int = self.pos + offset
         if i < len(self._identifiers):
             return self._identifiers[i]
         return None
