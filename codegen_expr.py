@@ -1,5 +1,5 @@
 
-from typing import Any, Any, Any, Literal, Any, NoReturn, Literal, Any, Any, cast
+from typing import Any, Callable, Literal, NoReturn, cast
 from constfold import fold_expr
 from constsubst import subst_const
 from symbols import StructInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructFieldInfo, Symbol, SymbolTable, SemType, StructRegistry
@@ -1802,11 +1802,11 @@ class CodeGen:
             proc_name=""
         )
         # vložení do aktuální tabulky (lokální, jinak globální)
-        target: Any | None = getattr(self.current_symtab, "local", None)
+        target: SymbolTable | None = getattr(self.current_symtab, "local", None)
         if target is None:
-            target: SymbolTable = self.current_symtab
+            target = self.current_symtab
         # attach procedure name if available for proper ASM naming
-        proc_name: Any | str = getattr(target, "_proc_name", "")
+        proc_name: str = getattr(target, "_proc_name", "")
         if proc_name:
             sym.proc_name = proc_name
         target._symbols[sym.name] = sym
@@ -2023,7 +2023,7 @@ class CodeGen:
         values: list[int] = [ex.value for ex in src_const_sym.init.values if isinstance(ex, IntLiteral)]
         
         # Generate ROM data label for this struct
-        data_key: tuple[tuple[int, ...], Literal[False]] = (tuple(values), False)
+        data_key = (tuple(values), False)
         if data_key not in self.array_literals:
             self.array_id += 1
             self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
@@ -2334,7 +2334,7 @@ class CodeGen:
             self.emit("\tLDX TMP2+3")
             self.emit("\tRTS")
 
-        emitters: list[tuple[str, Callable[[], None]]] = [
+        emitters: list[tuple[str, Any]] = [
             ("MUL8", emit_mul8),
             ("MUL16_8", emit_mul16_8),
             ("MUL16", emit_mul16),
@@ -3069,7 +3069,7 @@ class CodeGen:
             if sym.type.is_struct:
                 if sym.init and isinstance(sym.init, ListInit):
                     values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    data_key: tuple[tuple[int, ...], Literal[False]] = (tuple(values), False)
+                    data_key = (tuple(values), False)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
@@ -3468,10 +3468,10 @@ class CodeGen:
                 self._raise_error(f"Struct '{obj_type.base}' not found")
             
             # Find field info to get element type
-            field_info = None
+            field_info: StructFieldInfo | None = None
             for f in struct_info.fields:
                 if f.name == base.field:
-                    field_info: StructFieldInfo = f
+                    field_info = f
                     break
             
             if field_info is None:
@@ -3585,7 +3585,7 @@ class CodeGen:
         total_offset = 0
         
         # Walk down the chain of field accesses to calculate total offset
-        current_expr: FieldAccess = expr
+        current_expr: Expr = expr
         while isinstance(current_expr, FieldAccess):
             # Get the type of the struct we're accessing
             parent_type: SemType = self.tc_check(current_expr.object).sem_type
@@ -3597,17 +3597,17 @@ class CodeGen:
             struct_info: StructInfo = parent_type.struct_info
             
             # Find this field's offset in the parent struct
-            field_info = None
+            field_info: StructFieldInfo | None = None
             for f in struct_info.fields:
                 if f.name == current_expr.field:
-                    field_info: StructFieldInfo = f
+                    field_info = f
                     break
             
             if field_info is None:
                 raise SemanticError(f"Field '{current_expr.field}' not found in struct '{struct_info.name}'", node=current_expr)
             
             total_offset += field_info.offset
-            current_expr: Expr = current_expr.object
+            current_expr = current_expr.object
         
         # current_expr is now the base (Identifier, SubscriptExpr, or other)
         return (total_offset, current_expr)
@@ -3637,10 +3637,10 @@ class CodeGen:
             self._raise_error(f"Struct '{struct_type.base}' not found")
         
         # Find field info
-        field_info = None
+        field_info: StructFieldInfo | None = None
         for f in struct_info.fields:
             if f.name == expr.field.upper():
-                field_info: StructFieldInfo = f
+                field_info = f
                 break
         
         if field_info is None:
@@ -3988,7 +3988,7 @@ class CodeGen:
             return None
         
         result = []
-        element_type = None  # Track BYTE or WORD
+        element_type: str | None = None  # Track BYTE or WORD
         
         # Check right operand
         if isinstance(expr.right, SubscriptExpr):
@@ -3997,7 +3997,7 @@ class CodeGen:
                 arr_sym: Symbol = self.current_symtab.lookup(expr.right.array.name)
                 if (arr_sym.is_array and not arr_sym.is_const and 
                     arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
-                    element_type: str = arr_sym.type.base
+                    element_type = arr_sym.type.base
                     result.append((expr.op, expr.right.array.name, expr.right.index.value))
         else:
             return None  # Right must be subscript
@@ -4013,7 +4013,7 @@ class CodeGen:
                         arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
                         # Verify all elements same type
                         if element_type is None:
-                            element_type: str = arr_sym.type.base
+                            element_type = arr_sym.type.base
                         elif arr_sym.type.base != element_type:
                             return None  # Mixed BYTE/WORD not allowed
                         # For the leftmost element, the operation is implicit ADD
@@ -4031,7 +4031,7 @@ class CodeGen:
                             arr_sym.address is None and arr_sym.type.base in {"BYTE", "WORD"}):
                             # Verify element type consistency
                             if element_type is None:
-                                element_type: str = arr_sym.type.base
+                                element_type = arr_sym.type.base
                             elif arr_sym.type.base != element_type:
                                 return None
                             result.append((left.op, left.right.array.name, left.right.index.value))
@@ -5089,6 +5089,32 @@ class CodeGen:
                 self.emit("\tLDA #$00")
                 self.emit(f"{lbl_end}:")
     
+    def _estimate_temp_slots(self, expr) -> int:
+        """Conservative estimator of required temporary *slots* for an expression.
+        Each slot corresponds to a TMP (TMP0..TMP5) used to hold intermediate values.
+        This estimator is conservative and intended to detect expressions that are
+        too complex to lower given the limited number of temps. Rules:
+          - IntLiteral, Identifier -> 0
+          - Subscript/Field/Deref/Call -> 1
+          - Unary -> same as child
+          - Binary: max(left,right) + 1
+          - MUL/DIV/MOD: max(left,right) + 2 (needs extra scratch)
+        """
+        from ast_nodes import BinaryExpr, UnaryExpr, CallExpr, SubscriptExpr, FieldAccess, DerefExpr, Identifier, IntLiteral
+        if isinstance(expr, (IntLiteral, Identifier)):
+            return 0
+        if isinstance(expr, (SubscriptExpr, FieldAccess, DerefExpr, CallExpr)):
+            return 1
+        if isinstance(expr, UnaryExpr):
+            return self._estimate_temp_slots(expr.expr)
+        if isinstance(expr, BinaryExpr):
+            left = self._estimate_temp_slots(expr.left)
+            right = self._estimate_temp_slots(expr.right)
+            if expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
+                return max(left, right) + 2
+            return max(left, right) + 1
+        return 1
+
     def _gen_address_of(self, operand: Expr) -> None:
         """Generate code to load address of operand into A (low byte) and X (high byte)"""
         if isinstance(operand, Identifier):
@@ -5293,7 +5319,8 @@ class CodeGen:
 
     def gen_expr(self, expr, force_left_tmp=None) -> None:
         # Apply constant folding and algebraic simplifications
-        expr: Expr = fold_expr(expr)
+        from typing import cast
+        expr = cast(Expr, fold_expr(expr))
         
         if isinstance(expr, IntLiteral):
             self._gen_literal(expr)
@@ -5346,6 +5373,12 @@ class CodeGen:
             self.emit(f"\tJSR {expr.name}")
 
         elif isinstance(expr, BinaryExpr):
+            # Conservative TMP usage check before generating potentially large expressions
+            needed: int = self._estimate_temp_slots(expr)
+            max_temps: int = 6  # TMP0..TMP5 available
+            if needed > max_temps:
+                self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but only {max_temps} available. Simplify the expression.")
+
             if expr.op in {BinOp.LAND, BinOp.LOR}:
                 self._gen_logical(expr)
             elif expr.op in {
@@ -5659,17 +5692,18 @@ class CodeGen:
                 # Optimize byte var = var1 +/- imm (direct immediate operations)
                 if not is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
                     # Check if one operand is identifier and other is immediate
-                    var_opnd = None
-                    imm_opnd = None
-                    
+                    var_opnd: Identifier | None = None
+                    imm_opnd: IntLiteral | None = None
+                    is_sub_reversed: bool = False
+
                     if isinstance(rhs.left, Identifier) and isinstance(rhs.right, IntLiteral):
-                        var_opnd: Identifier = rhs.left
-                        imm_opnd: IntLiteral = rhs.right
+                        var_opnd = rhs.left
+                        imm_opnd = rhs.right
                         is_sub_reversed = False
                     elif isinstance(rhs.right, Identifier) and isinstance(rhs.left, IntLiteral) and rhs.op == BinOp.ADD:
                         # For addition, const + var is same as var + const
-                        var_opnd: Identifier = rhs.right
-                        imm_opnd: IntLiteral = rhs.left
+                        var_opnd = rhs.right
+                        imm_opnd = rhs.left
                         is_sub_reversed = False
                     
                     if var_opnd and imm_opnd:
