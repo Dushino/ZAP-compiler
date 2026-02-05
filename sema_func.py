@@ -178,6 +178,8 @@ class FuncAnalyzer:
         validate_stmt_exprs(func.body)
 
         has_return = False
+        from constfold import fold_expr
+        from ast_nodes import IntLiteral
         for stmt in func.body:
             if isinstance(stmt, ReturnStmt):
                 has_return = True
@@ -196,6 +198,43 @@ class FuncAnalyzer:
                         err.filename = fname
                         raise err
                     raise
+
+                # If return expression is a compile-time constant, validate it fits
+                if stmt.expr is not None:
+                    folded = fold_expr(stmt.expr)
+                    if isinstance(folded, IntLiteral):
+                        val = folded.value
+                        # BYTE: must fit 0..255
+                        if ret_sem.base == "BYTE" and not ret_sem.is_pointer:
+                            if val < 0 or val > 0xFF:
+                                info = self.debug.get("stmt_src", {}).get(id(stmt))
+                                msg = f"Return value {val} (0x{val:X}) does not fit in BYTE (0-255)"
+                                if info:
+                                    if len(info) == 3:
+                                        fname, line, _text = info
+                                        col = 1
+                                    else:
+                                        fname, line, col, _text = info
+                                    err = SemanticError(msg, line=line, col=col)
+                                    err.filename = fname
+                                    raise err
+                                raise SemanticError(msg)
+                        # WORD: must fit 0..65535
+                        if ret_sem.base == "WORD" and not ret_sem.is_pointer:
+                            if val < 0 or val > 0xFFFF:
+                                info = self.debug.get("stmt_src", {}).get(id(stmt))
+                                msg = f"Return value {val} (0x{val:X}) does not fit in WORD (0-65535)"
+                                if info:
+                                    if len(info) == 3:
+                                        fname, line, _text = info
+                                        col = 1
+                                    else:
+                                        fname, line, col, _text = info
+                                    err = SemanticError(msg, line=line, col=col)
+                                    err.filename = fname
+                                    raise err
+                                raise SemanticError(msg)
+
                 if et is not None and et.sem_type.base != ret_sem.base:
                     # Allow implicit narrowing from WORD to BYTE (use lower byte)
                     # Allow implicit widening from BYTE to WORD (zero-extend)
