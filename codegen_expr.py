@@ -6145,6 +6145,30 @@ class CodeGen:
                 self.emit(line)
             return
 
+        # Compile-time diagnostic directives: .error/.warning/.info
+        from ast_nodes import ErrorDirective, WarningDirective, InfoDirective
+        if isinstance(stmt, ErrorDirective):
+            # Raise an error at the statement location
+            self._raise_error(stmt.message)
+        if isinstance(stmt, WarningDirective):
+            from errors import print_error
+            src = "\n".join(self.source_lines) if self.source_lines else ""
+            if self.current_stmt_info:
+                fname, line, col, _ = self.current_stmt_info
+            else:
+                fname, line, col = None, 1, 1
+            print_error(src, line, col, stmt.message, filename=fname, severity='warning')
+            return
+        if isinstance(stmt, InfoDirective):
+            from errors import print_error
+            src = "\n".join(self.source_lines) if self.source_lines else ""
+            if self.current_stmt_info:
+                fname, line, col, _ = self.current_stmt_info
+            else:
+                fname, line, col = None, 1, 1
+            print_error(src, line, col, stmt.message, filename=fname, severity='info')
+            return
+
         if isinstance(stmt, CallStmt):
             # Pass arguments to callee parameters (simple ABI via memory)
             specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(stmt.name)
