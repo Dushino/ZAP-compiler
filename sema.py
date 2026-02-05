@@ -28,7 +28,7 @@ from errors import SemanticError
 from errors import SemanticError
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
 from errors import *
-from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp
+from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess
 from ast_nodes import ListInit, StringInit, ExprInit
 from ast_nodes import Declaration, Declarator, StructDef, EnumDecl
 
@@ -49,7 +49,20 @@ def eval_const_expr(expr, symtab=None):
         if sym.const_value is None:
             raise SemanticError(f"'{expr.name}' const has no value")
         return sym.const_value
-    
+
+    # Qualified enum member access, e.g., EnumName.Member
+    if isinstance(expr, FieldAccess):
+        if symtab is None:
+            raise SemanticError("Constant expression required")
+        # Only support EnumName.Member (object must be Identifier)
+        if isinstance(expr.object, Identifier):
+            enum_name = expr.object.name.upper()
+            enums = getattr(symtab, '_enums', None)
+            # If symtab is a ScopedSymbolTable, check parent for enums
+            if enums is None:
+                parent = getattr(symtab, 'parent', None)
+                if parent is not None:
+                    enums = getattr(parent, '_enums', None)
     if isinstance(expr, BinaryExpr):
         left = eval_const_expr(expr.left, symtab)
         right = eval_const_expr(expr.right, symtab)
@@ -324,7 +337,14 @@ class DeclarationAnalyzer:
         address_val = None
 
         if d.address is not None:
-            address_val = eval_const_expr(d.address, self.symtab)
+            # Use a scoped lookup that includes globals (enums) if available
+            if self.global_symtab is not None:
+                from symbols import ScopedSymbolTable
+                lookup_symtab = ScopedSymbolTable(self.global_symtab)
+                lookup_symtab.local = self.symtab
+            else:
+                lookup_symtab = self.symtab
+            address_val = eval_const_expr(d.address, lookup_symtab)
 
         if is_array and array_dims:
             # Process each dimension
@@ -364,7 +384,14 @@ class DeclarationAnalyzer:
             if isinstance(d.initializer, ExprInit):
                 # Scalar const: must have evaluable expression
                 try:
-                    val = eval_const_expr(d.initializer.expr, self.symtab)
+                    # Evaluate constant expression with a lookup that includes globals (for enums)
+                    if self.global_symtab is not None:
+                        from symbols import ScopedSymbolTable
+                        lookup_symtab = ScopedSymbolTable(self.global_symtab)
+                        lookup_symtab.local = self.symtab
+                    else:
+                        lookup_symtab = self.symtab
+                    val = eval_const_expr(d.initializer.expr, lookup_symtab)
                 except SemanticError as e:
                     raise SemanticError(e.message, line=d.line, col=d.col)
                 
@@ -669,6 +696,9 @@ class EnumAnalyzer:
     """Analyze enum declarations and expand members into const symbols"""
     def __init__(self, symtab: SymbolTable) -> None:
         self.symtab: SymbolTable = symtab
+        # Registry: enum_name -> { 'base': 'BYTE'|'WORD', 'members': { member_name: value, ... } }
+        if not hasattr(self.symtab, '_enums'):
+            self.symtab._enums = {}
 
     def analyze(self, enum_decl: EnumDecl) -> None:
         base: str = enum_decl.base.upper() if enum_decl.base else 'BYTE'
@@ -676,6 +706,7 @@ class EnumAnalyzer:
             raise SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)
         current = 0
         seen: set[str] = set()
+        members: dict[str, int] = {}
         for item in enum_decl.items:
             # Evaluate explicit value if provided
             if item.value is not None:
@@ -720,6 +751,10 @@ class EnumAnalyzer:
             )
             self.symtab.define(sym)
             seen.add(name)
+            members[name] = val
             current = val + 1
+
+        # Register enum definition for qualified access (e.g., EnumName.Member)
+        self.symtab._enums[enum_decl.name.upper()] = {'base': base, 'members': members}
 
 

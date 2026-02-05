@@ -321,6 +321,7 @@ const word w1 = A
 **Usage notes:**
 - Use enums for readable, self-documenting constants and to define sets of related identifiers or flags.
 - Enum members can be used wherever `const` values are allowed: initializers, array dimensions, compile-time expressions, etc.
+- Enum members are available both as unqualified `const` names (e.g., `A`, `B`) for backward compatibility and via a qualified syntax `EnumName.Member` (e.g., `Big.A`). The qualified form using `.` is preferred to avoid name collisions and improve readability; only `.` is supported for qualification (colon `:` is not supported).
 
 **Tests:**
 - The test suite includes cases for: basic enums, enums with explicit values, word-sized enums, and failing cases for out-of-range values, duplicate members, name conflicts, and invalid base types.

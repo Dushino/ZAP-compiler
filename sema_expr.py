@@ -271,6 +271,21 @@ class ExprTypeChecker:
 
         # struct field access: obj.field or ptr^.field
         if isinstance(expr, FieldAccess):
+            # First, check for qualified enum access: EnumName.Member
+            if isinstance(expr.object, Identifier):
+                enums = getattr(self.symtab, '_enums', None)
+                # If symtab is a ScopedSymbolTable, check parent for enums
+                if enums is None:
+                    parent = getattr(self.symtab, 'parent', None)
+                    if parent is not None:
+                        enums = getattr(parent, '_enums', None)
+                if enums and expr.object.name.upper() in enums:
+                    enum_def = enums[expr.object.name.upper()]
+                    if expr.field.upper() not in enum_def['members']:
+                        raise SemanticError(f"Enum '{expr.object.name}' has no member '{expr.field}'", node=expr)
+                    # Return value with enum base type
+                    return ExprType(SemType(enum_def['base'], False), ExprKind.VALUE)
+
             if not self.struct_registry:
                 raise SemanticError("Struct registry not available", node=expr)
             

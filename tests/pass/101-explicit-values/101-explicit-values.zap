@@ -5,8 +5,8 @@ enum byte E {
     D
 }
 
-const byte v = D
+const byte v = E.D
 
 proc main()
-    byte x @40000 = B
+    byte x @40000 = E.B
 end

@@ -248,9 +248,8 @@ maybe struct NAME #port #rd for all struct members?
 
 [x] Tests for STRUCT name #port #rd #wr
 [x] Tests for ENUMs
-[ ] Change enum usage to qualified access Color.Red 
-But it requires:
-- grammar/parser changes to accept qualified identifiers,
-- symbol-table/name-resolution changes (namespaces or nested symbols),
-- and changes to EnumAnalyzer to register members under the enum namespace (or both qualified and unqualified for backward compatibility).
-If you want, I can show what code changes would be needed to add Big.A (and recommend using Big.A with a dot rather than Big:A).
+[x] Change enum usage to qualified access Color.Red (implemented — supports `EnumName.Member` via `.`; unqualified names remain available for backward compatibility)
+- Implementation notes:
+  - Parser accepts `.` qualified field access for enums (and structs) and does not accept `:`.
+  - `EnumAnalyzer` registers enum members as top-level `const` symbols for backward compat and also records enums for qualified lookup.
+  - Code generation treats qualified enum access as immediates when used in expressions.

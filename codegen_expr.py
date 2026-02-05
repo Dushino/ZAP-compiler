@@ -5338,6 +5338,22 @@ class CodeGen:
         elif isinstance(expr, SubscriptExpr):
             self._gen_subscript(expr, load_only=True)
         elif isinstance(expr, FieldAccess):
+            # Support qualified enum access: EnumName.Member
+            if isinstance(expr.object, Identifier):
+                enums = getattr(self.current_symtab, '_enums', None)
+                if enums is None:
+                    parent = getattr(self.current_symtab, 'parent', None)
+                    if parent is not None:
+                        enums = getattr(parent, '_enums', None)
+                if enums and expr.object.name.upper() in enums:
+                    enum_def = enums[expr.object.name.upper()]
+                    mname = expr.field.upper()
+                    if mname not in enum_def['members']:
+                        self._raise_error(f"Enum '{expr.object.name}' has no member '{expr.field}'")
+                    val = enum_def['members'][mname]
+                    import ast_nodes
+                    self._gen_literal(ast_nodes.IntLiteral(val))
+                    return
             self._gen_field_access(expr, load_only=True)
         elif isinstance(expr, CallExpr):
             # Emit source comment for function call if available

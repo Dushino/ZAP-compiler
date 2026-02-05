@@ -161,6 +161,8 @@ class Symbol:
 class SymbolTable:
     def __init__(self) -> None:
         self._symbols: dict[str, Symbol] = {}
+        # Registry for enum definitions: enum_name -> {'base': 'BYTE'|'WORD', 'members': {NAME: value}}
+        self._enums: dict[str, dict] = {}
 
     def define(self, sym: Symbol) -> None:
         if sym.name in self._symbols:

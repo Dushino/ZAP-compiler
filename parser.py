@@ -972,7 +972,7 @@ class Parser:
                 # This MUST be checked first because ^ can also be binary XOR operator
                 next_tok: Token | None = self._peek_next()
                 if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
-                    # This is ptr^.field - consume ^ and ., then field name
+                    # This is ptr^.field - consume ^ and '.', then field name
                     ptr_line: int = self.cur.line
                     ptr_col: int = self.cur.col
                     self.advance()  # consume ^
@@ -1257,13 +1257,13 @@ class Parser:
                 # This must be checked first because ^ can be consumed as postfix deref
                 if self.cur.type == TOK_PTR:
                     next_tok: Token | None = self._peek_next()
-                    if next_tok and next_tok.type == TOK_OP and next_tok.value == ".":
+                    if next_tok and ((next_tok.type == TOK_OP and next_tok.value in (".", ":")) or (next_tok.type == TOK_DELIM and next_tok.value == ":")):
                         ptr_line: int = self.cur.line
                         ptr_col: int = self.cur.col
                         self.advance()  # consume ^
                         dot_line: int = self.cur.line
                         dot_col: int = self.cur.col
-                        self.advance()  # consume .
+                        self.advance()  # consume '.' or ':'
                         field_line: int = self.cur.line
                         field_col: int = self.cur.col
                         field_name: str = self.cur.value
