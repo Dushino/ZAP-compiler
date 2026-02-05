@@ -63,6 +63,14 @@ def eval_const_expr(expr, symtab=None):
                 parent = getattr(symtab, 'parent', None)
                 if parent is not None:
                     enums = getattr(parent, '_enums', None)
+            if enums and enum_name in enums:
+                members = enums[enum_name]['members']
+                mname = expr.field.upper()
+                if mname not in members:
+                    raise SemanticError(f"Enum '{expr.object.name}' has no member '{expr.field}'")
+                return members[mname]
+        raise SemanticError("Constant expression required")
+
     if isinstance(expr, BinaryExpr):
         left = eval_const_expr(expr.left, symtab)
         right = eval_const_expr(expr.right, symtab)
