@@ -2194,21 +2194,13 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_div8_16() -> None:
-            self.emit("; DIV8_16: 8/16=8 divide")
+            self.emit("; DIV8_16: 8/16 divide (promote and call DIV16)")
             self.emit("; Input: TMP0 (dividend), TMP2,TMP3 (divisor)")
-            self.emit("; Output: A=quotient (0 or 1), X=0")
+            self.emit("; Output: A=low, X=high (quotient)")
             self.emit("DIV8_16:")
-            self.emit("\tLDA TMP0")
-            self.emit("\tCMP TMP2")
-            self.emit("\tLDA #$00")
-            self.emit("\tSBC TMP3")
-            self.emit("\tBCC DIV8_16_ZERO")
-            self.emit("\tLDA #$01")
-            self.emit("\tLDX #$00")
-            self.emit("\tRTS")
-            self.emit("DIV8_16_ZERO:")
-            self.emit("\tLDA #$00")
-            self.emit("\tLDX #$00")
+            # Make dividend 16-bit (high byte = 0) and reuse DIV16 implementation
+            self._stz("TMP0+1")
+            self.emit("\tJSR DIV16")
             self.emit("\tRTS")
 
         def emit_div16() -> None:
@@ -2290,22 +2282,13 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mod8_16() -> None:
-            self.emit("; MOD8_16: 8%16=8 modulo")
+            self.emit("; MOD8_16: 8%16 modulo (promote and call MOD16)")
             self.emit("; Input: TMP0 (dividend), TMP2,TMP3 (divisor)")
             self.emit("; Output: A=remainder, X=0")
             self.emit("MOD8_16:")
-            self.emit("\tLDA TMP0")
-            self.emit("\tCMP TMP2")
-            self.emit("\tLDA #0")
-            self.emit("\tSBC TMP3")
-            self.emit("\tBCC MOD8_16_RET")
-            self.emit("\tLDA TMP0")
-            self.emit("\tSBC TMP2")
-            self.emit("\tLDX #0")
-            self.emit("\tRTS")
-            self.emit("MOD8_16_RET:")
-            self.emit("\tLDA TMP0")
-            self.emit("\tLDX #0")
+            # Treat dividend as 16-bit (high byte = 0) and reuse MOD16
+            self._stz("TMP0+1")
+            self.emit("\tJSR MOD16")
             self.emit("\tRTS")
 
         def emit_mod16() -> None:
@@ -4803,10 +4786,15 @@ class CodeGen:
             self.emit("\tJSR MUL16_8")
         elif not left_16 and right_16:
             # 8x16 = 16 (swap operands)
+            # Move 16-bit right operand into TMP0/TMP0+1 (multiplicand)
             self.emit("\tLDA TMP2")
             self.emit("\tLDX TMP3")
             self.emit("\tSTA TMP0")
-            self.emit("\tSTX TMP1")
+            self.emit("\tSTX TMP0+1")
+            # Move left 8-bit operand (in TMP1) into TMP2 as multiplier (8-bit)
+            self.emit("\tLDA TMP1")
+            self.emit("\tSTA TMP2")
+            self._stz("TMP3")
             self.emit("\tJSR MUL16_8")
         else:
             # 16x16 = 16

@@ -1,0 +1,5 @@
+{
+    "max_cycles": 20000,
+    "verbose": true,
+    "dump_memory": ["40000-40017"]
+}
