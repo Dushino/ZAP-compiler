@@ -76,10 +76,10 @@ class CodeGen:
         # Track assignment context for optimizations that need target type
         self.assign_target_type: SemType | None = None  # Current assignment LHS type
 
-    def tc_check(self, expr) -> ExprType:
+    def tc_check(self, expr, read_check_enabled: bool = True) -> ExprType:
         # Wrapper to attach source location to type-checker errors
         try:
-            return self.tc.check(expr)
+            return self.tc.check(expr, read_check_enabled=read_check_enabled)
         except SemanticError as e:
             # If error lacks position, attach current statement info
             if getattr(e, 'line', None) is None and self.current_stmt_info:
@@ -3612,11 +3612,11 @@ class CodeGen:
           
         For array fields, return the address instead of value.
         """
-        t: ExprType = self.tc_check(expr)
+        t: ExprType = self.tc_check(expr, read_check_enabled=load_only)
         field_type: SemType = t.sem_type
         
         # Get struct info
-        struct_type: SemType = self.tc_check(expr.object).sem_type
+        struct_type: SemType = self.tc_check(expr.object, read_check_enabled=load_only).sem_type
         if not struct_type.is_struct:
             self._raise_error("Object is not a struct")
         
@@ -5407,7 +5407,7 @@ class CodeGen:
         rhs = subst_const(rhs, cast(SymbolTable, self.current_symtab))
         rhs = fold_expr(rhs)
 
-        lhs_t: ExprType = self.tc_check(lhs)
+        lhs_t: ExprType = self.tc_check(lhs, read_check_enabled=False)
         rhs_t: ExprType = self.tc_check(rhs)
 
         # typová kompatibilita                

@@ -58,7 +58,7 @@ class ExprTypeChecker:
             return ExprType(sym.type, ExprKind.VALUE)
 
         if isinstance(expr, DerefExpr):
-            base: ExprType = self.check(expr.pointer)
+            base: ExprType = self.check(expr.pointer, read_check_enabled=read_check_enabled)
             if base.kind != ExprKind.ADDR or not base.sem_type.is_pointer:
                 raise SemanticError("Cannot dereference non-pointer", node=expr)
             
@@ -72,7 +72,7 @@ class ExprTypeChecker:
             return ExprType(result_type, ExprKind.LVALUE)
 
         if isinstance(expr, SubscriptExpr):
-            arr_t: ExprType = self.check(expr.array)
+            arr_t: ExprType = self.check(expr.array, read_check_enabled=read_check_enabled)
             if arr_t.kind != ExprKind.ADDR:
                 raise SemanticError("Subscript requires array address", node=expr)
             
@@ -126,7 +126,7 @@ class ExprTypeChecker:
                     else:
                         try:
                             # Check the object type
-                            obj_type: ExprType = self.check(field_access_expr.object)
+                            obj_type: ExprType = self.check(field_access_expr.object, read_check_enabled=read_check_enabled)
                             
                             # Get struct info
                             if field_access_expr.is_deref:
@@ -275,7 +275,7 @@ class ExprTypeChecker:
                 raise SemanticError("Struct registry not available", node=expr)
             
             # Check the object type
-            obj_type: ExprType = self.check(expr.object)
+            obj_type: ExprType = self.check(expr.object, read_check_enabled=read_check_enabled)
             
             # For deref field access (ptr^.field), object is a DerefExpr which is LVALUE of struct type
             # For direct field access (obj.field), object can be LVALUE or VALUE of struct type
@@ -328,7 +328,7 @@ class ExprTypeChecker:
                     # Fall back to symbol-level flags (already resolved with declaration/struct defaults)
                     allowed = getattr(base_sym, 'port_rd', False)
                 if not allowed:
-                    raise SemanticError("Read from write-only port", node=expr)
+                        raise SemanticError("Read from write-only port", node=expr)
 
             return ExprType(field_sem_type, ExprKind.LVALUE)
 
