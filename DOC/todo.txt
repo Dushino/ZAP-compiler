@@ -242,3 +242,6 @@ PASS & FAIL variants for condition types and syntax
 [ ] Tweak estimator behavior (make it less/ more conservative), or
 [ ] Proceed to improve expression flattening and constant folding to reduce temp needs so fewer expressions are rejected.
 [ ] Prepare unit test for estimator
+
+[ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. Does it mean scopes?
+    

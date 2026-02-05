@@ -73,7 +73,7 @@ increments address pointer is pointing to by 2 bytes (WORD data type size).
 
 
 
-### Global variables are used when name duplicates global variable
+### Local variables are used when name duplicates global variable
 
 Consider following example:
 
@@ -119,52 +119,10 @@ proc main()
 end
 ```
 
-Local variable is declared on dedicated memory space and there is no ZAP! way how to reach it.It means it will keep its value between calls.
-However, there is no ZAP! language built-in system how to initialize them when upon first procedure call. So you need global variable or
-procedure parameter saying it is first call:
+Local variable is declared on dedicated memory space. It means it will keep its value between calls.
+There is no ZAP! way how to reach local variable out of procedure or function it has been declared in.
+However, there is ZAP! language built-in system how to initialize them when upon first procedure call - use STATIC declaration modifier - works only for local variables.
 
-```
-; One possibility to initialize on 1st run:
-byte first = 1
-
-proc test1()
-    byte var1
-
-    if first then
-        var1 = 0
-    end
-
-    var1 = var1 + 1
-end
-
-; second possibitily to initialize on 1. run
-proc test2(byte first)
-    byte var1
-
-    if first then
-        var1 = 0
-    end
-
-    var1 = var1 + 1
-end
-
-proc main()
-
-    ; run with initialization
-    first = 1
-    test1()
-    test2(first)
-    ; or simply:
-    test2(1)
-
-    ; run without initialization
-    first = 0
-    test1()
-    test2(first)
-    ; or simply
-    test2(0)
-end
-```
 
 ### Internal identifiers naming
 
@@ -175,9 +133,9 @@ end
 
 You might find useful knowledge about internal naming system. It is good to know when using inline assembly language:
 
-- All function and procudure names are being used as labels in generated code. You can safely use A,X,Y in your ZAP! program and assembler will be happy with its _A, _X, _Y representation.
+- All function and procudure names are being used as labels in generated code. You can safely use A,X,Y varables in your ZAP! program and assembler will be happy with its _A, _X, _Y representation.
 
-- Global variables are prefixed with _. However, there is one exeption for internal system varibles named TMP<number>. You can use TMP<number> in your code and it will not inerefere with internal TMP<number> variables.
+- All identifiers are prefixed with _. However, there is one exeption for internal system varibles named TMP<number>. You can use TMP<number> in your code and it will not inerefere with internal TMP<number> variables.
 - Local variable names is structure this way:
 
 ```
