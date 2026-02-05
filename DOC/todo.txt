@@ -145,7 +145,7 @@ proc main
     test1(4, , 9) ; implies b is initialized to its default value of 5
 end
 
-[ ] library directory as command line -I <filename> option
+[x] library directory as command line -I <filename> option
     - first search current file directory, thern current + relative to -I
     - then search absolute .include or .incbin
 
@@ -171,7 +171,7 @@ end
 
 [x] remove .segment from ZAP directives - use it in ASM blocks only
 
-[x] Implement .error "string" and .warning "string"
+[x] Implement .error "string", .warning "string", .info "string"
 
 [ ] improve and unify error messages for:
     - undeclared identifier

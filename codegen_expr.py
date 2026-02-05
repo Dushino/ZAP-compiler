@@ -2113,26 +2113,32 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mul16() -> None:
-            self.emit("; MUL16: 16x16=16 multiply")
+            self.emit("; MUL16: 16x16=16 multiply (shift-add implementation)")
             self.emit("; Input: TMP0,TMP1 (multiplicand), TMP2,TMP3 (multiplier)")
             self.emit("; Output: A=low, X=high")
             self.emit("MUL16:")
-            self._stz("TMP2+2")  # Use TMP2+2 as temp storage
+            # Accumulator stored at TMP2+2/TMP2+3
+            self._stz("TMP2+2")
+            self._stz("TMP2+3")
+            # Loop 16 times: test LSB of multiplier, add multiplicand, then shift
             self.emit("\tLDX #$10")
             self.emit("MUL16_LOOP:")
+            # Shift multiplier right by one (TMP3:TMP2 >> 1). Carry after ROR TMP2 is original LSB
             self.emit("\tLSR TMP3")
             self.emit("\tROR TMP2")
             self.emit("\tBCC MUL16_SKIP")
+            # Add multiplicand (TMP0/TMP1) into accumulator (TMP2+2/TMP2+3)
             self.emit("\tCLC")
             self.emit("\tLDA TMP2+2")
             self.emit("\tADC TMP0")
             self.emit("\tSTA TMP2+2")
             self.emit("\tLDA TMP2+3")
-            self.emit("\tADC TMP1")
+            self.emit("\tADC TMP0+1")
             self.emit("\tSTA TMP2+3")
             self.emit("MUL16_SKIP:")
-            self.emit("\tROR TMP2+3")
-            self.emit("\tROR TMP2+2")
+            # Left-shift multiplicand (TMP0:TMP1 << 1)
+            self.emit("\tASL TMP0")
+            self.emit("\tROL TMP0+1")
             self.emit("\tDEX")
             self.emit("\tBNE MUL16_LOOP")
             self.emit("\tLDA TMP2+2")
@@ -3039,9 +3045,8 @@ class CodeGen:
         t: ExprType = self.tc_check(expr)
         val: int = expr.value
         self.emit(f"\tLDA #${val & 0xFF:02X}")
-        # self.emit(f'; {t}')
-        if t.sem_type.base == "WORD":
-            self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
+        # Always set X = high byte to make word-store patterns safe (high byte is 0 for small literals)
+        self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
 
 
     def _gen_identifier(self, expr: Identifier) -> None:
@@ -4768,6 +4773,8 @@ class CodeGen:
             self.math_routines_needed.add("MUL16_8")
         else:
             self.math_routines_needed.add("MUL16")
+            # MUL16 is implemented via two calls to MUL16_8; ensure it is emitted
+            self.math_routines_needed.add("MUL16_8")
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
         # left_tmp,left_tmp+1 = left operand (already stored via gen_expr)
         # A,X = right operand (in registers)
@@ -4776,7 +4783,8 @@ class CodeGen:
         self.emit("\tSTA TMP2")
         self.emit("\tSTX TMP3")
         # Pre-adjust: if this is a 16x16 multiply, ensure multiplicand high byte is in TMP1
-        if left_tmp != "TMP0" and left_16 and right_16:
+        # Only pre-adjust if the left operand is not already in TMP0 or TMP1
+        if left_tmp not in ("TMP0", "TMP1") and left_16 and right_16:
             self.emit(f"\tLDA {left_tmp}+1")
             self.emit("\tSTA TMP1")
         
