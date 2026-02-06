@@ -20,7 +20,7 @@ proc main()
     for i = 0 to 3
         p2[i].x = i+1
         p2[i].y = (i+1)*2
-    next i
+    end
 end
 """
     

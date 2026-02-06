@@ -29,7 +29,7 @@ proc main()
         p2[i].x = i*3   + $10        
         p2[i].y = i*3+1 + $10         
         p2[i].z = i*3+2 + $10        
-    next i
+    end
     xs.pt.y = $22
     xs.another = $24
 end

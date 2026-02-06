@@ -183,7 +183,7 @@ end
 
 for i = 0 to 10
     ; Repeat 11 times (0 through 10)
-next i
+end
 ```
 
 ---
@@ -467,7 +467,7 @@ proc search_for_value(byte target_value)
             found = 1
             break       ; Exit loop
         endif
-    next i
+    end
 end
 ```
 
@@ -481,7 +481,7 @@ byte i
 proc count_ten()
     for i = 0 to 9
         ; Executes 10 times (i = 0, 1, 2, ... 9)
-    next i
+    end
 end
 ```
 
@@ -492,7 +492,7 @@ byte i
 proc count_by_tens()
     for i = 0 to 100 step 10
         ; i = 0, 10, 20, 30, ... 100
-    next i
+    end
 end
 ```
 
@@ -503,7 +503,7 @@ byte i
 proc count_down()
     for i = 10 to 0 step -1
         ; i = 10, 9, 8, ... 0
-    next i
+    end
 end
 ```
 
@@ -517,7 +517,7 @@ proc clear_screen()
     ; Clear using a loop
     for i = 0 to 255
         screen_memory[i] = 0
-    next i
+    end
 end
 
 proc fill_pattern()
@@ -525,8 +525,8 @@ proc fill_pattern()
     for x = 0 to 39
         for y = 0 to 24
             screen_memory[y * 40 + x] = (x + y) & 1
-        next y
-    next x
+        end
+    end
 end
 ```
 
@@ -681,14 +681,14 @@ byte i
 proc initialize_array()
     for i = 0 to 255
         data[i] = i
-    next i
+    end
 end
 
 proc sum_array()
     byte sum = 0
     for i = 0 to 255
         sum = sum + data[i]
-    next i
+    end
 end
 ```
 
@@ -762,18 +762,18 @@ end
 byte i
 for i = 10 to 5         ; Won't run - start > end
     ; Never runs
-next i
+end
 ```
 
 **Wrong loop direction:**
 ```zap
 ; This goes UP, not down:
 for i = 10 to 5         ; Start at 10, end at 5, step +1
-next i
+end
 
 ; Fix: Use negative step:
 for i = 10 to 5 step -1 ; Now goes down
-next i
+end
 ```
 
 **Variable changes don't persist:**
@@ -908,7 +908,7 @@ const byte NAME = 10   ; Constant
 ```zap
 if x == 5 then ... endif
 while x < 10 ... end
-for i = 0 to 9 ... next i
+for i = 0 to 9 ... end
 break
 return [value]
 ```

@@ -44,7 +44,7 @@ end
 ```
 
 ### 015-for-loop
-**Tests:** FOR loops, NEXT, loop variable scope
+**Tests:** FOR loops, END, loop variable scope
 ```zap
 byte arr[] = {0,0,0,0,0} @40000
 byte i
@@ -52,7 +52,7 @@ byte i
 proc main()
     for i = 0 to 4
         arr[i] = i
-    next i
+    end
 end
 ```
 
@@ -388,7 +388,7 @@ word index
 proc main()
     for index = 0 to 255
         large_arr[index] = index & 255
-    next index
+    end
 end
 ```
 

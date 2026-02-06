@@ -813,24 +813,24 @@ proc for_example()
     ; Basic for loop
     for i = 0 to 9
         ; Execute 10 times (0-9)
-    next i
+    end
     
     ; For loop with step
     for i = 0 to 100 step 10
         ; i = 0, 10, 20, ..., 100
-    next i
+    end
     
     ; Descending
     for i = 10 to 0 step -1
         ; i = 10, 9, 8, ..., 0
-    next i
+    end
     
     ; With break
     for i = 0 to 255
         if i == 128 then
             break
         endif
-    next i
+    end
 end
 ```
 
@@ -853,7 +853,7 @@ proc break_example()
         if i == 50 then
             break
         endif
-    next i
+    end
 end
 ```
 
@@ -1065,7 +1065,7 @@ proc array_example()
     ; Dynamic subscripts
     for i = 0 to 4
         arr[i] = i * 10
-    next i
+    end
 end
 ```
 
@@ -1217,7 +1217,7 @@ proc update_enemies()
     for i = 0 to 2
         enemies[i].x = enemies[i].x + 1
         enemies[i].health = enemies[i].health - 5
-    next i
+    end
 end
 ```
 
@@ -1691,7 +1691,7 @@ proc count_until_condition()
             found = 1
             break
         endif
-    next i
+    end
     
     if found then
         ; Found at index i
@@ -1736,7 +1736,7 @@ proc iterate_with_pointer()
     for i = 0 to 4
         byte value = ptr^
         ptr = ptr + 1
-    next i
+    end
 end
 ```
 
@@ -1897,7 +1897,7 @@ proc main()
     for i = 0 to MAX_FIBO
         byte result = fibonacci(i)
         print_number(result)
-    next i
+    end
 end
 ```
 

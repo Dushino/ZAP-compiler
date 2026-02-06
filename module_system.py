@@ -3,7 +3,7 @@ Module system for handling .module and .include directives
 """
 import os
 from dataclasses import dataclass
-from typing import Dict, Set, Optional, List, NoReturn
+from typing import Dict, Set, Optional, List, NoReturn, cast
 from parser import Parser
 from ast_nodes import Program, Declaration, ProcDecl, FuncDecl
 from preprocessor import Preprocessor
@@ -203,11 +203,13 @@ class ModuleSystem:
             # the exception line number so diagnostics refer to the original source.
             try:
                 if getattr(e, 'line', None) is not None and len(cleaned_line_map) > 0:
-                    ln = e.line
-                    if 1 <= ln <= len(cleaned_line_map):
-                        orig_ln = cleaned_line_map[ln - 1]
+                    ln_opt = getattr(e, 'line', None)
+                    if ln_opt is not None and 1 <= ln_opt <= len(cleaned_line_map):
+                        # Narrow ln_opt to int for static type checkers before indexing
+                        ln_i: int = cast(int, ln_opt)
+                        orig_ln = cleaned_line_map[ln_i - 1]
                         try:
-                            e.line = orig_ln
+                            setattr(e, "line", orig_ln)
                         except Exception:
                             pass
                         # Use the raw (original) source text so error contexts show proper lines
@@ -691,6 +693,10 @@ class ModuleSystem:
         agg_global = {}
         agg_proc = {}
         file_lines = {}
+        # Per-file structures to help map cleaned-source positions back to original files
+        per_file_stmt_pos: Dict[str, list[tuple[int,int,str]]] = {}
+        orig_line_map_per_file: Dict[str, list[int]] = {}
+        orig_source_lines_per_file: Dict[str, list[str]] = {}
 
         for module_path, module_info in self.loaded_modules.items():
             prog: Program | None = module_info.program
@@ -699,6 +705,21 @@ class ModuleSystem:
                 # Merge maps
                 for k, v in dbg.get("stmt_src", {}).items():
                     agg_stmt[k] = v
+                    # v is (filename, line, col, text) -> record cleaned position in per-file map
+                    try:
+                        fname = v[0]
+                        if not fname:
+                            continue
+                        raw_line = v[1]
+                        raw_col = v[2] if len(v) > 2 else None
+                        raw_text = v[3] if len(v) > 3 else None
+                        # Normalize/validate types to match Dict[str, list[tuple[int,int,str]]]
+                        ln_i = raw_line if isinstance(raw_line, int) and raw_line >= 0 else 0
+                        col_i = raw_col if isinstance(raw_col, int) and raw_col >= 0 else 0
+                        txt = raw_text if isinstance(raw_text, str) else ""
+                        per_file_stmt_pos.setdefault(fname, []).append((ln_i, col_i, txt))
+                    except Exception:
+                        pass
                 for k, v in dbg.get("local_decl_src", {}).items():
                     agg_local[k] = v
                 for k, v in dbg.get("global_decl_src", {}).items():
@@ -710,6 +731,13 @@ class ModuleSystem:
                 lines = dbg.get("source_lines")
                 if fname and lines:
                     file_lines[fname] = lines
+                # Also preserve original-line mapping and original source lines if available
+                orig_map = dbg.get('orig_line_map')
+                if fname and orig_map:
+                    orig_line_map_per_file[fname] = orig_map
+                orig_src_lines = dbg.get('orig_source_lines')
+                if fname and orig_src_lines:
+                    orig_source_lines_per_file[fname] = orig_src_lines
 
         # Map filename -> is_module flag for consumer passes that need to know which
         # source files were declared as .module
@@ -722,6 +750,10 @@ class ModuleSystem:
             "proc_src": agg_proc,
             "file_lines": file_lines,
             "file_is_module": file_is_module,
+            # Extra per-file mappings to support remapping of runtime diagnostics
+            "per_file_stmt_pos": per_file_stmt_pos,
+            "orig_line_map_per_file": orig_line_map_per_file,
+            "orig_source_lines_per_file": orig_source_lines_per_file,
         }
 
         return final_program, all_defined_symbols

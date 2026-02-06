@@ -574,7 +574,7 @@ proc play_note(byte frequency, byte duration)
     byte i
     for i = 0 to duration
         ; Busy-wait
-    next i
+    end
     
     POKEY_AUDC1 = 0        ; Stop audio
 end
@@ -681,7 +681,7 @@ Manual optimization:
 byte i
 for i = 0 to 4
     process(i)
-next i
+end
 
 ; Unrolled (faster, more code)
 process(0)
@@ -891,7 +891,7 @@ proc critical_inner_loop()
     ; This loop is critical - minimize instructions
     for i = 0 to 255
         sum = sum + data[i]
-    next i
+    end
 end
 ```
 
@@ -1001,7 +1001,7 @@ proc update_sprites()
                 sprite_active[i] = 0
             endif
         endif
-    next i
+    end
 end
 ```
 
@@ -1023,7 +1023,7 @@ proc process_messages()
     byte i
     for i = 0 to message_count
         process_message(message_queue[i])
-    next i
+    end
     message_count = 0
 end
 ```

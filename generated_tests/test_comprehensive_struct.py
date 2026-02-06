@@ -126,7 +126,7 @@ proc main()
     for i = 0 to 3
         items[i].value = i
         items[i].counter = 0
-    next i
+    end
 end
 """
     parser = Parser(source, "Test6.zap")

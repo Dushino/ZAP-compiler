@@ -137,7 +137,7 @@ proc print_greeting()
     byte i
     for i = 0 to count
         ; print msg[i]
-    next i
+    end
 end
 
 proc main()

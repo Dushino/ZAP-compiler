@@ -6,11 +6,11 @@ proc main()
 
     for i = 0 to 4
         arr[i] = i * 2
-    next i
+    end
 
     for i = 0 to 4 STEP 2
         arr[i] = arr[i] + 1
-    next i
+    end
 
     result = arr[4]
 end

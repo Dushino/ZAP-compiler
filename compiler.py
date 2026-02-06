@@ -35,6 +35,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         else:
             print_exception(e, filename=parser_filename)
         sys.exit(1)
+        return ""
 
 
 def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None) -> str:
@@ -53,6 +54,69 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
     
     except CompileError as e:
+        # If we have the parsed/linked program available, attempt to remap the
+        # error (which carries cleaned-source line numbers) back to the original
+        # source file/line using per-file mappings collected by ModuleSystem.
+        try:
+            program_local = locals().get("program")
+            dbg = program_local.debug if program_local and getattr(program_local, 'debug', None) else {}
+            file_lines = dbg.get('file_lines', {}) or {}
+            per_file_stmt_pos = dbg.get('per_file_stmt_pos', {}) or {}
+            orig_map_per_file = dbg.get('orig_line_map_per_file', {}) or {}
+            orig_src_per_file = dbg.get('orig_source_lines_per_file', {}) or {}
+
+            mapped = False
+            # If error already names a file and mapping exists, remap
+            if getattr(e, 'filename', None) and getattr(e, 'line', None) and e.filename in orig_map_per_file:
+                omap = orig_map_per_file.get(e.filename)
+                ln = getattr(e, 'line', None)
+                # Ensure ln and omap are valid before indexing
+                if ln is not None and omap is not None and 1 <= ln <= len(omap):
+                    e.line = omap[ln - 1]
+                    e.source_text = "\n".join(orig_src_per_file.get(e.filename, []))
+                    mapped = True
+
+                # Try to find a file whose cleaned source contains a matching stmt position
+                if not mapped and (getattr(e, 'line', None) is not None):
+                    clen = getattr(e, 'line', None)
+                    ccol = getattr(e, 'col', None)
+                    for fname, positions in per_file_stmt_pos.items():
+                        for (pln, pcol, _text) in positions:
+                            # Ensure cleaned line is valid before comparing
+                            if clen is not None and pln == clen and (ccol is None or pcol == ccol):
+                                omap = orig_map_per_file.get(fname)
+                                # Ensure we have an original-map to index into
+                                if omap is not None and clen is not None and 1 <= clen <= len(omap):
+                                    e.line = omap[clen - 1]
+                                    e.filename = fname
+                                    e.source_text = "\n".join(orig_src_per_file.get(fname, []))
+                                else:
+                                    e.filename = fname
+                                    e.source_text = "\n".join(file_lines.get(fname, []) or [])
+                                mapped = True
+                                break
+                        if mapped:
+                            break
+
+                # Fallback: guess by inclusion (cleaned-line <= file length)
+                if not mapped and (getattr(e, 'line', None) is not None):
+                    clen = getattr(e, 'line', None)
+                    for fname, lines in file_lines.items():
+                        if clen is not None and clen <= len(lines or []):
+                            omap = orig_map_per_file.get(fname)
+                            if omap is not None and clen is not None and 1 <= clen <= len(omap):
+                                e.line = omap[clen - 1]
+                                e.filename = fname
+                                e.source_text = "\n".join(orig_src_per_file.get(fname, []))
+                            else:
+                                e.filename = fname
+                                e.source_text = "\n".join(lines or [])
+                            mapped = True
+                            break
+        except Exception:
+            # Keep original error if remapping fails
+            pass
+
         # Prefer attached source text (e.g., preprocessed/cleaned) if available
         src = getattr(e, "source_text", None)
         if src is None:

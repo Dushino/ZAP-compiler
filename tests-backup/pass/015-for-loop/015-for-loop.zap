@@ -4,5 +4,5 @@ byte i
 proc main()
     for i = 0 to 4
         arr[i] = i
-    next i
+    end
 end

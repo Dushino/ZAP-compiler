@@ -168,7 +168,27 @@ def main():
     failed = 0
     
     for test_name, test_func in tests:
-        success, message = test_func()
+        try:
+            res = test_func()  # type: ignore
+            # Some test functions use pytest-style assertions and don't return a tuple.
+            if res is None:
+                print(f"- {test_name}: skipped")
+                continue
+            res_any = res  # type: ignore
+            try:
+                success, message = res_any  # type: ignore
+            except Exception:
+                print(f"- {test_name}: skipped or unexpected result")
+                continue
+        except AssertionError as ae:
+            print(f"✗ {test_name}: Assertion failed: {ae}")
+            failed += 1
+            continue
+        except Exception as ex:
+            print(f"✗ {test_name}: Exception: {ex}")
+            failed += 1
+            continue
+
         if success:
             print(f"✓ {test_name}: {message}")
             passed += 1

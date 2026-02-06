@@ -1406,14 +1406,10 @@ class Parser:
             step = self.parse_expr()
 
         body = []
-        while not (
-            self.cur.type == TOK_KEYWORD and self.cur.value == "NEXT"
-        ):
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
             body.append(self.parse_stmt())
 
-        self.expect(TOK_KEYWORD, "NEXT")
-        # Action requires: NEXT <var>
-        self.expect(TOK_IDENT)
+        self.expect(TOK_KEYWORD, "END")
         node = ForStmt(var, start, end, step, body)
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)

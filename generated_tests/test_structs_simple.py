@@ -97,7 +97,7 @@ def test_structs_simple():
         assert expected_symbol in asm, f"Expected symbol {expected_symbol} not found in generated assembly for {test_name}"
 
 def run_tests():
-    tests = test_cases()
+    tests = _build_cases()
     results = []
     
     print("=" * 70)

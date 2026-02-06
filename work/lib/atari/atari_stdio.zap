@@ -66,14 +66,15 @@ proc CONSTRUCTOR()
     word dlstart @560      ; system storage for DL address
     word ^vram
     byte ^data
+    byte i
     
     vram = dlstart + 4
     data = vram^
     ; data^ = 1
     vlstart[0] = data
-    for byte i = 1 to MAX_YPOS - 1        
+    for i = 1 to MAX_YPOS - 1        
         vlstart[i] = data
-        data = data + 40
+        data = data + MAX_XPOS + 1
     end
     vlstart[0]^ = 1
     vlstart[1]^ = 2

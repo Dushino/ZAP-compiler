@@ -241,7 +241,7 @@ Start here if you're just beginning:
 | Procedures | `proc`, `end` |
 | Functions | `func`, `return`, `end` |
 | Control Flow | `if`, `then`, `else`, `endif` |
-| Loops | `while`, `for`, `to`, `step`, `next`, `break` |
+| Loops | `while`, `for`, `to`, `step`, `end`, `break` |
 | Types | `byte`, `word` |
 | Modifiers | `const`, `#KEEP`, `#NOEXPORT`, `#EXPORT` |
 | Directives | `.module`, `.include`, `.error`, `.warning`, `.info` |
@@ -318,7 +318,7 @@ byte ^ptr           ; Pointer to byte
 ```zap
 if condition then ... endif             ; Conditional
 while condition ... end                 ; Loop
-for i = 0 to 10 ... next i             ; Counter loop
+for i = 0 to 10 ... end                 ; Counter loop
 ```
 
 ### Procedures & Functions
