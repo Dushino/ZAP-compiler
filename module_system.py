@@ -192,15 +192,46 @@ class ModuleSystem:
         try:
             program: Program = parser.parse_program()
         except Exception as e:
-            # Attach source text and filename for better error reporting if it's a CompileError subtype
-            try:
-                setattr(e, "source_text", cleaned_source)
-            except Exception:
-                pass
+            # If parsing failed, prefer to report the location in the original file
+            # (map cleaned-source line numbers back to original line numbers when possible)
             try:
                 setattr(e, "filename", filepath)
             except Exception:
                 pass
+
+            # If we have a mapping from cleaned lines back to original lines, remap
+            # the exception line number so diagnostics refer to the original source.
+            try:
+                if getattr(e, 'line', None) is not None and len(cleaned_line_map) > 0:
+                    ln = e.line
+                    if 1 <= ln <= len(cleaned_line_map):
+                        orig_ln = cleaned_line_map[ln - 1]
+                        try:
+                            e.line = orig_ln
+                        except Exception:
+                            pass
+                        # Use the raw (original) source text so error contexts show proper lines
+                        try:
+                            setattr(e, "source_text", raw_source)
+                        except Exception:
+                            pass
+                    else:
+                        # fallback to cleaned source if mapping is unavailable
+                        try:
+                            setattr(e, "source_text", cleaned_source)
+                        except Exception:
+                            pass
+                else:
+                    try:
+                        setattr(e, "source_text", cleaned_source)
+                    except Exception:
+                        pass
+            except Exception:
+                # Swallow any error during remapping and re-raise the original exception
+                try:
+                    setattr(e, "source_text", cleaned_source)
+                except Exception:
+                    pass
             raise
 
         # Preserve mapping from cleaned source lines back to the original (pre-directive-removal) lines
