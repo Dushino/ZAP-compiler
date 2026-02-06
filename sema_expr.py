@@ -151,10 +151,32 @@ class ExprTypeChecker:
             
             # Single-dimensional array or final subscript of multi-dimensional array
             # array element is LVALUE of base type
-            # Preserve is_struct and struct_info from array element type
+            # Preserve is_struct, struct_info and whether the element itself is a pointer
+            is_ptr_elem = False
+            # If we can find the base identifier, consult its symbol to determine element pointerness
+            if base_info and not is_field_access and isinstance(base_info, str):
+                try:
+                    arr_sym: Symbol = self.symtab.lookup(base_info)
+                    is_ptr_elem = bool(getattr(arr_sym.type, 'is_pointer', False))
+                except (KeyError, AttributeError):
+                    is_ptr_elem = False
+            elif base_info and is_field_access and isinstance(base_info, FieldAccess):
+                # Field access base: consult struct field metadata if available
+                if self.struct_registry:
+                    try:
+                        obj_type: ExprType = self.check(base_info.object, read_check_enabled=read_check_enabled)
+                        base_type_name: str = obj_type.sem_type.base
+                        struct_info = self.struct_registry.lookup(base_type_name.upper())
+                        if struct_info:
+                            field_info = struct_info.get_field(base_info.field.upper())
+                            if field_info:
+                                is_ptr_elem = bool(field_info.is_pointer)
+                    except (KeyError, AttributeError, SemanticError):
+                        is_ptr_elem = False
+
             elem_type = SemType(
                 base=arr_t.sem_type.base,
-                is_pointer=False,
+                is_pointer=is_ptr_elem,
                 is_struct=arr_t.sem_type.is_struct,
                 struct_info=arr_t.sem_type.struct_info
             )
