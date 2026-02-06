@@ -22,7 +22,7 @@
     * fputc     zápis jednoho znaku do souboru
 */
 
-; .module "atari_stdio"
+.module "atari_stdio"
 
 
 ; ATARI colors
@@ -55,21 +55,20 @@ byte PLAYF3  @711
 byte PLAYF4  @712
 
 
-byte cur_xpos, cur_ypos     ; cusror position on the screen
+byte cur_xpos, cur_ypos     ; cursor position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
 ; initialize internals for faster screen IO
-proc CONSTRUCTOR1() 
-    byte ^dlstart @560      ; system storage for DL address
-    byte ^dlptr             ; pointer into display list
-    byte ^vram
-        
-    dlptr = dlstart         ; copy display list address into ZP pointer        
-    dlptr = dlptr + 4       ; skip first four bytes of display list - Fixme: Reports wrong error on wrong line
-    vram = dlptr^           ; get screen memory address from display list
-    
-    vram^ = 1
+proc CONSTRUCTOR() 
+    word dlstart @560      ; system storage for DL address
+    word ^vram
+    byte ^data
+
+    vram = dlstart + 4
+    data = vram^
+    data^ = 1
+
 end
 
 
@@ -124,10 +123,4 @@ func byte getchar()
     return ch
 end
 
-
-proc main()
-    CONSTRUCTOR1()
-    cls()
-    putchar(65) ; 'A'
-end
 
