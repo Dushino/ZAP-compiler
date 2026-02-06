@@ -3,6 +3,7 @@ import copy
 from tokenizer import *
 from token_types import *
 import sys
+from typing import NoReturn
 
 # ---------------------------------------------------------------------------------
 # global variable:
@@ -84,8 +85,8 @@ class Identifiers:
         self._identifiers = []
         self.pos = 0
 
-    def _error(self, errtxt:str) -> sys.NoReturn:
-        print(f'IDENTIFIER ERROR: {errtxt}.', file = sys.stderr)        
+    def _error(self, errtxt: str) -> NoReturn:
+        print(f'IDENTIFIER ERROR: {errtxt}.', file=sys.stderr)
         exit(1)
 
 

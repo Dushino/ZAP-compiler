@@ -35,7 +35,7 @@ class Preprocessor:
             # Check for directives
             if stripped.startswith('.define '):
                 if cond_stack[-1][0]:  # only process if active
-                    parts = line.strip().split(None, 1)
+                    parts = line.strip().split()
                     if len(parts) >= 2:
                         symbol = parts[1].strip().upper()
                         if symbol in self.defined_symbols:
@@ -55,7 +55,7 @@ class Preprocessor:
                 continue
             
             if stripped.startswith('.ifdef '):
-                parts = line.strip().split(None, 1)
+                parts = line.strip().split()
                 if len(parts) < 2:
                     raise PreprocessorError("Missing symbol in .ifdef", i + 1)
                 symbol = parts[1].strip().upper()
@@ -69,7 +69,7 @@ class Preprocessor:
                 continue
             
             if stripped.startswith('.ifndef '):
-                parts = line.strip().split(None, 1)
+                parts = line.strip().split()
                 if len(parts) < 2:
                     raise PreprocessorError("Missing symbol in .ifndef", i + 1)
                 symbol = parts[1].strip().upper()

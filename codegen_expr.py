@@ -3018,7 +3018,8 @@ class CodeGen:
             e.filename = fname
             raise e
         else:
-            raise SemanticError(msg)
+            # Attach current expression node if present so error has location
+            raise SemanticError(msg, node=getattr(self, 'current_expr', None))
 
     def _load_sym_addr(self, sym_name: str) -> None:
         self.emit(f"\tLDA #<{sym_name}")
@@ -5137,8 +5138,7 @@ class CodeGen:
             # Array element: calculate base + index*element_size
             # Get array symbol
             if not isinstance(operand.array, Identifier):
-                raise SemanticError("Complex array subscripts not supported with @")
-            
+                raise SemanticError("Complex array subscripts not supported with @", node=getattr(self, 'current_expr', None))
             array_sym: Symbol = self.current_symtab.lookup(operand.array.name)
             label: str = self._get_label_for_symbol(array_sym)
             
@@ -5202,12 +5202,12 @@ class CodeGen:
                     self.emit("\tTAX")
                     self.emit("\tLDA TMP1")
                 else:
-                    raise SemanticError(f"Element size {elem_size} not yet supported for address-of")
+                    raise SemanticError(f"Element size {elem_size} not yet supported for address-of", node=getattr(self, 'current_expr', None))
         
         elif isinstance(operand, FieldAccess):
             # Struct field: base address + field offset
             if not isinstance(operand.object, Identifier):
-                raise SemanticError("Complex field access not supported with @")
+                raise SemanticError("Complex field access not supported with @", node=getattr(self, 'current_expr', None))
             
             struct_sym: Symbol = self.current_symtab.lookup(operand.object.name)
             struct_label: str = self._get_label_for_symbol(struct_sym)
@@ -5230,7 +5230,7 @@ class CodeGen:
                 self.emit(f"{lbl_no_carry}:")
         
         else:
-            raise SemanticError("Invalid operand for address-of operator")
+            raise SemanticError("Invalid operand for address-of operator", node=getattr(self, 'current_expr', None))
     
     def _get_label_for_symbol(self, sym: Symbol) -> str:
         """Get the label name for a symbol"""
@@ -5245,11 +5245,11 @@ class CodeGen:
     def _get_field_offset(self, struct_expr: Expr, field_name: str) -> int:
         """Calculate byte offset of field within struct"""
         if not isinstance(struct_expr, Identifier):
-            raise SemanticError("Complex struct access not supported")
+            raise SemanticError("Complex struct access not supported", node=getattr(self, 'current_expr', None))
         
         sym: Symbol = self.current_symtab.lookup(struct_expr.name)
         if not sym.type.is_struct or not sym.type.struct_info:
-            raise SemanticError("Not a struct")
+            raise SemanticError("Not a struct", node=getattr(self, 'current_expr', None))
         
         offset = 0
         for field in sym.type.struct_info.fields:
@@ -5257,7 +5257,7 @@ class CodeGen:
                 return offset
             offset += field.width
         
-        raise SemanticError(f"Field '{field_name}' not found in struct")
+        raise SemanticError(f"Field '{field_name}' not found in struct", node=getattr(self, 'current_expr', None))
 
     def _gen_logical(self, expr: BinaryExpr) -> None:
         # TMP4 used to combine A/X when testing word values

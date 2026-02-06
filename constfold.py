@@ -9,14 +9,14 @@ from ast_nodes import (
 from errors import SemanticError
 
 
-def fold_expr(expr: Expr) -> Expr:
+def fold_expr(expr: Expr, node: Expr | None = None) -> Expr:
     if isinstance(expr, IntLiteral):
         return expr
 
     if isinstance(expr, UnaryExpr):
         inner: Expr = fold_expr(expr.expr)
         if isinstance(inner, IntLiteral):
-            return _eval_unary(expr.op, inner.value)
+            return _eval_unary(expr.op, inner.value, node=expr)
         return UnaryExpr(expr.op, inner)
 
     if isinstance(expr, BinaryExpr):
@@ -25,7 +25,7 @@ def fold_expr(expr: Expr) -> Expr:
         
         # Constant folding: const op const
         if isinstance(l, IntLiteral) and isinstance(r, IntLiteral):
-            return _eval_binary(expr.op, l.value, r.value)
+            return _eval_binary(expr.op, l.value, r.value, node=expr)
         
         # Neutral element removal and algebraic simplifications
         op: BinOp = expr.op
@@ -64,17 +64,17 @@ def fold_expr(expr: Expr) -> Expr:
     return expr
 
 
-def _eval_unary(op: UnOp, v: int) -> IntLiteral:
+def _eval_unary(op: UnOp, v: int, node: Expr | None = None) -> IntLiteral:
     if op == UnOp.NOT:
         return IntLiteral(0 if v else 1)
     if op == UnOp.BNOT:
         # Bitwise NOT - invert all 16 bits
         return IntLiteral((~v) & 0xFFFF)
 
-    raise SemanticError(f"Unsupported unary op in constant fold: {op}")
+    raise SemanticError(f"Unsupported unary op in constant fold: {op}", node=node)
 
 
-def _eval_binary(op: BinOp, a: int, b: int) -> IntLiteral:
+def _eval_binary(op: BinOp, a: int, b: int, node: Expr | None = None) -> IntLiteral:
     if op == BinOp.ADD:
         return IntLiteral(a + b)
     if op == BinOp.SUB:
@@ -83,11 +83,11 @@ def _eval_binary(op: BinOp, a: int, b: int) -> IntLiteral:
         return IntLiteral(a * b)
     if op == BinOp.DIV:
         if b == 0:
-            raise SemanticError("Division by zero in constant expression")
+            raise SemanticError("Division by zero in constant expression", node=node)
         return IntLiteral(a // b)
     if op == BinOp.MOD:
         if b == 0:
-            raise SemanticError("Modulo by zero in constant expression")
+            raise SemanticError("Modulo by zero in constant expression", node=node)
         return IntLiteral(a % b)
 
     # relační
@@ -116,6 +116,6 @@ def _eval_binary(op: BinOp, a: int, b: int) -> IntLiteral:
     if op == BinOp.BOR:
         return IntLiteral(a | b)
 
-    raise SemanticError(f"Unsupported binary op in constant fold: {op}")
+    raise SemanticError(f"Unsupported binary op in constant fold: {op}", node=node)
 
 

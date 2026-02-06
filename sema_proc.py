@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from ast_nodes import ProcDecl, CallStmt
-from symbols import Symbol, SymbolTable, ProcTable, ProcSymbol, ScopedSymbolTable, SymbolLookup
+from typing import Any, cast
+from typing import Any
+from ast_nodes import Parameter, Parameter, Declaration, ProcDecl, CallStmt
+from symbols import StructFieldInfo, Symbol, SymbolTable, ProcTable, ProcSymbol, ScopedSymbolTable, SymbolLookup
 from errors import SemanticError
 from sema import DeclarationAnalyzer
 
@@ -18,28 +20,33 @@ class ProcAnalyzer:
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
         self.func_table = func_table
+        # Track the currently-analyzed ProcDecl. May be None when no proc is active.
+        self.current_proc: ProcDecl | None = None
 
     def analyze_decl(self, proc: ProcDecl) -> None:
         # Count required parameters (those without defaults)
         required_params: int = sum(1 for p in proc.params if p.default_value is None)
         # Determine owner file and exported flag (set by module system via debug maps)
-        proc_src_map = self.debug.get('proc_src', {})
+        proc_src_map = self.debug.get('proc_src') or {}
         owner = None
         owner_is_module = False
         info = proc_src_map.get(proc.name)
         if info:
             # info may be (filename, line, col, text) or (filename, line, text)
             owner = info[0]
-            owner_is_module = self.debug.get('file_is_module', {}).get(owner, False)
+            file_is_module_map = self.debug.get('file_is_module') or {}
+            owner_is_module = file_is_module_map.get(owner, False)
         exported = True
         if owner_is_module and getattr(proc, 'noexport', False):
             exported = False
         try:
             psym = ProcSymbol(proc.name, len(proc.params), required_params, owner_file=owner, exported=exported)
-            self.procs.define(psym)
+            # Provide the ProcDecl AST node so the ProcTable can attach source context on errors
+            self.procs.define(psym, node=proc)
         except SemanticError as e:
             # Attach location of PROC header
-            info = self.debug.get("proc_src", {}).get(proc.name)
+            proc_src_map = self.debug.get("proc_src") or {}
+            info = proc_src_map.get(proc.name)
             if info:
                 if len(info) == 3:
                     fname, line, _text = info
@@ -54,15 +61,17 @@ class ProcAnalyzer:
     def analyze_call(self, call: CallStmt) -> None:
         # Determine caller file if available to support module visibility checks
         caller_file = None
-        if getattr(self, 'current_proc', None):
-            cur_info = self.debug.get('proc_src', {}).get(self.current_proc.name)
+        if self.current_proc is not None:
+            proc_src_map = self.debug.get('proc_src') or {}
+            cur_info = proc_src_map.get(self.current_proc.name)
             if cur_info:
                 caller_file = cur_info[0]
         try:
             proc_sym: ProcSymbol = self.procs.lookup(call.name, caller_file=caller_file)
         except SemanticError as e:
             # Re-raise with source location attached
-            info = self.debug.get("stmt_src", {}).get(id(call))
+            stmt_src_map = self.debug.get("stmt_src") or {}
+            info = stmt_src_map.get(id(call))
             if info:
                 if len(info) == 3:
                     fname, line, _text = info
@@ -79,7 +88,8 @@ class ProcAnalyzer:
                 f"Procedure '{call.name}' expects {proc_sym.param_count} parameters, "
                 f"but {len(call.args)} were provided"
             )
-            info = self.debug.get("stmt_src", {}).get(id(call))
+            stmt_src_map = self.debug.get("stmt_src") or {}
+            info = stmt_src_map.get(id(call))
             if info:
                 if len(info) == 3:
                     fname, line, _text = info
@@ -89,7 +99,8 @@ class ProcAnalyzer:
                 err = SemanticError(msg, line=line, col=col)
                 err.filename = fname
                 raise err
-            raise SemanticError(msg)
+            # Attach call node to provide source location when available
+            raise SemanticError(msg, node=call)
 
     def analyze_proc(
         self,
@@ -98,7 +109,8 @@ class ProcAnalyzer:
         ) -> AnalyzedProc:
 
         local_symtab = SymbolTable()
-        local_symtab._proc_name = proc.name
+        # Be defensive: proc.name should be a string, but coerce to empty string if None to satisfy static typing
+        local_symtab._proc_name = proc.name or ""
 
         # add parameters to local symbol table
         for param in proc.params:
@@ -132,7 +144,8 @@ class ProcAnalyzer:
                 array_dims=None
             )
             try:
-                local_symtab.define(sym)
+                # Attach the parameter AST node for precise error reporting
+                local_symtab.define(sym, node=param)
             except SemanticError as e:
                 # Attach parameter source location
                 raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
@@ -187,39 +200,51 @@ class ProcAnalyzer:
 
                         base_name = _get_base_ident(st.lhs)
                         if base_name is not None:
+                            # Look up symbol via the SymbolLookup API and handle failures
+                            sym: Symbol | None = None
                             try:
-                                sym: Symbol = tc.symtab.lookup(base_name)
-                                # If this is a field access, consider field-level override
-                                field_name = None
-                                from ast_nodes import FieldAccess
-                                if isinstance(st.lhs, FieldAccess):
-                                    field_name = st.lhs.field
-                                if getattr(sym, 'is_port', False):
-                                    # Determine whether writes are allowed: field overrides symbol
-                                    allowed = True
-                                    if field_name and sym.type.is_struct and sym.type.struct_info:
-                                        field_info = sym.type.struct_info.get_field(field_name.upper())
-                                        if field_info and (field_info.port_wr is not None or field_info.port_rd is not None):
-                                            allowed = bool(field_info.port_wr)
-                                        else:
-                                            allowed = getattr(sym, 'port_wr', False)
-                                    else:
-                                        allowed = getattr(sym, 'port_wr', False)
+                                sym = tc.symtab.lookup(base_name)
+                            except Exception:
+                                sym = None
 
-                                    if not allowed:
-                                        info = self.debug.get("stmt_src", {}).get(id(st))
-                                        if info:
-                                            if len(info) == 3:
-                                                fname, line, _text = info
-                                                col = 1
-                                            else:
-                                                fname, line, col, _text = info
-                                            err = SemanticError("Write to read-only port", line=line, col=col)
-                                            err.filename = fname
-                                            raise err
-                                        raise SemanticError("Write to read-only port")
-                            except KeyError:
-                                pass
+                            # If symbol lookup failed, skip port checks
+                            if sym is None:
+                                continue
+                            # Narrow type for type checker
+                            sym = cast(Symbol, sym)
+                            assert sym is not None
+
+                            # If this is a field access, consider field-level override
+                            field_name: str | None = None
+                            from ast_nodes import FieldAccess
+                            if isinstance(st.lhs, FieldAccess):
+                                field_name = st.lhs.field
+                            if getattr(sym, 'is_port', False):
+                                # Determine whether writes are allowed: field overrides symbol
+                                allowed = True
+                                if field_name and sym.type.is_struct and sym.type.struct_info:
+                                    field_info: StructFieldInfo | None = sym.type.struct_info.get_field(field_name.upper())
+                                    if field_info and (field_info.port_wr is not None or field_info.port_rd is not None):
+                                        allowed = bool(field_info.port_wr)
+                                    else:
+                                        allowed: Any | bool = getattr(sym, 'port_wr', False)
+                                else:
+                                    allowed: Any | bool = getattr(sym, 'port_wr', False)
+
+                                if not allowed:
+                                    stmt_src_map = self.debug.get("stmt_src") or {}
+                                    info = stmt_src_map.get(id(st))
+                                    if info:
+                                        if len(info) == 3:
+                                            fname, line, _text = info
+                                            col = 1
+                                        else:
+                                            fname, line, col, _text = info
+                                        err = SemanticError("Write to read-only port", line=line, col=col)
+                                        err.filename = fname
+                                        raise err
+                                    # Fall back to providing the AST node so the error has a source location
+                                    raise SemanticError("Write to read-only port", node=st)
 
                     elif isinstance(st, ReturnStmt):
                         if st.expr is not None:
@@ -243,7 +268,7 @@ class ProcAnalyzer:
 
         # validate procedure calls inside the body (must refer to defined procs)
         # set current_proc so analyze_call can check visibility
-        self.current_proc: ProcDecl = proc
+        self.current_proc = proc
         def walk(statements: list) -> None:
             from ast_nodes import CallStmt, IfStmt, WhileStmt, ForStmt
             for st in statements:

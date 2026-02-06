@@ -40,20 +40,20 @@ def eval_const_expr(expr, symtab=None):
     # Handle identifiers - look up const variables
     if isinstance(expr, Identifier):
         if symtab is None:
-            raise SemanticError("Constant expression required")
+            raise SemanticError("Constant expression required", node=expr)
         sym = symtab.lookup(expr.name)
         if sym is None:
-            raise SemanticError(f"Undefined identifier: {expr.name}")
+            raise SemanticError(f"Undefined identifier: {expr.name}", node=expr)
         if not sym.is_const:
-            raise SemanticError(f"'{expr.name}' is not a const")
+            raise SemanticError(f"'{expr.name}' is not a const", node=expr)
         if sym.const_value is None:
-            raise SemanticError(f"'{expr.name}' const has no value")
+            raise SemanticError(f"'{expr.name}' const has no value", node=expr)
         return sym.const_value
 
     # Qualified enum member access, e.g., EnumName.Member
     if isinstance(expr, FieldAccess):
         if symtab is None:
-            raise SemanticError("Constant expression required")
+            raise SemanticError("Constant expression required", node=expr)
         # Only support EnumName.Member (object must be Identifier)
         if isinstance(expr.object, Identifier):
             enum_name = expr.object.name.upper()
@@ -67,9 +67,9 @@ def eval_const_expr(expr, symtab=None):
                 members = enums[enum_name]['members']
                 mname = expr.field.upper()
                 if mname not in members:
-                    raise SemanticError(f"Enum '{expr.object.name}' has no member '{expr.field}'")
+                    raise SemanticError(f"Enum '{expr.object.name}' has no member '{expr.field}'", node=expr)
                 return members[mname]
-        raise SemanticError("Constant expression required")
+        raise SemanticError("Constant expression required", node=expr)
 
     if isinstance(expr, BinaryExpr):
         left = eval_const_expr(expr.left, symtab)
@@ -85,8 +85,8 @@ def eval_const_expr(expr, symtab=None):
         elif expr.op == BinOp.MOD:
             return left % right
         else:
-            raise SemanticError("Unsupported operation in constant expression")
-    raise SemanticError("Constant expression required")
+            raise SemanticError("Unsupported operation in constant expression", node=expr)
+    raise SemanticError("Constant expression required", node=expr)
 
 
 def eval_array_dimensions(array_sizes, symtab, d_obj=None):
@@ -165,7 +165,7 @@ class StructAnalyzer:
                 elem_width = 2
             else:
                 # Unknown non-pointer type
-                raise SemanticError(f"Unsupported field type '{field_type}' in struct")
+                raise SemanticError(f"Unsupported field type '{field_type}' in struct", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
 
             if is_pointer and elem_width != 2:
                 # Pointers should be 2 bytes
@@ -180,7 +180,7 @@ class StructAnalyzer:
                         size = eval_const_expr(size_expr)
                         array_sizes.append(size)
                     except SemanticError as e:
-                        raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}")
+                        raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
 
             # Calculate total width
             width: int = elem_width
@@ -196,7 +196,7 @@ class StructAnalyzer:
                 try:
                     fixed_addr = eval_const_expr(field_ast.address)
                 except SemanticError as e:
-                    raise SemanticError(f"Invalid field address: {e.message}")
+                    raise SemanticError(f"Invalid field address: {e.message}", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
 
             # Create field info
             field_info = StructFieldInfo(
@@ -224,7 +224,8 @@ class StructAnalyzer:
         )
 
         try:
-            self.registry.define(struct_info)
+            # Pass the AST node so the registry can attach accurate source context
+            self.registry.define(struct_info, node=struct_def)
         except SemanticError as e:
             # Attach struct definition source location if available
             raise SemanticError(f"Struct definition error: {e.message}", line=struct_def.line, col=struct_def.col)
@@ -264,10 +265,7 @@ class DeclarationAnalyzer:
         num_values: int = len(init.values)
         
         if num_values != num_fields:
-            raise SemanticError(
-                f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided",
-                line=line, col=col
-            )
+            raise SemanticError(f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided", line=line, col=col)
         
         # Validate nested structs
         for field, value in zip(struct_info.fields, init.values):
@@ -406,16 +404,10 @@ class DeclarationAnalyzer:
                 # Check if constant fits in its type
                 if sem_type.base == "BYTE" and not sem_type.is_pointer:
                     if val < 0 or val > 0xFF:
-                        raise SemanticError(
-                            f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)",
-                            line=d.line, col=d.col
-                        )
+                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)", line=d.line, col=d.col)
                 elif sem_type.base == "WORD" or sem_type.is_pointer:
                     if val < 0 or val > 0xFFFF:
-                        raise SemanticError(
-                            f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
-                            line=d.line, col=d.col
-                        )
+                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)", line=d.line, col=d.col)
 
                 # Use effective rd/wr computed earlier
                 sym = Symbol(
@@ -478,7 +470,7 @@ class DeclarationAnalyzer:
                         export=getattr(decl, 'export', False),
                     )
                     try:
-                        self.symtab.define(sym)
+                        self.symtab.define(sym, node=d)
                     except SemanticError as e:
                         raise SemanticError(f"Const array '{d.name}': {e.message}", line=d.line, col=d.col)
                     return
@@ -509,7 +501,7 @@ class DeclarationAnalyzer:
                         export=getattr(decl, 'export', False),
                     )
                     try:
-                        self.symtab.define(sym)
+                        self.symtab.define(sym, node=d)
                     except SemanticError as e:
                         raise SemanticError(f"Const struct '{d.name}': {e.message}", line=d.line, col=d.col)
                     return
@@ -547,7 +539,7 @@ class DeclarationAnalyzer:
                     export=getattr(decl, 'export', False),
                 )
                 try:
-                    self.symtab.define(sym)
+                    self.symtab.define(sym, node=d)
                 except SemanticError as e:
                     raise SemanticError(f"Const string '{d.name}': {e.message}", line=d.line, col=d.col)
                 return
@@ -602,10 +594,7 @@ class DeclarationAnalyzer:
                 # Check if string fits in the specified array size
                 string_len: int = len(d.initializer.value) + 1  # +1 for NUL terminator
                 if array_len is not None and string_len > array_len:
-                    raise SemanticError(
-                        f"String length {len(d.initializer.value)} + 1 (NUL) = {string_len} exceeds array size {array_len}",
-                        line=d.line, col=d.col
-                    )
+                    raise SemanticError(f"String length {len(d.initializer.value)} + 1 (NUL) = {string_len} exceeds array size {array_len}", line=d.line, col=d.col)
                 
                 if array_len is None:
                     array_len: int = string_len
@@ -643,16 +632,10 @@ class DeclarationAnalyzer:
                 # Check range
                 if sem_type.base == "BYTE" and not sem_type.is_pointer:
                     if val < 0 or val > 0xFF:
-                        raise SemanticError(
-                            f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)",
-                            line=d.line, col=d.col
-                        )
+                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)", line=d.line, col=d.col)
                 elif sem_type.base == "WORD" or sem_type.is_pointer:
                     if val < 0 or val > 0xFFFF:
-                        raise SemanticError(
-                            f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
-                            line=d.line, col=d.col
-                        )
+                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)", line=d.line, col=d.col)
             
             # Type-check all expression initializers to trigger validation
             # (e.g., array bounds checking for subscript expressions)
@@ -694,7 +677,7 @@ class DeclarationAnalyzer:
 
 
         try:
-            self.symtab.define(sym)
+            self.symtab.define(sym, node=d)
         except SemanticError as e:
             # Re-raise with better context
             raise SemanticError(f"{e.message}", line=d.line, col=d.col)
@@ -757,7 +740,8 @@ class EnumAnalyzer:
                 noexport=False,
                 export=False,
             )
-            self.symtab.define(sym)
+            # Attach enum member AST item as node for errors
+            self.symtab.define(sym, node=item)
             seen.add(name)
             members[name] = val
             current = val + 1

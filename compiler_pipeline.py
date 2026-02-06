@@ -120,8 +120,19 @@ def _walk_initializer(init, ctx, global_symtab):
 
 
 def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
-    proc_map = {p.ast.name: p for p in analyzed_procs}
-    func_map = {f.ast.name: f for f in analyzed_funcs}
+    # Defensive checks: ensure analyzers returned valid results
+    none_proc_indices = [i for i, p in enumerate(analyzed_procs) if p is None]
+    if none_proc_indices:
+        # Try to provide helpful context: map indices back to source PROC names when available
+        proc_names = [ (program.procs[i].name if i < len(program.procs) and hasattr(program.procs[i], 'name') else None) for i in none_proc_indices ]
+        raise RuntimeError(f"Internal compiler error: analyzed_procs contains None at indices {none_proc_indices}, corresponding to source procs {proc_names}")
+    none_func_indices = [i for i, f in enumerate(analyzed_funcs) if f is None]
+    if none_func_indices:
+        func_names = [ (program.procs[i].name if i < len(program.procs) and hasattr(program.procs[i], 'name') else None) for i in none_func_indices ]
+        raise RuntimeError(f"Internal compiler error: analyzed_funcs contains None at indices {none_func_indices}, corresponding to source procs {func_names}")
+
+    proc_map = {p.ast.name: p for p in analyzed_procs if p is not None}
+    func_map = {f.ast.name: f for f in analyzed_funcs if f is not None}
     all_proc_names = set(proc_map.keys())
 
     referenced_globals: set[str] = set()
@@ -397,7 +408,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         for name in list(global_symtab._symbols.keys()):
             if name in defined_symbols:
                 from errors import SemanticError
-                info = debug.get("global_decl_src", {}).get(name)
+                gdecl = debug.get("global_decl_src") or {}
+                info = gdecl.get(name)
                 if info:
                     fname, line, col, _text = info
                     e = SemanticError(f"Variable '{name}' conflicts with .define symbol", line=line, col=col)
@@ -406,7 +418,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     if src_lines:
                         e.source_text = "\n".join(src_lines)
                     raise e
-                raise SemanticError(f"Variable '{name}' conflicts with .define symbol")
+                # No per-declaration source info available; attach a fallback position
+                raise SemanticError(f"Variable '{name}' conflicts with .define symbol", line=1, col=1)
 
     # --- expression type checker ---
     expr_tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
@@ -424,7 +437,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             # Check for collision with existing global variables
             if p.name in global_symtab._symbols:
                 from errors import SemanticError
-                info = debug.get("proc_src", {}).get(p.name)
+                proc_src = debug.get("proc_src") or {}
+                info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
                     e = SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=line, col=col)
@@ -433,11 +447,13 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     if src_lines:
                         e.source_text = "\n".join(src_lines)
                     raise e
-                raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable")
+                # No per-proc source info available; attach a fallback position
+                raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=1, col=1)
             # Check for collision with .define symbols
             if defined_symbols and p.name in defined_symbols:
                 from errors import SemanticError
-                info = debug.get("proc_src", {}).get(p.name)
+                proc_src = debug.get("proc_src") or {}
+                info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
                     e = SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=line, col=col)
@@ -446,13 +462,15 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     if src_lines:
                         e.source_text = "\n".join(src_lines)
                     raise e
-                raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol")
+                # No per-proc source info available; attach a fallback position
+                raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=1, col=1)
         elif isinstance(p, FuncDecl):
             func_an.analyze_decl(p)
             # Check for collision with existing global variables
             if p.name in global_symtab._symbols:
                 from errors import SemanticError
-                info = debug.get("proc_src", {}).get(p.name)
+                proc_src = debug.get("proc_src") or {}
+                info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
                     e = SemanticError(f"Function '{p.name}' conflicts with existing variable", line=line, col=col)
@@ -461,11 +479,13 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     if src_lines:
                         e.source_text = "\n".join(src_lines)
                     raise e
-                raise SemanticError(f"Function '{p.name}' conflicts with existing variable")
+                # No per-func source info available; attach a fallback position
+                raise SemanticError(f"Function '{p.name}' conflicts with existing variable", line=1, col=1)
             # Check for collision with .define symbols
             if defined_symbols and p.name in defined_symbols:
                 from errors import SemanticError
-                info = debug.get("proc_src", {}).get(p.name)
+                proc_src = debug.get("proc_src") or {}
+                info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
                     e = SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=line, col=col)
@@ -474,25 +494,29 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     if src_lines:
                         e.source_text = "\n".join(src_lines)
                     raise e
-                raise SemanticError(f"Function '{p.name}' conflicts with .define symbol")
+                # No per-func source info available; attach a fallback position
+                raise SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=1, col=1)
     
     # Ensure main() procedure exists (required for initialization code)
     try:
         proc_table.lookup("MAIN")
     except KeyError:
         from errors import SemanticError
-        raise SemanticError("Program must have a 'main()' procedure")
+        # Give a stable fallback location if main() is missing
+        raise SemanticError("Program must have a 'main()' procedure", line=1, col=1)
     
     # second pass: analyze bodies
     for p in program.procs:
         if isinstance(p, ProcDecl):
-            analyzed_procs.append(
-                proc_an.analyze_proc(p, global_symtab)
-            )
+            ap = proc_an.analyze_proc(p, global_symtab)
+            if ap is None:
+                raise RuntimeError(f"Internal compiler error: Proc analyzer returned None for procedure '{p.name}'")
+            analyzed_procs.append(ap)
         elif isinstance(p, FuncDecl):
-            analyzed_funcs.append(
-                func_an.analyze_func(p, global_symtab)
-            )
+            af = func_an.analyze_func(p, global_symtab)
+            if af is None:
+                raise RuntimeError(f"Internal compiler error: Func analyzer returned None for function '{p.name}'")
+            analyzed_funcs.append(af)
 
     # --- codegen ---   
     # reuse func_table from analysis (already has all functions registered)

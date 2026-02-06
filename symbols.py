@@ -65,10 +65,13 @@ class StructRegistry:
     def __init__(self) -> None:
         self._structs: dict[str, StructInfo] = {}
 
-    def define(self, struct_info: StructInfo) -> None:
-        """Register a struct definition"""
+    def define(self, struct_info: StructInfo, node=None) -> None:
+        """Register a struct definition. Optional `node` can be provided so the raised
+        SemanticError carries source context when appropriate."""
         if struct_info.name.upper() in self._structs:
-            raise SemanticError(f"Struct '{struct_info.name}' already defined")
+            # Prefer to attach provided node (if caller has it); otherwise keep None so
+            # callers can catch/wrap and attach their own context.
+            raise SemanticError(f"Struct '{struct_info.name}' already defined", node=node)
         self._structs[struct_info.name.upper()] = struct_info
 
     def lookup(self, name: str) -> Optional[StructInfo]:
@@ -99,7 +102,7 @@ class SemType:
         if base_lower == "word":
             return 2
         # Unknown type encountered during width computation - report as semantic error
-        raise SemanticError(f"Unknown type: {self.base}")
+        raise SemanticError(f"Unknown type: {self.base}", node=None)
     
     def get_size(self) -> int:
         """Alias for width property"""
@@ -163,10 +166,12 @@ class SymbolTable:
         self._symbols: dict[str, Symbol] = {}
         # Registry for enum definitions: enum_name -> {'base': 'BYTE'|'WORD', 'members': {NAME: value}}
         self._enums: dict[str, dict] = {}
+        # Name of the owning procedure for local symbol tables (empty for globals)
+        self._proc_name: str = ""
 
-    def define(self, sym: Symbol) -> None:
+    def define(self, sym: Symbol, node=None) -> None:
         if sym.name in self._symbols:
-            raise SemanticError(f"Variable '{sym.name}' already defined")
+            raise SemanticError(f"Variable '{sym.name}' already defined", node=node)
         self._symbols[sym.name] = sym
 
     def lookup(self, name: str) -> Symbol:
@@ -194,24 +199,24 @@ class ProcTable:
         # Map name -> list of ProcSymbol (allow same name in different modules if not exported)
         self._procs: dict[str, list[ProcSymbol]] = {}
 
-    def define(self, p: ProcSymbol) -> None:
+    def define(self, p: ProcSymbol, node=None) -> None:
         # Ensure no duplicate definitions within same owner
         lst: List[ProcSymbol] = self._procs.setdefault(p.name, [])
         for existing in lst:
             if existing.owner_file == p.owner_file:
-                raise SemanticError(f"Procedure '{p.name}' already defined")
+                raise SemanticError(f"Procedure '{p.name}' already defined", node=node)
             # If both are exported, that's a global conflict
             if existing.exported and p.exported:
-                raise SemanticError(f"Procedure '{p.name}' already defined")
+                raise SemanticError(f"Procedure '{p.name}' already defined", node=node)
         lst.append(p)
 
-    def lookup(self, name: str, caller_file: str | None = None) -> ProcSymbol:
+    def lookup(self, name: str, caller_file: str | None = None, node=None) -> ProcSymbol:
         """Lookup a procedure symbol by name.
         If multiple candidates exist, prefer one defined in caller_file. Otherwise prefer an exported symbol.
         If the found symbol is not exported and caller_file is different, raises SemanticError.
         """
         if name not in self._procs:
-            raise SemanticError(f"Undefined procedure '{name}'")
+            raise SemanticError(f"Undefined procedure '{name}'", node=node)
         candidates: List[ProcSymbol] = self._procs[name]
         # Prefer candidate defined in caller_file
         if caller_file is not None:
@@ -223,9 +228,9 @@ class ProcTable:
         if len(exported) == 1:
             return exported[0]
         if len(exported) > 1:
-            raise SemanticError(f"Procedure '{name}' already defined")
+            raise SemanticError(f"Procedure '{name}' already defined", node=node)
         # No exported candidate - procedure exists but is internal to some module(s)
-        raise SemanticError(f"Undefined procedure '{name}'")
+        raise SemanticError(f"Undefined procedure '{name}'", node=node)
 
 
 class ScopedSymbolTable:
@@ -251,14 +256,14 @@ class FuncTable:
     def __init__(self) -> None:
         self._funcs: dict[str, FuncSymbol] = {}
 
-    def define(self, f: FuncSymbol) -> None:
+    def define(self, f: FuncSymbol, node=None) -> None:
         if f.name in self._funcs:
-            raise SemanticError(f"Function '{f.name}' already defined")
+            raise SemanticError(f"Function '{f.name}' already defined", node=node)
         self._funcs[f.name] = f
 
-    def lookup(self, name: str) -> FuncSymbol:
+    def lookup(self, name: str, node=None) -> FuncSymbol:
         try:
             return self._funcs[name]
         except KeyError:
-            raise SemanticError(f"Undefined function '{name}'")
+            raise SemanticError(f"Undefined function '{name}'", node=node)
 

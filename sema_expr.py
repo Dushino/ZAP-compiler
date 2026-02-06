@@ -262,11 +262,7 @@ class ExprTypeChecker:
             fs: FuncSymbol = self.func_table.lookup(expr.name)
             # Allow arguments from required_params to param_count
             if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:
-                raise SemanticError(
-                    f"Function '{expr.name}' expects {fs.param_count} parameters, "
-                    f"but {len(expr.args)} were provided",
-                    node=expr
-                )
+                raise SemanticError(f"Function '{expr.name}' expects {fs.param_count} parameters, but {len(expr.args)} were provided", node=expr)
             return ExprType(fs.ret_type, ExprKind.VALUE)
 
         # struct field access: obj.field or ptr^.field
@@ -348,10 +344,7 @@ class ExprTypeChecker:
             return ExprType(field_sem_type, ExprKind.LVALUE)
 
         # chyba
-        raise SemanticError(
-            f"Unsupported expression type: {type(expr).__name__}",
-            node=expr
-        )
+        raise SemanticError(f"Unsupported expression type: {type(expr).__name__}", node=expr)
 
     def _check_array_bounds(self, subscript_expr: SubscriptExpr, index_value: int) -> None:
         """Check if a constant array index is within bounds.
@@ -391,17 +384,11 @@ class ExprTypeChecker:
                     if arr_sym.array_dims and dim_index < len(arr_sym.array_dims):
                         max_size: int = arr_sym.array_dims[dim_index]
                         if max_size is not None and index_value >= max_size:
-                            raise SemanticError(
-                                f"Array index {index_value} is out of bounds for array dimension {dim_index + 1} with size {max_size}",
-                                node=subscript_expr
-                            )
+                            raise SemanticError(f"Array index {index_value} is out of bounds for array dimension {dim_index + 1} with size {max_size}", node=subscript_expr)
                     elif arr_sym.array_len and dim_index == 0:
                         # Old 1D array format with array_len
                         if index_value >= arr_sym.array_len:
-                            raise SemanticError(
-                                f"Array index {index_value} is out of bounds for array dimension 1 with size {arr_sym.array_len}",
-                                node=subscript_expr
-                            )
+                            raise SemanticError(f"Array index {index_value} is out of bounds for array dimension 1 with size {arr_sym.array_len}", node=subscript_expr)
             except (KeyError, AttributeError):
                 # Symbol not found, skip bounds check (error will be caught elsewhere)
                 pass
@@ -426,10 +413,7 @@ class ExprTypeChecker:
                             if dim_index < len(field_info.array_sizes):
                                 max_size = field_info.array_sizes[dim_index]
                                 if max_size is not None and index_value >= max_size:
-                                    raise SemanticError(
-                                        f"Array index {index_value} is out of bounds for struct field dimension {dim_index} with size {max_size}",
-                                        node=subscript_expr
-                                    )
+                                    raise SemanticError(f"Array index {index_value} is out of bounds for struct field dimension {dim_index} with size {max_size}", node=subscript_expr)
             except (KeyError, AttributeError, SemanticError) as e:
                 # Re-raise SemanticError, skip others
                 if isinstance(e, SemanticError):

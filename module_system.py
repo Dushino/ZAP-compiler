@@ -3,7 +3,7 @@ Module system for handling .module and .include directives
 """
 import os
 from dataclasses import dataclass
-from typing import Dict, Set, Optional, List
+from typing import Dict, Set, Optional, List, NoReturn
 from parser import Parser
 from ast_nodes import Program, Declaration, ProcDecl, FuncDecl
 from preprocessor import Preprocessor
@@ -22,7 +22,7 @@ class ModuleInfo:
     # Preserve original top-level items order (procs, funcs, directives)
     top_level_items: list
     includes: list[str]  # List of included module names
-    defined_symbols: Set[str] = None  # Preprocessor .define symbols
+    defined_symbols: Optional[Set[str]] = None  # Preprocessor .define symbols
     program: Program | None = None
 
 
@@ -60,18 +60,42 @@ class ModuleSystem:
             raw_source = raw_source[1:]
         
         # Apply preprocessor (handles .ifdef, .ifndef, .else, .endif, .define, .undef)
-        processed_source, defined_symbols = self.preprocessor.process(raw_source)
+        # If this file appears to be for a specific platform library (e.g., 'lib/atari'),
+        # temporarily define the platform symbol so library-internal conditional blocks
+        # (like .ifdef ATARI) are included for parsing and diagnostics.
+        platform_symbol_added = None
+        try:
+            path_parts = os.path.normpath(filepath).split(os.sep)
+            # Detect patterns like .../lib/atari/... or .../work/lib/atari/...
+            if 'lib' in path_parts:
+                lib_idx = path_parts.index('lib')
+                if lib_idx + 1 < len(path_parts):
+                    platform = path_parts[lib_idx + 1]
+                    if platform:
+                        sym = platform.upper()
+                        if sym not in self.preprocessor.defined_symbols:
+                            self.preprocessor.defined_symbols.add(sym)
+                            platform_symbol_added = sym
+            processed_source, defined_symbols = self.preprocessor.process(raw_source)
+        finally:
+            # Restore previous preprocessor state to avoid side-effects
+            if platform_symbol_added is not None:
+                self.preprocessor.defined_symbols.discard(platform_symbol_added)
         
         # Extract module/include directives
-        module_name = None
-        is_module = False
-        includes = []
-        module_directive_info = None  # (line, col, text)
+        module_name: Optional[str] = None
+        is_module: bool = False
+        includes: list[str] = []
+        # module_directive_info is either a tuple (line, col, text) or None
+        module_directive_info: Optional[tuple[int, int, str]] = None
         include_directives: dict[str, tuple[int, int, str]] = {}
         
         orig_lines: List[str] = raw_source.split('\n')
-        cleaned_lines = []
+        cleaned_lines: list[str] = []
         cleaned_line_map: List[int] = []
+        # Initialize loop variables so static analysis sees them as always defined
+        ln: int = 0
+        line: str = ""
         
         # If the preprocessor provided a list of kept original line numbers, iterate
         # over those so we can preserve original file line numbers for diagnostics.
@@ -100,8 +124,8 @@ class ModuleSystem:
                         err.filename = filepath
                         err.source_text = raw_source
                         raise err
-                    module_name: str = line[first_q+1:second_q]
-                    module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
+                    module_name = line[first_q+1:second_q]
+                    module_directive_info = (ln, first_q+1, line)
                 elif stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     parts: List[str] = line.split('"')
@@ -140,8 +164,8 @@ class ModuleSystem:
                         err.filename = filepath
                         err.source_text = processed_source
                         raise err
-                    module_name: str = line[first_q+1:second_q]
-                    module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
+                    module_name = line[first_q+1:second_q]
+                    module_directive_info = (ln, first_q+1, line)
                 elif stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     # Capture the directive position so we can report errors at the include site
@@ -217,7 +241,9 @@ class ModuleSystem:
         # - In module files, treat them as if they had #KEEP and #NOEXPORT and
         #   rename them to a unique internal name to avoid label collisions.
         new_procs = []
-        proc_src = program.debug.get('proc_src', {}) if program.debug else {}
+        prog = program
+        debug = (prog.debug or {}) if prog else {}
+        proc_src = debug.get('proc_src', {})
         for p in program.procs:
             if isinstance(p, ProcDecl) and p.name.lower() == 'constructor':
                 if not is_module:
@@ -233,13 +259,13 @@ class ModuleSystem:
                             fname, line_no, col_no, _text = info
                         # If we have an original-line mapping from the parser stage, map the
                         # cleaned-source line number back to the original file line number.
-                        orig_map = program.debug.get('orig_line_map') if program and getattr(program, 'debug', None) else None
+                        orig_map = debug.get('orig_line_map')
                         if orig_map and 1 <= line_no <= len(orig_map):
                             orig_line_no = orig_map[line_no - 1]
-                            src_lines = program.debug.get('orig_source_lines', orig_lines)
+                            src_lines = debug.get('orig_source_lines', orig_lines)
                         else:
                             orig_line_no = line_no
-                            src_lines = program.debug.get('source_lines', [])
+                            src_lines = (program.debug or {}).get('source_lines', [])
                         err = SemanticError("Constructor procedure is only allowed in module files", line=orig_line_no, col=col_no)
                         err.filename = fname
                         err.source_text = '\n'.join(src_lines)
@@ -255,10 +281,13 @@ class ModuleSystem:
                 safe_mod: str = ''.join(ch if (ch.isalnum() or ch == '_') else '_' for ch in mod_base)
                 new_name: str = f"__CONSTRUCTOR__{safe_mod}"
                 # Update proc_src mapping to point to new name
-                if program.debug and 'proc_src' in program.debug:
-                    info = program.debug['proc_src'].pop(p.name, None)
-                    if info is not None:
-                        program.debug['proc_src'][new_name] = info
+                if prog:
+                    proc_debug = prog.debug or {}
+                    proc_src_map = proc_debug.get('proc_src')
+                    if proc_src_map:
+                        info = proc_src_map.pop(p.name, None)
+                        if info is not None:
+                            proc_src_map[new_name] = info
                 # Create new proc decl with modified flags and new name
                 new_p = ProcDecl(new_name, p.params, p.locals, p.body, keep=True, noexport=True, export=False)
                 new_procs.append(new_p)
@@ -273,18 +302,17 @@ class ModuleSystem:
                 if isinstance(item, ProcDecl) and item.name.lower() == 'main':
                     # Try to get source location from parser debug info
                     proc_info = None
-                    if program and getattr(program, 'debug', None):
-                        proc_map = program.debug.get('proc_src', {})
-                        proc_info = proc_map.get(item.name) or proc_map.get(item.name.upper()) or proc_map.get(item.name.lower())
+                    proc_map = debug.get('proc_src', {})
+                    proc_info = proc_map.get(item.name) or proc_map.get(item.name.upper()) or proc_map.get(item.name.lower())
                     if proc_info:
                         fname, line_no, col_no, _ = proc_info
-                        orig_map = program.debug.get('orig_line_map') if program and getattr(program, 'debug', None) else None
+                        orig_map = debug.get('orig_line_map')
                         if orig_map and 1 <= line_no <= len(orig_map):
                             orig_line_no = orig_map[line_no - 1]
-                            src_lines = program.debug.get('orig_source_lines', orig_lines)
+                            src_lines = debug.get('orig_source_lines', orig_lines)
                         else:
                             orig_line_no = line_no
-                            src_lines = program.debug.get('source_lines', [])
+                            src_lines = debug.get('source_lines', [])
                         err = SemanticError("Modules may not define 'main' procedure", line=orig_line_no, col=col_no)
                         err.filename = fname
                         err.source_text = '\n'.join(src_lines)
@@ -319,13 +347,14 @@ class ModuleSystem:
                 except SemanticError as e:
                     # Propagate with enhanced context for .incbin directive
                     # Prefer the original source text (before removing module/include lines) if available
-                    src_lines = program.debug.get('orig_source_lines') if program and getattr(program, 'debug', None) else None
+                    debug = program.debug or {}
+                    src_lines = debug.get('orig_source_lines')
                     err = SemanticError(f"Error resolving .incbin '{item.filename}' in {filepath}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
                     err.filename = filepath
                     if src_lines is not None:
                         err.source_text = '\n'.join(src_lines)
                     else:
-                        err.source_text = '\n'.join(program.debug.get('source_lines', [])) if program and getattr(program, 'debug', None) else None
+                        err.source_text = '\n'.join(debug.get('source_lines', [])) if debug else None
                     raise err
     
     def _find_file(self, filename: str, relative_to_dir: str) -> str:
@@ -399,7 +428,7 @@ class ModuleSystem:
                     err = SemanticError(f"Duplicate module name '{module_name}' already declared in {prev}", line=line_no, col=col_no)
                     err.filename = full_path
                     try:
-                        err.source_text = '\n'.join(program.debug.get('source_lines', []))
+                        err.source_text = '\n'.join((program.debug or {}).get('source_lines', []))
                     except Exception:
                         err.source_text = None
                     raise err
@@ -442,13 +471,15 @@ class ModuleSystem:
                     # point to the .include directive's location so the user sees
                     # the exact line/col where the include failed.
                     inc_info = None
-                    if module_info and module_info.program and getattr(module_info.program, 'debug', None):
-                        inc_info = module_info.program.debug.get('include_directives', {}).get(inc)
+                    prog = module_info.program
+                    debug = (prog.debug or {}) if prog else {}
+                    include_directives = debug.get('include_directives') or {}
+                    inc_info = include_directives.get(inc)
                     if inc_info:
                         iline, icol, _text = inc_info
                         err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=iline, col=icol)
                         err.filename = full_path
-                        err.source_text = '\n'.join(module_info.program.debug.get('orig_source_lines', []))
+                        err.source_text = '\n'.join(debug.get('orig_source_lines', []))
                         raise err
                     else:
                         err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
@@ -499,13 +530,14 @@ class ModuleSystem:
             
             module_info: ModuleInfo = self.loaded_modules[module_path]
 
-            debug = module_info.program.debug if module_info.program else {}
+            prog = module_info.program
+            debug = (prog.debug or {}) if prog else {}
             decl_src = debug.get("global_decl_src", {})
             proc_src = debug.get("proc_src", {})
             source_lines = debug.get("source_lines", [])
             source_text: str | None = "\n".join(source_lines) if source_lines else None
 
-            def raise_dup(msg: str, name: str, info) -> os.NoReturn:
+            def raise_dup(msg: str, name: str, info) -> NoReturn:
                 line = None
                 col = None
                 if info:

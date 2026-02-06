@@ -382,6 +382,8 @@ class Program:
     debug: dict | None = None
     # Exports collected during module resolution
     exports: set[str] | None = None
+    # Ordered list of module constructors to run at program init (from deepest include to top-level)
+    constructors: list[str] | None = None
 
 
 @dataclass(frozen=True)

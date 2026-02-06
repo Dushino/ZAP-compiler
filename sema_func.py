@@ -1,8 +1,10 @@
 from dataclasses import dataclass
-from ast_nodes import FuncDecl, ReturnStmt
+from typing import Any
+from typing import Any
+from ast_nodes import Declaration, Expr, FuncDecl, Parameter, Parameter, ReturnStmt
 from sema_types import ExprType
 from sema_types import ExprType
-from symbols import Symbol, SymbolTable, ScopedSymbolTable, SymbolLookup, SemType, FuncTable, FuncSymbol
+from symbols import StructFieldInfo, Symbol, SymbolTable, ScopedSymbolTable, SymbolLookup, SemType, FuncTable, FuncSymbol
 from errors import SemanticError
 from sema import DeclarationAnalyzer
 from sema_expr import ExprTypeChecker
@@ -32,7 +34,8 @@ class FuncAnalyzer:
                 FuncSymbol(func.name, ret_sem, len(func.params), required_params)
             )
         except SemanticError as e:
-            info = self.debug.get("proc_src", {}).get(func.name)
+            proc_src = self.debug.get("proc_src") or {}
+            info = proc_src.get(func.name)
             if info:
                 if len(info) == 3:
                     fname, line, _text = info
@@ -47,7 +50,8 @@ class FuncAnalyzer:
     def analyze_func(self, func: FuncDecl, global_symtab: SymbolTable) -> AnalyzedFunc:
         # lokály (stejně jako u PROC)
         local_symtab = SymbolTable()
-        local_symtab._proc_name = func.name
+        # Be defensive: func.name should be a string, but coerce to empty string if None to satisfy static typing
+        local_symtab._proc_name = func.name or ""
         
         # add parameters to local symbol table
         for param in func.params:
@@ -80,7 +84,7 @@ class FuncAnalyzer:
                 array_dims=None
             )
             try:
-                local_symtab.define(sym)
+                local_symtab.define(sym, node=param)
             except SemanticError as e:
                 # Attach parameter source location
                 raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
@@ -105,7 +109,11 @@ class FuncAnalyzer:
             try:
                 return self.expr_tc.check(expr, read_check_enabled)
             except SemanticError as e:
-                info = self.debug.get("stmt_src", {}).get(id(context_stmt)) if context_stmt else None
+                if context_stmt:
+                    stmt_src = self.debug.get("stmt_src") or {}
+                    info = stmt_src.get(id(context_stmt))
+                else:
+                    info = None
                 if info:
                     if len(info) == 3:
                         fname, line, _text = info
@@ -145,24 +153,25 @@ class FuncAnalyzer:
                         try:
                             sym: Symbol = self.expr_tc.symtab.lookup(base_name)
                             # Field-level overrides
-                            field_name = None
+                            field_name: str | None = None
                             from ast_nodes import FieldAccess
                             if isinstance(st.lhs, FieldAccess):
                                 field_name = st.lhs.field
                             if getattr(sym, 'is_port', False):
                                 allowed = True
                                 if field_name and sym.type.is_struct and sym.type.struct_info:
-                                    field_info = sym.type.struct_info.get_field(field_name.upper())
+                                    field_info: StructFieldInfo | None = sym.type.struct_info.get_field(field_name.upper())
                                     if field_info and (field_info.port_wr is not None or field_info.port_rd is not None):
                                         allowed = bool(field_info.port_wr)
                                     else:
-                                        allowed = getattr(sym, 'port_wr', False)
+                                        allowed: Any | bool = getattr(sym, 'port_wr', False)
                                 else:
-                                    allowed = getattr(sym, 'port_wr', False)
+                                    allowed: Any | bool = getattr(sym, 'port_wr', False)
 
                                 if not allowed:
                                     # Attach contextual source info if available
-                                    info = self.debug.get("stmt_src", {}).get(id(st))
+                                    stmt_src = self.debug.get("stmt_src") or {}
+                                    info = stmt_src.get(id(st))
                                     if info:
                                         if len(info) == 3:
                                             fname, line, _text = info
@@ -172,7 +181,8 @@ class FuncAnalyzer:
                                         err = SemanticError("Write to read-only port", line=line, col=col)
                                         err.filename = fname
                                         raise err
-                                    raise SemanticError("Write to read-only port")
+                                    # Fall back to providing the AST node so the error has a source location
+                                    raise SemanticError("Write to read-only port", node=st)
                         except KeyError:
                             pass
 
@@ -203,7 +213,8 @@ class FuncAnalyzer:
                 try:
                     et: ExprType | None = self.expr_tc.check(stmt.expr) if stmt.expr is not None else None
                 except SemanticError as e:
-                    info = self.debug.get("stmt_src", {}).get(id(stmt))
+                    stmt_src = self.debug.get("stmt_src") or {}
+                    info = stmt_src.get(id(stmt))
                     if info:
                         if len(info) == 3:
                             fname, line, _text = info
@@ -217,13 +228,14 @@ class FuncAnalyzer:
 
                 # If return expression is a compile-time constant, validate it fits
                 if stmt.expr is not None:
-                    folded = fold_expr(stmt.expr)
+                    folded: Expr = fold_expr(stmt.expr)
                     if isinstance(folded, IntLiteral):
-                        val = folded.value
+                        val: int = folded.value
                         # BYTE: must fit 0..255
                         if ret_sem.base == "BYTE" and not ret_sem.is_pointer:
                             if val < 0 or val > 0xFF:
-                                info = self.debug.get("stmt_src", {}).get(id(stmt))
+                                stmt_src = self.debug.get("stmt_src") or {}
+                                info = stmt_src.get(id(stmt))
                                 msg = f"Return value {val} (0x{val:X}) does not fit in BYTE (0-255)"
                                 if info:
                                     if len(info) == 3:
@@ -234,11 +246,12 @@ class FuncAnalyzer:
                                     err = SemanticError(msg, line=line, col=col)
                                     err.filename = fname
                                     raise err
-                                raise SemanticError(msg)
+                                raise SemanticError(msg, node=stmt)
                         # WORD: must fit 0..65535
                         if ret_sem.base == "WORD" and not ret_sem.is_pointer:
                             if val < 0 or val > 0xFFFF:
-                                info = self.debug.get("stmt_src", {}).get(id(stmt))
+                                stmt_src = self.debug.get("stmt_src") or {}
+                                info = stmt_src.get(id(stmt))
                                 msg = f"Return value {val} (0x{val:X}) does not fit in WORD (0-65535)"
                                 if info:
                                     if len(info) == 3:
@@ -249,7 +262,7 @@ class FuncAnalyzer:
                                     err = SemanticError(msg, line=line, col=col)
                                     err.filename = fname
                                     raise err
-                                raise SemanticError(msg)
+                                raise SemanticError(msg, node=stmt)
 
                 if et is not None and et.sem_type.base != ret_sem.base:
                     # Allow implicit narrowing from WORD to BYTE (use lower byte)
@@ -260,7 +273,8 @@ class FuncAnalyzer:
                         pass
                     else:
                         # Type mismatch - report error with context
-                        info = self.debug.get("stmt_src", {}).get(id(stmt))
+                        stmt_src = self.debug.get("stmt_src") or {}
+                        info = stmt_src.get(id(stmt))
                         if info:
                             if len(info) == 3:
                                 fname, line, _text = info
@@ -271,13 +285,15 @@ class FuncAnalyzer:
                             err = SemanticError(msg, line=line, col=col)
                             err.filename = fname
                             raise err
-                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}")
+                        # Attach the return statement node so an accurate source position is available
+                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}", node=stmt)
 
         # restore previous symbol table
         self.expr_tc.symtab = prev_symtab
 
         if not has_return:
-            info = self.debug.get("proc_src", {}).get(func.name)
+            proc_src = self.debug.get("proc_src") or {}
+            info = proc_src.get(func.name)
             if info:
                 if len(info) == 3:
                     fname, line, _text = info
@@ -287,8 +303,10 @@ class FuncAnalyzer:
                 err = SemanticError("FUNC must have RETURN", line=line, col=col)
                 err.filename = fname
                 raise err
-            raise SemanticError("FUNC must have RETURN")
+            # Fall back to attaching the function AST node as context
+            raise SemanticError("FUNC must have RETURN", node=func)
 
+        # Return analyzed function info
         return AnalyzedFunc(
             ast=func,
             locals=list(local_symtab),

@@ -22,7 +22,10 @@
     * fputc     zápis jednoho znaku do souboru
 */
 
+.ifdef ATARI        ; already part of a project = using as library
 .module "atari_stdio"
+.endif
+
 
 ; ATARI colors
 const byte COLOR_BLACK   = $00
@@ -61,6 +64,7 @@ byte cur_xpos, cur_ypos     ; cusror position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
+.ifdef ATARI
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
     byte ^dlstart @560      ; system storage for DL address
@@ -73,6 +77,7 @@ proc CONSTRUCTOR()
     
     ; vram^ = 1
 end
+.endif
 
 
 /*
@@ -126,3 +131,9 @@ func byte getchar()
     return ch
 end
 
+.ifndef ATARI
+proc main()
+    cls()
+    putchar(65) ; 'A'
+end
+.endif  
