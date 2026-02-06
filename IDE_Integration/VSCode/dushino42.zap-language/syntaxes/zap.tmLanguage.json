@@ -81,11 +81,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.zap",
-                    "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|FOR|TO|STEP|UNTIL|RETURN|EXIT)\\b"
+                    "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|FOR|TO|STEP|UNTIL)\\b"
                 },
                 {
                     "name": "keyword.other.zap",
-                    "match": "(?i)\\b(PROC|FUNC|ASM|END|STRUCT|ENUM)\\b"
+                    "match": "(?i)\\b(PROC|FUNC|END|ASM|RETURN|EXIT)\\b"
                 }
             ]
         },
@@ -93,7 +93,7 @@
             "patterns": [
                 {
                     "name": "storage.type.zap",
-                    "match": "(?i)\\b(BYTE|WORD)\\b"
+                    "match": "(?i)\\b(BYTE|WORD|STRUCT|ENUM)\\b"
                 },
                 {
                     "name": "storage.modifier.zap",
