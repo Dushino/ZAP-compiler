@@ -18,6 +18,7 @@ class Preprocessor:
         """Process conditional compilation directives and return filtered source and defined symbols."""
         lines = source.split('\n')
         output_lines = []
+        kept_line_numbers: list[int] = []
         
         # Stack to track nested conditionals: (is_active, has_matched)
         # is_active: whether we're currently including code
@@ -104,6 +105,7 @@ class Preprocessor:
             # Regular line - include if active
             if cond_stack[-1][0]:
                 output_lines.append(line)
+                kept_line_numbers.append(i+1)
             
             i += 1
         
@@ -111,4 +113,7 @@ class Preprocessor:
         if len(cond_stack) > 1:
             raise PreprocessorError("Unclosed .ifdef/.ifndef (missing .endif)")
         
+        # Store last kept line mapping so callers can relate processed lines back to
+        # the original file line numbers.
+        self.last_kept_line_numbers = kept_line_numbers
         return '\n'.join(output_lines), self.defined_symbols

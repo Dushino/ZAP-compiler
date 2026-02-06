@@ -53,14 +53,14 @@ class ModuleSystem:
     def parse_file(self, filepath: str):
         """Parse a single file and extract module directives"""
         with open(filepath, 'r', encoding='utf-8-sig') as f:
-            source: str = f.read()
+            raw_source: str = f.read()
         
-        # Strip UTF-8 BOM if present
-        if source.startswith('\ufeff'):
-            source: str = source[1:]
+        # Strip UTF-8 BOM if present from raw source
+        if raw_source.startswith('\ufeff'):
+            raw_source = raw_source[1:]
         
         # Apply preprocessor (handles .ifdef, .ifndef, .else, .endif, .define, .undef)
-        source, defined_symbols = self.preprocessor.process(source)
+        processed_source, defined_symbols = self.preprocessor.process(raw_source)
         
         # Extract module/include directives
         module_name = None
@@ -68,41 +68,84 @@ class ModuleSystem:
         includes = []
         module_directive_info = None  # (line, col, text)
         
-        lines: List[str] = source.split('\n')
+        orig_lines: List[str] = raw_source.split('\n')
         cleaned_lines = []
+        cleaned_line_map: List[int] = []
         
-        for ln, line in enumerate(lines, start=1):
-            stripped: str = line.strip()
-            lower_stripped: str = stripped.lower()
-            if stripped.startswith('.module'):
-                # Extract module name from .module "filename" and validate quotes
-                is_module = True
-                # Find quotes in the original line to get accurate column
-                first_q: int = line.find('"')
-                if first_q == -1:
-                    # No opening quote -> error
-                    err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module')+1)
-                    err.filename = filepath
-                    err.source_text = source
-                    raise err
-                second_q: int = line.find('"', first_q+1)
-                if second_q == -1:
-                    # No closing quote -> error
-                    err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q+1)
-                    err.filename = filepath
-                    err.source_text = source
-                    raise err
-                module_name: str = line[first_q+1:second_q]
-                module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
-            elif stripped.startswith('.include'):
-                # Extract include filename from .include "filename"
-                parts: List[str] = stripped.split('"')
-                if len(parts) >= 2:
-                    includes.append(parts[1])
+        # If the preprocessor provided a list of kept original line numbers, iterate
+        # over those so we can preserve original file line numbers for diagnostics.
+        kept_line_nums = getattr(self.preprocessor, 'last_kept_line_numbers', None)
+        if kept_line_nums is not None:
+            # Iterate over original line numbers that were kept by the preprocessor
+            for ln in kept_line_nums:
+                line = orig_lines[ln-1]
+                stripped: str = line.strip()
+                lower_stripped: str = stripped.lower()
+                if stripped.startswith('.module'):
+                    # Extract module name from .module "filename" and validate quotes
+                    is_module = True
+                    # Find quotes in the original line to get accurate column
+                    first_q: int = line.find('"')
+                    if first_q == -1:
+                        # No opening quote -> error
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module')+1)
+                        err.filename = filepath
+                        err.source_text = raw_source
+                        raise err
+                    second_q: int = line.find('"', first_q+1)
+                    if second_q == -1:
+                        # No closing quote -> error
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q+1)
+                        err.filename = filepath
+                        err.source_text = raw_source
+                        raise err
+                    module_name: str = line[first_q+1:second_q]
+                    module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
+                elif stripped.startswith('.include'):
+                    # Extract include filename from .include "filename"
+                    parts: List[str] = stripped.split('"')
+                    if len(parts) >= 2:
+                        includes.append(parts[1])
+                else:
+                    # Keep non-directive lines for parsing
+                    cleaned_lines.append(line)
+                    cleaned_line_map.append(ln)
+        else:
+            # Fallback: operate on the processed_source lines (no kept mapping available)
+            lines: List[str] = processed_source.split('\n')
+            for ln, line in enumerate(lines, start=1):
+                stripped: str = line.strip()
+                lower_stripped: str = stripped.lower()
+                if stripped.startswith('.module'):
+                    # Extract module name from .module "filename" and validate quotes
+                    is_module = True
+                    # Find quotes in the original line to get accurate column
+                    first_q: int = line.find('"')
+                    if first_q == -1:
+                        # No opening quote -> error
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module')+1)
+                        err.filename = filepath
+                        err.source_text = processed_source
+                        raise err
+                    second_q: int = line.find('"', first_q+1)
+                    if second_q == -1:
+                        # No closing quote -> error
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q+1)
+                        err.filename = filepath
+                        err.source_text = processed_source
+                        raise err
+                    module_name: str = line[first_q+1:second_q]
+                    module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
+                elif stripped.startswith('.include'):
+                    # Extract include filename from .include "filename"
+                    parts: List[str] = stripped.split('"')
+                    if len(parts) >= 2:
+                        includes.append(parts[1])
 
-            else:
-                # Keep non-directive lines for parsing
-                cleaned_lines.append(line)
+                else:
+                    # Keep non-directive lines for parsing
+                    cleaned_lines.append(line)
+                    cleaned_line_map.append(ln)
         
         # Parse the cleaned source
         cleaned_source: str = '\n'.join(cleaned_lines)
@@ -121,6 +164,15 @@ class ModuleSystem:
             except Exception:
                 pass
             raise
+
+        # Preserve mapping from cleaned source lines back to the original (pre-directive-removal) lines
+        # so diagnostics coming from parser-produced debug info can be reported at the correct
+        # locations in the original file.
+        if program.debug is None:
+            program.debug = {}
+        program.debug['orig_line_map'] = cleaned_line_map
+        # Save the original (raw) file lines so diagnostics can show original context
+        program.debug['orig_source_lines'] = orig_lines
 
         # Process compile-time diagnostics directives (.error/.warning/.info)
         from ast_nodes import ErrorDirective, WarningDirective, InfoDirective
@@ -153,16 +205,27 @@ class ModuleSystem:
             if isinstance(p, ProcDecl) and p.name.lower() == 'constructor':
                 if not is_module:
                     # Raise error: Constructor only allowed in module files
-                    info = proc_src.get(p.name)
+                    # Proc source map may use different case for names (parser keeps identifier case),
+                    # so try a case-insensitive lookup to find the debug info.
+                    info = proc_src.get(p.name) or proc_src.get(p.name.upper()) or proc_src.get(p.name.lower())
                     if info:
                         if len(info) == 3:
                             fname, line_no, _text = info
                             col_no = 1
                         else:
                             fname, line_no, col_no, _text = info
-                        err = SemanticError("Constructor procedure is only allowed in module files", line=line_no, col=col_no)
+                        # If we have an original-line mapping from the parser stage, map the
+                        # cleaned-source line number back to the original file line number.
+                        orig_map = program.debug.get('orig_line_map') if program and getattr(program, 'debug', None) else None
+                        if orig_map and 1 <= line_no <= len(orig_map):
+                            orig_line_no = orig_map[line_no - 1]
+                            src_lines = program.debug.get('orig_source_lines', orig_lines)
+                        else:
+                            orig_line_no = line_no
+                            src_lines = program.debug.get('source_lines', [])
+                        err = SemanticError("Constructor procedure is only allowed in module files", line=orig_line_no, col=col_no)
                         err.filename = fname
-                        err.source_text = '\n'.join(program.debug.get('source_lines', []))
+                        err.source_text = '\n'.join(src_lines)
                         raise err
                     else:
                         err = SemanticError("Constructor procedure is only allowed in module files")
@@ -192,12 +255,22 @@ class ModuleSystem:
             for item in program.procs:
                 if isinstance(item, ProcDecl) and item.name.lower() == 'main':
                     # Try to get source location from parser debug info
-                    proc_info = program.debug.get('proc_src', {}).get(item.name)
+                    proc_info = None
+                    if program and getattr(program, 'debug', None):
+                        proc_map = program.debug.get('proc_src', {})
+                        proc_info = proc_map.get(item.name) or proc_map.get(item.name.upper()) or proc_map.get(item.name.lower())
                     if proc_info:
                         fname, line_no, col_no, _ = proc_info
-                        err = SemanticError("Modules may not define 'main' procedure", line=line_no, col=col_no)
+                        orig_map = program.debug.get('orig_line_map') if program and getattr(program, 'debug', None) else None
+                        if orig_map and 1 <= line_no <= len(orig_map):
+                            orig_line_no = orig_map[line_no - 1]
+                            src_lines = program.debug.get('orig_source_lines', orig_lines)
+                        else:
+                            orig_line_no = line_no
+                            src_lines = program.debug.get('source_lines', [])
+                        err = SemanticError("Modules may not define 'main' procedure", line=orig_line_no, col=col_no)
                         err.filename = fname
-                        err.source_text = '\n'.join(program.debug.get('source_lines', []))
+                        err.source_text = '\n'.join(src_lines)
                         raise err
                     else:
                         err = SemanticError("Modules may not define 'main' procedure")
@@ -228,9 +301,14 @@ class ModuleSystem:
                     program.procs[i] = IncbinDirective(resolved_path)
                 except SemanticError as e:
                     # Propagate with enhanced context for .incbin directive
+                    # Prefer the original source text (before removing module/include lines) if available
+                    src_lines = program.debug.get('orig_source_lines') if program and getattr(program, 'debug', None) else None
                     err = SemanticError(f"Error resolving .incbin '{item.filename}' in {filepath}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
                     err.filename = filepath
-                    err.source_text = '\n'.join(program.debug.get('source_lines', [])) if program and getattr(program, 'debug', None) else None
+                    if src_lines is not None:
+                        err.source_text = '\n'.join(src_lines)
+                    else:
+                        err.source_text = '\n'.join(program.debug.get('source_lines', [])) if program and getattr(program, 'debug', None) else None
                     raise err
     
     def _find_file(self, filename: str, relative_to_dir: str) -> str:
