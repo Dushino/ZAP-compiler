@@ -59,16 +59,24 @@ byte cur_xpos, cur_ypos     ; cursor position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
+byte ^vlstart[MAX_YPOS]
+
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
     word dlstart @560      ; system storage for DL address
     word ^vram
     byte ^data
-
+    
     vram = dlstart + 4
     data = vram^
-    data^ = 1
-
+    ; data^ = 1
+    vlstart[0] = data
+    for byte i = 1 to MAX_YPOS - 1        
+        vlstart[i] = data
+        data = data + 40
+    end
+    vlstart[0]^ = 1
+    vlstart[1]^ = 2
 end
 
 
