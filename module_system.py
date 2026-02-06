@@ -67,6 +67,7 @@ class ModuleSystem:
         is_module = False
         includes = []
         module_directive_info = None  # (line, col, text)
+        include_directives: dict[str, tuple[int, int, str]] = {}
         
         orig_lines: List[str] = raw_source.split('\n')
         cleaned_lines = []
@@ -103,9 +104,14 @@ class ModuleSystem:
                     module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
                 elif stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
-                    parts: List[str] = stripped.split('"')
+                    parts: List[str] = line.split('"')
                     if len(parts) >= 2:
-                        includes.append(parts[1])
+                        inc_name = parts[1]
+                        includes.append(inc_name)
+                        # Record include directive location: name -> (line, col, text)
+                        first_q = line.find('"')
+                        if first_q != -1:
+                            include_directives[inc_name] = (ln, first_q+1, line)
                 else:
                     # Keep non-directive lines for parsing
                     cleaned_lines.append(line)
@@ -138,14 +144,22 @@ class ModuleSystem:
                     module_directive_info: tuple[int, int, str] = (ln, first_q+1, line)
                 elif stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
-                    parts: List[str] = stripped.split('"')
+                    # Capture the directive position so we can report errors at the include site
+                    parts: List[str] = line.split('"')
                     if len(parts) >= 2:
-                        includes.append(parts[1])
+                        inc_name = parts[1]
+                        includes.append(inc_name)
+                        # Record include directive location: name -> (line, col, text)
+                        first_q = line.find('"')
+                        if first_q != -1:
+                            if 'include_directives' not in locals():
+                                include_directives: dict[str, tuple[int, int, str]] = {}
+                        include_directives[inc_name] = (ln, first_q+1, line)
 
-                else:
-                    # Keep non-directive lines for parsing
-                    cleaned_lines.append(line)
-                    cleaned_line_map.append(ln)
+            else:
+                # Keep non-directive lines for parsing
+                cleaned_lines.append(line)
+                cleaned_line_map.append(ln)
         
         # Parse the cleaned source
         cleaned_source: str = '\n'.join(cleaned_lines)
@@ -173,6 +187,9 @@ class ModuleSystem:
         program.debug['orig_line_map'] = cleaned_line_map
         # Save the original (raw) file lines so diagnostics can show original context
         program.debug['orig_source_lines'] = orig_lines
+        # Save include directive positions (include name -> (line, col, text)) if any
+        if 'include_directives' in locals():
+            program.debug['include_directives'] = include_directives
 
         # Process compile-time diagnostics directives (.error/.warning/.info)
         from ast_nodes import ErrorDirective, WarningDirective, InfoDirective
@@ -421,10 +438,22 @@ class ModuleSystem:
                 try:
                     inc_path: str = self._find_file(inc, inc_dir)
                 except SemanticError as e:
-                    # Re-wrap with context of the including file
-                    err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
-                    err.filename = full_path
-                    raise err
+                    # Re-wrap with context of the including file and, if available,
+                    # point to the .include directive's location so the user sees
+                    # the exact line/col where the include failed.
+                    inc_info = None
+                    if module_info and module_info.program and getattr(module_info.program, 'debug', None):
+                        inc_info = module_info.program.debug.get('include_directives', {}).get(inc)
+                    if inc_info:
+                        iline, icol, _text = inc_info
+                        err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=iline, col=icol)
+                        err.filename = full_path
+                        err.source_text = '\n'.join(module_info.program.debug.get('orig_source_lines', []))
+                        raise err
+                    else:
+                        err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
+                        err.filename = full_path
+                        raise err
                 # Ensure dependency is loaded
                 self.load_module(inc_path)
                 resolved_includes.append(inc_path)
