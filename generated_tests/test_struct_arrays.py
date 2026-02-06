@@ -42,7 +42,7 @@ proc main()
 end
 """
 
-def test_struct_array(name, code):
+def _run_struct_array(name, code):
     print("=" * 70)
     print(f"TEST: {name}")
     print("=" * 70)
@@ -75,9 +75,9 @@ def test_struct_array(name, code):
 
 if __name__ == "__main__":
     results = []
-    results.append(test_struct_array("Struct Array Access", test_array))
+    results.append(_run_struct_array("Struct Array Access", test_array))
     print()
-    results.append(test_struct_array("Pointer Arithmetic", test_ptr_arith))
+    results.append(_run_struct_array("Pointer Arithmetic", test_ptr_arith))
     print()
     
     print("=" * 70)

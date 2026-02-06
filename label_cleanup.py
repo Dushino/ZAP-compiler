@@ -30,7 +30,7 @@ def cleanup_labels(lines: list[str]) -> list[str]:
         # Compiler comment-based exports (preferred)
         m: re.Match[str] | None = ZAP_EXPORT_RE.search(line)
         if m:
-            exports: str | re.Any = m.group(1)
+            exports: str = m.group(1)
             for sym in re.split(r'[ ,]+', exports.strip()):
                 if sym:
                     used.add(sym)
@@ -42,7 +42,7 @@ def cleanup_labels(lines: list[str]) -> list[str]:
 
         m: re.Match[str] | None = LABEL_RE.match(line.strip())
         if m:
-            label: str | re.Any = m.group(1)
+            label: str = m.group(1)
 
             # Keep selected runtime labels unconditionally
             if label in keep_always:

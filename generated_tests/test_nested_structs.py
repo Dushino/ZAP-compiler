@@ -48,16 +48,11 @@ end
     """
     
     success, output = run_compiler(code)
-    if success:
-        # Check that nested field access code was generated
-        with open("/tmp/test_nested.s", "r") as f:
-            asm = f.read()
-            if "_C1" in asm and ("c1.pt.x" in asm or "c1.pt" in asm):
-                return True, "✓ Nested struct definition and field access work"
-            else:
-                return False, "Generated assembly missing nested field access"
-    else:
-        return False, f"Compilation failed: {output}"
+    assert success, f"Compilation failed: {output}"
+    # Check that nested field access code was generated
+    with open("/tmp/test_nested.s", "r") as f:
+        asm = f.read()
+        assert ("_C1" in asm and ("c1.pt.x" in asm or "c1.pt" in asm)), "Generated assembly missing nested field access"
 
 def test_nested_struct_array():
     """Test nested struct inside an array."""
@@ -81,10 +76,7 @@ end
     """
     
     success, output = run_compiler(code)
-    if success:
-        return True, "✓ Nested struct in array works"
-    else:
-        return False, f"Compilation failed: {output}"
+    assert success, f"Compilation failed: {output}"
 
 def test_multiple_levels_nested():
     """Test multiple levels of nesting (if supported)."""
@@ -112,10 +104,7 @@ end
     """
     
     success, output = run_compiler(code)
-    if success:
-        return True, "✓ Multiple levels of nesting work"
-    else:
-        return False, f"Multiple level nesting not yet supported (expected): {output[:100]}"
+    assert success, f"Multiple level nesting not supported: {output[:200]}"
 
 def test_nested_with_word_fields():
     """Test nested structs with word-sized fields."""
@@ -140,10 +129,7 @@ end
     """
     
     success, output = run_compiler(code)
-    if success:
-        return True, "✓ Nested structs with WORD fields work"
-    else:
-        return False, f"Compilation failed: {output}"
+    assert success, f"Compilation failed: {output}"
 
 def test_026_struct_example():
     """Test the actual 026-struct.zap example."""
@@ -156,14 +142,12 @@ def test_026_struct_example():
                 text=True,
                 timeout=5
             )
-            if result.returncode == 0:
-                return True, "✓ 026-struct.zap example compiles successfully"
-            else:
-                return False, f"026-struct.zap compilation failed: {result.stderr[:200]}"
+            assert result.returncode == 0, f"026-struct.zap compilation failed: {result.stderr[:200]}"
         except Exception as e:
-            return False, f"Error running 026-struct test: {str(e)}"
+            raise AssertionError(f"Error running 026-struct test: {str(e)}")
     else:
-        return True, "⊘ 026-struct.zap not found (skipped)"
+        import pytest
+        pytest.skip("026-struct.zap not found (skipped)")
 
 # Run all tests
 def main():

@@ -12,12 +12,16 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
     if src.startswith('\ufeff'):
         src = src[1:]
 
+    # Ensure parser filename is defined even if exceptions occur before parser construction
+    parser_filename = None
+
     try:
         # Apply preprocessor
         preprocessor = Preprocessor(predefined_symbols)
         src, defined_symbols = preprocessor.process(src)
         
         parser = Parser(src, filename="<input.zap>")
+        parser_filename = getattr(parser, "filename", None)
         program = parser.parse_program()
         return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols)
 
@@ -25,10 +29,11 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         if e.line is not None:
             # Prefer attached source text if provided
             src_text = e.source_text or src
-            fname = getattr(e, "filename", None) or getattr(parser, "filename", None)
+            # Prefer filename attached to the error; otherwise fall back to the parser if available
+            fname = getattr(e, "filename", None) or parser_filename
             print_error(src_text, e.line, e.col, e.message, filename=fname, severity="error")
         else:
-            print_exception(e, filename=getattr(parser, "filename", None))
+            print_exception(e, filename=parser_filename)
         sys.exit(1)
 
 
@@ -148,6 +153,7 @@ if __name__ == "__main__":
     except Exception as e:
         # Catch unexpected exceptions and print a single-line error without traceback
         from errors import print_exception
-        print_exception(e, filename=src_file if 'src_file' in locals() else None)
+        filename = globals().get('src_file', None)
+        print_exception(e, filename=filename)
         sys.exit(1)
 

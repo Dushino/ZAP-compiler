@@ -8,7 +8,7 @@ import sys
 from parser import Parser
 from compiler_pipeline import compile_program
 
-def test_case(name, code, should_fail=False):
+def _run_case(name, code, should_fail=False):
     """Run a single test case"""
     print(f"\n{'='*70}")
     print(f"Test: {name}")
@@ -267,7 +267,7 @@ passed = 0
 failed = 0
 
 for name, code, should_fail in tests:
-    if test_case(name, code, should_fail):
+    if _run_case(name, code, should_fail):
         passed += 1
     else:
         failed += 1

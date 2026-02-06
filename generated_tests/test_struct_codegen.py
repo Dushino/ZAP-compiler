@@ -49,7 +49,7 @@ proc main()
 end
 """
 
-def test_struct_codegen(name, code):
+def _run_struct_codegen(name, code):
     print("=" * 60)
     print(f"TEST: {name}")
     print("=" * 60)
@@ -82,11 +82,11 @@ def test_struct_codegen(name, code):
 
 if __name__ == "__main__":
     results = []
-    results.append(test_struct_codegen("Struct Field Read", test_code_1))
+    results.append(_run_struct_codegen("Struct Field Read", test_code_1))
     print()
-    results.append(test_struct_codegen("Struct Field Write", test_code_2))
+    results.append(_run_struct_codegen("Struct Field Write", test_code_2))
     print()
-    results.append(test_struct_codegen("Struct Field Assignment", test_code_3))
+    results.append(_run_struct_codegen("Struct Field Assignment", test_code_3))
     print()
     
     print("=" * 60)

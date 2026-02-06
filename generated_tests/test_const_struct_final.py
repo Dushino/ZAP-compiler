@@ -8,7 +8,7 @@ import sys
 from parser import Parser
 from compiler_pipeline import compile_program
 
-def test_case(name, code, should_fail=False):
+def _run_case(name, code, should_fail=False):
     """Run a single test case"""
     try:
         parser = Parser(code, "test.zap")
@@ -72,7 +72,7 @@ failed = 0
 failed_tests = []
 
 for name, code, should_fail in tests:
-    success, msg = test_case(name, code, should_fail)
+    success, msg = _run_case(name, code, should_fail)
     status = "[PASS]" if success else "[FAIL]"
     print(f"{status} {name}")
     if not success:

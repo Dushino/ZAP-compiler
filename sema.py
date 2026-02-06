@@ -41,7 +41,10 @@ def eval_const_expr(expr, symtab=None):
     if isinstance(expr, Identifier):
         if symtab is None:
             raise SemanticError("Constant expression required", node=expr)
-        sym = symtab.lookup(expr.name)
+        try:
+            sym = symtab.lookup(expr.name)
+        except KeyError:
+            raise SemanticError(f"Undefined identifier: {expr.name}", node=expr)
         if sym is None:
             raise SemanticError(f"Undefined identifier: {expr.name}", node=expr)
         if not sym.is_const:
@@ -337,8 +340,17 @@ class DeclarationAnalyzer:
             [d.array_size] if d.array_size is not None else []
         )
         
-        is_array, array_dims, array_len = eval_array_dimensions(array_sizes_to_eval, self.symtab, d)  # type: ignore[assignment]
+        # If a global symbol table was provided, create a scoped lookup that includes both
+        # local (this.symtab) and global symbols so constants used in array sizes (e.g., NUM_POINTS)
+        # can be resolved.
+        if self.global_symtab is not None:
+            from symbols import ScopedSymbolTable
+            lookup_symtab = ScopedSymbolTable(self.global_symtab)
+            lookup_symtab.local = self.symtab
+        else:
+            lookup_symtab = self.symtab
 
+        is_array, array_dims, array_len = eval_array_dimensions(array_sizes_to_eval, lookup_symtab, d)  # type: ignore[assignment]
         
         address_val = None
 

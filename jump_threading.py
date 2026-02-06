@@ -41,7 +41,7 @@ def jump_threading(lines: list[str]) -> list[str]:
         # JMP L1 ; L1:
         m: re.Match[str] | None = JMP_RE.match(line)
         if m:
-            target: str | re.Any = m.group(1)
+            target: str = m.group(1)
 
             if target in label_pos:
                 tgt_idx = label_pos[target]
@@ -55,7 +55,7 @@ def jump_threading(lines: list[str]) -> list[str]:
                 next_line = lines[tgt_idx + 1] if tgt_idx + 1 < len(lines) else ""
                 m2: re.Match[str] | None = JMP_RE.match(next_line)
                 if m2:
-                    new_target: str | re.Any = m2.group(1)
+                    new_target: str = m2.group(1)
                     out.append(f"\tJMP {new_target}")
                     i += 1
                     continue

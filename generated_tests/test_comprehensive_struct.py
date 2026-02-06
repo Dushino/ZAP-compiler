@@ -18,15 +18,10 @@ proc main()
     p.y = 20
 end
 """
-    try:
-        parser = Parser(source, "Test1.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 1 (Direct Struct): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 1 (Direct Struct): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test1.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 1 failed: no assembly generated"
 
 def test_2_struct_array():
     """Test struct array with field access"""
@@ -44,15 +39,10 @@ proc main()
     rects[4].height = 75
 end
 """
-    try:
-        parser = Parser(source, "Test2.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 2 (Struct Array): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 2 (Struct Array): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test2.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 2 failed: no assembly generated"
 
 def test_3_global_struct():
     """Test global struct instance with fixed address"""
@@ -69,15 +59,10 @@ proc main()
     cfg.flags = 0xFF
 end
 """
-    try:
-        parser = Parser(source, "Test3.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 3 (Global Struct): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 3 (Global Struct): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test3.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 3 failed: no assembly generated"
 
 def test_4_const_array_size():
     """Test struct array with const size"""
@@ -95,15 +80,10 @@ proc main()
     points[9].y = 2
 end
 """
-    try:
-        parser = Parser(source, "Test4.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 4 (Const Array Size): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 4 (Const Array Size): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test4.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 4 failed: no assembly generated"
 
 def test_5_multiple_struct_types():
     """Test multiple different struct types"""
@@ -126,15 +106,10 @@ proc main()
     col.r = 255
 end
 """
-    try:
-        parser = Parser(source, "Test5.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 5 (Multiple Struct Types): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 5 (Multiple Struct Types): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test5.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 5 failed: no assembly generated"
 
 def test_6_struct_in_loop():
     """Test struct field access in a loop"""
@@ -154,15 +129,10 @@ proc main()
     next i
 end
 """
-    try:
-        parser = Parser(source, "Test6.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 6 (Struct in Loop): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 6 (Struct in Loop): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test6.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 6 failed: no assembly generated"
 
 def test_7_word_sized_struct():
     """Test struct with word-sized fields"""
@@ -178,15 +148,10 @@ proc main()
     wp.high = 2000
 end
 """
-    try:
-        parser = Parser(source, "Test7.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 7 (Word-Sized Struct): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 7 (Word-Sized Struct): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test7.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 7 failed: no assembly generated"
 
 def test_8_mixed_struct_fields():
     """Test struct with mixed byte/word fields"""
@@ -204,15 +169,10 @@ proc main()
     m.b2 = 50
 end
 """
-    try:
-        parser = Parser(source, "Test8.zap")
-        program = parser.parse_program()
-        result = compile_program(program)
-        print("✓ Test 8 (Mixed Struct Fields): PASS")
-        return True
-    except Exception as e:
-        print(f"✗ Test 8 (Mixed Struct Fields): FAIL - {e}")
-        return False
+    parser = Parser(source, "Test8.zap")
+    program = parser.parse_program()
+    result = compile_program(program)
+    assert isinstance(result, str) and len(result) > 0, "Test 8 failed: no assembly generated"
 
 def main():
     print("=" * 70)

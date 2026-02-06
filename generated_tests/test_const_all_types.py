@@ -3,6 +3,7 @@
 
 from parser import Parser
 from compiler_pipeline import compile_program
+import sys
 
 test_cases = [
     ("Const byte", """

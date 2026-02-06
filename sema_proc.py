@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, cast
-from typing import Any
-from ast_nodes import Parameter, Parameter, Declaration, ProcDecl, CallStmt
+from ast_nodes import Parameter, Declaration, ProcDecl, CallStmt
 from symbols import StructFieldInfo, Symbol, SymbolTable, ProcTable, ProcSymbol, ScopedSymbolTable, SymbolLookup
 from errors import SemanticError
 from sema import DeclarationAnalyzer
@@ -201,7 +200,8 @@ class ProcAnalyzer:
                         base_name = _get_base_ident(st.lhs)
                         if base_name is not None:
                             # Look up symbol via the SymbolLookup API and handle failures
-                            sym: Symbol | None = None
+                            # Symbol lookup may fail; start with None and populate if found
+                            sym = None
                             try:
                                 sym = tc.symtab.lookup(base_name)
                             except Exception:
@@ -210,16 +210,17 @@ class ProcAnalyzer:
                             # If symbol lookup failed, skip port checks
                             if sym is None:
                                 continue
-                            # Narrow type for type checker
-                            sym = cast(Symbol, sym)
-                            assert sym is not None
+                            # Narrow type for type checker by confirming presence of expected attributes
+                            if getattr(sym, 'name', None) is None:
+                                continue  # couldn't resolve symbol - skip port checks
 
                             # If this is a field access, consider field-level override
                             field_name: str | None = None
                             from ast_nodes import FieldAccess
                             if isinstance(st.lhs, FieldAccess):
                                 field_name = st.lhs.field
-                            if getattr(sym, 'is_port', False):
+                            # Ensure sym is not None before attribute access (helps static analysis)
+                            if sym is not None and getattr(sym, 'is_port', False):
                                 # Determine whether writes are allowed: field overrides symbol
                                 allowed = True
                                 if field_name and sym.type.is_struct and sym.type.struct_info:

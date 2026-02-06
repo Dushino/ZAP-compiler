@@ -5,7 +5,7 @@ import re
 from parser import Parser
 from compiler_pipeline import compile_program
 
-def test_cases():
+def _build_cases():
     tests = []
     
     # Test 1: Global struct simple
@@ -86,6 +86,15 @@ end
 """, "_ARR:"))
     
     return tests
+
+
+def test_structs_simple():
+    tests = _build_cases()
+    for test_name, code, expected_symbol in tests:
+        parser = Parser(code, "test.zap")
+        ast = parser.parse_program()
+        asm = compile_program(ast)
+        assert expected_symbol in asm, f"Expected symbol {expected_symbol} not found in generated assembly for {test_name}"
 
 def run_tests():
     tests = test_cases()

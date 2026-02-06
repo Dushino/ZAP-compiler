@@ -365,6 +365,13 @@ class CodeGen:
         
         i = 0
         while i < len(self.code):
+            # Initialize commonly used instruction variables to satisfy static analysis
+            cur: str = self.code[i].strip()
+            curU: str = cur.upper()
+            nxt: str = self.code[i + 1].strip() if i + 1 < len(self.code) else ""
+            nxtU: str = nxt.upper() if nxt else ""
+            cand_upper: str = ""
+
             # Check if this instruction should be skipped (marked as redundant)
             if i in skip_indices:
                 i += 1
@@ -5558,9 +5565,14 @@ class CodeGen:
             if rhs_t.kind == ExprKind.LVALUE:
                 # Both sides are lvalues, treat RHS as reading a value
                 rhs_t = ExprType(rhs_t.sem_type, ExprKind.VALUE)
-            
+
+            # Allow assigning an address to an lvalue if the lvalue is a pointer
             if rhs_t.kind != ExprKind.VALUE:
-                self._raise_error("Cannot assign address to lvalue")
+                if lhs_t.sem_type.is_pointer and rhs_t.kind == ExprKind.ADDR:
+                    # Allow assignment of an address literal (ADDR) into a pointer field
+                    pass
+                else:
+                    self._raise_error("Cannot assign address to lvalue")
 
             # Allow implicit narrowing (WORD to BYTE) - just truncate low byte
             # This is common in low-level code (e.g., ptr^ = word_counter)

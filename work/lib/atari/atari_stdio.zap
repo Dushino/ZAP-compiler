@@ -22,9 +22,7 @@
     * fputc     zápis jednoho znaku do souboru
 */
 
-.ifdef ATARI        ; already part of a project = using as library
-.module "atari_stdio"
-.endif
+; .module "atari_stdio"
 
 
 ; ATARI colors
@@ -45,6 +43,7 @@ const byte COLOR_GREEN4  = $D0
 const byte COLOR_YELLOW2 = $E0
 const byte COLOR_BROWN   = $F0
 
+
 byte PCOLOR0 @704 
 byte PCOLOR1 @705       
 byte PCOLOR2 @706       
@@ -55,18 +54,13 @@ byte PLAYF2  @710
 byte PLAYF3  @711
 byte PLAYF4  @712
 
-byte SOMEPORT1 @$D100 #PORT #RD #WR
-byte SOMEPORT2 @$D101 #PORT #RD
-byte SOMEPORT3 @$D102 #PORT #WR
-
 
 byte cur_xpos, cur_ypos     ; cusror position on the screen
 const byte MAX_XPOS = 39
 const byte MAX_YPOS = 24    
 
-.ifdef ATARI
 ; initialize internals for faster screen IO
-proc CONSTRUCTOR() 
+proc CONSTRUCTOR1() 
     byte ^dlstart @560      ; system storage for DL address
     byte ^dlptr             ; pointer into display list
     byte ^vram
@@ -75,9 +69,8 @@ proc CONSTRUCTOR()
     dlptr = dlptr + 4       ; skip first four bytes of display list - Fixme: Reports wrong error on wrong line
     vram = dlptr^           ; get screen memory address from display list
     
-    ; vram^ = 1
+    vram^ = 1
 end
-.endif
 
 
 /*
@@ -131,9 +124,10 @@ func byte getchar()
     return ch
 end
 
-.ifndef ATARI
+
 proc main()
+    CONSTRUCTOR1()
     cls()
     putchar(65) ; 'A'
 end
-.endif  
+

@@ -4,6 +4,7 @@
 from parser import Parser
 from compiler_pipeline import compile_program
 import re
+import sys
 
 def test_ptr_arithmetic_by_size():
     """Test pointer arithmetic with different struct sizes"""
