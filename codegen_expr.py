@@ -3132,8 +3132,64 @@ class CodeGen:
             if not target_is_byte:
                 self.emit("\tLDX #0     ; note 3056")
 
+    def _is_zeropage_pointer_array_subscript(self, expr) -> tuple[bool, Symbol, int]:
+        """Check if expr is SubscriptExpr of a ZEROPAGE pointer array with BYTE index.
+        
+        Returns: (is_optimizable, symbol, byte_offset)
+        - is_optimizable: True if we can use ZP indexed indirect addressing
+        - symbol: The pointer array symbol
+        - byte_offset: The byte offset to use in index register (or -1 if not constant/not computable)
+        """
+        if not isinstance(expr, SubscriptExpr):
+            return False, None, -1
+        
+        if not isinstance(expr.array, Identifier):
+            return False, None, -1
+        
+        sym: Symbol = self.current_symtab.lookup(expr.array.name)
+        
+        # Check: is it a pointer array in ZEROPAGE?
+        if not (sym.is_array and sym.type.is_pointer and sym.address is None):
+            return False, None, -1
+        
+        # Check: is the index a constant or simple expression that we can evaluate?
+        # For now, only support constant indices
+        if not isinstance(expr.index, IntLiteral):
+            return False, None, -1
+        
+        # Check: does the byte offset fit in a single byte (Y register)?
+        element_width: int = self._calculate_element_width(sym)
+        byte_offset: int = expr.index.value * element_width
+        
+        if byte_offset >= 256:
+            return False, None, -1
+        
+        return True, sym, byte_offset
+    
+    def _gen_deref_optimized_zeropage(self, expr: DerefExpr, sym: Symbol, byte_offset: int) -> None:
+        """Generate optimized deref for ZEROPAGE pointer array subscript.
+        
+        Uses (ZP,X) addressing to dereference the pointer stored in the ZP array.
+        This is valid only for BYTE deref targets; WORD still needs TMP0 + (TMP0),Y.
+        """
+        t: ExprType = self.tc_check(expr)
+
+        # Only safe for BYTE deref targets
+        if t.sem_type.base != "BYTE" or t.sem_type.is_pointer:
+            return
+        
+        arr_base: str = sym.asm_name()
+        self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+        self.emit(f"\tLDA ({arr_base},X)")
+    
     def _gen_deref(self, expr: DerefExpr) -> None:
         t: ExprType = self.tc_check(expr)
+
+        # OPTIMIZATION: Check for ZEROPAGE pointer array subscript (BYTE-only)
+        is_zp_ptr_array, sym, byte_offset = self._is_zeropage_pointer_array_subscript(expr.pointer)
+        if is_zp_ptr_array and t.sem_type.base == "BYTE" and not t.sem_type.is_pointer:
+            self._gen_deref_optimized_zeropage(expr, sym, byte_offset)
+            return
 
         # 1) vygeneruj adresu pointeru → A/X
         self.gen_expr(expr.pointer)
@@ -5963,6 +6019,40 @@ class CodeGen:
                     self.emit(f"\tSTA ({ptr_addr}),Y")
                 return
 
+        # OPTIMIZATION: Dereferenced subscript of ZEROPAGE pointer array
+        # Pattern: arr[i]^ = value where arr is a pointer array in ZEROPAGE
+        if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, SubscriptExpr):
+            is_zp_ptr_array, sym, byte_offset = self._is_zeropage_pointer_array_subscript(lhs.pointer)
+            if is_zp_ptr_array:
+                arr_base: str = sym.asm_name()
+
+                # Safe fast path only for BYTE deref targets
+                if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
+                    # Immediate RHS: 3 instructions total
+                    if isinstance(rhs, IntLiteral):
+                        val: int = rhs.value & 0xFF
+                        self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                        self.emit(f"\tLDA #${val:02X}")
+                        self.emit(f"\tSTA ({arr_base},X)")
+                        return
+
+                    # Identifier RHS: load from memory and store
+                    if isinstance(rhs, Identifier):
+                        rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
+                        rhs_addr: str = rhs_sym.asm_name()
+                        self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                        self.emit(f"\tLDA {rhs_addr}")
+                        self.emit(f"\tSTA ({arr_base},X)")
+                        return
+
+                    # Complex RHS: save to TMP2 to avoid clobbering X
+                    self.gen_expr(rhs)
+                    self.emit("\tSTA TMP2")
+                    self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                    self.emit("\tLDA TMP2")
+                    self.emit(f"\tSTA ({arr_base},X)")
+                    return
+        
         # Check for BYTE subscript assignment - handle it specially to postpone RHS generation
         if (isinstance(lhs, SubscriptExpr) and 
             rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer):

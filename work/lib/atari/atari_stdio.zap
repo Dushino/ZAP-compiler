@@ -74,8 +74,12 @@ proc CONSTRUCTOR()
     for i = 0 to MAX_YPOS
         vlstart[i] = data
         data = data + MAX_XPOS + 1
-        ; vlstart[i]^ = i
+        vlstart[i]^ = i
     end
+    vlstart[0]^ = $80
+    vlstart[1]^ = $81
+    vlstart[2]^ = $82
+
 end
 
 
