@@ -164,7 +164,13 @@ class ProcAnalyzer:
                     param.line, param.col
                 )
 
-        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table, global_symtab=global_symtab)
+        decl_an = DeclarationAnalyzer(
+            local_symtab,
+            self.struct_registry,
+            self.func_table,
+            global_symtab=global_symtab,
+            debug_info=self.debug,
+        )
         for d in proc.locals:
             decl_an.analyze(d)
 
@@ -177,14 +183,48 @@ class ProcAnalyzer:
             from sema_expr import ExprTypeChecker
             tc = ExprTypeChecker(scoped, self.func_table, self.struct_registry)
 
+            def _map_stmt_info(stmt):
+                stmt_src = self.debug.get("stmt_src") or {}
+                info = stmt_src.get(id(stmt))
+                if not info:
+                    return None
+                if len(info) == 3:
+                    fname, line, _text = info
+                    col = 1
+                else:
+                    fname, line, col, _text = info
+
+                orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+                if orig_map and isinstance(line, int) and 1 <= line <= len(orig_map):
+                    line = orig_map[line - 1]
+                return fname, line, col
+
             def validate_stmt_exprs(statements: list) -> None:
                 from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, Identifier, SubscriptExpr, FieldAccess
                 for st in statements:
                     if isinstance(st, AssignStmt):
                         # LHS write context: disable read checks (check LHS first so missing LHS is reported instead of RHS)
-                        tc.check(st.lhs, read_check_enabled=False)
+                        try:
+                            tc.check(st.lhs, read_check_enabled=False)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
                         # RHS is read context
-                        tc.check(st.rhs)
+                        try:
+                            tc.check(st.rhs)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
 
                         # Check write permission for ports
                         def _get_base_ident(node):
@@ -233,14 +273,9 @@ class ProcAnalyzer:
                                     allowed: Any | bool = getattr(sym, 'port_wr', False)
 
                                 if not allowed:
-                                    stmt_src_map = self.debug.get("stmt_src") or {}
-                                    info = stmt_src_map.get(id(st))
+                                    info = _map_stmt_info(st)
                                     if info:
-                                        if len(info) == 3:
-                                            fname, line, _text = info
-                                            col = 1
-                                        else:
-                                            fname, line, col, _text = info
+                                        fname, line, col = info
                                         err = SemanticError("Write to read-only port", line=line, col=col)
                                         err.filename = fname
                                         raise err
@@ -249,20 +284,74 @@ class ProcAnalyzer:
 
                     elif isinstance(st, ReturnStmt):
                         if st.expr is not None:
-                            tc.check(st.expr)
+                            try:
+                                tc.check(st.expr)
+                            except SemanticError as e:
+                                info = _map_stmt_info(st)
+                                if info and getattr(e, "filename", None) is None:
+                                    fname, line, col = info
+                                    err = SemanticError(e.message, line=line, col=col)
+                                    err.filename = fname
+                                    raise err
+                                raise
                     elif isinstance(st, IfStmt):
-                        tc.check(st.cond)
+                        try:
+                            tc.check(st.cond)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
                         validate_stmt_exprs(st.then_body)
                         if st.else_body:
                             validate_stmt_exprs(st.else_body)
                     elif isinstance(st, WhileStmt):
-                        tc.check(st.cond)
+                        try:
+                            tc.check(st.cond)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
                         validate_stmt_exprs(st.body)
                     elif isinstance(st, ForStmt):
-                        tc.check(st.start)
-                        tc.check(st.end)
+                        try:
+                            tc.check(st.start)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
+                        try:
+                            tc.check(st.end)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
                         if st.step is not None:
-                            tc.check(st.step)
+                            try:
+                                tc.check(st.step)
+                            except SemanticError as e:
+                                info = _map_stmt_info(st)
+                                if info and getattr(e, "filename", None) is None:
+                                    fname, line, col = info
+                                    err = SemanticError(e.message, line=line, col=col)
+                                    err.filename = fname
+                                    raise err
+                                raise
                         validate_stmt_exprs(st.body)
 
             validate_stmt_exprs(proc.body)

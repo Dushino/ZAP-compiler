@@ -169,13 +169,18 @@ class SymbolTable:
         # Name of the owning procedure for local symbol tables (empty for globals)
         self._proc_name: str = ""
 
+    @staticmethod
+    def _key(name: str) -> str:
+        return name.upper() if isinstance(name, str) else name
+
     def define(self, sym: Symbol, node=None) -> None:
-        if sym.name in self._symbols:
+        key = self._key(sym.name)
+        if key in self._symbols:
             raise SemanticError(f"Variable '{sym.name}' already defined", node=node)
-        self._symbols[sym.name] = sym
+        self._symbols[key] = sym
 
     def lookup(self, name: str) -> Symbol:
-        return self._symbols[name]
+        return self._symbols[self._key(name)]
 
     def __iter__(self) -> Iterator[Symbol]:
         return iter(self._symbols.values())

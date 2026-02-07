@@ -90,7 +90,13 @@ class FuncAnalyzer:
                 raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
 
         
-        decl_an = DeclarationAnalyzer(local_symtab, self.struct_registry, self.func_table, global_symtab=global_symtab)
+        decl_an = DeclarationAnalyzer(
+            local_symtab,
+            self.struct_registry,
+            self.func_table,
+            global_symtab=global_symtab,
+            debug_info=self.debug,
+        )
         for d in func.locals:
             decl_an.analyze(d)
 
@@ -105,21 +111,31 @@ class FuncAnalyzer:
         self.expr_tc.symtab = scoped
 
         # Helper to validate expressions with error reporting
+        def _map_stmt_info(stmt):
+            stmt_src = self.debug.get("stmt_src") or {}
+            info = stmt_src.get(id(stmt))
+            if not info:
+                return None
+            if len(info) == 3:
+                fname, line, _text = info
+                col = 1
+            else:
+                fname, line, col, _text = info
+            orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+            if orig_map and isinstance(line, int) and 1 <= line <= len(orig_map):
+                line = orig_map[line - 1]
+            return fname, line, col
+
         def validate_expr(expr, context_stmt=None, read_check_enabled: bool = True) -> ExprType:
             try:
                 return self.expr_tc.check(expr, read_check_enabled)
             except SemanticError as e:
                 if context_stmt:
-                    stmt_src = self.debug.get("stmt_src") or {}
-                    info = stmt_src.get(id(context_stmt))
+                    info = _map_stmt_info(context_stmt)
                 else:
                     info = None
                 if info:
-                    if len(info) == 3:
-                        fname, line, _text = info
-                        col = 1
-                    else:
-                        fname, line, col, _text = info
+                    fname, line, col = info
                     err = SemanticError(e.message, line=line, col=col)
                     err.filename = fname
                     raise err
@@ -213,14 +229,9 @@ class FuncAnalyzer:
                 try:
                     et: ExprType | None = self.expr_tc.check(stmt.expr) if stmt.expr is not None else None
                 except SemanticError as e:
-                    stmt_src = self.debug.get("stmt_src") or {}
-                    info = stmt_src.get(id(stmt))
+                    info = _map_stmt_info(stmt)
                     if info:
-                        if len(info) == 3:
-                            fname, line, _text = info
-                            col = 1
-                        else:
-                            fname, line, col, _text = info
+                        fname, line, col = info
                         err = SemanticError(e.message, line=line, col=col)
                         err.filename = fname
                         raise err
@@ -234,15 +245,10 @@ class FuncAnalyzer:
                         # BYTE: must fit 0..255
                         if ret_sem.base == "BYTE" and not ret_sem.is_pointer:
                             if val < 0 or val > 0xFF:
-                                stmt_src = self.debug.get("stmt_src") or {}
-                                info = stmt_src.get(id(stmt))
+                                info = _map_stmt_info(stmt)
                                 msg = f"Return value {val} (0x{val:X}) does not fit in BYTE (0-255)"
                                 if info:
-                                    if len(info) == 3:
-                                        fname, line, _text = info
-                                        col = 1
-                                    else:
-                                        fname, line, col, _text = info
+                                    fname, line, col = info
                                     err = SemanticError(msg, line=line, col=col)
                                     err.filename = fname
                                     raise err
@@ -250,15 +256,10 @@ class FuncAnalyzer:
                         # WORD: must fit 0..65535
                         if ret_sem.base == "WORD" and not ret_sem.is_pointer:
                             if val < 0 or val > 0xFFFF:
-                                stmt_src = self.debug.get("stmt_src") or {}
-                                info = stmt_src.get(id(stmt))
+                                info = _map_stmt_info(stmt)
                                 msg = f"Return value {val} (0x{val:X}) does not fit in WORD (0-65535)"
                                 if info:
-                                    if len(info) == 3:
-                                        fname, line, _text = info
-                                        col = 1
-                                    else:
-                                        fname, line, col, _text = info
+                                    fname, line, col = info
                                     err = SemanticError(msg, line=line, col=col)
                                     err.filename = fname
                                     raise err

@@ -1816,7 +1816,7 @@ class CodeGen:
         proc_name: str = getattr(target, "_proc_name", "")
         if proc_name:
             sym.proc_name = proc_name
-        target._symbols[sym.name] = sym
+        target._symbols[target._key(sym.name)] = sym
         return sym
 
 
@@ -2424,15 +2424,31 @@ class CodeGen:
         zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
         ZEROPAGE_SIZE = 256
         
-        # Step 1: ALL POINTERS MUST fit in zero page - fail if they don't
-        pointers: list[Symbol] = [s for s in all_vars if not s.is_const and s.address is None and s.type.is_pointer]
-        if pointers:
+        # Step 1: ALL POINTER VARIABLES (including arrays of pointers) MUST fit in zero page
+        pointer_scalars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
+        ]
+        pointer_arrays: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
+        ]
+        if pointer_scalars or pointer_arrays:
             self.emit("; Pointer variables")
-            for sym in pointers:
+            for sym in pointer_scalars:
                 if zp_offset + 2 > ZEROPAGE_SIZE:
                     self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
                 self.emit(f"{sym.asm_name()}:\t.res 2")
                 zp_offset += 2
+
+            for sym in pointer_arrays:
+                total_size: int = sym.get_total_array_size()
+                if total_size == 0:
+                    self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+                if zp_offset + total_size > ZEROPAGE_SIZE:
+                    self._raise_error(f"Zero page exhausted: pointer array '{sym.name}' cannot fit (need {zp_offset + total_size} bytes)")
+                self.emit(f"{sym.asm_name()}:\t.res {total_size}")
+                zp_offset += total_size
         
         # Step 2: Try to put BYTE variables in zero page, overflow to BSS
         byte_vars: list[Symbol] = [s for s in all_vars 
@@ -2483,8 +2499,11 @@ class CodeGen:
         bss_struct_vars: list[Symbol] = struct_vars  # All struct vars go to BSS
 
         
-        # Step 4: ALL ARRAYS must go to BSS segment (always)
-        array_vars: list[Symbol] = [s for s in all_vars if not s.is_const and s.address is None and s.is_array]
+        # Step 4: ALL non-pointer ARRAYS must go to BSS segment (pointer arrays were handled in Step 1)
+        array_vars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
+        ]
         
         # Switch to BSS for overflow, struct vars, and arrays
         if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars:
@@ -3186,12 +3205,13 @@ class CodeGen:
 
     def _calculate_element_width(self, sym: Symbol) -> int:
         """Calculate the width of array elements in bytes."""
+        if sym.type.is_pointer:
+            return 2
         if sym.type.is_struct and sym.type.struct_info:
             return sym.type.struct_info.size
-        elif sym.type.base == "WORD":
+        if sym.type.base == "WORD":
             return 2
-        else:
-            return 1
+        return 1
 
     def _gen_multidim_subscript(self, indices: list, sym: Symbol, 
                                 load_only: bool, calc_addr_only: bool = False) -> None:
@@ -3474,13 +3494,15 @@ class CodeGen:
                 self._raise_error(f"Field '{base.field}' not found in struct")
             
             # Determine element width
-            if field_info.base_type == "BYTE":
+            if field_info.is_pointer:
+                element_width = 2
+            elif field_info.base_type == "BYTE":
                 element_width = 1
             elif field_info.base_type == "WORD":
                 element_width = 2
             else:
-                # Nested struct or other type - would need struct registry lookup
-                element_width = 2  # Default for now
+                nested_struct = self.struct_registry.lookup(field_info.base_type)
+                element_width = nested_struct.size if nested_struct else 2
             
             # Generate the index expression
             self.gen_expr(expr.index)
@@ -5475,7 +5497,7 @@ class CodeGen:
                         self.gen_expr(rhs)
                         
                         # Direct store using calculated offset
-                        if lhs_t.sem_type.base == "WORD":
+                        if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
                             # WORD element: store both bytes
                             self.emit(f"\tSTA {arr_addr}+{offset}")
                             self.emit(f"\tSTX {arr_addr}+{offset+1}")
@@ -5526,7 +5548,7 @@ class CodeGen:
                     self.emit(f"\tLDA TMP2")
                     self.emit(f"\tSTA (TMP0),Y")
                     
-                    if lhs_t.sem_type.base == "WORD":
+                    if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
                         self.emit(f"\tINY")
                         self.emit(f"\tLDA TMP2+1")
                         self.emit(f"\tSTA (TMP0),Y")

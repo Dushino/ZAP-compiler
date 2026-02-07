@@ -22,9 +22,9 @@ def _walk_expr(expr, ctx, global_symtab):
 
     if isinstance(expr, Identifier):
         # Mark global usage (locals shadow automatically via scope lookup)
-        sym = global_symtab._symbols.get(expr.name)
+        sym = global_symtab._symbols.get(global_symtab._key(expr.name))
         if sym is not None and not getattr(sym, "proc_name", ""):
-            ctx["used_globals"].add(expr.name)
+            ctx["used_globals"].add(global_symtab._key(expr.name))
         return
 
     if isinstance(expr, FieldAccess):
@@ -148,8 +148,10 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
         "func_calls": set(),
     }
 
-    # Seed with MAIN
-    reachable_procs = set(["MAIN"])
+    # Seed with MAIN and any kept procs/constructors
+    constructors = set(getattr(program, "constructors", []) or [])
+    keep_procs = {p.ast.name for p in analyzed_procs if getattr(p.ast, "keep", False)}
+    reachable_procs = set(["MAIN"]) | constructors | keep_procs
     reachable_funcs = set()
 
     # Global initializers and declarations may reference globals/funcs
@@ -166,7 +168,7 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
                 _walk_initializer(d.initializer, ctx, global_symtab)
             # Declarator's own symbol should be kept if referenced via init above
 
-    proc_queue = deque(["MAIN"])
+    proc_queue = deque(sorted(reachable_procs))
     func_queue = deque()
 
     while proc_queue or func_queue:
@@ -252,8 +254,8 @@ def _walk_expr_locals(expr, used: set[str], local_symtab):
         return
 
     if isinstance(expr, Identifier):
-        if expr.name in local_symtab._symbols:
-            used.add(expr.name)
+        if local_symtab._key(expr.name) in local_symtab._symbols:
+            used.add(local_symtab._key(expr.name))
         return
 
     if isinstance(expr, CallExpr):
@@ -392,7 +394,13 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             enum_an.analyze(d)
 
     # --- declarations ---    
-    decl_an = DeclarationAnalyzer(global_symtab, struct_registry, func_table, global_symtab=None)
+    decl_an = DeclarationAnalyzer(
+        global_symtab,
+        struct_registry,
+        func_table,
+        global_symtab=None,
+        debug_info=getattr(program, "debug", None),
+    )
     for d in program.decls:
         # Skip enum declarations; they were processed above
         from ast_nodes import EnumDecl
@@ -406,7 +414,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # Check for collisions with .define symbols
     if defined_symbols:
         for name in list(global_symtab._symbols.keys()):
-            if name in defined_symbols:
+            if name in defined_symbols or name.upper() in defined_symbols:
                 from errors import SemanticError
                 gdecl = debug.get("global_decl_src") or {}
                 info = gdecl.get(name)
@@ -435,7 +443,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         if isinstance(p, ProcDecl):
             proc_an.analyze_decl(p)
             # Check for collision with existing global variables
-            if p.name in global_symtab._symbols:
+            if global_symtab._key(p.name) in global_symtab._symbols:
                 from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
@@ -450,7 +458,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 # No per-proc source info available; attach a fallback position
                 raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=1, col=1)
             # Check for collision with .define symbols
-            if defined_symbols and p.name in defined_symbols:
+            if defined_symbols and p.name.upper() in defined_symbols:
                 from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
@@ -467,7 +475,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         elif isinstance(p, FuncDecl):
             func_an.analyze_decl(p)
             # Check for collision with existing global variables
-            if p.name in global_symtab._symbols:
+            if global_symtab._key(p.name) in global_symtab._symbols:
                 from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
@@ -482,7 +490,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 # No per-func source info available; attach a fallback position
                 raise SemanticError(f"Function '{p.name}' conflicts with existing variable", line=1, col=1)
             # Check for collision with .define symbols
-            if defined_symbols and p.name in defined_symbols:
+            if defined_symbols and p.name.upper() in defined_symbols:
                 from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)

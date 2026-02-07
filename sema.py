@@ -236,11 +236,12 @@ class StructAnalyzer:
 
 
 class DeclarationAnalyzer:
-    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None, global_symtab=None) -> None:
+    def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None, global_symtab=None, debug_info: dict | None = None) -> None:
         self.symtab: SymbolTable = symtab
         self.struct_registry = struct_registry
         self.func_table = func_table
         self.global_symtab = global_symtab
+        self.debug = debug_info or {}
 
     def analyze(self, decl: Declaration) -> None:
         # Check if this is a struct type or a built-in type
@@ -260,7 +261,41 @@ class DeclarationAnalyzer:
         )
 
         for d in decl.declarators:
-            self._analyze_declarator(decl, d, sem_type)
+            try:
+                self._analyze_declarator(decl, d, sem_type)
+            except SemanticError as e:
+                if getattr(e, "filename", None) is None:
+                    self._attach_decl_error_context(e, d)
+                raise
+
+    def _attach_decl_error_context(self, err: SemanticError, d: Declarator) -> None:
+        debug = self.debug or {}
+        proc_name: str = getattr(self.symtab, "_proc_name", "")
+        info = None
+        if proc_name:
+            info = (debug.get("local_decl_src") or {}).get((proc_name, d.name))
+        else:
+            info = (debug.get("global_decl_src") or {}).get(d.name)
+        if not info:
+            return
+
+        if len(info) == 3:
+            fname, line, _text = info
+            col = 1
+        else:
+            fname, line, col, _text = info
+
+        orig_map = (debug.get("orig_line_map_per_file") or {}).get(fname)
+        if orig_map and isinstance(line, int) and 1 <= line <= len(orig_map):
+            line = orig_map[line - 1]
+
+        err.filename = fname
+        err.line = line if isinstance(line, int) and line >= 1 else err.line
+        err.col = col if isinstance(col, int) and col >= 1 else err.col
+
+        orig_src = (debug.get("orig_source_lines_per_file") or {}).get(fname)
+        if orig_src:
+            err.source_text = "\n".join(orig_src)
 
     def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int) -> None:
         """Recursively validate struct initializer has correct field count and nested structs."""
@@ -729,7 +764,7 @@ class EnumAnalyzer:
             name: str = item.name.upper()
             if name in seen:
                 raise SemanticError(f"Enum member '{item.name}' duplicated in enum '{enum_decl.name}'", line=item.line, col=item.col)
-            if name in self.symtab._symbols:
+            if self.symtab._key(name) in self.symtab._symbols:
                 raise SemanticError(f"Enum member '{item.name}' conflicts with existing symbol", line=item.line, col=item.col)
 
             sym = Symbol(

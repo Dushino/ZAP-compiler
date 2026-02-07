@@ -59,6 +59,8 @@ class ExprTypeChecker:
 
         if isinstance(expr, DerefExpr):
             base: ExprType = self.check(expr.pointer, read_check_enabled=read_check_enabled)
+            if base.kind == ExprKind.LVALUE and base.sem_type.is_pointer:
+                base = ExprType(base.sem_type, ExprKind.ADDR)
             if base.kind != ExprKind.ADDR or not base.sem_type.is_pointer:
                 raise SemanticError("Cannot dereference non-pointer", node=expr)
             
