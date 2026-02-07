@@ -475,6 +475,8 @@ end
 
 Repeat a set number of times:
 
+**Note:** The `to` bound is inclusive. For example, `for i = 0 to 9` runs 10 iterations (0..9), and `for i = 0 to 0` runs once.
+
 ```zap
 byte i
 

@@ -834,6 +834,8 @@ proc for_example()
 end
 ```
 
+**Semantics:** The `to` bound is inclusive. With a positive step, the loop runs while `i <= end`. With a negative step, it runs while `i >= end`.
+
 ### break Statement
 
 ```zap
