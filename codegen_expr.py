@@ -5527,9 +5527,10 @@ class CodeGen:
                     elif element_width == 2:
                         # WORD elements: address = arr_addr + index * 2
                         self.emit(f"\tASL A")  # Multiply index by 2
+                        self.emit("\tLDX #0")
                         carry_lbl: str = self.new_label("ARR_CARRY")
                         self.emit(f"\tBCC {carry_lbl}")
-                        self.emit(f"\tINC TMP0+1")
+                        self.emit("\tINX")
                         self.emit(f"{carry_lbl}:")
                         self.emit(f"\tCLC")
                         self.emit(f"\tADC #<{arr_addr}")

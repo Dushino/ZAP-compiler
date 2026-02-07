@@ -57,7 +57,7 @@ byte PLAYF4  @712
 
 byte cur_xpos, cur_ypos     ; cursor position on the screen
 const byte MAX_XPOS = 39
-const byte MAX_YPOS = 24    
+const byte MAX_YPOS = 23    
 
 byte ^vlstart[MAX_YPOS]
 
@@ -70,14 +70,15 @@ proc CONSTRUCTOR()
     
     vram = dlstart + 4
     data = vram^
-    data^ = 1
-    vlstart[0] = vram^
-    vlstart[0]^ = 2
+    ;data^ = 1
+    ;vlstart[0] = data ; vram^
+    ;vlstart[0]^ = 2
 
-    ;for i = 1 to MAX_YPOS - 1        
-    ;    vlstart[i] = data
-    ;    data = data + MAX_XPOS + 1
-    ;end
+    for i = 0 to MAX_YPOS
+        vlstart[i] = data
+        data = data + MAX_XPOS + 1
+        vlstart[i]^ = i
+    end
     ;vlstart[0]^ = 1
     ;vlstart[1]^ = 2
 end
