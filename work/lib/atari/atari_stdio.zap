@@ -70,17 +70,12 @@ proc CONSTRUCTOR()
     
     vram = dlstart + 4
     data = vram^
-    ;data^ = 1
-    ;vlstart[0] = data ; vram^
-    ;vlstart[0]^ = 2
 
     for i = 0 to MAX_YPOS
         vlstart[i] = data
         data = data + MAX_XPOS + 1
-        vlstart[i]^ = i
+        ; vlstart[i]^ = i
     end
-    ;vlstart[0]^ = 1
-    ;vlstart[1]^ = 2
 end
 
 
