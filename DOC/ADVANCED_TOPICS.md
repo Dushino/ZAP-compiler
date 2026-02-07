@@ -129,6 +129,8 @@ byte char1 = ptrs[0]^   ; 'F' from data1
 byte char2 = ptrs[1]^   ; 'S' from data2
 ```
 
+**Note:** Pointer arrays are stored in zero page, just like scalar pointers.
+
 ### Pointer to Pointer (Limited)
 
 ZAP! doesn't support full pointer-to-pointer chains, but you can simulate:
@@ -216,7 +218,7 @@ Compiler allocates in this order:
 1. **Pointers** - Must be in ZP (address storage)
 2. **Byte variables** - ZP first, then BSS
 3. **Word variables** - ZP first, then BSS
-4. **Arrays** - Always BSS
+4. **Arrays** - Always BSS (except pointer arrays, which must be in ZP)
 5. **Temporaries** - TMP0-TMP4 in ZP
 
 Example layout:

@@ -21,7 +21,7 @@
 There is an order in which ZAP! compiler places variables into memory. No variables are placed in CPU stack. It means that every variable (global or local) have its fixed RAM address. Addressed are reserved in this order:
 
 1. Pointers
-Pointers must fit into zero page. If not, error is issued and compilation is terminated
+Pointers must fit into zero page. If not, error is issued and compilation is terminated. This includes arrays of pointers.
 
 2. BYTE variables
 Byte sized variables goes after pointers into zero page. If does not fit, they are placed in BSS segment (uninitialized RAM, address span is specified by ld65 linker configuration file).
@@ -30,7 +30,7 @@ Byte sized variables goes after pointers into zero page. If does not fit, they a
 Byte sized variables goes after pointers into zero page. If does not fit, they are placed in BSS segment.
 
 4. Arrays and strings
-All arrays and strings are allways placed into BSS segment.
+All arrays and strings are allways placed into BSS segment, except pointer arrays which must be in zero page.
 
 
 ### How variable declarations affect memory placement
