@@ -6022,33 +6022,85 @@ class CodeGen:
         # OPTIMIZATION: Dereferenced subscript of ZEROPAGE pointer array
         # Pattern: arr[i]^ = value where arr is a pointer array in ZEROPAGE
         if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, SubscriptExpr):
-            is_zp_ptr_array, sym, byte_offset = self._is_zeropage_pointer_array_subscript(lhs.pointer)
-            if is_zp_ptr_array:
+            sub_expr: SubscriptExpr = lhs.pointer
+            is_zp_ptr_array, sym, byte_offset = self._is_zeropage_pointer_array_subscript(sub_expr)
+
+            # Accept non-constant indices for pointer arrays in ZEROPAGE
+            if not is_zp_ptr_array and isinstance(sub_expr.array, Identifier):
+                try:
+                    sym = self.current_symtab.lookup(sub_expr.array.name)
+                except KeyError:
+                    sym = None
+                if sym and sym.is_array and sym.type.is_pointer and sym.address is None:
+                    is_zp_ptr_array = True
+
+            if is_zp_ptr_array and sym:
                 arr_base: str = sym.asm_name()
 
                 # Safe fast path only for BYTE deref targets
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
-                    # Immediate RHS: 3 instructions total
+                    element_width: int = self._calculate_element_width(sym)
+
+                    # Constant index path
+                    if isinstance(sub_expr.index, IntLiteral):
+                        byte_offset = sub_expr.index.value * element_width
+                        if byte_offset < 256:
+                            # Immediate RHS
+                            if isinstance(rhs, IntLiteral):
+                                val: int = rhs.value & 0xFF
+                                self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                                self.emit(f"\tLDA #${val:02X}")
+                                self.emit(f"\tSTA ({arr_base},X)")
+                                return
+
+                            # Identifier RHS
+                            if isinstance(rhs, Identifier):
+                                rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
+                                rhs_addr: str = rhs_sym.asm_name()
+                                self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                                self.emit(f"\tLDA {rhs_addr}")
+                                self.emit(f"\tSTA ({arr_base},X)")
+                                return
+
+                            # Complex RHS: save to TMP2 to avoid clobbering X
+                            self.gen_expr(rhs)
+                            self.emit("\tSTA TMP2")
+                            self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                            self.emit("\tLDA TMP2")
+                            self.emit(f"\tSTA ({arr_base},X)")
+                            return
+
+                    # Variable index path
+                    # Immediate RHS
                     if isinstance(rhs, IntLiteral):
-                        val: int = rhs.value & 0xFF
-                        self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                        val = rhs.value & 0xFF
+                        self.gen_expr(sub_expr.index)
+                        if element_width == 2:
+                            self.emit("\tASL A")
+                        self.emit("\tTAX")
                         self.emit(f"\tLDA #${val:02X}")
                         self.emit(f"\tSTA ({arr_base},X)")
                         return
 
-                    # Identifier RHS: load from memory and store
+                    # Identifier RHS
                     if isinstance(rhs, Identifier):
                         rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
                         rhs_addr: str = rhs_sym.asm_name()
-                        self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                        self.gen_expr(sub_expr.index)
+                        if element_width == 2:
+                            self.emit("\tASL A")
+                        self.emit("\tTAX")
                         self.emit(f"\tLDA {rhs_addr}")
                         self.emit(f"\tSTA ({arr_base},X)")
                         return
 
-                    # Complex RHS: save to TMP2 to avoid clobbering X
+                    # Complex RHS: save to TMP2, then compute index into X
                     self.gen_expr(rhs)
                     self.emit("\tSTA TMP2")
-                    self.emit(f"\tLDX #${byte_offset:02X}    ; byte offset = index * element_width")
+                    self.gen_expr(sub_expr.index)
+                    if element_width == 2:
+                        self.emit("\tASL A")
+                    self.emit("\tTAX")
                     self.emit("\tLDA TMP2")
                     self.emit(f"\tSTA ({arr_base},X)")
                     return
