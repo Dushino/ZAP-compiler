@@ -75,6 +75,9 @@ class CodeGen:
         self.current_func_return_type: str | None = None
         # Track assignment context for optimizations that need target type
         self.assign_target_type: SemType | None = None  # Current assignment LHS type
+        # Track assignment target for safe temp reuse in expression codegen
+        self.assign_target_sym: Symbol | None = None
+        self.assign_target_blocked: bool = False
 
     def tc_check(self, expr, read_check_enabled: bool = True) -> ExprType:
         # Wrapper to attach source location to type-checker errors
@@ -1795,10 +1798,10 @@ class CodeGen:
         self.code = saved
         return vars_block
 
-    def _declare_temp(self, name: str) -> Symbol:
+    def _declare_temp(self, name: str, base: str = "WORD") -> Symbol:
         sym = Symbol(
             name=name,
-            type=SemType("WORD", False),
+            type=SemType(base, False),
             is_const=False,
             const_value=None,
             is_array=False,
@@ -3191,6 +3194,21 @@ class CodeGen:
             self._gen_deref_optimized_zeropage(expr, sym, byte_offset)
             return
 
+        # If pointer is a simple ZP identifier, use direct (ptr),Y without TMP0
+        if isinstance(expr.pointer, Identifier):
+            ptr_sym: Symbol = self.current_symtab.lookup(expr.pointer.name)
+            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+                ptr_asm: str = ptr_sym.asm_name()
+                self.emit("\tLDY #0")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                if t.sem_type.base == "WORD":
+                    self.emit("\tPHA")
+                    self.emit("\tINY")
+                    self.emit(f"\tLDA ({ptr_asm}),Y")
+                    self.emit("\tTAX")
+                    self.emit("\tPLA")
+                return
+
         # 1) vygeneruj adresu pointeru → A/X
         self.gen_expr(expr.pointer)
 
@@ -4556,12 +4574,27 @@ class CodeGen:
         # Check if left or right operand is complex (uses TMP0 internally)
         left_is_complex: bool = isinstance(expr.left, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
         right_is_complex: bool = isinstance(expr.right, (SubscriptExpr, FieldAccess, DerefExpr, BinaryExpr))
+
+        target_left_tmp: str | None = None
+        target_used: bool = False
+        if self.assign_target_sym and not self.assign_target_blocked:
+            target_sym: Symbol = self.assign_target_sym
+            target_is_word: bool = target_sym.type.base == "WORD" or target_sym.type.is_pointer
+            if (not target_sym.is_array and target_sym.address is None and
+                not self._is_fixed_address(target_sym.asm_name()) and
+                not self._is_port_variable(target_sym.asm_name()) and
+                not self._expr_mentions_identifier(expr, target_sym.name)):
+                if not (result_16_adj and not target_is_word):
+                    target_left_tmp = target_sym.asm_name()
         
         # Choose a temp that won't be clobbered by generating the right operand.
         # Honor caller's request when possible (force_left_tmp). If the left side
         # itself is complex it needs TMP1. Otherwise try to pick the opposite of
         # what the right side would prefer so they don't collide.
-        if force_left_tmp and not left_is_complex:
+        if target_left_tmp:
+            left_tmp = target_left_tmp
+            target_used = True
+        elif force_left_tmp and not left_is_complex:
             left_tmp = force_left_tmp
         elif left_is_complex:
             left_tmp = "TMP1"
@@ -4677,7 +4710,13 @@ class CodeGen:
                 # Ask the right sub-expression to prefer the opposite temp to avoid
                 # accidental clobbering of the saved left value.
                 right_hint: str = "TMP0" if left_tmp == "TMP1" else "TMP1"
-                self.gen_expr(expr.right, force_left_tmp=right_hint)
+                prev_blocked: bool = self.assign_target_blocked
+                if target_used:
+                    self.assign_target_blocked = True
+                try:
+                    self.gen_expr(expr.right, force_left_tmp=right_hint)
+                finally:
+                    self.assign_target_blocked = prev_blocked
         
         # Handle different operations
         if expr.op == BinOp.ADD:
@@ -5344,6 +5383,27 @@ class CodeGen:
         
         raise SemanticError(f"Field '{field_name}' not found in struct", node=getattr(self, 'current_expr', None))
 
+    def _expr_mentions_identifier(self, expr: Expr, name: str) -> bool:
+        if isinstance(expr, Identifier):
+            return expr.name == name
+        if isinstance(expr, IntLiteral):
+            return False
+        if isinstance(expr, UnaryExpr):
+            return self._expr_mentions_identifier(expr.expr, name)
+        if isinstance(expr, BinaryExpr):
+            return (self._expr_mentions_identifier(expr.left, name) or
+                    self._expr_mentions_identifier(expr.right, name))
+        if isinstance(expr, SubscriptExpr):
+            return (self._expr_mentions_identifier(expr.array, name) or
+                    self._expr_mentions_identifier(expr.index, name))
+        if isinstance(expr, FieldAccess):
+            return self._expr_mentions_identifier(expr.object, name)
+        if isinstance(expr, DerefExpr):
+            return self._expr_mentions_identifier(expr.pointer, name)
+        if isinstance(expr, CallExpr):
+            return any(arg is not None and self._expr_mentions_identifier(arg, name) for arg in expr.args)
+        return False
+
     def _gen_logical(self, expr: BinaryExpr) -> None:
         # TMP4 used to combine A/X when testing word values
         self.used_temps.add("TMP4")
@@ -5543,6 +5603,49 @@ class CodeGen:
                 if arr_sym.is_array and not arr_sym.is_const and arr_sym.address is None:
                     arr_addr: str = arr_sym.asm_name()
                     element_width: int = self._calculate_element_width(arr_sym)
+
+                    # Pointer arrays are always in ZEROPAGE; use direct ZP indexed stores
+                    if arr_sym.type.is_pointer:
+                        # Constant index path uses direct store below
+                        if not isinstance(lhs.index, IntLiteral):
+                            # If RHS is complex, evaluate it first since X is used for index
+                            if not isinstance(rhs, (Identifier, IntLiteral)):
+                                self.gen_expr(rhs)
+                                self.emit("\tSTA TMP2")
+                                self.emit("\tSTX TMP2+1")
+
+                            # Compute index*element_width into X (element_width is 2 for pointers)
+                            self.gen_expr(lhs.index)
+                            if element_width == 2:
+                                self.emit("\tASL A")
+                            self.emit("\tTAX")
+
+                            if isinstance(rhs, Identifier):
+                                rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
+                                rhs_addr: str = rhs_sym.asm_name()
+                                self.emit(f"\tLDA {rhs_addr}")
+                                self.emit(f"\tSTA {arr_addr},X")
+                                self.emit("\tINX")
+                                self.emit(f"\tLDA {rhs_addr}+1")
+                                self.emit(f"\tSTA {arr_addr},X")
+                                return
+                            if isinstance(rhs, IntLiteral):
+                                lo: int = rhs.value & 0xFF
+                                hi: int = (rhs.value >> 8) & 0xFF
+                                self.emit(f"\tLDA #${lo:02X}")
+                                self.emit(f"\tSTA {arr_addr},X")
+                                self.emit("\tINX")
+                                self.emit(f"\tLDA #${hi:02X}")
+                                self.emit(f"\tSTA {arr_addr},X")
+                                return
+
+                            # Complex RHS saved in TMP2
+                            self.emit("\tLDA TMP2")
+                            self.emit(f"\tSTA {arr_addr},X")
+                            self.emit("\tINX")
+                            self.emit("\tLDA TMP2+1")
+                            self.emit(f"\tSTA {arr_addr},X")
+                            return
                     
                     # Case 1: Immediate index - calculate offset at compile time
                     if isinstance(lhs.index, IntLiteral):
@@ -5770,6 +5873,110 @@ class CodeGen:
                             self.emit(f"\tDEC {asm}")
                     return
 
+                def _self_const_fold(expr: Expr) -> tuple[int, int] | None:
+                    if isinstance(expr, IntLiteral):
+                        return (0, expr.value)
+                    if isinstance(expr, Identifier):
+                        if expr.name == lhs.name:
+                            return (1, 0)
+                        return None
+                    if isinstance(expr, BinaryExpr) and expr.op in {BinOp.ADD, BinOp.SUB}:
+                        left = _self_const_fold(expr.left)
+                        right = _self_const_fold(expr.right)
+                        if left is None or right is None:
+                            return None
+                        left_self, left_const = left
+                        right_self, right_const = right
+                        if expr.op == BinOp.ADD:
+                            return (left_self + right_self, left_const + right_const)
+                        return (left_self - right_self, left_const - right_const)
+                    return None
+
+                # Fold chains like var = var + c1 + c2 into a single immediate add/sub
+                folded = _self_const_fold(rhs)
+                if folded is not None:
+                    self_count, const_val = folded
+                    if self_count == 1 and const_val != 0:
+                        scale = 1
+                        if lhs_t.sem_type.is_pointer:
+                            if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
+                                scale = lhs_t.sem_type.struct_info.size
+                            elif lhs_t.sem_type.base == "WORD":
+                                scale = 2
+                        total: int = const_val * scale
+                        is_add = total >= 0
+
+                        if is_word:
+                            abs_total: int = (total if is_add else -total) & 0xFFFF
+                            lo: int = abs_total & 0xFF
+                            hi: int = (abs_total >> 8) & 0xFF
+                            self.emit(f"\tLDA {asm}")
+                            if is_add:
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC #${lo:02X}")
+                            else:
+                                self.emit("\tSEC")
+                                self.emit(f"\tSBC #${lo:02X}")
+                            self.emit(f"\tSTA {asm}")
+
+                            self.emit(f"\tLDA {asm}+1")
+                            if is_add:
+                                self.emit(f"\tADC #${hi:02X}")
+                            else:
+                                self.emit(f"\tSBC #${hi:02X}")
+                            self.emit(f"\tSTA {asm}+1")
+                            return
+                        else:
+                            abs_total = (total if is_add else -total) & 0xFF
+                            self.emit(f"\tLDA {asm}")
+                            if is_add:
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC #${abs_total:02X}")
+                            else:
+                                self.emit("\tSEC")
+                                self.emit(f"\tSBC #${abs_total:02X}")
+                            self.emit(f"\tSTA {asm}")
+                            return
+
+                # var = var +/- imm (general immediate, WORD or pointer)
+                if is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
+                    imm_op: IntLiteral | None = None
+                    is_add: bool = rhs.op == BinOp.ADD
+                    if is_self(rhs.left) and isinstance(rhs.right, IntLiteral):
+                        imm_op = rhs.right
+                    elif is_add and is_self(rhs.right) and isinstance(rhs.left, IntLiteral):
+                        imm_op = rhs.left
+
+                    if imm_op is not None:
+                        imm_val: int = imm_op.value & 0xFFFF
+                        # For pointer arithmetic, scale by element size
+                        scale = 1
+                        if lhs_t.sem_type.is_pointer:
+                            if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
+                                scale = lhs_t.sem_type.struct_info.size
+                            elif lhs_t.sem_type.base == "WORD":
+                                scale = 2
+                        total: int = (imm_val * scale) & 0xFFFF
+                        lo: int = total & 0xFF
+                        hi: int = (total >> 8) & 0xFF
+
+                        self.emit(f"\tLDA {asm}")
+                        if is_add:
+                            self.emit("\tCLC")
+                            self.emit(f"\tADC #${lo:02X}")
+                        else:
+                            self.emit("\tSEC")
+                            self.emit(f"\tSBC #${lo:02X}")
+                        self.emit(f"\tSTA {asm}")
+
+                        self.emit(f"\tLDA {asm}+1")
+                        if is_add:
+                            self.emit(f"\tADC #${hi:02X}")
+                        else:
+                            self.emit(f"\tSBC #${hi:02X}")
+                        self.emit(f"\tSTA {asm}+1")
+                        return
+
                 # Optimize word var = var1 +/- var2 (memory-to-memory operations)
                 if is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
                     # Check if both operands are simple identifier references
@@ -5795,16 +6002,53 @@ class CodeGen:
                                 self.emit(f"\tADC {right_asm}+1")
                                 self.emit(f"\tSTA {asm}+1")
                                 return
-                            elif rhs.op == BinOp.SUB:
-                                # word_var = word_var1 - word_var2
-                                self.emit(f"\tLDA {left_asm}")
+
+                # Optimize word var = var1 +/- imm (direct immediate add/sub)
+                if is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
+                    var_opnd: Identifier | None = None
+                    imm_opnd: IntLiteral | None = None
+                    is_add: bool = rhs.op == BinOp.ADD
+
+                    if isinstance(rhs.left, Identifier) and isinstance(rhs.right, IntLiteral):
+                        var_opnd = rhs.left
+                        imm_opnd = rhs.right
+                    elif is_add and isinstance(rhs.right, Identifier) and isinstance(rhs.left, IntLiteral):
+                        var_opnd = rhs.right
+                        imm_opnd = rhs.left
+
+                    if var_opnd and imm_opnd:
+                        var_sym: Symbol = self.current_symtab.lookup(var_opnd.name)
+                        if not var_sym.is_array:
+                            var_asm: str = var_sym.asm_name()
+                            imm_val: int = imm_opnd.value & 0xFFFF
+
+                            scale = 1
+                            if var_sym.type.is_pointer:
+                                if var_sym.type.is_struct and var_sym.type.struct_info:
+                                    scale = var_sym.type.struct_info.size
+                                elif var_sym.type.base == "WORD":
+                                    scale = 2
+
+                            total: int = (imm_val * scale) & 0xFFFF
+                            lo: int = total & 0xFF
+                            hi: int = (total >> 8) & 0xFF
+
+                            self.emit(f"\tLDA {var_asm}")
+                            if is_add:
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC #${lo:02X}")
+                            else:
                                 self.emit("\tSEC")
-                                self.emit(f"\tSBC {right_asm}")
-                                self.emit(f"\tSTA {asm}")
-                                self.emit(f"\tLDA {left_asm}+1")
-                                self.emit(f"\tSBC {right_asm}+1")
-                                self.emit(f"\tSTA {asm}+1")
-                                return
+                                self.emit(f"\tSBC #${lo:02X}")
+                            self.emit(f"\tSTA {asm}")
+
+                            self.emit(f"\tLDA {var_asm}+1")
+                            if is_add:
+                                self.emit(f"\tADC #${hi:02X}")
+                            else:
+                                self.emit(f"\tSBC #${hi:02X}")
+                            self.emit(f"\tSTA {asm}+1")
+                            return
 
                 # Optimize byte var = var1 +/- imm (direct immediate operations)
                 if not is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
@@ -6130,13 +6374,27 @@ class CodeGen:
             return
 
         # vygeneruj RHS
-        # Set assignment target type context for optimizations
+        # Set assignment target context for optimizations
         prev_assign_type: SemType | None = self.assign_target_type
+        prev_assign_sym: Symbol | None = self.assign_target_sym
+        prev_assign_blocked: bool = self.assign_target_blocked
         self.assign_target_type = lhs_t.sem_type
+        self.assign_target_sym = None
+        self.assign_target_blocked = False
+        if isinstance(lhs, Identifier):
+            try:
+                target_sym: Symbol = self.current_symtab.lookup(lhs.name)
+            except KeyError:
+                target_sym = None
+            if target_sym is not None and not target_sym.is_const and not target_sym.is_array and target_sym.address is None:
+                if not self._is_fixed_address(target_sym.asm_name()) and not self._is_port_variable(target_sym.asm_name()):
+                    self.assign_target_sym = target_sym
         try:
             self.gen_expr(rhs)
         finally:
             self.assign_target_type = prev_assign_type
+            self.assign_target_sym = prev_assign_sym
+            self.assign_target_blocked = prev_assign_blocked
 
         # Handle type widening: if RHS is smaller than LHS, extend with zeros
         # This is needed when assigning a BYTE to a WORD target
@@ -6227,7 +6485,13 @@ class CodeGen:
 
         # end
         end_name: str = self.new_for_var("END")
-        self._declare_temp(end_name)
+        end_t: ExprType = self.tc_check(stmt.end)
+        var_t: ExprType = self.tc_check(stmt.var)
+        end_is_word: bool = (
+            var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+            end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
+        )
+        self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
         end_var = Identifier(end_name)
         self.gen_assign(end_var, stmt.end)
 
@@ -6258,8 +6522,21 @@ class CodeGen:
         end_name: str = self.new_for_var("END")
         step_name: str = self.new_for_var("STEP")
 
-        self._declare_temp(end_name)
-        self._declare_temp(step_name)
+        var_t: ExprType = self.tc_check(stmt.var)
+        end_t: ExprType = self.tc_check(stmt.end)
+        step_t: ExprType = self.tc_check(stmt.step) if stmt.step is not None else self.tc_check(IntLiteral(1))
+
+        end_is_word: bool = (
+            var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+            end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
+        )
+        step_is_word: bool = (
+            var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+            step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
+        )
+
+        self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
+        self._declare_temp(step_name, "WORD" if step_is_word else "BYTE")
 
         end_var = Identifier(end_name)
         step_var = Identifier(step_name)
@@ -6760,6 +7037,88 @@ class CodeGen:
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
+
+                # Optimize: 16-bit compare against a simple right identifier without TMP0
+                if is_16bit and isinstance(cond.right, Identifier) and isinstance(cond.left, (Identifier, IntLiteral)):
+                    right_sym: Symbol = self.current_symtab.lookup(cond.right.name)
+                    if (not right_sym.is_array and right_sym.address is None and
+                        not right_sym.is_volatile and not right_sym.is_port):
+                        right_asm: str = right_sym.asm_name()
+                        cmp_lo = right_asm
+                        cmp_hi = f"{right_asm}+1"
+                        if right_sym.type.base != "WORD" and not right_sym.type.is_pointer:
+                            cmp_hi = "#$00"
+
+                        # Load left side into A/X
+                        self.gen_expr(cond.left)
+                        if is_16bit and left_t.sem_type.base != "WORD":
+                            self.emit("\tLDX #0     ; note 7036")
+
+                        if cond.op == BinOp.EQ:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBNE {lbl_else_tmp}")
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBEQ {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.NE:
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBNE {lbl_true}")
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBNE {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.LT:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBNE {lbl_else_tmp}")
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.LE:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            lbl_chk_hi: str = self.new_label("LE_CHK_HI")
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBEQ {lbl_chk_hi}")
+                            self.emit(f"\tBNE {lbl_else_tmp}")
+                            self.emit(f"{lbl_chk_hi}:")
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBEQ {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.GT:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_else_tmp}")
+                            self.emit(f"\tBEQ @GT_CHECK_LOW")
+                            self.emit(f"\tJMP {lbl_true}")
+                            self.emit("@GT_CHECK_LOW:")
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBEQ {lbl_else_tmp}")
+                            self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.GE:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_else_tmp}")
+                            self.emit(f"\tBEQ @GE_CHECK_LOW")
+                            self.emit(f"\tJMP {lbl_true}")
+                            self.emit("@GE_CHECK_LOW:")
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
                 if cond.op == BinOp.NE:
                     self.emit(f"\tLDA {asm}")
                     self.emit(f"\tCMP {cmp_lo}")
