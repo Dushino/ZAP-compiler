@@ -322,11 +322,233 @@ class CodeGen:
         return False
 
     def peephole_optimize(self) -> None:
-        """Stub peephole optimizer.
-
-        Disabled while rebuilding optimizations from scratch.
+        """Apply peephole optimizations to emitted code.
+        
+        Current optimizations:
+        - Remove redundant LDA after STA to same location (when A still contains the value)
+        - Tail call optimization: JSR followed by RTS -> JMP (saves stack operations)
+        - Remove duplicate consecutive comment lines
+        - 65c02: Replace LDX #0; STA addr; STX addr+1 with STA addr; STZ addr+1
+        - Remove blank line immediately before RTS
         """
-        return
+        optimized: list[str] = []
+        i = 0
+        
+        while i < len(self.code):
+            line = self.code[i]
+            line_stripped = line.strip()
+            line_upper = line_stripped.upper()
+            
+            # 65c02: Replace LDX #0; STA addr; STX addr+1 -> STA addr; STZ addr+1
+            # Strip inline comments to check instruction
+            instr_part = line_stripped.split(';')[0].strip().upper()
+            if self.is_65c02 and (instr_part == "LDX #0" or instr_part == "LDX #$0" or instr_part == "LDX #$00"):
+                # Look ahead for STA instruction
+                j = i + 1
+                sta_found = False
+                sta_index = -1
+                sta_operand = None
+                intermediate_lines = []
+                
+                while j < len(self.code):
+                    look_line = self.code[j].strip()
+                    look_upper = look_line.upper()
+                    
+                    # Skip blank lines and comments
+                    if not look_line or look_line.startswith(";"):
+                        intermediate_lines.append(j)
+                        j += 1
+                        continue
+                    
+                    # Stop at labels
+                    if look_upper.endswith(":"):
+                        break
+                    
+                    # Check for STA
+                    if look_upper.startswith("STA "):
+                        sta_parts = look_line.split(maxsplit=1)
+                        if len(sta_parts) == 2:
+                            sta_operand = sta_parts[1].strip()
+                            sta_found = True
+                            sta_index = j
+                            j += 1
+                            break
+                    
+                    # Stop at any other instruction
+                    break
+                
+                if sta_found and sta_operand:
+                    # Now look for STX addr+1
+                    intermediate_lines2 = []
+                    stx_found = False
+                    stx_index = -1
+                    
+                    while j < len(self.code):
+                        look_line = self.code[j].strip()
+                        look_upper = look_line.upper()
+                        
+                        # Skip blank lines and comments
+                        if not look_line or look_line.startswith(";"):
+                            intermediate_lines2.append(j)
+                            j += 1
+                            continue
+                        
+                        # Stop at labels
+                        if look_upper.endswith(":"):
+                            break
+                        
+                        # Check for STX addr+1
+                        if look_upper.startswith("STX "):
+                            stx_parts = look_line.split(maxsplit=1)
+                            if len(stx_parts) == 2:
+                                stx_operand = stx_parts[1].strip()
+                                # Check if it's the same address +1
+                                if stx_operand.upper() == sta_operand.upper() + "+1":
+                                    stx_found = True
+                                    stx_index = j
+                                    break
+                        
+                        # Stop at any other instruction
+                        break
+                    
+                    if stx_found:
+                        # Replace pattern: skip LDX #0, emit STA, replace STX with STZ
+                        # Emit intermediate lines between LDX and STA
+                        for idx in intermediate_lines:
+                            optimized.append(self.code[idx])
+                        # Emit STA
+                        optimized.append(self.code[sta_index])
+                        # Emit intermediate lines between STA and STX
+                        for idx in intermediate_lines2:
+                            optimized.append(self.code[idx])
+                        # Emit STZ instead of STX
+                        indent = self.code[stx_index][:len(self.code[stx_index]) - len(self.code[stx_index].lstrip())]
+                        optimized.append(f"{indent}STZ {sta_operand}+1\n")
+                        i = stx_index + 1
+                        continue
+            
+            # Tail call optimization: JSR followed by RTS -> JMP
+            if line_upper.startswith("JSR "):
+                parts = line_stripped.split(maxsplit=1)
+                if len(parts) == 2:
+                    jsr_target = parts[1].strip()
+                    
+                    # Look ahead for RTS
+                    j = i + 1
+                    found_rts = False
+                    rts_index = -1
+                    
+                    while j < len(self.code):
+                        next_line = self.code[j].strip()
+                        next_upper = next_line.upper()
+                        
+                        # Skip blank lines and comments
+                        if not next_line or next_line.startswith(";"):
+                            j += 1
+                            continue
+                        
+                        # Stop at labels (potential jump targets)
+                        if next_upper.endswith(":"):
+                            break
+                        
+                        # Check if this is RTS
+                        if next_upper == "RTS":
+                            # Found tail call pattern - replace JSR with JMP
+                            found_rts = True
+                            rts_index = j
+                            break
+                        
+                        # Stop at any other instruction
+                        break
+                    
+                    if found_rts:
+                        # Replace JSR with JMP
+                        indent = line[:len(line) - len(line.lstrip())]
+                        optimized.append(f"{indent}JMP {jsr_target}\n")
+                        # Emit intermediate lines (comments/blanks) but skip the RTS
+                        for k in range(i + 1, j + 1):
+                            if k != rts_index:
+                                optimized.append(self.code[k])
+                        i = j + 1
+                        continue
+            
+            # Check for STA instruction
+            if line_upper.startswith("STA "):
+                parts = line_stripped.split(maxsplit=1)
+                if len(parts) == 2:
+                    sta_operand = parts[1].strip()
+                    
+                    # Look ahead for redundant LDA
+                    j = i + 1
+                    found_redundant_lda = False
+                    lda_index = -1
+                    
+                    while j < len(self.code):
+                        next_line = self.code[j].strip()
+                        next_upper = next_line.upper()
+                        
+                        # Skip blank lines and comments
+                        if not next_line or next_line.startswith(";"):
+                            j += 1
+                            continue
+                        
+                        # Stop at labels (potential jump targets)
+                        if next_upper.endswith(":"):
+                            break
+                        
+                        # Check if this is LDA with same operand
+                        if next_upper.startswith("LDA "):
+                            lda_parts = next_line.split(maxsplit=1)
+                            if len(lda_parts) == 2:
+                                lda_operand = lda_parts[1].strip()
+                                if lda_operand.upper() == sta_operand.upper():
+                                    # Found redundant LDA - mark it for removal
+                                    found_redundant_lda = True
+                                    lda_index = j
+                            break
+                        
+                        # Stop at any other instruction that might affect A
+                        break
+                    
+                    # Emit the STA and any intermediate lines, but skip the redundant LDA
+                    optimized.append(self.code[i])
+                    for k in range(i + 1, j + 1 if found_redundant_lda else j):
+                        if k != lda_index:
+                            optimized.append(self.code[k])
+                    
+                    i = j + 1 if found_redundant_lda else i + 1
+                    continue
+            
+            # Remove duplicate consecutive comment lines
+            if line_stripped.startswith(";"):
+                # Check if this comment is identical to the last line added
+                if optimized and optimized[-1].strip() == line_stripped:
+                    # Skip this duplicate comment
+                    i += 1
+                    continue
+
+            # Remove blank line right before RTS
+            if not line_stripped:
+                j = i + 1
+                skip_blank = False
+                while j < len(self.code):
+                    next_line = self.code[j].strip()
+                    next_upper = next_line.upper()
+                    if not next_line or next_line.startswith(";"):
+                        j += 1
+                        continue
+                    if next_upper == "RTS":
+                        skip_blank = True
+                    break
+                if skip_blank:
+                    i += 1
+                    continue
+            
+            # Default: keep the line as-is
+            optimized.append(self.code[i])
+            i += 1
+        
+        self.code = optimized
 
     def legalize_illegal_ops(self) -> None:
         """Ensure emitted code is assemblable even without peephole optimizations.
