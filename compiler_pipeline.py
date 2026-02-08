@@ -372,7 +372,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         af.locals = prune_one(af.ast.body, af.locals, af.symtab.local, af.ast.params)
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
     proc_table = ProcTable()
@@ -697,5 +697,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # Keep code legal
     cg.legalize_illegal_ops()
+    # Apply peephole optimizations only when explicitly enabled
+    if enable_peephole:
+        cg.peephole_optimize()
     return "\n".join(cg.code)
 

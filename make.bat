@@ -262,14 +262,20 @@ if not "%2"=="" (
         set "variant_fail=0"
         set "testdir=!PASS_DIRS!"
 
-    rem Test all variants: default, -6502
-    for %%v in (0 1) do (
+    rem Test all variants: default, -6502, -O1, -6502 -O1
+    for %%v in (0 1 2 3) do (
         if %%v equ 0 (
             set "variant_flags="
             set "variant_name=_default"
-        ) else (
+        ) else if %%v equ 1 (
             set "variant_flags=-6502"
             set "variant_name=_6502"
+        ) else if %%v equ 2 (
+            set "variant_flags=-O1"
+            set "variant_name=_O1"
+        ) else (
+            set "variant_flags=-6502 -O1"
+            set "variant_name=_6502_O1"
         )
         set "output_file=!testdir!\!base!!variant_name!.s"
         set "obj_file=!testdir!\!base!!variant_name!.o"
@@ -371,10 +377,10 @@ if not "%2"=="" (
     set "padded_msg=!padded_msg:~0,40!"
     
     if !variant_fail! equ 0 (
-        echo !padded_msg!✅ PASS ^(all 2 variants^)
+        echo !padded_msg!✅ PASS ^(all 4 variants^)
         set /a pass_count+=1
     ) else (
-        echo !padded_msg!❌ FAIL ^(!variant_fail!/2 variants failed^)
+        echo !padded_msg!❌ FAIL ^(!variant_fail!/4 variants failed^)
         set /a error_count+=1
     )
     )
@@ -394,14 +400,20 @@ if not "%2"=="" (
         set "testdir=%%~dpf"
         set "testdir=!testdir:~0,-1!"
 
-    rem Test all variants: default, -6502
-    for %%v in (0 1) do (
+    rem Test all variants: default, -6502, -O1, -6502 -O1
+    for %%v in (0 1 2 3) do (
         if %%v equ 0 (
             set "variant_flags="
             set "variant_name=_default"
-        ) else (
+        ) else if %%v equ 1 (
             set "variant_flags=-6502"
             set "variant_name=_6502"
+        ) else if %%v equ 2 (
+            set "variant_flags=-O1"
+            set "variant_name=_O1"
+        ) else (
+            set "variant_flags=-6502 -O1"
+            set "variant_name=_6502_O1"
         )
         set "output_file=!testdir!\!base!!variant_name!.s"
         set "obj_file=!testdir!\!base!!variant_name!.o"
@@ -502,10 +514,10 @@ if not "%2"=="" (
     set "padded_msg=!padded_msg:~0,40!"
     
     if !variant_fail! equ 0 (
-        echo !padded_msg!✅ PASS ^(all 2 variants^)
+        echo !padded_msg!✅ PASS ^(all 4 variants^)
         set /a pass_count+=1
     ) else (
-        echo !padded_msg!❌ FAIL ^(!variant_fail!/2 variants failed^)
+        echo !padded_msg!❌ FAIL ^(!variant_fail!/4 variants failed^)
         set /a error_count+=1
     )
     )
@@ -525,14 +537,33 @@ if "%2"=="" (
         set "result_msg=!base!.zap: "        
         set "padded_msg=!result_msg!!spaces!"
         set "padded_msg=!padded_msg:~0,40!"
-        
-        %ZC% -6502 "%%f" -o "!testdir!\!base!.s" >nul 2>&1
-        if !errorlevel! equ 0 (
-            echo !padded_msg!❌ FAIL: ^(expected to fail but passed^)
-            set /a error_count+=1
-        ) else (
-            echo !padded_msg!✅ PASS ^(correctly rejected^)
+
+        set "variant_fail=0"
+        for %%v in (0 1 2 3) do (
+            if %%v equ 0 (
+                set "variant_flags="
+                set "variant_name=_default"
+            ) else if %%v equ 1 (
+                set "variant_flags=-6502"
+                set "variant_name=_6502"
+            ) else if %%v equ 2 (
+                set "variant_flags=-O1"
+                set "variant_name=_O1"
+            ) else (
+                set "variant_flags=-6502 -O1"
+                set "variant_name=_6502_O1"
+            )
+            %ZC% !variant_flags! "%%f" -o "!testdir!\!base!!variant_name!.s" >nul 2>&1
+            if !errorlevel! equ 0 (
+                set /a variant_fail+=1
+            )
+        )
+        if !variant_fail! equ 0 (
+            echo !padded_msg!✅ PASS ^(correctly rejected all 4 variants^)
             set /a fail_count+=1
+        ) else (
+            echo !padded_msg!❌ FAIL: ^(!variant_fail!/4 variants passed^)
+            set /a error_count+=1
         )
     )
 )

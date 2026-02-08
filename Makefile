@@ -98,7 +98,7 @@ tests: clean
 			dir=$$(dirname $$zapfile); \
 			ref_file="$${dir}/$${base}.ref"; \
 			variant_pass=0; variant_fail=0; variant_errors=""; \
-			for variant_flags in "" "-6502"; do \
+			for variant_flags in "" "-6502" "-O1" "-6502 -O1"; do \
 				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/' | sed 's/^-/_/'); \
 				output_file="$${dir}/$${base}$${variant_name}.s"; \
 				obj_file="$${dir}/$${base}$${variant_name}.o"; \
@@ -203,10 +203,10 @@ tests: clean
 			done; \
 			printf "%-50s" "$$base.zap: "; \
 			if [ $$variant_fail -eq 0 ]; then \
-				echo "✅ PASS (all 2 variants)"; \
+				echo "✅ PASS (all 4 variants)"; \
 				pass_count=$$((pass_count + 1)); \
 			else \
-				echo "❌ FAIL ($$variant_fail/2 variants failed)$$variant_errors"; \
+				echo "❌ FAIL ($$variant_fail/4 variants failed)$$variant_errors"; \
 				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
@@ -219,12 +219,23 @@ tests: clean
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
 			printf "%-50s" "$$base.zap: "; \
-			if $(ZC) -6502 $$zapfile -o $${dir}/$${base}.s >> $(TEST_REPORT) 2>&1; then \
-				echo "❌ FAIL (expected to fail but passed)"; \
-				error_count=$$((error_count + 1)); \
-			else \
-				echo "✅ PASS (correctly rejected)"; \
+			variant_fail=0; variant_pass=0; variant_errors=""; \
+			for variant_flags in "" "-6502" "-O1" "-6502 -O1"; do \
+				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/' | sed 's/^-/_/'); \
+				output_file="$${dir}/$${base}$${variant_name}.s"; \
+				if $(ZC) $$variant_flags $$zapfile -o $$output_file >> $(TEST_REPORT) 2>&1; then \
+					variant_errors="$$variant_errors [UNEXPECTED_PASS:$$variant_name]"; \
+					variant_fail=$$((variant_fail + 1)); \
+				else \
+					variant_pass=$$((variant_pass + 1)); \
+				fi; \
+			done; \
+			if [ $$variant_fail -eq 0 ]; then \
+				echo "✅ PASS (correctly rejected all 4 variants)"; \
 				fail_count=$$((fail_count + 1)); \
+			else \
+				echo "❌ FAIL ($$variant_fail/4 variants passed)$$variant_errors"; \
+				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
 	done; \
