@@ -52,6 +52,7 @@ class CodeGen:
         self.used_globals: set[str] = used_globals or set()
         self.used_temps: set[str] = set()
         self.command_line: str | None = command_line
+        self.math_stack_depth: int = 0
         # Parameter specs: mapping name -> list of (param_name, width_bytes)
         self.proc_param_specs: dict[str, list[tuple[str, int, object]]] = proc_param_specs or {}
         self.func_param_specs: dict[str, list[tuple[str, int, object]]] = func_param_specs or {}
@@ -103,6 +104,45 @@ class CodeGen:
         else:
             self.emit("\tLDA #$00")
             self.emit(f"\tSTA {operand}")
+
+    def _emit_indirect_store_zero(self, ptr: str) -> None:
+        if self.is_65c02:
+            self.emit(f"\tSTA ({ptr})")
+        else:
+            self.emit("\tLDY #0")
+            self.emit(f"\tSTA ({ptr}),Y")
+
+    def _math_stack_push(self, is_16bit: bool) -> None:
+        if self.math_stack_depth >= 4:
+            self._raise_error("Math stack overflow: requires more than 4 word slots. Simplify the expression.")
+        self.math_stack_depth += 1
+        if is_16bit:
+            self.emit("\tSTX MATH_OP1")
+        self.emit("\tLDX MATH_SP")
+        self.emit("\tSTA MATH_STACK,X")
+        if is_16bit:
+            self.emit("\tLDA MATH_OP1")
+            self.emit("\tSTA MATH_STACK+1,X")
+        else:
+            self.emit("\tLDA #$00")
+            self.emit("\tSTA MATH_STACK+1,X")
+        self.emit("\tTXA")
+        self.emit("\tCLC")
+        self.emit("\tADC #$02")
+        self.emit("\tSTA MATH_SP")
+
+    def _math_stack_pop_to_op0(self) -> None:
+        if self.math_stack_depth <= 0:
+            self._raise_error("Math stack underflow during expression evaluation.")
+        self.math_stack_depth -= 1
+        self.emit("\tLDX MATH_SP")
+        self.emit("\tDEX")
+        self.emit("\tDEX")
+        self.emit("\tSTX MATH_SP")
+        self.emit("\tLDA MATH_STACK,X")
+        self.emit("\tSTA MATH_OP0")
+        self.emit("\tLDA MATH_STACK+1,X")
+        self.emit("\tSTA MATH_OP0+1")
 
     def _emit_store_byte_const(self, sym: Symbol, value: int) -> None:
         value &= 0xFF
@@ -389,7 +429,7 @@ class CodeGen:
             # Remove duplicate consecutive stores to same location
             #   STA addr ; STA addr  → STA addr
             #   STX TMP1 ; STX TMP1  → STX TMP1
-            # BUT: Never optimize stores/loads involving TMP0-TMP4 (used for pointer arithmetic)
+            # BUT: Never optimize stores/loads involving TMP* or MATH_* temporaries
             # NEVER optimize stores to fixed-address (hardware) variables
             if i + 1 < len(self.code):
                 cur: str = self.code[i].strip()
@@ -405,7 +445,7 @@ class CodeGen:
                         if len(cur_parts) == 2:
                             cur_operand: str = cur_parts[1].strip()
                             # Skip optimization for fixed-address variables AND temp registers
-                            if not self._is_fixed_address(cur_operand) and not any(tmp in cur_operand for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]):
+                            if not self._is_fixed_address(cur_operand) and not any(tmp in cur_operand for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "MATH_OP0", "MATH_OP1", "MATH_OP2", "MATH_OP3", "MATH_STACK", "MATH_SP"]):
                                 # Duplicate store - skip the second one
                                 optimized.append(self.code[i])
                                 i += 2
@@ -644,7 +684,7 @@ class CodeGen:
                             if len(lookahead_parts) == 2:
                                 lookahead_operand: str = lookahead_parts[1].strip()
                                 # Protect the load if storing to fixed-address OR temp registers (used for indirect addressing)
-                                if self._is_fixed_address(lookahead_operand) or lookahead_operand in ("TMP0", "TMP0+1", "TMP1", "TMP1+1", "TMP2", "TMP2+1", "TMP3", "TMP3+1", "TMP4", "TMP4+1", "TMP5", "TMP5+1"):
+                                if self._is_fixed_address(lookahead_operand) or lookahead_operand in ("TMP0", "TMP0+1", "TMP1", "TMP1+1", "TMP2", "TMP2+1", "TMP3", "TMP3+1", "TMP4", "TMP4+1", "TMP5", "TMP5+1", "MATH_OP0", "MATH_OP0+1", "MATH_OP1", "MATH_OP1+1", "MATH_OP2", "MATH_OP2+1", "MATH_OP2+2", "MATH_OP2+3", "MATH_OP3", "MATH_OP3+1", "MATH_STACK", "MATH_SP"):
                                     # Protect the load - it's needed for the store
                                     protect_load = True
                                     break
@@ -844,7 +884,7 @@ class CodeGen:
                         continue
                     
                     # Never optimize loads from temp registers - they're often used for return values and intermediate calculations
-                    if any(tmp in load_operand_upper for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]):
+                    if any(tmp in load_operand_upper for tmp in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "MATH_OP0", "MATH_OP1", "MATH_OP2", "MATH_OP3", "MATH_STACK", "MATH_SP"]):
                         optimized.append(self.code[i])
                         i += 1
                         continue
@@ -2071,196 +2111,194 @@ class CodeGen:
         if "MUL16_8" in needed:
             needed.add("MUL8")
 
-        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-
         def emit_mul8() -> None:
             self.emit("; MUL8: 8x8=16 multiply")
-            self.emit("; Input: TMP0 (multiplicand), TMP2 (multiplier)")
+            self.emit("; Input: MATH_OP0 (multiplicand), MATH_OP2 (multiplier)")
             self.emit("; Output: A=low, X=high")
             self.emit("MUL8:")
             self.emit("\tLDA #$00")
             self.emit("\tLDX #$08")
             self.emit("\tCLC")
             self.emit("MUL8_LOOP:")
-            self.emit("\tROR TMP2")
+            self.emit("\tROR MATH_OP2")
             self.emit("\tBCC MUL8_SKIP")
             self.emit("\tCLC")
-            self.emit("\tADC TMP0")
+            self.emit("\tADC MATH_OP0")
             self.emit("MUL8_SKIP:")
             self.emit("\tROR")
-            self.emit("\tROR TMP3")
+            self.emit("\tROR MATH_OP3")
             self.emit("\tDEX")
             self.emit("\tBNE MUL8_LOOP")
             self.emit("\tTAX")
-            self.emit("\tLDA TMP3")
+            self.emit("\tLDA MATH_OP3")
             self.emit("\tRTS")
 
         def emit_mul16_8() -> None:
             self.emit("; MUL16_8: 16x8=16 multiply")
-            self.emit("; Input: TMP0,TMP0+1 (multiplicand), TMP2 (multiplier)")
+            self.emit("; Input: MATH_OP0,MATH_OP0+1 (multiplicand), MATH_OP2 (multiplier)")
             self.emit("; Output: A=low, X=high")
             self.emit("MUL16_8:")
-            self.emit("\tLDA TMP0")
-            self.emit("\tSTA TMP1")           # Save low multiplicand in TMP1
-            self.emit("\tLDA TMP0+1")
+            self.emit("\tLDA MATH_OP0")
+            self.emit("\tSTA MATH_OP1")           # Save low multiplicand in MATH_OP1
+            self.emit("\tLDA MATH_OP0+1")
             self.emit("\tPHA")
-            self.emit("\tLDA TMP2")
+            self.emit("\tLDA MATH_OP2")
             self.emit("\tPHA")                # Save multiplier on stack
-            self.emit("\tLDA TMP1")           # Restore low multiplicand
-            self.emit("\tSTA TMP0")
-            self.emit("\tJSR MUL8")          # First: TMP0(low multiplicand) * TMP2(multiplier)
-            self.emit("\tSTA TMP1")           # Save low byte of result in TMP1 (safe from MUL8)
-            self.emit("\tSTX TMP1+1")         # Save high byte of result in TMP1+1
+            self.emit("\tLDA MATH_OP1")           # Restore low multiplicand
+            self.emit("\tSTA MATH_OP0")
+            self.emit("\tJSR MUL8")          # First: MATH_OP0(low multiplicand) * MATH_OP2(multiplier)
+            self.emit("\tSTA MATH_OP1")           # Save low byte of result in MATH_OP1 (safe from MUL8)
+            self.emit("\tSTX MATH_OP1+1")         # Save high byte of result in MATH_OP1+1
             self.emit("\tPLA")                # Restore multiplier
-            self.emit("\tSTA TMP2")
+            self.emit("\tSTA MATH_OP2")
             self.emit("\tPLA")                # Restore high multiplicand
-            self.emit("\tSTA TMP0")
-            self.emit("\tJSR MUL8")          # Second: TMP0(high multiplicand) * TMP2(multiplier)
+            self.emit("\tSTA MATH_OP0")
+            self.emit("\tJSR MUL8")          # Second: MATH_OP0(high multiplicand) * MATH_OP2(multiplier)
             self.emit("\tCLC")
-            self.emit("\tADC TMP1+1")         # Add high byte from first product (carry)
+            self.emit("\tADC MATH_OP1+1")         # Add high byte from first product (carry)
             self.emit("\tTAX")                # X = final high byte
-            self.emit("\tLDA TMP1")           # A = low byte from first multiplication
+            self.emit("\tLDA MATH_OP1")           # A = low byte from first multiplication
             self.emit("\tRTS")
 
         def emit_mul16() -> None:
             self.emit("; MUL16: 16x16=16 multiply (shift-add implementation)")
-            self.emit("; Input: TMP0,TMP1 (multiplicand), TMP2,TMP3 (multiplier)")
+            self.emit("; Input: MATH_OP0,MATH_OP0+1 (multiplicand), MATH_OP2,MATH_OP3 (multiplier)")
             self.emit("; Output: A=low, X=high")
             self.emit("MUL16:")
-            # Accumulator stored at TMP2+2/TMP2+3
-            self._stz("TMP2+2")
-            self._stz("TMP2+3")
+            # Accumulator stored at MATH_OP2+2/MATH_OP2+3
+            self._stz("MATH_OP2+2")
+            self._stz("MATH_OP2+3")
             # Loop 16 times: test LSB of multiplier, add multiplicand, then shift
             self.emit("\tLDX #$10")
             self.emit("MUL16_LOOP:")
-            # Shift multiplier right by one (TMP3:TMP2 >> 1). Carry after ROR TMP2 is original LSB
-            self.emit("\tLSR TMP3")
-            self.emit("\tROR TMP2")
+            # Shift multiplier right by one (MATH_OP3:MATH_OP2 >> 1). Carry after ROR MATH_OP2 is original LSB
+            self.emit("\tLSR MATH_OP3")
+            self.emit("\tROR MATH_OP2")
             self.emit("\tBCC MUL16_SKIP")
-            # Add multiplicand (TMP0/TMP1) into accumulator (TMP2+2/TMP2+3)
+            # Add multiplicand (MATH_OP0/MATH_OP0+1) into accumulator (MATH_OP2+2/MATH_OP2+3)
             self.emit("\tCLC")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tADC TMP0")
-            self.emit("\tSTA TMP2+2")
-            self.emit("\tLDA TMP2+3")
-            self.emit("\tADC TMP0+1")
-            self.emit("\tSTA TMP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tADC MATH_OP0")
+            self.emit("\tSTA MATH_OP2+2")
+            self.emit("\tLDA MATH_OP2+3")
+            self.emit("\tADC MATH_OP0+1")
+            self.emit("\tSTA MATH_OP2+3")
             self.emit("MUL16_SKIP:")
-            # Left-shift multiplicand (TMP0:TMP1 << 1)
-            self.emit("\tASL TMP0")
-            self.emit("\tROL TMP0+1")
+            # Left-shift multiplicand (MATH_OP0:MATH_OP0+1 << 1)
+            self.emit("\tASL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
             self.emit("\tDEX")
             self.emit("\tBNE MUL16_LOOP")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tLDX TMP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tLDX MATH_OP2+3")
             self.emit("\tRTS")
 
         def emit_div8() -> None:
             self.emit("; DIV8: 8/8=8 divide")
-            self.emit("; Input: TMP0 (dividend), TMP2 (divisor)")
+            self.emit("; Input: MATH_OP0 (dividend), MATH_OP2 (divisor)")
             self.emit("; Output: A=quotient, X=0")
             self.emit("DIV8:")
             self.emit("\tLDA #$00")
             self.emit("\tLDX #$08")
             self.emit("\tCLC")
             self.emit("DIV8_LOOP:")
-            self.emit("\tROL TMP0")
+            self.emit("\tROL MATH_OP0")
             self.emit("\tROL")
-            self.emit("\tCMP TMP2")
+            self.emit("\tCMP MATH_OP2")
             self.emit("\tBCC DIV8_SKIP")
-            self.emit("\tSBC TMP2")
+            self.emit("\tSBC MATH_OP2")
             self.emit("DIV8_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE DIV8_LOOP")
-            self.emit("\tROL TMP0")
-            self.emit("\tLDA TMP0")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tLDA MATH_OP0")
             self.emit("\tLDX #$00")
             self.emit("\tRTS")
 
         def emit_div16_8() -> None:
             self.emit("; DIV16_8: 16/8=16 divide")
-            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2 (divisor)")
+            self.emit("; Input: MATH_OP0,MATH_OP0+1 (dividend), MATH_OP2 (divisor)")
             self.emit("; Output: A=low, X=high")
             self.emit("DIV16_8:")
-            self._stz("TMP3")
+            self._stz("MATH_OP3")
             self.emit("\tLDX #$10")
             self.emit("\tCLC")
             self.emit("DIV16_8_LOOP:")
-            self.emit("\tROL TMP0")
-            self.emit("\tROL TMP0+1")
-            self.emit("\tROL TMP3")
-            self.emit("\tLDA TMP3")
-            self.emit("\tCMP TMP2")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
+            self.emit("\tROL MATH_OP3")
+            self.emit("\tLDA MATH_OP3")
+            self.emit("\tCMP MATH_OP2")
             self.emit("\tBCC DIV16_8_SKIP")
-            self.emit("\tSBC TMP2")
-            self.emit("\tSTA TMP3")
+            self.emit("\tSBC MATH_OP2")
+            self.emit("\tSTA MATH_OP3")
             self.emit("DIV16_8_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE DIV16_8_LOOP")
-            self.emit("\tROL TMP0")
-            self.emit("\tROL TMP0+1")
-            self.emit("\tLDA TMP0")
-            self.emit("\tLDX TMP0+1")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
+            self.emit("\tLDA MATH_OP0")
+            self.emit("\tLDX MATH_OP0+1")
             self.emit("\tRTS")
 
         def emit_div8_16() -> None:
             self.emit("; DIV8_16: 8/16 divide (promote and call DIV16)")
-            self.emit("; Input: TMP0 (dividend), TMP2,TMP3 (divisor)")
+            self.emit("; Input: MATH_OP0 (dividend), MATH_OP2,MATH_OP3 (divisor)")
             self.emit("; Output: A=low, X=high (quotient)")
             self.emit("DIV8_16:")
             # Make dividend 16-bit (high byte = 0) and reuse DIV16 implementation
-            self._stz("TMP0+1")
+            self._stz("MATH_OP0+1")
             self.emit("\tJSR DIV16")
             self.emit("\tRTS")
 
         def emit_div16() -> None:
             self.emit("; DIV16: 16/16=16 divide")
-            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2,TMP3 (divisor)")
+            self.emit("; Input: MATH_OP0,MATH_OP0+1 (dividend), MATH_OP2,MATH_OP3 (divisor)")
             self.emit("; Output: A=low, X=high")
             self.emit("DIV16:")
-            self._stz("TMP2+2")
-            self._stz("TMP2+3")
+            self._stz("MATH_OP2+2")
+            self._stz("MATH_OP2+3")
             self.emit("\tLDX #16")
             self.emit("\tCLC")
             self.emit("DIV16_LOOP:")
-            self.emit("\tROL TMP0")
-            self.emit("\tROL TMP0+1")
-            self.emit("\tROL TMP2+2")
-            self.emit("\tROL TMP2+3")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tCMP TMP2")
-            self.emit("\tLDA TMP2+3")
-            self.emit("\tSBC TMP3")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
+            self.emit("\tROL MATH_OP2+2")
+            self.emit("\tROL MATH_OP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tCMP MATH_OP2")
+            self.emit("\tLDA MATH_OP2+3")
+            self.emit("\tSBC MATH_OP3")
             self.emit("\tBCC DIV16_SKIP")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tSBC TMP2")
-            self.emit("\tSTA TMP2+2")
-            self.emit("\tLDA TMP2+3")
-            self.emit("\tSBC TMP3")
-            self.emit("\tSTA TMP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tSBC MATH_OP2")
+            self.emit("\tSTA MATH_OP2+2")
+            self.emit("\tLDA MATH_OP2+3")
+            self.emit("\tSBC MATH_OP3")
+            self.emit("\tSTA MATH_OP2+3")
             self.emit("DIV16_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE DIV16_LOOP")
-            self.emit("\tROL TMP0")
-            self.emit("\tROL TMP0+1")
-            self.emit("\tLDA TMP0")
-            self.emit("\tLDX TMP0+1")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
+            self.emit("\tLDA MATH_OP0")
+            self.emit("\tLDX MATH_OP0+1")
             self.emit("\tRTS")
 
         def emit_mod8() -> None:
             self.emit("; MOD8: 8%8=8 modulo")
-            self.emit("; Input: TMP0 (dividend), TMP2 (divisor)")
+            self.emit("; Input: MATH_OP0 (dividend), MATH_OP2 (divisor)")
             self.emit("; Output: A=remainder, X=0")
             self.emit("MOD8:")
             self.emit("\tLDA #$00")
             self.emit("\tLDX #$08")
             self.emit("\tCLC")
             self.emit("MOD8_LOOP:")
-            self.emit("\tROL TMP0")
+            self.emit("\tROL MATH_OP0")
             self.emit("\tROL")
-            self.emit("\tCMP TMP2")
+            self.emit("\tCMP MATH_OP2")
             self.emit("\tBCC MOD8_SKIP")
-            self.emit("\tSBC TMP2")
+            self.emit("\tSBC MATH_OP2")
             self.emit("MOD8_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE MOD8_LOOP")
@@ -2269,68 +2307,68 @@ class CodeGen:
 
         def emit_mod16_8() -> None:
             self.emit("; MOD16_8: 16%8=8 modulo")
-            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2 (divisor)")
+            self.emit("; Input: MATH_OP0,MATH_OP0+1 (dividend), MATH_OP2 (divisor)")
             self.emit("; Output: A=remainder, X=0")
             self.emit("MOD16_8:")
-            self._stz("TMP3")
+            self._stz("MATH_OP3")
             self.emit("\tLDX #16")
             self.emit("\tCLC")
             self.emit("MOD16_8_LOOP:")
-            self.emit("\tROL TMP0")
-            self.emit("\tROL TMP0+1")
-            self.emit("\tROL TMP3")
-            self.emit("\tLDA TMP3")
-            self.emit("\tCMP TMP2")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
+            self.emit("\tROL MATH_OP3")
+            self.emit("\tLDA MATH_OP3")
+            self.emit("\tCMP MATH_OP2")
             self.emit("\tBCC MOD16_8_SKIP")
-            self.emit("\tSBC TMP2")
-            self.emit("\tSTA TMP3")
+            self.emit("\tSBC MATH_OP2")
+            self.emit("\tSTA MATH_OP3")
             self.emit("MOD16_8_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE MOD16_8_LOOP")
-            self.emit("\tLDA TMP3")
+            self.emit("\tLDA MATH_OP3")
             self.emit("\tLDX #0")
             self.emit("\tRTS")
 
         def emit_mod8_16() -> None:
             self.emit("; MOD8_16: 8%16 modulo (promote and call MOD16)")
-            self.emit("; Input: TMP0 (dividend), TMP2,TMP3 (divisor)")
+            self.emit("; Input: MATH_OP0 (dividend), MATH_OP2,MATH_OP3 (divisor)")
             self.emit("; Output: A=remainder, X=0")
             self.emit("MOD8_16:")
             # Treat dividend as 16-bit (high byte = 0) and reuse MOD16
-            self._stz("TMP0+1")
+            self._stz("MATH_OP0+1")
             self.emit("\tJSR MOD16")
             self.emit("\tRTS")
 
         def emit_mod16() -> None:
             self.emit("; MOD16: 16%16=16 modulo")
-            self.emit("; Input: TMP0,TMP0+1 (dividend), TMP2,TMP3 (divisor)")
+            self.emit("; Input: MATH_OP0,MATH_OP0+1 (dividend), MATH_OP2,MATH_OP3 (divisor)")
             self.emit("; Output: A=low, X=high")
             self.emit("MOD16:")
-            self._stz("TMP2+2")
-            self._stz("TMP2+3")
+            self._stz("MATH_OP2+2")
+            self._stz("MATH_OP2+3")
             self.emit("\tLDX #16")
             self.emit("\tCLC")
             self.emit("MOD16_LOOP:")
-            self.emit("\tROL TMP0")
-            self.emit("\tROL TMP0+1")
-            self.emit("\tROL TMP2+2")
-            self.emit("\tROL TMP2+3")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tCMP TMP2")
-            self.emit("\tLDA TMP2+3")
-            self.emit("\tSBC TMP3")
+            self.emit("\tROL MATH_OP0")
+            self.emit("\tROL MATH_OP0+1")
+            self.emit("\tROL MATH_OP2+2")
+            self.emit("\tROL MATH_OP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tCMP MATH_OP2")
+            self.emit("\tLDA MATH_OP2+3")
+            self.emit("\tSBC MATH_OP3")
             self.emit("\tBCC MOD16_SKIP")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tSBC TMP2")
-            self.emit("\tSTA TMP2+2")
-            self.emit("\tLDA TMP2+3")
-            self.emit("\tSBC TMP3")
-            self.emit("\tSTA TMP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tSBC MATH_OP2")
+            self.emit("\tSTA MATH_OP2+2")
+            self.emit("\tLDA MATH_OP2+3")
+            self.emit("\tSBC MATH_OP3")
+            self.emit("\tSTA MATH_OP2+3")
             self.emit("MOD16_SKIP:")
             self.emit("\tDEX")
             self.emit("\tBNE MOD16_LOOP")
-            self.emit("\tLDA TMP2+2")
-            self.emit("\tLDX TMP2+3")
+            self.emit("\tLDA MATH_OP2+2")
+            self.emit("\tLDX MATH_OP2+3")
             self.emit("\tRTS")
 
         emitters: list[tuple[str, Any]] = [
@@ -2368,7 +2406,7 @@ class CodeGen:
         temps: set[str] = set(self.used_temps)
         code = self.code if code is None else code
 
-        if self.copy_bytes_needed or self.math_routines_needed or self.arrcpy_needed:
+        if self.copy_bytes_needed or self.arrcpy_needed:
             temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
 
         for line in code:
@@ -2385,6 +2423,12 @@ class CodeGen:
 
         self.emit(".segment \"ZEROPAGE\"")
         self.emit("; System variables")
+        self.emit("MATH_SP:\t.res 1")
+        self.emit("MATH_STACK:\t.res 8")
+        self.emit("MATH_OP0:\t.res 2")
+        self.emit("MATH_OP1:\t.res 2")
+        self.emit("MATH_OP2:\t.res 4")
+        self.emit("MATH_OP3:\t.res 2")
         for name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
             if name in temps_in_use:
                 size: int = temp_sizes[name]
@@ -2555,6 +2599,7 @@ class CodeGen:
         self.emit("\n.segment \"CODE\"")
         self.emit("; Globals initialization")
         self.emit("; ------------------------------") 
+        self._stz("MATH_SP")
                
 
     def gen_globals_footer(self) -> None:
@@ -2722,7 +2767,7 @@ class CodeGen:
             # Fallback: general expression (non-const)
             # Set assignment target type context for optimizations
             prev_assign_type: SemType | None = self.assign_target_type
-            self.assign_target_type = sym.type
+            self.assign_target_type = cast(SemType, sym.type)
             try:
                 self.gen_expr(sym.init.expr)
             finally:
@@ -3135,7 +3180,7 @@ class CodeGen:
             if not target_is_byte:
                 self.emit("\tLDX #0     ; note 3056")
 
-    def _is_zeropage_pointer_array_subscript(self, expr) -> tuple[bool, Symbol, int]:
+    def _is_zeropage_pointer_array_subscript(self, expr) -> tuple[bool, Symbol | None, int]:
         """Check if expr is SubscriptExpr of a ZEROPAGE pointer array with BYTE index.
         
         Returns: (is_optimizable, symbol, byte_offset)
@@ -3149,7 +3194,7 @@ class CodeGen:
         if not isinstance(expr.array, Identifier):
             return False, None, -1
         
-        sym: Symbol = self.current_symtab.lookup(expr.array.name)
+        sym: Symbol | None = self.current_symtab.lookup(expr.array.name)
         
         # Check: is it a pointer array in ZEROPAGE?
         if not (sym.is_array and sym.type.is_pointer and sym.address is None):
@@ -3190,7 +3235,7 @@ class CodeGen:
 
         # OPTIMIZATION: Check for ZEROPAGE pointer array subscript (BYTE-only)
         is_zp_ptr_array, sym, byte_offset = self._is_zeropage_pointer_array_subscript(expr.pointer)
-        if is_zp_ptr_array and t.sem_type.base == "BYTE" and not t.sem_type.is_pointer:
+        if is_zp_ptr_array and sym is not None and t.sem_type.base == "BYTE" and not t.sem_type.is_pointer:
             self._gen_deref_optimized_zeropage(expr, sym, byte_offset)
             return
 
@@ -3370,13 +3415,15 @@ class CodeGen:
                         self.emit("\tLDX #0     ; note 3211")
             else:
                 # Store RHS value (in TMP2/TMP2+1)
-                self.emit("\tLDY #0")
                 self.emit("\tLDA TMP2")
-                self.emit("\tSTA (TMP0),Y")
                 if element_width == 2:
+                    self.emit("\tLDY #0")
+                    self.emit("\tSTA (TMP0),Y")
                     self.emit("\tINY")
                     self.emit("\tLDA TMP2+1")
                     self.emit("\tSTA (TMP0),Y")
+                else:
+                    self._emit_indirect_store_zero("TMP0")
             return
         
         # Runtime address calculation (for non-constant indices)
@@ -3470,13 +3517,15 @@ class CodeGen:
                 self.emit("\tLDX #0     ; note 3311")
         else:
             # Store RHS value (in TMP2/TMP2+1)
-            self.emit("\tLDY #0")
             self.emit("\tLDA TMP2")
-            self.emit("\tSTA (TMP0),Y")
             if element_width == 2:
+                self.emit("\tLDY #0")
+                self.emit("\tSTA (TMP0),Y")
                 self.emit("\tINY")
                 self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")
+            else:
+                self._emit_indirect_store_zero("TMP0")
 
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False) -> None:
         # Check if this is a multi-dimensional subscript
@@ -3552,7 +3601,7 @@ class CodeGen:
             self.emit("\tSTX TMP0+1")
             
             # Get field info to determine element width
-            obj_type: SemType = self.tc_check(base.object).sem_type
+            obj_type = self.tc_check(base.object).sem_type
             if not obj_type.is_struct:
                 self._raise_error("Field access base must be struct")
             
@@ -3660,13 +3709,15 @@ class CodeGen:
                     self.emit("\tLDX #0     ; note 3499")
         else:
             # RHS value in TMP2/TMP2+1 (saved before calling this method)
-            self.emit("\tLDY #0")
             self.emit("\tLDA TMP2")
-            self.emit("\tSTA (TMP0),Y")
             if element_width == 2:
+                self.emit("\tLDY #0")
+                self.emit("\tSTA (TMP0),Y")
                 self.emit("\tINY")
                 self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")
+            else:
+                self._emit_indirect_store_zero("TMP0")
 
     def _calculate_nested_field_offset(self, expr: FieldAccess) -> tuple:
         """Calculate total offset for potentially nested field access.
@@ -3683,7 +3734,7 @@ class CodeGen:
         current_expr: Expr = expr
         while isinstance(current_expr, FieldAccess):
             # Get the type of the struct we're accessing
-            parent_type: SemType = self.tc_check(current_expr.object).sem_type
+            parent_type = self.tc_check(current_expr.object).sem_type
             
             from errors import SemanticError
             if not parent_type.is_struct or parent_type.struct_info is None:
@@ -3720,10 +3771,10 @@ class CodeGen:
         For array fields, return the address instead of value.
         """
         t: ExprType = self.tc_check(expr, read_check_enabled=load_only)
-        field_type: SemType = t.sem_type
+        field_type = t.sem_type
         
         # Get struct info
-        struct_type: SemType = self.tc_check(expr.object, read_check_enabled=load_only).sem_type
+        struct_type = self.tc_check(expr.object, read_check_enabled=load_only).sem_type
         if not struct_type.is_struct:
             self._raise_error("Object is not a struct")
         
@@ -3995,11 +4046,14 @@ class CodeGen:
         
         # If storing field (not load_only), RHS should be in TMP2/TMP2+1
         if not load_only:
-            self.emit("\tLDY #0")
             if expr.is_deref:
                 # Store through pointer (TMP0 already has address)
                 self.emit("\tLDA TMP2")
-                self.emit("\tSTA (TMP0),Y")
+                if field_width == 2:
+                    self.emit("\tLDY #0")
+                    self.emit("\tSTA (TMP0),Y")
+                else:
+                    self._emit_indirect_store_zero("TMP0")
                 
                 if field_width == 2:
                     self.emit("\tINY")
@@ -4020,7 +4074,11 @@ class CodeGen:
             elif isinstance(expr.object, SubscriptExpr):
                 # Direct store to array element (TMP0 already has address)
                 self.emit(f"\tLDA TMP2")
-                self.emit(f"\tSTA (TMP0),Y")
+                if field_width == 2:
+                    self.emit("\tLDY #0")
+                    self.emit(f"\tSTA (TMP0),Y")
+                else:
+                    self._emit_indirect_store_zero("TMP0")
                 
                 if field_width == 2:
                     self.emit(f"\tINY")
@@ -4166,24 +4224,37 @@ class CodeGen:
 
         accum_lo: str = "TMP1"
         accum_hi: str = "TMP2"
-        if (is_word_array and self.assign_target_sym and not self.assign_target_blocked and
-            self.assign_target_type and (self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer)):
-            target_sym: Symbol = self.assign_target_sym
-            if not target_sym.is_array and target_sym.address is None:
+        target_sym: Symbol | None = None
+        target_is_byte: bool = False
+        if self.assign_target_sym and not self.assign_target_blocked and self.assign_target_type:
+            target_sym = self.assign_target_sym
+            target_is_byte = (self.assign_target_type.base == "BYTE" and not self.assign_target_type.is_pointer)
+        if target_sym and not target_sym.is_array and target_sym.address is None and not self._is_fixed_address(target_sym.asm_name()) and not self._is_port_variable(target_sym.asm_name()):
+            if is_word_array and (self.assign_target_type and (self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer)):
                 accum_lo = target_sym.asm_name()
                 accum_hi = f"{accum_lo}+1"
+            elif target_is_byte:
+                accum_lo = target_sym.asm_name()
         
         # Load first element
         op0, _, idx0_val = chain[0]
+        if is_word_array and target_is_byte:
+            # If target is BYTE, keep 8-bit accumulation even for WORD arrays.
+            result_is_16bit = False
+
         if is_word_array:
             # For WORD arrays, load both low and high bytes
             offset_low = idx0_val * 2
             offset_high = offset_low + 1
             self.emit(f"\tLDA {arr_addr}+{offset_low}")  # Load low byte → A
-            self.emit(f"\tLDX {arr_addr}+{offset_high}")  # Load high byte → X
-            # Store initial result in TMP1/TMP2
-            self.emit(f"\tSTA {accum_lo}")
-            self.emit(f"\tSTX {accum_hi}")
+            if result_is_16bit:
+                self.emit(f"\tLDX {arr_addr}+{offset_high}")  # Load high byte → X
+                # Store initial result in accumulator
+                self.emit(f"\tSTA {accum_lo}")
+                self.emit(f"\tSTX {accum_hi}")
+            else:
+                # BYTE target: use low byte only
+                self.emit(f"\tSTA {accum_lo}")
         else:
             # For BYTE arrays, load only low byte
             self.emit(f"\tLDA {arr_addr}+{idx0_val}")
@@ -4193,6 +4264,7 @@ class CodeGen:
         
         # Process remaining elements
         for idx, (op, _, idx_val) in enumerate(chain[1:], 1):
+            is_last: bool = idx == (len(chain) - 1)
             if is_word_array:
                 # For WORD arrays: process 16-bit elements
                 offset_low = idx_val * 2
@@ -4201,26 +4273,41 @@ class CodeGen:
                 lbl_no_carry: str = self.new_label("WORD_ADD_NO_CARRY")
                 lbl_no_borrow: str = self.new_label("WORD_SUB_NO_BORROW")
                 
-                if op == BinOp.ADD:
-                    # 16-bit ADD: TMP1/TMP2 += arr[idx_val]
-                    self.emit("\tCLC")
-                    self.emit(f"\tLDA {accum_lo}")
-                    self.emit(f"\tADC {arr_addr}+{offset_low}")
-                    self.emit(f"\tSTA {accum_lo}")  # Save low result
-                    # Now add high bytes with carry from low
-                    self.emit(f"\tLDA {accum_hi}")
-                    self.emit(f"\tADC {arr_addr}+{offset_high}")
-                    self.emit(f"\tSTA {accum_hi}")  # Save high result
-                else:  # SUB
-                    # 16-bit SUB: TMP1/TMP2 -= arr[idx_val]
-                    self.emit("\tSEC")
-                    self.emit(f"\tLDA {accum_lo}")
-                    self.emit(f"\tSBC {arr_addr}+{offset_low}")
-                    self.emit(f"\tSTA {accum_lo}")  # Save low result
-                    # Now subtract high bytes with borrow from low
-                    self.emit(f"\tLDA {accum_hi}")
-                    self.emit(f"\tSBC {arr_addr}+{offset_high}")
-                    self.emit(f"\tSTA {accum_hi}")  # Save high result
+                if result_is_16bit:
+                    if op == BinOp.ADD:
+                        # 16-bit ADD: accum += arr[idx_val]
+                        self.emit("\tCLC")
+                        self.emit(f"\tLDA {accum_lo}")
+                        self.emit(f"\tADC {arr_addr}+{offset_low}")
+                        self.emit(f"\tSTA {accum_lo}")  # Save low result
+                        # Now add high bytes with carry from low
+                        self.emit(f"\tLDA {accum_hi}")
+                        self.emit(f"\tADC {arr_addr}+{offset_high}")
+                        self.emit(f"\tSTA {accum_hi}")  # Save high result
+                    else:  # SUB
+                        # 16-bit SUB: accum -= arr[idx_val]
+                        self.emit("\tSEC")
+                        self.emit(f"\tLDA {accum_lo}")
+                        self.emit(f"\tSBC {arr_addr}+{offset_low}")
+                        self.emit(f"\tSTA {accum_lo}")  # Save low result
+                        # Now subtract high bytes with borrow from low
+                        self.emit(f"\tLDA {accum_hi}")
+                        self.emit(f"\tSBC {arr_addr}+{offset_high}")
+                        self.emit(f"\tSTA {accum_hi}")  # Save high result
+                else:
+                    # BYTE target: use low byte only
+                    if op == BinOp.ADD:
+                        self.emit("\tCLC")
+                        self.emit(f"\tLDA {accum_lo}")
+                        self.emit(f"\tADC {arr_addr}+{offset_low}")
+                        if not (target_sym and accum_lo == target_sym.asm_name() and is_last):
+                            self.emit(f"\tSTA {accum_lo}")
+                    else:  # SUB
+                        self.emit("\tSEC")
+                        self.emit(f"\tLDA {accum_lo}")
+                        self.emit(f"\tSBC {arr_addr}+{offset_low}")
+                        if not (target_sym and accum_lo == target_sym.asm_name() and is_last):
+                            self.emit(f"\tSTA {accum_lo}")
             else:
                 # BYTE array processing (existing logic)
                 if op == BinOp.ADD:
@@ -4246,8 +4333,12 @@ class CodeGen:
         
         # For WORD arrays, ensure result is in A/X
         if is_word_array and len(chain) > 1:
-            self.emit(f"\tLDA {accum_lo}")  # Low result → A
-            self.emit(f"\tLDX {accum_hi}")  # High result → X
+            if result_is_16bit:
+                self.emit(f"\tLDA {accum_lo}")  # Low result → A
+                self.emit(f"\tLDX {accum_hi}")  # High result → X
+            else:
+                if not (target_sym and accum_lo == target_sym.asm_name()):
+                    self.emit(f"\tLDA {accum_lo}")  # Low result → A
 
 
 
@@ -4701,26 +4792,29 @@ class CodeGen:
             # Special-case handled inline, skip the generic handlers
             return
 
-        else:
-            # Generate left operand
-            self.gen_expr(expr.left)
-            self.emit(f"\tSTA {left_tmp}")
-            # Only save high byte if we need 16-bit result
-            if result_16_adj:
-                self.emit(f"\tSTX {left_tmp}+1")
+        if expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
+            self._gen_math_binop(expr, left_16, right_16)
+            return
 
-            # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
-            if not (use_inc_opt or use_dec_opt):
-                # Ask the right sub-expression to prefer the opposite temp to avoid
-                # accidental clobbering of the saved left value.
-                right_hint: str = "TMP0" if left_tmp == "TMP1" else "TMP1"
-                prev_blocked: bool = self.assign_target_blocked
-                if target_used:
-                    self.assign_target_blocked = True
-                try:
-                    self.gen_expr(expr.right, force_left_tmp=right_hint)
-                finally:
-                    self.assign_target_blocked = prev_blocked
+        # Generate left operand
+        self.gen_expr(expr.left)
+        self.emit(f"\tSTA {left_tmp}")
+        # Only save high byte if we need 16-bit result
+        if result_16_adj:
+            self.emit(f"\tSTX {left_tmp}+1")
+
+        # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
+        if not (use_inc_opt or use_dec_opt):
+            # Ask the right sub-expression to prefer the opposite temp to avoid
+            # accidental clobbering of the saved left value.
+            right_hint: str = "TMP0" if left_tmp == "TMP1" else "TMP1"
+            prev_blocked: bool = self.assign_target_blocked
+            if target_used:
+                self.assign_target_blocked = True
+            try:
+                self.gen_expr(expr.right, force_left_tmp=right_hint)
+            finally:
+                self.assign_target_blocked = prev_blocked
         
         # Handle different operations
         if expr.op == BinOp.ADD:
@@ -4728,11 +4822,11 @@ class CodeGen:
         elif expr.op == BinOp.SUB:
             self._gen_sub(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt, left_tmp)
         elif expr.op == BinOp.MUL:
-            self._gen_mul(left_16, right_16, result_16, left_tmp)
+            self._gen_mul(left_16, right_16)
         elif expr.op == BinOp.DIV:
-            self._gen_div(left_16, right_16, result_16, left_tmp)
+            self._gen_div(left_16, right_16)
         elif expr.op == BinOp.MOD:
-            self._gen_mod(left_16, right_16, result_16, left_tmp)
+            self._gen_mod(left_16, right_16)
         elif expr.op == BinOp.BAND:
             self._gen_bitwise_and(result_16, left_tmp)
         elif expr.op == BinOp.BOR:
@@ -4886,137 +4980,87 @@ class CodeGen:
                 self.emit(f"\tLDA {left_tmp}")
                 self.emit("\tSBC TMP2")
     
-    def _gen_mul(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0") -> None:
-        """Generate multiplication (call runtime routine)"""
+    def _gen_math_binop(self, expr: BinaryExpr, left_16: bool, right_16: bool) -> None:
+        """Generate MUL/DIV/MOD using math stack and dedicated operands."""
+        # Save left operand on math stack
+        self.gen_expr(expr.left)
+        self._math_stack_push(left_16)
+
+        # Evaluate right operand into A/X
+        self.gen_expr(expr.right)
+        self.emit("\tSTA MATH_OP2")
+        if right_16:
+            self.emit("\tSTX MATH_OP3")
+        else:
+            self._stz("MATH_OP3")
+
+        # Restore left operand into MATH_OP0/MATH_OP0+1
+        self._math_stack_pop_to_op0()
+
+        if expr.op == BinOp.MUL:
+            self._gen_mul(left_16, right_16)
+        elif expr.op == BinOp.DIV:
+            self._gen_div(left_16, right_16)
+        else:
+            self._gen_mod(left_16, right_16)
+
+    def _gen_mul(self, left_16: bool, right_16: bool) -> None:
+        """Generate multiplication (call runtime routine)."""
         if not left_16 and not right_16:
             self.math_routines_needed.add("MUL8")
+            self.emit("\tJSR MUL8")
         elif left_16 and not right_16:
             self.math_routines_needed.add("MUL16_8")
+            self.emit("\tJSR MUL16_8")
         elif not left_16 and right_16:
             self.math_routines_needed.add("MUL16_8")
+            # Swap operands so multiplicand is 16-bit
+            self.emit("\tLDA MATH_OP0")
+            self.emit("\tSTA MATH_OP1")
+            self.emit("\tLDA MATH_OP2")
+            self.emit("\tSTA MATH_OP0")
+            self.emit("\tLDA MATH_OP3")
+            self.emit("\tSTA MATH_OP0+1")
+            self.emit("\tLDA MATH_OP1")
+            self.emit("\tSTA MATH_OP2")
+            self.emit("\tJSR MUL16_8")
         else:
             self.math_routines_needed.add("MUL16")
             # MUL16 is implemented via two calls to MUL16_8; ensure it is emitted
             self.math_routines_needed.add("MUL16_8")
-        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # left_tmp,left_tmp+1 = left operand (already stored via gen_expr)
-        # A,X = right operand (in registers)
-        
-        # Store right operand
-        self.emit("\tSTA TMP2")
-        self.emit("\tSTX TMP3")
-        # Pre-adjust: if this is a 16x16 multiply, ensure multiplicand high byte is in TMP1
-        # Only pre-adjust if the left operand is not already in TMP0 or TMP1
-        if left_tmp not in ("TMP0", "TMP1") and left_16 and right_16:
-            self.emit(f"\tLDA {left_tmp}+1")
-            self.emit("\tSTA TMP1")
-        
-        # Move left operand to TMP0 if not already there
-        if left_tmp != "TMP0":
-            self.emit(f"\tLDA {left_tmp}")
-            self.emit("\tSTA TMP0")
-            self.emit(f"\tLDA {left_tmp}+1")
-            self.emit("\tSTA TMP0+1")
-        
-        if not left_16 and not right_16:
-            # 8x8 = 8 or 16
-            self.emit("\tJSR MUL8")
-        elif left_16 and not right_16:
-            # 16x8 = 16
-            self.emit("\tJSR MUL16_8")
-        elif not left_16 and right_16:
-            # 8x16 = 16 (swap operands)
-            # Move 16-bit right operand into TMP0/TMP0+1 (multiplicand)
-            self.emit("\tLDA TMP2")
-            self.emit("\tLDX TMP3")
-            self.emit("\tSTA TMP0")
-            self.emit("\tSTX TMP0+1")
-            # Move left 8-bit operand (in TMP1) into TMP2 as multiplier (8-bit)
-            self.emit("\tLDA TMP1")
-            self.emit("\tSTA TMP2")
-            self._stz("TMP3")
-            self.emit("\tJSR MUL16_8")
-        else:
-            # 16x16 = 16
-            # Ensure high byte is in TMP1 (MUL16 expects multiplicand low in TMP0, high in TMP1)
-            self.emit("\tLDA TMP0+1")
-            self.emit("\tSTA TMP1")
+            # Ensure high byte is in MATH_OP1 (MUL16 expects multiplicand low in MATH_OP0, high in MATH_OP1)
+            self.emit("\tLDA MATH_OP0+1")
+            self.emit("\tSTA MATH_OP1")
             self.emit("\tJSR MUL16")
-    
-    def _gen_div(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0") -> None:
-        """Generate division (call runtime routine)"""
+
+    def _gen_div(self, left_16: bool, right_16: bool) -> None:
+        """Generate division (call runtime routine)."""
         if not left_16 and not right_16:
             self.math_routines_needed.add("DIV8")
-        elif left_16 and not right_16:
-            self.math_routines_needed.add("DIV16_8")
-        elif not left_16 and right_16:
-            self.math_routines_needed.add("DIV8_16")
-        else:
-            self.math_routines_needed.add("DIV16")
-        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # left_tmp,left_tmp+1 = dividend
-        # A,X = divisor
-        self.emit("\tSTA TMP2")
-        self.emit("\tSTX TMP3")
-        
-        # Move left operand to TMP0 if not already there
-        if left_tmp != "TMP0":
-            self.emit(f"\tLDA {left_tmp}")
-            self.emit("\tSTA TMP0")
-            self.emit(f"\tLDA {left_tmp}+1")
-            self.emit("\tSTA TMP0+1")
-        
-        if not left_16 and not right_16:
-            # 8/8 = 8
             self.emit("\tJSR DIV8")
         elif left_16 and not right_16:
-            # 16/8 = 16
+            self.math_routines_needed.add("DIV16_8")
             self.emit("\tJSR DIV16_8")
         elif not left_16 and right_16:
-            # 8/16 = 8 (result is always 0 or 1)
+            self.math_routines_needed.add("DIV8_16")
             self.emit("\tJSR DIV8_16")
         else:
-            # 16/16 = 16
+            self.math_routines_needed.add("DIV16")
             self.emit("\tJSR DIV16")
-    
-    def _gen_mod(self, left_16: bool, right_16: bool, result_16: bool, left_tmp: str = "TMP0") -> None:
-        """Generate modulo (call runtime routine)"""
+
+    def _gen_mod(self, left_16: bool, right_16: bool) -> None:
+        """Generate modulo (call runtime routine)."""
         if not left_16 and not right_16:
             self.math_routines_needed.add("MOD8")
-        elif left_16 and not right_16:
-            self.math_routines_needed.add("MOD16_8")
-        elif not left_16 and right_16:
-            self.math_routines_needed.add("MOD8_16")
-        else:
-            self.math_routines_needed.add("MOD16")
-        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        # left_tmp,left_tmp+1 = dividend
-        # A,X = divisor
-        self.emit("\tSTA TMP2")
-        self.emit("\tSTX TMP3")
-        
-        # Move left operand to TMP0 if not already there
-        if left_tmp != "TMP0":
-            self.emit(f"\tLDA {left_tmp}")
-            self.emit("\tSTA TMP0")
-            self.emit(f"\tLDA {left_tmp}+1")
-            self.emit("\tSTA TMP0+1")
-        # TMP0,TMP0+1 = dividend
-        # A,X = divisor (restore divisor saved earlier)
-        self.emit("\tLDA TMP2")
-        self.emit("\tLDX TMP3")
-        
-        if not left_16 and not right_16:
-            # 8%8 = 8
             self.emit("\tJSR MOD8")
         elif left_16 and not right_16:
-            # 16%8 = 8
+            self.math_routines_needed.add("MOD16_8")
             self.emit("\tJSR MOD16_8")
         elif not left_16 and right_16:
-            # 8%16 = 8
+            self.math_routines_needed.add("MOD8_16")
             self.emit("\tJSR MOD8_16")
         else:
-            # 16%16 = 16
+            self.math_routines_needed.add("MOD16")
             self.emit("\tJSR MOD16")
 
     def _gen_bitwise_and(self, result_16: bool, left_tmp: str = "TMP0") -> None:
@@ -5234,7 +5278,7 @@ class CodeGen:
           - Subscript/Field/Deref/Call -> 1
           - Unary -> same as child
           - Binary: max(left,right) + 1
-          - MUL/DIV/MOD: max(left,right) + 2 (needs extra scratch)
+          - MUL/DIV/MOD: max(left,right) + 1 (math stack handles extra storage)
         """
         from ast_nodes import BinaryExpr, UnaryExpr, CallExpr, SubscriptExpr, FieldAccess, DerefExpr, Identifier, IntLiteral
         if isinstance(expr, (IntLiteral, Identifier)):
@@ -5247,7 +5291,7 @@ class CodeGen:
             left = self._estimate_temp_slots(expr.left)
             right = self._estimate_temp_slots(expr.right)
             if expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
-                return max(left, right) + 2
+                return max(left, right) + 1
             return max(left, right) + 1
         return 1
 
@@ -5528,8 +5572,19 @@ class CodeGen:
                         continue
                     
                     arg_type: ExprType = self.tc_check(arg)
-                    self.gen_expr(arg)
                     asm: str = f"_{expr.name}_{pname}"
+                    if width == 1:
+                        if isinstance(arg, IntLiteral):
+                            self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
+                            self.emit(f"\tSTA {asm}")
+                            continue
+                        if isinstance(arg, Identifier):
+                            arg_sym: Symbol = self.current_symtab.lookup(arg.name)
+                            if arg_sym.type.base == "BYTE" and not arg_sym.type.is_pointer and not arg_sym.is_array:
+                                self.emit(f"\tLDA {arg_sym.asm_name()}")
+                                self.emit(f"\tSTA {asm}")
+                                continue
+                    self.gen_expr(arg)
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
@@ -5708,14 +5763,15 @@ class CodeGen:
                         return
                     
                     # Store RHS value from TMP2 to calculated address
-                    self.emit(f"\tLDY #0")
                     self.emit(f"\tLDA TMP2")
-                    self.emit(f"\tSTA (TMP0),Y")
-                    
                     if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA (TMP0),Y")
                         self.emit(f"\tINY")
                         self.emit(f"\tLDA TMP2+1")
                         self.emit(f"\tSTA (TMP0),Y")
+                    else:
+                        self._emit_indirect_store_zero("TMP0")
                     return
                     
         elif isinstance(lhs, FieldAccess):
@@ -5780,7 +5836,7 @@ class CodeGen:
             # Direct constant assignment
             if isinstance(rhs, IntLiteral) and sym_lhs.address is None:
                 # Check if constant fits in target type
-                self._check_constant_fits(rhs.value, lhs_t.sem_type, f"assignment to {lhs.name}")
+                self._check_constant_fits(rhs.value, cast(SemType, lhs_t.sem_type), f"assignment to {lhs.name}")
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
                     self._emit_store_byte_const(sym_lhs, rhs.value)
                 else:
@@ -6295,23 +6351,24 @@ class CodeGen:
         # Pattern: arr[i]^ = value where arr is a pointer array in ZEROPAGE
         if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, SubscriptExpr):
             sub_expr: SubscriptExpr = lhs.pointer
-            is_zp_ptr_array, sym, byte_offset = self._is_zeropage_pointer_array_subscript(sub_expr)
+            zp_sym: Symbol | None
+            is_zp_ptr_array, zp_sym, byte_offset = self._is_zeropage_pointer_array_subscript(sub_expr)
 
             # Accept non-constant indices for pointer arrays in ZEROPAGE
             if not is_zp_ptr_array and isinstance(sub_expr.array, Identifier):
                 try:
-                    sym = self.current_symtab.lookup(sub_expr.array.name)
+                    zp_sym = self.current_symtab.lookup(sub_expr.array.name)
                 except KeyError:
-                    sym = None
-                if sym and sym.is_array and sym.type.is_pointer and sym.address is None:
+                    zp_sym = None
+                if zp_sym and zp_sym.is_array and zp_sym.type.is_pointer and zp_sym.address is None:
                     is_zp_ptr_array = True
 
-            if is_zp_ptr_array and sym:
-                arr_base: str = sym.asm_name()
+            if is_zp_ptr_array and zp_sym:
+                arr_base: str = zp_sym.asm_name()
 
                 # Safe fast path only for BYTE deref targets
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
-                    element_width: int = self._calculate_element_width(sym)
+                    element_width: int = self._calculate_element_width(zp_sym)
 
                     # Constant index path
                     if isinstance(sub_expr.index, IntLiteral):
@@ -6390,15 +6447,14 @@ class CodeGen:
             else:
                 # Generate RHS expression
                 prev_assign_type: SemType | None = self.assign_target_type
-                self.assign_target_type = lhs_t.sem_type
+                self.assign_target_type = cast(SemType, lhs_t.sem_type)
                 try:
                     self.gen_expr(rhs)
                 finally:
                     self.assign_target_type = prev_assign_type
             
             # Store at computed address
-            self.emit("\tLDY #0")
-            self.emit("\tSTA (TMP0),Y")
+            self._emit_indirect_store_zero("TMP0")
             return
 
         # vygeneruj RHS
@@ -6406,12 +6462,12 @@ class CodeGen:
         prev_assign_type: SemType | None = self.assign_target_type
         prev_assign_sym: Symbol | None = self.assign_target_sym
         prev_assign_blocked: bool = self.assign_target_blocked
-        self.assign_target_type = lhs_t.sem_type
+        self.assign_target_type = cast(SemType, lhs_t.sem_type)
         self.assign_target_sym = None
         self.assign_target_blocked = False
         if isinstance(lhs, Identifier):
             try:
-                target_sym: Symbol = self.current_symtab.lookup(lhs.name)
+                target_sym: Symbol | None = self.current_symtab.lookup(lhs.name)
             except KeyError:
                 target_sym = None
             if target_sym is not None and not target_sym.is_const and not target_sym.is_array and target_sym.address is None:
@@ -6468,9 +6524,12 @@ class CodeGen:
             self.emit("\tSTX TMP0+1")
 
             # 3️⃣ zápis LOW byte
-            self.emit("\tLDY #0")
             self.emit("\tLDA TMP2")
-            self.emit("\tSTA (TMP0),Y")
+            if lhs_t.sem_type.base == "WORD":
+                self.emit("\tLDY #0")
+                self.emit("\tSTA (TMP0),Y")
+            else:
+                self._emit_indirect_store_zero("TMP0")
 
             # 4️⃣ Write high byte only if LHS target is WORD
             if lhs_t.sem_type.base == "WORD":
@@ -6621,7 +6680,7 @@ class CodeGen:
 
         # INIT lokálů
         for sym in proc.locals:
-            self.gen_init(sym)
+            self.gen_init(cast(Symbol, sym))
 
         # tělo
         for stmt in proc.ast.body:
@@ -6696,9 +6755,20 @@ class CodeGen:
                         continue
                     
                     arg_type: ExprType = self.tc_check(arg)
+                    asm: str = f"_{stmt.name}_{pname}"
+                    if width == 1:
+                        if isinstance(arg, IntLiteral):
+                            self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
+                            self.emit(f"\tSTA {asm}")
+                            continue
+                        if isinstance(arg, Identifier):
+                            arg_sym: Symbol = self.current_symtab.lookup(arg.name)
+                            if arg_sym.type.base == "BYTE" and not arg_sym.type.is_pointer and not arg_sym.is_array:
+                                self.emit(f"\tLDA {arg_sym.asm_name()}")
+                                self.emit(f"\tSTA {asm}")
+                                continue
                     # evaluate arg into A/(X)
                     self.gen_expr(arg)
-                    asm: str = f"_{stmt.name}_{pname}"
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
@@ -6857,7 +6927,7 @@ class CodeGen:
 
         # init lokálů
         for sym in func.locals:
-            self.gen_init(sym)
+            self.gen_init(cast(Symbol, sym))
 
         # tělo
         for stmt in func.ast.body:

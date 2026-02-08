@@ -581,6 +581,29 @@ proc arithmetic_example()
 end
 ```
 
+### Expression Width and Promotion
+
+ZAP evaluates arithmetic at either 8-bit or 16-bit width based on operand types and the assignment target.
+
+**Rules (arithmetic operators +, -, *, /, %):**
+
+- If any operand is `word` (or a pointer), the expression is evaluated as **16-bit**.
+- If all operands are `byte` and the assignment target is `byte`, the expression is evaluated as **8-bit**.
+- If all operands are `byte` but the assignment target is `word`, the expression is evaluated as **16-bit** (zero-extended).
+- If the assignment target is `byte` but operands are `word`, the expression is evaluated as **16-bit** and then **truncated to the low byte** on assignment.
+- Pointer arithmetic is always **16-bit** because addresses are 16-bit.
+
+**Summary table:**
+
+| Target | Operands | Evaluation Width | Result Behavior |
+|--------|----------|------------------|-----------------|
+| `byte` | all `byte` | 8-bit | Wraps 0-255 |
+| `word` | all `byte` | 16-bit | Zero-extended |
+| `byte` | any `word`/pointer | 16-bit | Truncated to low byte |
+| `word` | any `word`/pointer | 16-bit | Full 16-bit result |
+
+This preserves carry/borrow for `word` targets while keeping `byte`-only math compact and fast.
+
 ### Comparison Operators
 
 | Operator | Example | Meaning |
