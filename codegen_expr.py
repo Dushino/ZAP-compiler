@@ -3331,6 +3331,30 @@ class CodeGen:
                     self.emit(f"\tSBC #${val:02X}")
             return
 
+        # Fast path: Repeated byte addition of the same identifier (x + x + x ...)
+        if (expr.op == BinOp.ADD and not left_16 and not right_16 and not result_16 and
+                not left_is_ptr and not right_is_ptr and
+                not left_is_promoted_byte_arith and not right_is_promoted_byte_arith):
+            def _collect_same_id_add(node: Expr) -> tuple[str | None, int]:
+                if isinstance(node, Identifier):
+                    return node.name, 1
+                if isinstance(node, BinaryExpr) and node.op == BinOp.ADD:
+                    left_name, left_count = _collect_same_id_add(node.left)
+                    right_name, right_count = _collect_same_id_add(node.right)
+                    if left_name and right_name and left_name == right_name:
+                        return left_name, left_count + right_count
+                return None, 0
+
+            ident_name, ident_count = _collect_same_id_add(expr)
+            if ident_name and ident_count >= 3:
+                ident_sym: Symbol = self.current_symtab.lookup(ident_name)
+                ident_asm: str = ident_sym.asm_name()
+                self.emit(f"\tLDA {ident_asm}")
+                for _ in range(ident_count - 1):
+                    self.emit("\tCLC")
+                    self.emit(f"\tADC {ident_asm}")
+                return
+
         # Fast path: Pure word arithmetic with simple operands (Identifier or IntLiteral)
         # For: word z = x + y or word z = x + 5
         # Generates direct 16-bit ADD/SUB without temporaries
