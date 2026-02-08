@@ -3194,16 +3194,19 @@ class CodeGen:
             self._gen_deref_optimized_zeropage(expr, sym, byte_offset)
             return
 
-        # If pointer is a simple ZP identifier, use direct (ptr),Y without TMP0
+        # If pointer is a simple ZP identifier, use direct addressing without TMP0
         if isinstance(expr.pointer, Identifier):
             ptr_sym: Symbol = self.current_symtab.lookup(expr.pointer.name)
             if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
                 ptr_asm: str = ptr_sym.asm_name()
-                self.emit("\tLDY #0")
-                self.emit(f"\tLDA ({ptr_asm}),Y")
+                if self.is_65c02:
+                    self.emit(f"\tLDA ({ptr_asm})")
+                else:
+                    self.emit("\tLDY #0")
+                    self.emit(f"\tLDA ({ptr_asm}),Y")
                 if t.sem_type.base == "WORD":
                     self.emit("\tPHA")
-                    self.emit("\tINY")
+                    self.emit("\tLDY #1")
                     self.emit(f"\tLDA ({ptr_asm}),Y")
                     self.emit("\tTAX")
                     self.emit("\tPLA")
@@ -4160,6 +4163,15 @@ class CodeGen:
         arr_sym: Symbol = self.current_symtab.lookup(array_name)
         arr_addr: str = arr_sym.asm_name()
         is_word_array: bool = arr_sym.type.base == "WORD"
+
+        accum_lo: str = "TMP1"
+        accum_hi: str = "TMP2"
+        if (is_word_array and self.assign_target_sym and not self.assign_target_blocked and
+            self.assign_target_type and (self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer)):
+            target_sym: Symbol = self.assign_target_sym
+            if not target_sym.is_array and target_sym.address is None:
+                accum_lo = target_sym.asm_name()
+                accum_hi = f"{accum_lo}+1"
         
         # Load first element
         op0, _, idx0_val = chain[0]
@@ -4170,8 +4182,8 @@ class CodeGen:
             self.emit(f"\tLDA {arr_addr}+{offset_low}")  # Load low byte → A
             self.emit(f"\tLDX {arr_addr}+{offset_high}")  # Load high byte → X
             # Store initial result in TMP1/TMP2
-            self.emit("\tSTA TMP1")
-            self.emit("\tSTX TMP2")
+            self.emit(f"\tSTA {accum_lo}")
+            self.emit(f"\tSTX {accum_hi}")
         else:
             # For BYTE arrays, load only low byte
             self.emit(f"\tLDA {arr_addr}+{idx0_val}")
@@ -4192,31 +4204,23 @@ class CodeGen:
                 if op == BinOp.ADD:
                     # 16-bit ADD: TMP1/TMP2 += arr[idx_val]
                     self.emit("\tCLC")
-                    self.emit(f"\tLDA TMP1")
+                    self.emit(f"\tLDA {accum_lo}")
                     self.emit(f"\tADC {arr_addr}+{offset_low}")
-                    self.emit("\tSTA TMP1")  # Save low result
-                    self.emit(f"\tBCC {lbl_no_carry}")
-                    self.emit("\tINC TMP2")  # Carry to high byte
-                    self.emit(f"{lbl_no_carry}:")
-                    # Now add high bytes
-                    self.emit(f"\tLDA TMP2")
-                    self.emit("\tCLC")
+                    self.emit(f"\tSTA {accum_lo}")  # Save low result
+                    # Now add high bytes with carry from low
+                    self.emit(f"\tLDA {accum_hi}")
                     self.emit(f"\tADC {arr_addr}+{offset_high}")
-                    self.emit("\tSTA TMP2")  # Save high result
+                    self.emit(f"\tSTA {accum_hi}")  # Save high result
                 else:  # SUB
                     # 16-bit SUB: TMP1/TMP2 -= arr[idx_val]
                     self.emit("\tSEC")
-                    self.emit(f"\tLDA TMP1")
+                    self.emit(f"\tLDA {accum_lo}")
                     self.emit(f"\tSBC {arr_addr}+{offset_low}")
-                    self.emit("\tSTA TMP1")  # Save low result
-                    self.emit(f"\tBCS {lbl_no_borrow}")
-                    self.emit("\tDEC TMP2")  # Borrow from high byte
-                    self.emit(f"{lbl_no_borrow}:")
-                    # Now subtract high bytes
-                    self.emit(f"\tLDA TMP2")
-                    self.emit("\tSEC")
+                    self.emit(f"\tSTA {accum_lo}")  # Save low result
+                    # Now subtract high bytes with borrow from low
+                    self.emit(f"\tLDA {accum_hi}")
                     self.emit(f"\tSBC {arr_addr}+{offset_high}")
-                    self.emit("\tSTA TMP2")  # Save high result
+                    self.emit(f"\tSTA {accum_hi}")  # Save high result
             else:
                 # BYTE array processing (existing logic)
                 if op == BinOp.ADD:
@@ -4242,8 +4246,8 @@ class CodeGen:
         
         # For WORD arrays, ensure result is in A/X
         if is_word_array and len(chain) > 1:
-            self.emit("\tLDA TMP1")  # Low result → A
-            self.emit("\tLDX TMP2")  # High result → X
+            self.emit(f"\tLDA {accum_lo}")  # Low result → A
+            self.emit(f"\tLDX {accum_hi}")  # High result → X
 
 
 
@@ -6221,14 +6225,22 @@ class CodeGen:
                     if lhs_t.sem_type.base == "WORD":
                         # WORD: load high byte too
                         self.emit(f"\tLDX {rhs_addr}+1")
-                        self.emit(f"\tLDY #0")
-                        self.emit(f"\tSTA ({ptr_addr}),Y")
-                        self.emit(f"\tINY")
-                        self.emit(f"\tSTX ({ptr_addr}),Y")
+                        if self.is_65c02:
+                            self.emit(f"\tSTA ({ptr_addr})")
+                            self.emit(f"\tLDY #1")
+                            self.emit(f"\tSTX ({ptr_addr}),Y")
+                        else:
+                            self.emit(f"\tLDY #0")
+                            self.emit(f"\tSTA ({ptr_addr}),Y")
+                            self.emit(f"\tINY")
+                            self.emit(f"\tSTX ({ptr_addr}),Y")
                     else:
                         # BYTE: store only low byte (no need for X)
-                        self.emit(f"\tLDY #0")
-                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                        if self.is_65c02:
+                            self.emit(f"\tSTA ({ptr_addr})")
+                        else:
+                            self.emit(f"\tLDY #0")
+                            self.emit(f"\tSTA ({ptr_addr}),Y")
                     return
                 elif isinstance(rhs, IntLiteral):
                     # Immediate value
@@ -6238,13 +6250,21 @@ class CodeGen:
                     self.emit(f"\tLDA #${val_low:02X}")
                     if lhs_t.sem_type.base == "WORD":
                         self.emit(f"\tLDX #${val_high:02X}")
-                        self.emit(f"\tLDY #0")
-                        self.emit(f"\tSTA ({ptr_addr}),Y")
-                        self.emit(f"\tINY")
-                        self.emit(f"\tSTX ({ptr_addr}),Y")
+                        if self.is_65c02:
+                            self.emit(f"\tSTA ({ptr_addr})")
+                            self.emit(f"\tLDY #1")
+                            self.emit(f"\tSTX ({ptr_addr}),Y")
+                        else:
+                            self.emit(f"\tLDY #0")
+                            self.emit(f"\tSTA ({ptr_addr}),Y")
+                            self.emit(f"\tINY")
+                            self.emit(f"\tSTX ({ptr_addr}),Y")
                     else:
-                        self.emit(f"\tLDY #0")
-                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                        if self.is_65c02:
+                            self.emit(f"\tSTA ({ptr_addr})")
+                        else:
+                            self.emit(f"\tLDY #0")
+                            self.emit(f"\tSTA ({ptr_addr}),Y")
                     return
                 
                 # For complex expressions, generate normally
@@ -6253,14 +6273,22 @@ class CodeGen:
                 # Store to dereferenced pointer
                 if lhs_t.sem_type.base == "WORD":
                     # WORD: store both low and high bytes
-                    self.emit(f"\tLDY #0")
-                    self.emit(f"\tSTA ({ptr_addr}),Y")
-                    self.emit(f"\tINY")
-                    self.emit(f"\tSTX ({ptr_addr}),Y")
+                    if self.is_65c02:
+                        self.emit(f"\tSTA ({ptr_addr})")
+                        self.emit(f"\tLDY #1")
+                        self.emit(f"\tSTX ({ptr_addr}),Y")
+                    else:
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA ({ptr_addr}),Y")
+                        self.emit(f"\tINY")
+                        self.emit(f"\tSTX ({ptr_addr}),Y")
                 else:
                     # BYTE: store only low byte
-                    self.emit(f"\tLDY #0")
-                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                    if self.is_65c02:
+                        self.emit(f"\tSTA ({ptr_addr})")
+                    else:
+                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tSTA ({ptr_addr}),Y")
                 return
 
         # OPTIMIZATION: Dereferenced subscript of ZEROPAGE pointer array
