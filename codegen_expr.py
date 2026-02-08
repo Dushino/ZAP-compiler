@@ -115,33 +115,28 @@ class CodeGen:
     def _math_stack_push(self, is_16bit: bool) -> None:
         if self.math_stack_depth >= 4:
             self._raise_error("Math stack overflow: requires more than 4 word slots. Simplify the expression.")
+        slot: int = self.math_stack_depth
+        offset: int = slot * 2
         self.math_stack_depth += 1
         if is_16bit:
             self.emit("\tSTX MATH_OP1")
-        self.emit("\tLDX MATH_SP")
-        self.emit("\tSTA MATH_STACK,X")
+        self.emit(f"\tSTA MATH_STACK+{offset}")
         if is_16bit:
             self.emit("\tLDA MATH_OP1")
-            self.emit("\tSTA MATH_STACK+1,X")
+            self.emit(f"\tSTA MATH_STACK+{offset + 1}")
         else:
             self.emit("\tLDA #$00")
-            self.emit("\tSTA MATH_STACK+1,X")
-        self.emit("\tTXA")
-        self.emit("\tCLC")
-        self.emit("\tADC #$02")
-        self.emit("\tSTA MATH_SP")
+            self.emit(f"\tSTA MATH_STACK+{offset + 1}")
 
     def _math_stack_pop_to_op0(self) -> None:
         if self.math_stack_depth <= 0:
             self._raise_error("Math stack underflow during expression evaluation.")
         self.math_stack_depth -= 1
-        self.emit("\tLDX MATH_SP")
-        self.emit("\tDEX")
-        self.emit("\tDEX")
-        self.emit("\tSTX MATH_SP")
-        self.emit("\tLDA MATH_STACK,X")
+        slot: int = self.math_stack_depth
+        offset: int = slot * 2
+        self.emit(f"\tLDA MATH_STACK+{offset}")
         self.emit("\tSTA MATH_OP0")
-        self.emit("\tLDA MATH_STACK+1,X")
+        self.emit(f"\tLDA MATH_STACK+{offset + 1}")
         self.emit("\tSTA MATH_OP0+1")
 
     def _emit_store_byte_const(self, sym: Symbol, value: int) -> None:
@@ -450,6 +445,59 @@ class CodeGen:
                                 optimized.append(self.code[i])
                                 i += 2
                                 continue
+
+            # Drop LDX #0 before a byte-only STA when X is not used before being redefined
+            if curU == "LDX #0":
+                j = i + 1
+                while j < len(self.code):
+                    look = self.code[j].strip()
+                    lookU = look.upper()
+                    if not look or lookU.endswith(":") or lookU.startswith(";"):
+                        j += 1
+                        continue
+                    break
+                if j < len(self.code) and lookU.startswith("STA "):
+                    sta_operand = lookU.split(maxsplit=1)[1].strip() if len(lookU.split(maxsplit=1)) == 2 else ""
+                    # If this is a 16-bit store pair, keep LDX #0
+                    k = j + 1
+                    next_meaningful = ""
+                    while k < len(self.code):
+                        nxt = self.code[k].strip()
+                        nxtU = nxt.upper()
+                        if not nxt or nxtU.endswith(":") or nxtU.startswith(";"):
+                            k += 1
+                            continue
+                        next_meaningful = nxtU
+                        break
+                    if next_meaningful.startswith("STX ") and sta_operand and next_meaningful.endswith(sta_operand + "+1"):
+                        optimized.append(self.code[i])
+                        i += 1
+                        continue
+
+                    # Scan ahead to see if X is used before being redefined
+                    x_used = False
+                    k = j + 1
+                    while k < len(self.code) and k < j + 20:
+                        nxt = self.code[k].strip()
+                        nxtU = nxt.upper()
+                        if not nxt or nxtU.endswith(":") or nxtU.startswith(";"):
+                            k += 1
+                            continue
+                        # Control flow boundaries: be conservative
+                        if nxtU.startswith(("JSR ", "JMP ")) or nxtU in ("RTS", "RTI", "BRK"):
+                            break
+                        # X redefined: safe to drop
+                        if nxtU.startswith("LDX ") or nxtU in ("PLX", "TAX", "TSX"):
+                            break
+                        # X used
+                        if nxtU.startswith("STX ") or nxtU.startswith("CPX ") or nxtU in ("INX", "DEX", "TXA", "TXS") or ",X" in nxtU:
+                            x_used = True
+                            break
+                        k += 1
+
+                    if not x_used:
+                        i += 1
+                        continue
                 
             # Elide redundant reloads:
             #   STA addr ; LDA addr  → STA addr
@@ -2423,7 +2471,6 @@ class CodeGen:
 
         self.emit(".segment \"ZEROPAGE\"")
         self.emit("; System variables")
-        self.emit("MATH_SP:\t.res 1")
         self.emit("MATH_STACK:\t.res 8")
         self.emit("MATH_OP0:\t.res 2")
         self.emit("MATH_OP1:\t.res 2")
@@ -2599,7 +2646,6 @@ class CodeGen:
         self.emit("\n.segment \"CODE\"")
         self.emit("; Globals initialization")
         self.emit("; ------------------------------") 
-        self._stz("MATH_SP")
                
 
     def gen_globals_footer(self) -> None:
@@ -4982,20 +5028,72 @@ class CodeGen:
     
     def _gen_math_binop(self, expr: BinaryExpr, left_16: bool, right_16: bool) -> None:
         """Generate MUL/DIV/MOD using math stack and dedicated operands."""
-        # Save left operand on math stack
-        self.gen_expr(expr.left)
-        self._math_stack_push(left_16)
+        def _is_simple_operand(op: Expr) -> bool:
+            return isinstance(op, (Identifier, IntLiteral))
 
-        # Evaluate right operand into A/X
-        self.gen_expr(expr.right)
-        self.emit("\tSTA MATH_OP2")
-        if right_16:
-            self.emit("\tSTX MATH_OP3")
+        def _emit_op0(op: Expr, is_16: bool) -> None:
+            if isinstance(op, IntLiteral):
+                val = op.value & 0xFFFF
+                self.emit(f"\tLDA #${val & 0xFF:02X}")
+                self.emit("\tSTA MATH_OP0")
+                if is_16:
+                    self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                    self.emit("\tSTA MATH_OP0+1")
+                else:
+                    self._stz("MATH_OP0+1")
+                return
+            if isinstance(op, Identifier):
+                sym = self.current_symtab.lookup(op.name)
+                self.emit(f"\tLDA {sym.asm_name()}")
+                self.emit("\tSTA MATH_OP0")
+                if is_16:
+                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                    self.emit("\tSTA MATH_OP0+1")
+                else:
+                    self._stz("MATH_OP0+1")
+                return
+
+        def _emit_op2(op: Expr, is_16: bool) -> None:
+            if isinstance(op, IntLiteral):
+                val = op.value & 0xFFFF
+                self.emit(f"\tLDA #${val & 0xFF:02X}")
+                self.emit("\tSTA MATH_OP2")
+                if is_16:
+                    self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                    self.emit("\tSTA MATH_OP3")
+                else:
+                    self._stz("MATH_OP3")
+                return
+            if isinstance(op, Identifier):
+                sym = self.current_symtab.lookup(op.name)
+                self.emit(f"\tLDA {sym.asm_name()}")
+                self.emit("\tSTA MATH_OP2")
+                if is_16:
+                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                    self.emit("\tSTA MATH_OP3")
+                else:
+                    self._stz("MATH_OP3")
+                return
+
+        # If both operands are simple, avoid math stack entirely.
+        if _is_simple_operand(expr.left) and _is_simple_operand(expr.right):
+            _emit_op0(expr.left, left_16)
+            _emit_op2(expr.right, right_16)
         else:
-            self._stz("MATH_OP3")
+            # Save left operand on math stack
+            self.gen_expr(expr.left)
+            self._math_stack_push(left_16)
 
-        # Restore left operand into MATH_OP0/MATH_OP0+1
-        self._math_stack_pop_to_op0()
+            # Evaluate right operand into A/X
+            self.gen_expr(expr.right)
+            self.emit("\tSTA MATH_OP2")
+            if right_16:
+                self.emit("\tSTX MATH_OP3")
+            else:
+                self._stz("MATH_OP3")
+
+            # Restore left operand into MATH_OP0/MATH_OP0+1
+            self._math_stack_pop_to_op0()
 
         if expr.op == BinOp.MUL:
             self._gen_mul(left_16, right_16)
