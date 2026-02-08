@@ -61,6 +61,10 @@ const byte MAX_YPOS = 23
 
 byte ^vlstart[MAX_YPOS]
 
+byte ba[512]
+word wa[512]
+
+
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
     word dlstart @560      ; system storage for DL address
@@ -80,6 +84,13 @@ proc CONSTRUCTOR()
     vlstart[1]^ = $81
     vlstart[2]^ = $82
 
+    ba[1] = 1
+    wa[1] = 1
+
+    i = i + 1
+    i = i + 13
+    i = i - 1
+    i = i - 15
 end
 
 
@@ -112,6 +123,7 @@ end
 proc cls()
     cur_xpos = 0
     cur_ypos = 0    
+
 end
 
 
