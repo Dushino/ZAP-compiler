@@ -3882,7 +3882,11 @@ class CodeGen:
             self.emit(f"\tSTX {left_tmp}+1")
 
         # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
-        if not (use_inc_opt or use_dec_opt):
+        shift_count: int | None = None
+        if expr.op in {BinOp.LSHIFT, BinOp.RSHIFT} and isinstance(expr.right, IntLiteral):
+            shift_count = expr.right.value
+
+        if not (use_inc_opt or use_dec_opt) and shift_count is None:
             # Ask the right sub-expression to prefer the opposite temp to avoid
             # accidental clobbering of the saved left value.
             right_hint: str = "TMP0" if left_tmp == "TMP1" else "TMP1"
@@ -3918,9 +3922,9 @@ class CodeGen:
         elif expr.op == BinOp.BXOR:
             self._gen_bitwise_xor(result_16, left_tmp)
         elif expr.op == BinOp.LSHIFT:
-            self._gen_lshift(result_16, left_tmp)
+            self._gen_lshift(result_16, left_tmp, shift_count)
         elif expr.op == BinOp.RSHIFT:
-            self._gen_rshift(result_16, left_tmp)
+            self._gen_rshift(result_16, left_tmp, shift_count)
         
         # For BYTE arithmetic where result is also BYTE, we don't need to promote to 16-bit
         # The carry is automatically handled by 8-bit wrapping (overflow wraps around 0-255)
@@ -4241,11 +4245,18 @@ class CodeGen:
             # 8-bit XOR: left_tmp ^ A → A
             self.emit(f"\tEOR {left_tmp}")
 
-    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0") -> None:
+    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0", shift_count: int | None = None) -> None:
         """Generate left shift: left_tmp << A (shift count in A)"""
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
         # Shift count is in A
+        if shift_count is not None:
+            if not result_16 and 0 <= shift_count <= 5:
+                self.emit(f"\tLDA {left_tmp}")
+                for _ in range(shift_count):
+                    self.emit("\tASL A")
+                return
+            self.emit(f"\tLDA #${shift_count & 0xFF:02X}")
         if result_16:
             # 16-bit shift left (left_tmp,left_tmp+1) << A → (A,X)
             self.emit("\tSTA TMP2")    # Store shift count
@@ -4295,11 +4306,18 @@ class CodeGen:
             self.emit(f"{lbl_end}:")
             self.emit("\tLDA TMP0")    # Load result
 
-    def _gen_rshift(self, result_16: bool, left_tmp: str = "TMP0") -> None:
+    def _gen_rshift(self, result_16: bool, left_tmp: str = "TMP0", shift_count: int | None = None) -> None:
         """Generate right shift: left_tmp >> A (shift count in A)"""
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
         # Shift count is in A
+        if shift_count is not None:
+            if not result_16 and 0 <= shift_count <= 5:
+                self.emit(f"\tLDA {left_tmp}")
+                for _ in range(shift_count):
+                    self.emit("\tLSR A")
+                return
+            self.emit(f"\tLDA #${shift_count & 0xFF:02X}")
         if result_16:
             # 16-bit shift right (left_tmp,left_tmp+1) >> A → (A,X)
             self.emit("\tSTA TMP2")    # Store shift count
