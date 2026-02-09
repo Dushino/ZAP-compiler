@@ -24,14 +24,9 @@ proc main()
     ch = getchar()
     while ch != 27
         switch ch
-            case 13
-                break                
-                
-            case 8
-                break
-
+    
             default
-                putchar(ch)
+                putx(ch)
                 break
         end
         ch = getchar()

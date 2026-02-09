@@ -1954,6 +1954,17 @@ class CodeGen:
                     arr_label = self.array_literals[data_key]
                     self._load_sym_addr(arr_label)
                     return
+                if sym.init and isinstance(sym.init, StringInit):
+                    if sym.type.base != "BYTE":
+                        self._raise_error("String init only supported for byte arrays")
+                    values = [ord(ch) for ch in sym.init.value] + [0]
+                    data_key = (tuple(values), False)
+                    if data_key not in self.array_literals:
+                        self.array_id += 1
+                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    arr_label = self.array_literals[data_key]
+                    self._load_sym_addr(arr_label)
+                    return
                 else:
                     self._raise_error(f"Const array '{sym.name}' has no initialization")
             
@@ -2416,6 +2427,16 @@ class CodeGen:
                     values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
                     is_word: bool = sym.type.base == "WORD"
                     data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
+                    if data_key not in self.array_literals:
+                        self.array_id += 1
+                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    arr_label = self.array_literals[data_key]
+                    self._load_sym_addr(arr_label)
+                elif sym.init and isinstance(sym.init, StringInit):
+                    if sym.type.base != "BYTE":
+                        self._raise_error("String init only supported for byte arrays")
+                    values = [ord(ch) for ch in sym.init.value] + [0]
+                    data_key = (tuple(values), False)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"

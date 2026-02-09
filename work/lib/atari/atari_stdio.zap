@@ -222,3 +222,12 @@ __sputc:
 end
 
 
+/*
+    putx - print HEX BYTE value as two characters
+*/
+proc putx(byte value)
+    const byte hex_digits[] = "0123456789ABCDEF"
+    putchar(hex_digits[value >> 4])
+    putchar(hex_digits[value & $0F])
+end
+
