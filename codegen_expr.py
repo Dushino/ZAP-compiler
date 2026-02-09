@@ -326,6 +326,21 @@ class CodeGen:
             return len(parts) == 1 or parts[1] == "A"
         return False
 
+    def _reads_x(self, line: str) -> bool:
+        """Return True if instruction reads X (explicitly or via ,X addressing)."""
+        stripped: str = line.strip().upper()
+        if not stripped or stripped.endswith(":") or stripped.startswith(";"):
+            return False
+        parts: list[str] = stripped.split()
+        if not parts:
+            return False
+        op: str = parts[0]
+        if op in {"STX", "CPX", "INX", "DEX", "TXA", "TXS", "PHX", "PLX"}:
+            return True
+        if len(parts) > 1 and ",X" in parts[1]:
+            return True
+        return False
+
     def peephole_optimize(self) -> None:
         """Apply peephole optimizations to emitted code.
         
@@ -334,6 +349,7 @@ class CodeGen:
         - Tail call optimization: JSR followed by RTS -> JMP (saves stack operations)
         - Remove duplicate consecutive comment lines
         - 65c02: Replace LDX #0; STA addr; STX addr+1 with STA addr; STZ addr+1
+        - Remove redundant LDX #0 when X is immediately overwritten by TAX
         - Remove blank line immediately before RTS
         """
         optimized: list[str] = []
@@ -431,6 +447,32 @@ class CodeGen:
                         optimized.append(f"{indent}STZ {sta_operand}+1\n")
                         i = stx_index + 1
                         continue
+
+            # Remove redundant LDX #0 when X is overwritten by TAX soon after
+            if instr_part in {"LDX #0", "LDX #$0", "LDX #$00"}:
+                j = i + 1
+                found_tax = False
+                while j < len(self.code):
+                    look_line = self.code[j].strip()
+                    look_upper = look_line.upper()
+                    if not look_line or look_line.startswith(";"):
+                        j += 1
+                        continue
+                    if look_upper.endswith(":"):
+                        break
+                    op = look_upper.split()[0]
+                    if op == "TAX":
+                        found_tax = True
+                        break
+                    if op.startswith("B") or op in {"JMP", "JSR", "RTS", "RTI", "BRK"}:
+                        break
+                    if self._reads_x(look_line):
+                        break
+                    j += 1
+
+                if found_tax:
+                    i += 1
+                    continue
             
             # Tail call optimization: JSR followed by RTS -> JMP
             if line_upper.startswith("JSR "):
@@ -2030,17 +2072,22 @@ class CodeGen:
             ptr_sym: Symbol = self.current_symtab.lookup(expr.pointer.name)
             if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
                 ptr_asm: str = ptr_sym.asm_name()
-                if self.is_65c02:
-                    self.emit(f"\tLDA ({ptr_asm})")
-                else:
-                    self.emit("\tLDY #0")
-                    self.emit(f"\tLDA ({ptr_asm}),Y")
                 if t.sem_type.base == "WORD":
-                    self.emit("\tPHA")
+                    # Load high byte first, then low (saves stack ops)
                     self.emit("\tLDY #1")
                     self.emit(f"\tLDA ({ptr_asm}),Y")
                     self.emit("\tTAX")
-                    self.emit("\tPLA")
+                    if self.is_65c02:
+                        self.emit(f"\tLDA ({ptr_asm})")
+                    else:
+                        self.emit("\tDEY")
+                        self.emit(f"\tLDA ({ptr_asm}),Y")
+                else:
+                    if self.is_65c02:
+                        self.emit(f"\tLDA ({ptr_asm})")
+                    else:
+                        self.emit("\tLDY #0")
+                        self.emit(f"\tLDA ({ptr_asm}),Y")
                 return
 
         # 1) vygeneruj adresu pointeru → A/X
@@ -2050,20 +2097,17 @@ class CodeGen:
         self.emit("\tSTA TMP0")
         self.emit("\tSTX TMP0+1")
 
-        # 3) načti LOW byte
-        self.emit("\tLDY #0")
-        self.emit("\tLDA (TMP0),Y")
-
-        # 4) WORD? načti HIGH byte
+        # 3) načti LOW/HIGH byte
         if t.sem_type.base == "WORD":
-            # For WORD, we need both low and high bytes
-            # Low byte is in A, but we need to load high byte into X
-            # Save low byte, load high byte, then restore low byte to A
-            self.emit("\tPHA")  # Save low byte on stack
-            self.emit("\tINY")
-            self.emit("\tLDA (TMP0),Y")  # Load high byte
-            self.emit("\tTAX")  # Transfer high byte to X
-            self.emit("\tPLA")  # Restore low byte to A
+            # Load high byte first, then low (saves stack ops)
+            self.emit("\tLDY #1")
+            self.emit("\tLDA (TMP0),Y")
+            self.emit("\tTAX")
+            self.emit("\tDEY")
+            self.emit("\tLDA (TMP0),Y")
+        else:
+            self.emit("\tLDY #0")
+            self.emit("\tLDA (TMP0),Y")
 
     def _collect_subscript_indices(self, expr: SubscriptExpr) -> tuple:
         """Collect all indices and base identifier from nested subscripts.
