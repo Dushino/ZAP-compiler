@@ -5973,6 +5973,44 @@ class CodeGen:
                         def load_left_low() -> None:
                             self.emit(f"\tLDA {left_lo}")
 
+                        # If right high byte is zero, we can simplify LT/LE/GT/GE.
+                        if cmp_hi == "#$00" and cond.op in {BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                            load_left_high()
+                            if cond.op == BinOp.LT:
+                                self.emit("\tCPX #$00")
+                                self.emit(f"\tBNE {lbl_false}")
+                                load_left_low()
+                                self.emit(f"\tCMP {cmp_lo}")
+                                self.emit(f"\tBCC {lbl_true}")
+                                self.emit(f"\tJMP {lbl_false}")
+                                return
+                            if cond.op == BinOp.LE:
+                                self.emit("\tCPX #$00")
+                                self.emit(f"\tBNE {lbl_false}")
+                                load_left_low()
+                                self.emit(f"\tCMP {cmp_lo}")
+                                self.emit(f"\tBCC {lbl_true}")
+                                self.emit(f"\tBEQ {lbl_true}")
+                                self.emit(f"\tJMP {lbl_false}")
+                                return
+                            if cond.op == BinOp.GT:
+                                self.emit("\tCPX #$00")
+                                self.emit(f"\tBNE {lbl_true}")
+                                load_left_low()
+                                self.emit(f"\tCMP {cmp_lo}")
+                                self.emit(f"\tBEQ {lbl_false}")
+                                self.emit(f"\tBCS {lbl_true}")
+                                self.emit(f"\tJMP {lbl_false}")
+                                return
+                            if cond.op == BinOp.GE:
+                                self.emit("\tCPX #$00")
+                                self.emit(f"\tBNE {lbl_true}")
+                                load_left_low()
+                                self.emit(f"\tCMP {cmp_lo}")
+                                self.emit(f"\tBCS {lbl_true}")
+                                self.emit(f"\tJMP {lbl_false}")
+                                return
+
                         if cond.op == BinOp.EQ:
                             lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                             load_left_high()

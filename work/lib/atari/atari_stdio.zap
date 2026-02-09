@@ -56,10 +56,10 @@ byte PLAYF4  @712
 
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
-const byte SCREEN_MAX_XPOS = 39
-const byte SCREEN_MAX_YPOS = 23    
+const byte SCREEN_X_SIZE = 40
+const byte SCREEN_Y_SIZE = 24
 
-byte ^vlstart[SCREEN_MAX_YPOS+1]  #noexport   ; vertical line start positions for each row of the screen
+byte ^vlstart[SCREEN_Y_SIZE]  #noexport   ; vertical line start positions for each row of the screen
 
 
 /*
@@ -107,7 +107,8 @@ proc cls()
     cur_xpos = 0
     cur_ypos = 0    
 
-    for i = 0 to (SCREEN_MAX_XPOS + 1) * (SCREEN_MAX_YPOS + 1) - 1 ; full-screen: (SCREEN_MAX_XPOS+1)*(SCREEN_MAX_YPOS+1) - 1
+    ; for i = 0 to (SCREEN_X_SIZE + 1) * (SCREEN_Y_SIZE + 1) ; full-screen: (SCREEN_X_SIZE+1)*(SCREEN_Y_SIZE+1) - 1
+    for i = 0 to SCREEN_X_SIZE
         ptr1^ = 3
         ptr1 = ptr1 + 1
     end
@@ -146,9 +147,9 @@ proc CONSTRUCTOR()
     vram = dlstart + 4
     data = vram^
 
-    for i = 0 to SCREEN_MAX_YPOS
+    for i = 0 to SCREEN_Y_SIZE
         vlstart[i] = data
-        data = data + SCREEN_MAX_XPOS + 1    
+        data = data + SCREEN_X_SIZE   
         vlstart[i]^ = i    
     end
     vlstart[0]^ = 128
