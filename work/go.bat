@@ -3,7 +3,7 @@ del *.s
 del *.o
 del *.com
 
-python ..\compiler.py -O1 -I lib -6502 -o test_stdio.s test_stdio.zap
+python ..\compiler.py -O1 -I lib -6502 -o test_stdio.s test_stdio.zap || exit /b
 rem zapc.exe -O1 -I lib -6502 -o test_stdio.s test_stdio.zap  || exit /b
 ca65 test_stdio.s -o test_stdio.o  || exit /b
 ld65 -C ..\cfg\my_atari.cfg  test_stdio.o -o test_stdio.com  || exit /b
