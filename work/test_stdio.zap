@@ -12,6 +12,12 @@ proc main()
 
     PLAYF2 = COLOR_GREEN3 + 4
 
+
     ch = getchar()
+    while ch != 27
+        putchar(ch)
+        ch = getchar()
+    end 
+
     PLAYF4 = COLOR_BLUE1  + 2
 end

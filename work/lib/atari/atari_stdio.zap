@@ -62,6 +62,26 @@ const byte SCREEN_Y_SIZE = 24
 byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
 byte ^curptr                    #noexport   ; current position in the screen memory for output
 
+
+
+; initialize internals for faster screen IO
+proc CONSTRUCTOR() 
+    word dlstart @560      ; system storage for DL address
+    word ^vram
+    byte ^data
+    byte i
+    
+    vram = dlstart + 4
+    data = vram^
+
+    for i = 0 to SCREEN_Y_SIZE
+        vlstart[i] = data
+        data = data + SCREEN_X_SIZE   
+    end
+end
+
+
+
 /*
     COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
@@ -98,6 +118,23 @@ proc memset(word dest, byte value, word count)
     end
 end
 
+
+/*
+    Copy memory from source to destination
+*/
+proc memcpy(word dest, word src, word count)
+    word i
+    byte ^ptr1 = dest
+    byte ^ptr2 = src
+
+    for i = 0 to count
+        ptr1^ = ptr2^
+        ptr1 = ptr1 + 1
+        ptr2 = ptr2 + 1
+    end
+end
+
+
 /*
     Clear Screen and reset cursor position
 */
@@ -108,13 +145,8 @@ proc cls()
     cur_xpos = 0
     cur_ypos = 0    
     curptr = vlstart[0]
-
-    for i = 0 to SCREEN_X_SIZE * SCREEN_Y_SIZE
-        ptr1^ = 1
-        ptr1 = ptr1 + 1
-    end
-    memset(vlstart[0], 2, SCREEN_X_SIZE * SCREEN_Y_SIZE - 40)   ; clear color memory
-
+    
+    memset(vlstart[0], 0, SCREEN_X_SIZE * SCREEN_Y_SIZE)   ; clear color memory    
 end
 
 
@@ -137,18 +169,42 @@ func byte getchar()
 end
 
 
-; initialize internals for faster screen IO
-proc CONSTRUCTOR() 
-    word dlstart @560      ; system storage for DL address
-    word ^vram
-    byte ^data
-    byte i
-    
-    vram = dlstart + 4
-    data = vram^
+/*
+    putchar to current screen location and move cursor forward, scroll screen if needed
+*/
+proc putchar(byte ch)
 
-    for i = 0 to SCREEN_Y_SIZE
-        vlstart[i] = data
-        data = data + SCREEN_X_SIZE   
+    ; convert ATASCII to screen code, handle inverse bit
+    asm
+            lda _PUTCHAR_CH
+            asl a               ; shift out the inverse bit
+            adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
+            bpl __codeok          ; screen code ok?
+            eor #$40            ; needs correction
+__codeok:   lsr a               ; undo the shift
+            bcc __sputc
+            eor #$80            ; restore the inverse bit            
+__sputc:
+            sta _PUTCHAR_CH
     end
+
+    curptr^ = ch
+    curptr = curptr + 1
+    
+    cur_xpos = cur_xpos + 1
+    if cur_xpos >= SCREEN_X_SIZE then
+        cur_xpos = 0
+
+        PLAYF4 = cur_ypos
+        if cur_ypos < SCREEN_Y_SIZE - 1  then
+            cur_ypos = cur_ypos + 1
+        else
+            ; scroll screen up
+            memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
+            memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
+        endif
+        curptr = vlstart[cur_ypos]
+    endif
 end
+
+
