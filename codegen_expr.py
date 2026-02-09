@@ -2104,13 +2104,22 @@ class CodeGen:
         return []
 
     def _calculate_element_width(self, sym: Symbol) -> int:
-        """Calculate the width of array elements in bytes."""
+        """Calculate the width of array elements in bytes.
+
+        For array of pointers, the element width is the pointer size (2 bytes).
+        For arrays of structs or native WORD/byte types, return the natural width.
+        """
+        # If array elements are pointers (e.g., byte ^arr[]), element size is pointer size (2)
         if sym.type.is_pointer:
             return 2
+
+        # Non-pointer struct variable
         if sym.type.is_struct and sym.type.struct_info:
             return sym.type.struct_info.size
+        # Native WORD type
         if sym.type.base == "WORD":
             return 2
+        # Default BYTE
         return 1
 
     def _gen_multidim_subscript(self, indices: list, sym: Symbol, 
@@ -5933,6 +5942,101 @@ class CodeGen:
         cmp_lo = "TMP0"
         cmp_hi = "TMP0+1"
 
+        # Fast path: both operands are simple WORD identifiers → evaluate right into TMP0 and compare
+        if is_16bit and isinstance(cond.left, Identifier) and isinstance(cond.right, Identifier):
+            left_sym: Symbol = self.current_symtab.lookup(cond.left.name)
+            right_sym: Symbol = self.current_symtab.lookup(cond.right.name)
+            # Only handle simple variables (not arrays, not fixed addresses, not volatile/ports)
+            if (not left_sym.is_array and left_sym.address is None and not left_sym.is_volatile and
+                not right_sym.is_array and right_sym.address is None and not right_sym.is_volatile):
+                # Evaluate right into TMP0/TMP0+1
+                self.gen_expr(cond.right)
+                if right_sym.type.base != "WORD" and not right_sym.type.is_pointer:
+                    # Ensure high byte defined
+                    self.emit("\tLDX #0     ; fast 16-bit compare setup")
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+
+                # Load left into A/X for comparison
+                self.gen_expr(cond.left)
+                if left_sym.type.base != "WORD" and not left_sym.type.is_pointer:
+                    self.emit("\tLDX #0     ; fast 16-bit compare setup")
+
+                # Now do op-specific branching using TMP0 as right value
+                if cond.op == BinOp.EQ:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tCPX TMP0+1")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    self.emit(f"\tCMP TMP0")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.NE:
+                    self.emit(f"\tCPX TMP0+1")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tCMP TMP0")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.LT:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    # Compare high byte first
+                    self.emit(f"\tCPX TMP0+1")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    # High bytes equal, compare low byte
+                    self.emit(f"\tCMP TMP0")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.LE:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_chk_hi: str = self.new_label("LE_CHK_HI")
+                    # Compare high byte first
+                    self.emit(f"\tCPX TMP0+1")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBEQ {lbl_chk_hi}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    # High bytes equal, compare low byte
+                    self.emit(f"{lbl_chk_hi}:")
+                    self.emit(f"\tCMP TMP0")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GT:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    # Compare high byte first
+                    self.emit(f"\tCPX TMP0+1")
+                    self.emit(f"\tBCC {lbl_else_tmp}")
+                    self.emit(f"\tBEQ @GT_CHECK_LOW")
+                    self.emit(f"\tJMP {lbl_true}")
+                    self.emit("@GT_CHECK_LOW:")
+                    # High bytes equal, compare low byte
+                    self.emit(f"\tCMP TMP0")
+                    self.emit(f"\tBEQ {lbl_else_tmp}")
+                    self.emit(f"\tBCS {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GE:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    # Compare high byte first
+                    self.emit(f"\tCPX TMP0+1")
+                    self.emit(f"\tBCC {lbl_else_tmp}")
+                    self.emit(f"\tBEQ @GE_CHECK_LOW")
+                    self.emit(f"\tJMP {lbl_true}")
+                    self.emit("@GE_CHECK_LOW:")
+                    # High bytes equal, compare low byte
+                    self.emit(f"\tCMP TMP0")
+                    self.emit(f"\tBCS {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+
         # Try a fast 8-bit compare when the right operand is a simple byte value
         def simple_byte_operand(rhs: Expr) -> str | None:
             """Return an operand suitable for CMP if rhs is a trivial byte source."""
@@ -6232,52 +6336,51 @@ class CodeGen:
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.LT:
                 lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                lbl_check_hi: str = self.new_label("CHECK_HI")
-                # Compare low byte first
-                self.emit(f"\tCMP {cmp_lo}")
+                # Compare high byte first
+                self.emit(f"\tCPX {cmp_hi}")
                 self.emit(f"\tBCC {lbl_true}")
                 self.emit(f"\tBNE {lbl_else_tmp}")
-                # Low bytes equal, check high byte
-                self.emit(f"\tCPX {cmp_hi}")
+                # High bytes equal, check low byte
+                self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBCC {lbl_true}")
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.LE:
                 lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 lbl_chk_hi: str = self.new_label("LE_CHK_HI")
-                # Compare low byte first
-                self.emit(f"\tCMP {cmp_lo}")
+                # Compare high byte first
+                self.emit(f"\tCPX {cmp_hi}")
                 self.emit(f"\tBCC {lbl_true}")
                 self.emit(f"\tBEQ {lbl_chk_hi}")
                 self.emit(f"\tBNE {lbl_else_tmp}")
-                # Low bytes equal, check high byte
+                # High bytes equal, check low byte
                 self.emit(f"{lbl_chk_hi}:")
-                self.emit(f"\tCPX {cmp_hi}")
+                self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBCC {lbl_true}")
                 self.emit(f"\tBEQ {lbl_true}")
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GT:
                 lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                # Compare low byte first
-                self.emit(f"\tCMP {cmp_lo}")
-                self.emit(f"\tBEQ {lbl_else_tmp}")
-                self.emit(f"\tBCS {lbl_true}")
-                # Low byte less, check high byte
+                # Compare high byte first
                 self.emit(f"\tCPX {cmp_hi}")
                 self.emit(f"\tBCC {lbl_else_tmp}")
                 self.emit(f"\tBNE {lbl_true}")
+                # High bytes equal, check low byte
+                self.emit(f"\tCMP {cmp_lo}")
+                self.emit(f"\tBEQ {lbl_else_tmp}")
+                self.emit(f"\tBCS {lbl_true}")
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GE:
                 lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                # Compare low byte first
-                self.emit(f"\tCMP {cmp_lo}")
-                self.emit(f"\tBCS {lbl_true}")
-                # Low byte less, check high byte
+                # Compare high byte first
                 self.emit(f"\tCPX {cmp_hi}")
                 self.emit(f"\tBCC {lbl_else_tmp}")
                 self.emit(f"\tBNE {lbl_true}")
+                # High bytes equal, check low byte
+                self.emit(f"\tCMP {cmp_lo}")
+                self.emit(f"\tBCS {lbl_true}")
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
         else:

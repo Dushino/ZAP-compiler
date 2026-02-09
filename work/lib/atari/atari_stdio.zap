@@ -55,50 +55,18 @@ byte PLAYF3  @711
 byte PLAYF4  @712
 
 
-byte cur_xpos, cur_ypos     ; cursor position on the screen
-const byte MAX_XPOS = 39
-const byte MAX_YPOS = 23    
+byte cur_xpos, cur_ypos                     ; cursor position on the screen
+const byte SCREEN_MAX_XPOS = 39
+const byte SCREEN_MAX_YPOS = 23    
 
-byte ^vlstart[MAX_YPOS]
-
-byte ba[512]
-word wa[512]
-
-
-; initialize internals for faster screen IO
-proc CONSTRUCTOR() 
-    word dlstart @560      ; system storage for DL address
-    word ^vram
-    byte ^data
-    byte i
-    
-    vram = dlstart + 4
-    data = vram^
-
-    for i = 0 to MAX_YPOS
-        vlstart[i] = data
-        data = data + MAX_XPOS + 1
-        vlstart[i]^ = i
-    end
-    vlstart[0]^ = $80
-    vlstart[1]^ = $81
-    vlstart[2]^ = $82
-
-    ba[1] = 1
-    wa[1] = 1
-
-    i = i + 1
-    i = i + 13
-    i = i - 1
-    i = i - 15
-end
+byte ^vlstart[SCREEN_MAX_YPOS+1]  #noexport   ; vertical line start positions for each row of the screen
 
 
 /*
     COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
 */
-proc atari_file_data_area() #KEEP #NOEXPORT
+proc atari_file_data_area() #keep #noexport
     asm
         .segment "COMHEADER"
         .import __RAM_START__, __RAM_LAST__
@@ -118,11 +86,29 @@ end
 
 
 /*
+    Fill memory with byte value
+*/
+proc memset(byte ^dest, byte value, word count)
+    byte i
+
+    for i = 0 to count - 1
+        dest[i] = value
+    end
+end
+
+/*
     Clear Screen and reset cursor position
 */
 proc cls()
+    word i
+
     cur_xpos = 0
     cur_ypos = 0    
+
+    ;for i = 0 to SCREEN_MAX_YPOS
+    ;    memset(vlstart[i], 1, SCREEN_MAX_XPOS + 1)        
+    ;end
+    vlstart[0]^ = 128
 
 end
 
@@ -147,3 +133,20 @@ func byte getchar()
 end
 
 
+; initialize internals for faster screen IO
+proc CONSTRUCTOR() 
+    word dlstart @560      ; system storage for DL address
+    word ^vram
+    byte ^data
+    byte i
+    
+    vram = dlstart + 4
+    data = vram^
+
+    for i = 0 to SCREEN_MAX_YPOS
+        vlstart[i] = data
+        data = data + SCREEN_MAX_XPOS + 1    
+        vlstart[i]^ = i    
+    end
+    cls()
+end
