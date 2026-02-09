@@ -1209,6 +1209,23 @@ class CodeGen:
                     self.port_labels.add(sym.asm_name())
             self.emit("")
 
+        # Constants (scalar consts)
+        const_scalars: list[Symbol] = [
+            s for s in all_vars
+            if s.is_const and not s.is_array and not s.type.is_struct and getattr(s, 'address', None) is None
+        ]
+        if const_scalars:
+            self.emit("; Constants")
+            for sym in const_scalars:
+                if sym.const_value is None:
+                    # should not happen for scalar const
+                    continue
+                if sym.type.base == "WORD" or sym.type.is_pointer:
+                    self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFFFF:04X}")
+                else:
+                    self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
+            self.emit("")
+
         # Zero page offset tracking (starts after emitted system variables)
         zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
         ZEROPAGE_SIZE = 256
@@ -1418,20 +1435,20 @@ class CodeGen:
                     right_asm: str = right_sym.asm_name()
                     
                     # Direct 16-bit ADD/SUB without temporaries
-                    self.emit(f"\tLDA {left_asm}")
+                    self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=True)}")
                     if expr.op == BinOp.ADD:
                         self.emit("\tCLC")
-                        self.emit(f"\tADC {right_asm}")
+                        self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=True)}")
                     else:  # SUB
                         self.emit("\tSEC")
-                        self.emit(f"\tSBC {right_asm}")
+                        self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=True)}")
                     self.emit(f"\tSTA {dest_asm}")
                     
-                    self.emit(f"\tLDA {left_asm}+1")
+                    self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=False)}")
                     if expr.op == BinOp.ADD:
-                        self.emit(f"\tADC {right_asm}+1")
+                        self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=False)}")
                     else:  # SUB
-                        self.emit(f"\tSBC {right_asm}+1")
+                        self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=False)}")
                     self.emit(f"\tSTA {dest_asm}+1")
                     return
 
@@ -1840,6 +1857,24 @@ class CodeGen:
         self.emit(f"\tLDA #<{sym_name}")
         self.emit(f"\tLDX #>{sym_name}")
 
+    def _sym_operand(self, sym: Symbol, low_byte: bool = True) -> str:
+        """Return an operand string for symbol `sym`.
+        For const scalars emits immediate operand using the assembler constant
+        (e.g., '#_NAME' or '#<_NAME'/'#>_NAME' for word low/high).
+        For variables emits memory operand ('_NAME' or '_NAME+1' for high byte).
+        """
+        if sym.is_const:
+            # Const scalars/bytes
+            if sym.type.base == "WORD" or sym.type.is_pointer:
+                # For word/pointer consts: use low/high byte operators
+                prefix = '<' if low_byte else '>'
+                return f"#{prefix}{sym.asm_name()}"
+            else:
+                return f"#{sym.asm_name()}"
+        else:
+            # Non-const: memory operand
+            return f"{sym.asm_name()}" + ("" if low_byte else "+1")
+
     def _gen_literal(self, expr: IntLiteral) -> None:
         t: ExprType = self.tc_check(expr)
         val: int = expr.value
@@ -1886,12 +1921,14 @@ class CodeGen:
             # Const scalars
             if sym.const_value is None:
                 self._raise_error(f"Constant '{sym.name}' has no value")
-            # Use the symbol's declared type, not the inferred literal type
-            val: int = sym.const_value
-            self.emit(f"\tLDA #${val & 0xFF:02X}")
-            # Pointers are always word-sized even when base type is BYTE
+            # Use assembler-level constant reference so generated assembly can reference it
             if sym.type.base == "WORD" or sym.type.is_pointer:
-                self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
+                # Word/pointer constants: load low/high bytes using < and > operators
+                self.emit(f"\tLDA #<{sym.asm_name()}")
+                self.emit(f"\tLDX #>{sym.asm_name()}")
+            else:
+                # Byte constants: immediate symbol
+                self.emit(f"\tLDA #{sym.asm_name()}")
             return
 
         # ADDR (pointer nebo pole)
@@ -3303,8 +3340,7 @@ class CodeGen:
             # Generate left operand (just LDA, no X handling needed)
             if isinstance(expr.left, Identifier):
                 left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
-                left_asm: str = left_sym.asm_name()
-                self.emit(f"\tLDA {left_asm}")
+                self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=True)}")
             elif isinstance(expr.left, IntLiteral):
                 val: int = expr.left.value & 0xFF
                 self.emit(f"\tLDA #${val:02X}")
@@ -3318,11 +3354,10 @@ class CodeGen:
             # Generate right operand and perform operation directly
             if isinstance(expr.right, Identifier):
                 right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
-                right_asm: str = right_sym.asm_name()
                 if expr.op == BinOp.ADD:
-                    self.emit(f"\tADC {right_asm}")
+                    self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=True)}")
                 else:
-                    self.emit(f"\tSBC {right_asm}")
+                    self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=True)}")
             elif isinstance(expr.right, IntLiteral):
                 val: int = expr.right.value & 0xFF
                 if expr.op == BinOp.ADD:
@@ -3371,8 +3406,7 @@ class CodeGen:
             # Generate left operand low byte
             if isinstance(expr.left, Identifier):
                 left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
-                left_asm: str = left_sym.asm_name()
-                self.emit(f"\tLDA {left_asm}")
+                self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=True)}")
             elif isinstance(expr.left, IntLiteral):
                 val: int = expr.left.value & 0xFF
                 self.emit(f"\tLDA #${val:02X}")
@@ -3386,11 +3420,10 @@ class CodeGen:
             # Generate right operand low byte and perform operation
             if isinstance(expr.right, Identifier):
                 right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
-                right_asm: str = right_sym.asm_name()
                 if expr.op == BinOp.ADD:
-                    self.emit(f"\tADC {right_asm}")
+                    self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=True)}")
                 else:
-                    self.emit(f"\tSBC {right_asm}")
+                    self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=True)}")
             elif isinstance(expr.right, IntLiteral):
                 val: int = expr.right.value & 0xFF
                 if expr.op == BinOp.ADD:
@@ -3405,8 +3438,7 @@ class CodeGen:
             # Load left operand high byte
             if isinstance(expr.left, Identifier):
                 left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
-                left_asm: str = left_sym.asm_name()
-                self.emit(f"\tLDA {left_asm}+1")
+                self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=False)}")
             elif isinstance(expr.left, IntLiteral):
                 val: int = (expr.left.value >> 8) & 0xFF
                 self.emit(f"\tLDA #${val:02X}")
@@ -3414,11 +3446,10 @@ class CodeGen:
             # ADC/SBC high byte (carry is already set/clear from low byte operation)
             if isinstance(expr.right, Identifier):
                 right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
-                right_asm: str = right_sym.asm_name()
                 if expr.op == BinOp.ADD:
-                    self.emit(f"\tADC {right_asm}+1")
+                    self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=False)}")
                 else:
-                    self.emit(f"\tSBC {right_asm}+1")
+                    self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=False)}")
             elif isinstance(expr.right, IntLiteral):
                 val: int = (expr.right.value >> 8) & 0xFF
                 if expr.op == BinOp.ADD:
@@ -4398,7 +4429,7 @@ class CodeGen:
                         if isinstance(arg, Identifier):
                             arg_sym: Symbol = self.current_symtab.lookup(arg.name)
                             if arg_sym.type.base == "BYTE" and not arg_sym.type.is_pointer and not arg_sym.is_array:
-                                self.emit(f"\tLDA {arg_sym.asm_name()}")
+                                self.emit(f"\tLDA {self._sym_operand(arg_sym, low_byte=True)}")
                                 self.emit(f"\tSTA {asm}")
                                 continue
                     self.gen_expr(arg)
@@ -4871,12 +4902,12 @@ class CodeGen:
                             
                             if rhs.op == BinOp.ADD:
                                 # word_var = word_var1 + word_var2
-                                self.emit(f"\tLDA {left_asm}")
+                                self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=True)}")
                                 self.emit("\tCLC")
-                                self.emit(f"\tADC {right_asm}")
+                                self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=True)}")
                                 self.emit(f"\tSTA {asm}")
-                                self.emit(f"\tLDA {left_asm}+1")
-                                self.emit(f"\tADC {right_asm}+1")
+                                self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=False)}")
+                                self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=False)}")
                                 self.emit(f"\tSTA {asm}+1")
                                 return
 
@@ -5050,20 +5081,20 @@ class CodeGen:
                     right_asm: str = right_sym.asm_name()
                     
                     # Direct 16-bit ADD/SUB without temporaries
-                    self.emit(f"\tLDA {left_asm}")
+                    self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=True)}")
                     if rhs.op == BinOp.ADD:
                         self.emit("\tCLC")
-                        self.emit(f"\tADC {right_asm}")
+                        self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=True)}")
                     else:  # SUB
                         self.emit("\tSEC")
-                        self.emit(f"\tSBC {right_asm}")
+                        self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=True)}")
                     self.emit(f"\tSTA {lhs_asm}")
                     
-                    self.emit(f"\tLDA {left_asm}+1")
+                    self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=False)}")
                     if rhs.op == BinOp.ADD:
-                        self.emit(f"\tADC {right_asm}+1")
+                        self.emit(f"\tADC {self._sym_operand(right_sym, low_byte=False)}")
                     else:  # SUB
-                        self.emit(f"\tSBC {right_asm}+1")
+                        self.emit(f"\tSBC {self._sym_operand(right_sym, low_byte=False)}")
                     self.emit(f"\tSTA {lhs_asm}+1")
                     return
 
@@ -5783,7 +5814,8 @@ class CodeGen:
                     return None
                 if sym.is_volatile:
                     return None
-                return sym.asm_name()
+                # Use immediate if const scalar, otherwise memory operand
+                return self._sym_operand(sym, low_byte=True)
 
             return None
 
@@ -5939,13 +5971,12 @@ class CodeGen:
             # Fast path: word identifier vs constant → defer loading X until low byte matches
             if is_16bit and isinstance(cond.left, Identifier):
                 sym: Symbol = self.current_symtab.lookup(cond.left.name)
-                asm: str = sym.asm_name()
                 if cond.op == BinOp.EQ:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBNE {lbl_else_tmp}")
-                    self.emit(f"\tLDX {asm}+1")
+                    self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBNE {lbl_else_tmp}")
                     self.emit(f"\tBEQ {lbl_true}")
@@ -6035,20 +6066,20 @@ class CodeGen:
                             self.emit(f"\tJMP {lbl_false}")
                             return
                 if cond.op == BinOp.NE:
-                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBNE {lbl_true}")
-                    self.emit(f"\tLDX {asm}+1")
+                    self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBNE {lbl_true}")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.LT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    self.emit(f"\tLDX {asm}+1")
+                    self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCMP {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
-                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCC {lbl_true}")
                     self.emit(f"{lbl_else_tmp}:")
@@ -6058,14 +6089,14 @@ class CodeGen:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     lbl_chk_hi: str = self.new_label("LE_CHK_HI")
                     # Compare low byte first
-                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCC {lbl_true}")
                     self.emit(f"\tBEQ {lbl_chk_hi}")
                     self.emit(f"\tBNE {lbl_else_tmp}")
                     # Low bytes equal, check high byte
                     self.emit(f"{lbl_chk_hi}:")
-                    self.emit(f"\tLDX {asm}+1")
+                    self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
                     self.emit(f"\tBEQ {lbl_true}")
@@ -6074,11 +6105,11 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    self.emit(f"\tLDX {asm}+1")
+                    self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCMP {cmp_hi}")
                     self.emit(f"\tBCS {lbl_true}")
                     self.emit(f"\tBNE {lbl_true}")                    
-                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCS {lbl_true}")
                     self.emit(f"\tBNE {lbl_true}")                    
@@ -6087,11 +6118,11 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GE:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    self.emit(f"\tLDX {asm}+1")
+                    self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCMP {cmp_hi}")
                     self.emit(f"\tBCS {lbl_true}")
                     self.emit(f"\tBEQ {lbl_true}")                    
-                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCS {lbl_true}")
                     self.emit(f"\tBEQ {lbl_true}")                    
