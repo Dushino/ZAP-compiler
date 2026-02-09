@@ -353,8 +353,10 @@ class CodeGen:
         - Remove duplicate consecutive comment lines
         - 65c02: Replace LDX #0; STA addr; STX addr+1 with STA addr; STZ addr+1
         - Remove redundant LDX #0 when X is immediately overwritten by TAX
+        - Remove redundant LDX #imm before another LDX immediate
         - Remove blank line immediately before RTS
         - Remove conditional branch to next label (no-op)
+        - Replace LDA TMP0; TAY; LDA label,Y with LDY TMP0; LDA label,Y
         """
         optimized: list[str] = []
         i = 0
@@ -532,6 +534,23 @@ class CodeGen:
                     i += 5
                     continue
 
+            # Replace LDA TMP0; TAY; LDA label,Y -> LDY TMP0; LDA label,Y
+            if i + 2 < len(self.code):
+                l1 = self.code[i].strip()
+                l2 = self.code[i + 1].strip()
+                l3 = self.code[i + 2].strip()
+                l1_u = l1.split(';')[0].strip().upper()
+                l2_u = l2.split(';')[0].strip().upper()
+                l3_u = l3.split(';')[0].strip().upper()
+                if l1_u == "LDA TMP0" and l2_u == "TAY" and l3_u.startswith("LDA ") and l3_u.endswith(",Y"):
+                    operand = l3_u.split(maxsplit=1)[1].strip()
+                    if not operand.startswith("(") and ")" not in operand:
+                        indent = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                        optimized.append(f"{indent}LDY TMP0\n")
+                        optimized.append(self.code[i + 2])
+                        i += 3
+                        continue
+
             # Remove redundant LDX #0 before accumulator shift/rotate
             if instr_part in {"LDX #0", "LDX #$0", "LDX #$00"}:
                 j = i + 1
@@ -553,6 +572,32 @@ class CodeGen:
                         break
                     break
                 if removed_ldx:
+                    continue
+
+            # Remove redundant LDX #imm when another LDX #imm follows without X use
+            if instr_part.startswith("LDX #"):
+                j = i + 1
+                overwritten = False
+                while j < len(self.code):
+                    look_line = self.code[j].strip()
+                    look_upper = look_line.upper()
+                    if not look_line or look_line.startswith(";"):
+                        j += 1
+                        continue
+                    if look_upper.endswith(":"):
+                        break
+                    op = look_upper.split()[0]
+                    if op == "LDX" and look_upper.startswith("LDX #"):
+                        overwritten = True
+                        break
+                    if op.startswith("B") or op in {"JMP", "JSR", "RTS", "RTI", "BRK"}:
+                        break
+                    if self._reads_x(look_line):
+                        break
+                    j += 1
+
+                if overwritten:
+                    i += 1
                     continue
 
             # Remove conditional branch to the next label (no-op)
@@ -2521,6 +2566,7 @@ class CodeGen:
 
             # For const arrays, load address of ROM data (ARRAY_DATA_*) instead of RAM variable
             if sym.is_const and sym.is_array:
+                arr_label: str | None = None
                 # Generate the ARRAY_DATA label from the const values
                 if sym.init and isinstance(sym.init, ListInit):
                     values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
@@ -2530,7 +2576,6 @@ class CodeGen:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
-                    self._load_sym_addr(arr_label)
                 elif sym.init and isinstance(sym.init, StringInit):
                     if sym.type.base != "BYTE":
                         self._raise_error("String init only supported for byte arrays")
@@ -2540,9 +2585,28 @@ class CodeGen:
                         self.array_id += 1
                         self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
-                    self._load_sym_addr(arr_label)
                 else:
                     self._raise_error(f"Const array '{sym.name}' has no initialization")
+
+                # Optimization: direct indexed load for const BYTE arrays
+                if (load_only and not calc_addr_only and element_width == 1 and arr_label is not None):
+                    idx_type: ExprType = self.tc_check(expr.index)
+                    if idx_type.sem_type.base == "BYTE" and not idx_type.sem_type.is_pointer:
+                        self.gen_expr(expr.index)
+                        self.emit("\tTAY")
+                        self.emit(f"\tLDA {arr_label},Y")
+                        # For BYTE element, only set X if final target is not BYTE
+                        need_x = True
+                        if self.assign_target_type:
+                            if hasattr(self.assign_target_type, 'base'):
+                                if (self.assign_target_type.base == "BYTE" and
+                                    not getattr(self.assign_target_type, 'is_pointer', False)):
+                                    need_x = False
+                        if need_x:
+                            self.emit("\tLDX #0     ; note 3499")
+                        return
+
+                self._load_sym_addr(arr_label)
             else:
                 # base address -> TMP0/TMP0+1 (regular non-const array)
                 self._load_sym_addr(sym.asm_name())
