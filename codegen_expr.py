@@ -5439,11 +5439,11 @@ class CodeGen:
         end_var = Identifier(end_name)
         self.gen_assign(end_var, stmt.end)
 
-        # podmínka WHILE
+        # podmínka WHILE (C-like: end bound is exclusive)
         if step_expr.value > 0:
-            cond = BinaryExpr(stmt.var, BinOp.LE, end_var)
+            cond = BinaryExpr(stmt.var, BinOp.LT, end_var)
         else:
-            cond = BinaryExpr(stmt.var, BinOp.GE, end_var)
+            cond = BinaryExpr(stmt.var, BinOp.GT, end_var)
 
         # tělo
         body = list(stmt.body)
@@ -5495,11 +5495,11 @@ class CodeGen:
         # IF step > 0 THEN IF i > end THEN BREAK ELSE IF i < end THEN BREAK
         cond_step_pos = BinaryExpr(step_var, BinOp.GT, IntLiteral(0))
 
-        cond_i_gt_end = BinaryExpr(stmt.var, BinOp.GT, end_var)
-        cond_i_lt_end = BinaryExpr(stmt.var, BinOp.LT, end_var)
+        cond_i_ge_end = BinaryExpr(stmt.var, BinOp.GE, end_var)
+        cond_i_le_end = BinaryExpr(stmt.var, BinOp.LE, end_var)
 
-        if_pos = IfStmt(cond_i_gt_end, [BreakStmt()], None)
-        if_neg = IfStmt(cond_i_lt_end, [BreakStmt()], None)
+        if_pos = IfStmt(cond_i_ge_end, [BreakStmt()], None)
+        if_neg = IfStmt(cond_i_le_end, [BreakStmt()], None)
 
         dir_check = IfStmt(cond_step_pos, [if_pos], [if_neg])
 
@@ -5951,6 +5951,105 @@ class CodeGen:
                 cmp_hi = f"{cmp_lo}+1"
                 if right_sym.type.base != "WORD" and not right_sym.type.is_pointer:
                     cmp_hi = "#$00"
+
+                # If left is a simple identifier, load high byte first and only load low on demand.
+                if isinstance(cond.left, Identifier):
+                    left_sym: Symbol = self.current_symtab.lookup(cond.left.name)
+                    if (not left_sym.is_array and left_sym.address is None and
+                        not left_sym.is_volatile and not left_sym.is_port):
+                        left_lo = left_sym.asm_name()
+                        left_hi = f"{left_lo}+1"
+                        left_hi_immediate = False
+                        if left_sym.type.base != "WORD" and not left_sym.type.is_pointer:
+                            left_hi = "#$00"
+                            left_hi_immediate = True
+
+                        def load_left_high() -> None:
+                            if left_hi_immediate:
+                                self.emit("\tLDX #0     ; note 7054")
+                            else:
+                                self.emit(f"\tLDX {left_hi}")
+
+                        def load_left_low() -> None:
+                            self.emit(f"\tLDA {left_lo}")
+
+                        if cond.op == BinOp.EQ:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            load_left_high()
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBNE {lbl_else_tmp}")
+                            load_left_low()
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBEQ {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.NE:
+                            load_left_high()
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBNE {lbl_true}")
+                            load_left_low()
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBNE {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.LT:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            load_left_high()
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBNE {lbl_else_tmp}")
+                            load_left_low()
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.LE:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            lbl_chk_hi: str = self.new_label("LE_CHK_HI")
+                            load_left_high()
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBEQ {lbl_chk_hi}")
+                            self.emit(f"\tBNE {lbl_else_tmp}")
+                            self.emit(f"{lbl_chk_hi}:")
+                            load_left_low()
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBEQ {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.GT:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            load_left_high()
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_else_tmp}")
+                            self.emit(f"\tBEQ @GT_CHECK_LOW")
+                            self.emit(f"\tJMP {lbl_true}")
+                            self.emit("@GT_CHECK_LOW:")
+                            load_left_low()
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBEQ {lbl_else_tmp}")
+                            self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+                        if cond.op == BinOp.GE:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            load_left_high()
+                            self.emit(f"\tCPX {cmp_hi}")
+                            self.emit(f"\tBCC {lbl_else_tmp}")
+                            self.emit(f"\tBEQ @GE_CHECK_LOW")
+                            self.emit(f"\tJMP {lbl_true}")
+                            self.emit("@GE_CHECK_LOW:")
+                            load_left_low()
+                            self.emit(f"\tCMP {cmp_lo}")
+                            self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
 
                 # Load left side into A/X
                 self.gen_expr(cond.left)

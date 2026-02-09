@@ -182,7 +182,7 @@ while condition
 end
 
 for i = 0 to 10
-    ; Repeat 11 times (0 through 10)
+    ; Repeat 10 times (0 through 9)
 end
 ```
 
@@ -475,14 +475,15 @@ end
 
 Repeat a set number of times:
 
-**Note:** The `to` bound is inclusive. For example, `for i = 0 to 9` runs 10 iterations (0..9), and `for i = 0 to 0` runs once.
+**Note:** The `to` bound is exclusive (C-like). For example, `for i = 0 to 9` runs 9 iterations (0..8), and `for i = 0 to 1` runs once.
+If you need to include a specific last value, set `to` one step past it (e.g., `for i = 0 to 10` includes 9 with step 1, or `for i = 0 to 110 step 10` includes 100).
 
 ```zap
 byte i
 
 proc count_ten()
     for i = 0 to 9
-        ; Executes 10 times (i = 0, 1, 2, ... 9)
+        ; Executes 9 times (i = 0, 1, 2, ... 8)
     end
 end
 ```
@@ -493,7 +494,7 @@ byte i
 
 proc count_by_tens()
     for i = 0 to 100 step 10
-        ; i = 0, 10, 20, 30, ... 100
+        ; i = 0, 10, 20, 30, ... 90
     end
 end
 ```
@@ -504,7 +505,7 @@ byte i
 
 proc count_down()
     for i = 10 to 0 step -1
-        ; i = 10, 9, 8, ... 0
+        ; i = 10, 9, 8, ... 1
     end
 end
 ```

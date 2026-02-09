@@ -834,17 +834,17 @@ proc for_example()
     
     ; Basic for loop
     for i = 0 to 9
-        ; Execute 10 times (0-9)
+        ; Execute 9 times (0-8)
     end
     
     ; For loop with step
     for i = 0 to 100 step 10
-        ; i = 0, 10, 20, ..., 100
+        ; i = 0, 10, 20, ..., 90
     end
     
     ; Descending
     for i = 10 to 0 step -1
-        ; i = 10, 9, 8, ..., 0
+        ; i = 10, 9, 8, ..., 1
     end
     
     ; With break
@@ -856,7 +856,8 @@ proc for_example()
 end
 ```
 
-**Semantics:** The `to` bound is inclusive. With a positive step, the loop runs while `i <= end`. With a negative step, it runs while `i >= end`.
+**Semantics:** The `to` bound is exclusive (C-like). With a positive step, the loop runs while `i < end`. With a negative step, it runs while `i > end`.
+To include a specific last value, set `to` one step past it (e.g., `for i = 0 to 10` includes 9 with step 1; `for i = 0 to 110 step 10` includes 100).
 
 ### break Statement
 
