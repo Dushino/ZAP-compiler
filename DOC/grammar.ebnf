@@ -3,7 +3,11 @@
 (* Lexical tokens: IDENT, NUMBER, STRING, DECLMOD, ASM_BLOCK *)
 (*
    Enums: compile-time-only named integer constants. Default base type is `byte` unless a `word` is specified before the enum name.
-   Example: enum byte Flags { FLAG_A = 1, FLAG_B = 2 }
+   Example (END-style):
+   enum byte Flags
+       FLAG_A = 1
+       FLAG_B = 2
+   END
 *)
 (* Comments: beginning with ; until end of line *)
 
@@ -18,7 +22,8 @@ top_level       ::= declaration
                   | module_decl
                   | include_decl ;
 
-enum_decl       ::= "enum" [ type ] IDENT "{" [ enum_item { "," enum_item } ] [ "," ] "}" ;
+enum_decl       ::= "enum" [ type ] IDENT enum_body "END" ;
+enum_body       ::= { enum_item [ "," ] } ;
 enum_item       ::= IDENT [ "=" expression ] ;
 
 module_decl     ::= ".module" STRING [ decl_modifiers ] ;

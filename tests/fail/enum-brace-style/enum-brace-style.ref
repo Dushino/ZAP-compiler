@@ -1,0 +1,4 @@
+# Error Test - Brace-style enum removed
+
+## Expected Error
+Brace-style enum declarations (with '{' '}') are not supported; use END-style enums instead ("END").

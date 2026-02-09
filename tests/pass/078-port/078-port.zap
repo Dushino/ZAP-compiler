@@ -1,7 +1,7 @@
 
-struct VIA_STRUCT
-    byte ORB
-    byte ORA    
+struct VIA_STRUCT #port
+    byte ORB    #wr ; warning: not true for real VIA
+    byte ORA    #rd ; warning: not true for real VIA
     byte DDRB
     byte DDRA
     byte T1CL
@@ -10,7 +10,7 @@ struct VIA_STRUCT
     byte T1LH   
     byte T2CL   
     byte T2CH   
-    byte SR    
+    byte SR     #rd  ; warning: not true for real VIA
     byte ACR   
     byte PCR
     byte IFR    
@@ -23,10 +23,10 @@ VIA_STRUCT VIA1 @40000 #port
 VIA_STRUCT VIA2 @40016 #port
 
 proc helper() 
-    VIA1.ORB = $01
-    VIA1.DDRB = $FF
-    VIA2.ORB = $02
-    VIA2.DDRB = $FF
+    VIA1.ORB = $01      ; #wr
+    VIA1.DDRB = $FF     ; #rd #wr
+    VIA2.ORB = $02      ; #wr
+    VIA2.DDRB = $FF     ; #rd #wr
 end
 
 

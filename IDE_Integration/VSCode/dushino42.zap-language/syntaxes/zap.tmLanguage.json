@@ -16,6 +16,9 @@
             "include": "#keywords"
         },
         {
+            "include": "#enum-block"
+        },
+        {
             "include": "#storage-types"
         },
         {
@@ -153,6 +156,34 @@
                 {
                     "name": "entity.name.function.zap",
                     "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()"
+                }
+            ]
+        },
+        "enum-block": {
+            "begin": "(?i)^\\s*enum\\b.*$",
+            "beginCaptures": {
+                "0": { "name": "keyword.control.enum.zap" }
+            },
+            "end": "(?i)^\\s*END\\b",
+            "endCaptures": {
+                "0": { "name": "keyword.control.end.zap" }
+            },
+            "name": "meta.block.enum.zap",
+            "patterns": [
+                {
+                    "name": "entity.name.constant.enum.zap",
+                    "match": "^[ \\t]*([A-Za-z_][A-Za-z0-9_]*)",
+                    "captures": {
+                        "1": { "name": "entity.name.constant.enum.zap" }
+                    }
+                },
+                {
+                    "name": "constant.numeric.zap",
+                    "match": "\\$[0-9A-Fa-f]+|\\b[0-9]+\\b"
+                },
+                {
+                    "name": "keyword.operator.assignment.zap",
+                    "match": "="
                 }
             ]
         }

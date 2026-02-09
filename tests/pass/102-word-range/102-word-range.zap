@@ -1,8 +1,8 @@
-enum word Big {
-    A = 300,
-    B,
+enum word Big
+    A = 300
+    B
     C = 65535
-}
+END
 
 const word w1 = Big.A
 const word w2 = Big.C

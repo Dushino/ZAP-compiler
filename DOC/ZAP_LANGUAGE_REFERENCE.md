@@ -253,15 +253,15 @@ byte SOUND_OUT @$D400 #PORT #WR     ; writing audio registers
 
 Enums provide a concise syntax for defining a set of named integer constants. They are compile-time only and are expanded into `const` symbols (no runtime storage or overhead).
 
-**Syntax:**
+**Syntax (END-style):**
 
 ```zap
-enum [byte|word] Name {
-    ITEM1 [= expr],
-    ITEM2,
-    ITEM3 = 5,
+enum [byte|word] Name
+    ITEM1 [= expr]
+    ITEM2
+    ITEM3 = 5
     ITEM4
-}
+END
 ```
 
 **Key points:**
@@ -277,11 +277,11 @@ enum [byte|word] Name {
 Basic enum (default `byte` base):
 
 ```zap
-enum Colors {
-    RED,
-    GREEN,
+enum Colors
+    RED
+    GREEN
     BLUE
-}
+END
 
 byte c = GREEN     ; c == 1
 byte arr[BLUE + 1] ; use enum value in an array size
@@ -290,12 +290,12 @@ byte arr[BLUE + 1] ; use enum value in an array size
 Explicit values and auto-increment:
 
 ```zap
-enum byte E {
-    A = 1,
-    B,       ; B == 2
-    C = 5,
+enum byte E
+    A = 1
+    B       ; B == 2
+    C = 5
     D       ; D == 6
-}
+END
 
 const byte v = D
 ```
@@ -303,15 +303,14 @@ const byte v = D
 Word-sized enum and large values:
 
 ```zap
-enum word Big {
-    A = 300,
-    B,
+enum word Big
+    A = 300
+    B
     C = 65535
-}
+END
 
 const word w1 = A
 ```
-
 **Common errors (semantic checks performed by `EnumAnalyzer` in `sema.py`):**
 - "Enum value N out of range for byte" — when an explicit or inferred value is outside 0..255 for `byte` enums.
 - "Enum member 'NAME' duplicated in enum 'X'" — duplicate member names within the same enum.

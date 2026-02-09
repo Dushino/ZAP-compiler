@@ -1,9 +1,9 @@
-enum byte E {
-    A = 1,
-    B,
-    C = 5,
+enum byte E
+    A = 1
+    B
+    C = 5
     D
-}
+END
 
 const byte v = E.D
 

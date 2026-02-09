@@ -1,8 +1,8 @@
-enum Color {
-    RED,
-    GREEN,
+enum Color
+    RED
+    GREEN
     BLUE
-}
+END
 
 byte c = Color.GREEN
 byte arr[Color.BLUE + 1] @40001

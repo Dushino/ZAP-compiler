@@ -123,17 +123,17 @@ class Parser:
                 if self.cur.type == TOK_KEYWORD:
                     self.advance()  # skip "end"
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "ENUM":
-                # Collect enum name for first-pass recognition
+                # Collect enum name for first-pass recognition (END-style enums)
                 self.advance()  # skip "enum"
                 # Optional base type (byte/word)
                 if self.cur.type == TOK_TYPE:
                     self.advance()
                 if self.cur.type == TOK_IDENT:
                     self.struct_names.add(self.cur.value.upper())
-                # Skip to closing '}'
-                while self.cur.type != TOK_EOF and not (self.cur.type == TOK_OP and self.cur.value == "}"):
+                # Skip to closing 'END'
+                while self.cur.type != TOK_EOF and not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
                     self.advance()
-                if self.cur.type == TOK_OP and self.cur.value == "}":
+                if self.cur.type == TOK_KEYWORD and self.cur.value == "END":
                     self.advance()
             else:
                 self.advance()
@@ -339,7 +339,12 @@ class Parser:
         return StructDef(struct_name, fields, is_port=struct_is_port, port_rd=struct_port_rd, port_wr=struct_port_wr, line=start_line, col=start_col)
 
     def parse_enum(self) -> EnumDecl:
-        """Parse enum declaration: enum [type] Name { item [, item]* }"""
+        """Parse enum declaration (END-style only):
+           enum [type] Name
+               item [= value]
+               [,...]
+           END
+        """
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "ENUM")
@@ -351,29 +356,26 @@ class Parser:
         name: str = self.cur.value
         self.expect(TOK_IDENT)
         items = []
-        # expect '{'
-        self.expect(TOK_LCURLY)
-        # empty enum allowed
-        if self.cur.type != TOK_RCURLY:
-            while True:
-                item_line: int = self.cur.line
-                item_col: int = self.cur.col
-                item_name: str = self.cur.value
-                if item_name.startswith('_'):
-                    self.error("Enum member names cannot start with underscore")
-                self.expect(TOK_IDENT)
-                item_value = None
-                if self.cur.type == TOK_EQU:
-                    self.advance()
-                    item_value = self.parse_expr()
-                items.append(EnumItem(item_name, item_value, line=item_line, col=item_col))
-                if self.cur.type == TOK_DELIM and self.cur.value == ',':
-                    self.advance()
-                    if self.cur.type == TOK_RCURLY:
-                        break
-                    continue
-                break
-        self.expect(TOK_RCURLY)
+        # END-style enum, parse until END
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
+            item_line: int = self.cur.line
+            item_col: int = self.cur.col
+            if self.cur.type != TOK_IDENT:
+                self.error("Expected enum member name or END")
+            item_name: str = self.cur.value
+            if item_name.startswith('_'):
+                self.error("Enum member names cannot start with underscore")
+            self.expect(TOK_IDENT)
+            item_value = None
+            if self.cur.type == TOK_EQU:
+                self.advance()
+                item_value = self.parse_expr()
+            items.append(EnumItem(item_name, item_value, line=item_line, col=item_col))
+            # optional trailing comma
+            if self.cur.type == TOK_DELIM and self.cur.value == ',':
+                self.advance()
+                continue
+        self.expect(TOK_KEYWORD, "END")
         return EnumDecl(name, base, items, line=start_line, col=start_col)
 
 
