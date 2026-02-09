@@ -354,6 +354,7 @@ class CodeGen:
         - 65c02: Replace LDX #0; STA addr; STX addr+1 with STA addr; STZ addr+1
         - Remove redundant LDX #0 when X is immediately overwritten by TAX
         - Remove blank line immediately before RTS
+        - Remove conditional branch to next label (no-op)
         """
         optimized: list[str] = []
         i = 0
@@ -476,6 +477,103 @@ class CodeGen:
                 if found_tax:
                     i += 1
                     continue
+
+            # Optimize word load/store via (TMP0),Y: avoid TAX/STX
+            if i + 6 < len(self.code):
+                l1 = self.code[i].strip()
+                l2 = self.code[i + 1].strip()
+                l3 = self.code[i + 2].strip()
+                l4 = self.code[i + 3].strip()
+                l5 = self.code[i + 4].strip()
+                l6 = self.code[i + 5].strip()
+                l7 = self.code[i + 6].strip()
+                l1_u = l1.split(';')[0].strip().upper()
+                l2_u = l2.split(';')[0].strip().upper()
+                l3_u = l3.split(';')[0].strip().upper()
+                l4_u = l4.split(';')[0].strip().upper()
+                l5_u = l5.split(';')[0].strip().upper()
+                l6_u = l6.split(';')[0].strip().upper()
+                l7_u = l7.split(';')[0].strip().upper()
+                if (l1_u == "LDY #1" and l2_u == "LDA (TMP0),Y" and l3_u == "TAX" and
+                        l4_u == "DEY" and l5_u == "LDA (TMP0),Y" and l6_u.startswith("STA ") and
+                        l7_u.startswith("STX ")):
+                    dest = l6_u.split(maxsplit=1)[1].strip()
+                    dest_hi = l7_u.split(maxsplit=1)[1].strip()
+                    if dest_hi == f"{dest}+1":
+                        optimized.append(self.code[i])
+                        optimized.append(self.code[i + 1])
+                        indent = self.code[i + 5][:len(self.code[i + 5]) - len(self.code[i + 5].lstrip())]
+                        optimized.append(f"{indent}STA {dest}+1\n")
+                        optimized.append(self.code[i + 3])
+                        optimized.append(self.code[i + 4])
+                        optimized.append(self.code[i + 5])
+                        i += 7
+                        continue
+
+            # Replace LDX #0; CLC; ADC TMP0; STA TMP0; TXA -> CLC; ADC TMP0; STA TMP0; LDA #0
+            if i + 4 < len(self.code):
+                l1 = self.code[i].strip()
+                l2 = self.code[i + 1].strip()
+                l3 = self.code[i + 2].strip()
+                l4 = self.code[i + 3].strip()
+                l5 = self.code[i + 4].strip()
+                l1_u = l1.split(';')[0].strip().upper()
+                l2_u = l2.split(';')[0].strip().upper()
+                l3_u = l3.split(';')[0].strip().upper()
+                l4_u = l4.split(';')[0].strip().upper()
+                l5_u = l5.split(';')[0].strip().upper()
+                if (l1_u in {"LDX #0", "LDX #$0", "LDX #$00"} and l2_u == "CLC" and
+                        l3_u == "ADC TMP0" and l4_u == "STA TMP0" and l5_u == "TXA"):
+                    optimized.append(self.code[i + 1])
+                    optimized.append(self.code[i + 2])
+                    optimized.append(self.code[i + 3])
+                    indent = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
+                    optimized.append(f"{indent}LDA #0\n")
+                    i += 5
+                    continue
+
+            # Remove redundant LDX #0 before accumulator shift/rotate
+            if instr_part in {"LDX #0", "LDX #$0", "LDX #$00"}:
+                j = i + 1
+                removed_ldx = False
+                while j < len(self.code):
+                    look_line = self.code[j].strip()
+                    look_upper = look_line.upper()
+                    if not look_line or look_line.startswith(";"):
+                        j += 1
+                        continue
+                    if look_upper.endswith(":"):
+                        break
+                    op = look_upper.split()[0]
+                    if op in {"ASL", "LSR", "ROL", "ROR"}:
+                        parts = look_upper.split()
+                        if len(parts) == 1 or parts[1] == "A":
+                            i += 1
+                            removed_ldx = True
+                        break
+                    break
+                if removed_ldx:
+                    continue
+
+            # Remove conditional branch to the next label (no-op)
+            branch_ops = {"BEQ", "BNE", "BCC", "BCS", "BMI", "BPL", "BVC", "BVS", "BRA"}
+            if instr_part:
+                parts = instr_part.split()
+                if len(parts) == 2 and parts[0] in branch_ops:
+                    target = parts[1]
+                    j = i + 1
+                    removed_branch = False
+                    while j < len(self.code):
+                        next_line = self.code[j].strip()
+                        if not next_line or next_line.startswith(";"):
+                            j += 1
+                            continue
+                        if next_line == f"{target}:":
+                            i += 1
+                            removed_branch = True
+                        break
+                    if removed_branch:
+                        continue
             
             # Tail call optimization: JSR followed by RTS -> JMP
             if line_upper.startswith("JSR "):
@@ -2247,24 +2345,25 @@ class CodeGen:
             
             # If only calculating address, we're done
             if calc_addr_only:
-                return
-            
-            # Load or store element at TMP0
-            if load_only:
-                self.emit("\tLDY #0")
-                self.emit("\tLDA (TMP0),Y")
                 if element_width == 2:
-                    self.emit("\tPHA")  # Save low byte
-                    self.emit("\tINY")
+                    self.emit("\tLDY #1")
                     self.emit("\tLDA (TMP0),Y")
                     self.emit("\tTAX")  # X = high byte
-                    self.emit("\tPLA")  # A = low byte (restored)
+                    self.emit("\tDEY")
+                    self.emit("\tLDA (TMP0),Y")
                 else:
-                    # For BYTE element, skip LDX #0 if assignment target is BYTE (optimization at 3216)
-                    if not (self.assign_target_type and 
-                            hasattr(self.assign_target_type, 'base') and
-                            self.assign_target_type.base == "BYTE" and 
-                            not getattr(self.assign_target_type, 'is_pointer', False)):
+                    self.emit("\tLDY #0")
+                    self.emit("\tLDA (TMP0),Y")
+                    # For BYTE element, only set X if final target is not BYTE
+                    # If target is BYTE, we only need the low byte in A
+                    need_x = True
+                    if self.assign_target_type:
+                        if hasattr(self.assign_target_type, 'base'):
+                            if (self.assign_target_type.base == "BYTE" and 
+                                not getattr(self.assign_target_type, 'is_pointer', False)):
+                                need_x = False
+                    if need_x:
+                        self.emit("\tLDX #0     ; note 3322")
                         self.emit("\tLDX #0     ; note 3211")
             else:
                 # Store RHS value (in TMP2/TMP2+1)
@@ -2358,15 +2457,15 @@ class CodeGen:
         
         # Load or store element at TMP0
         if load_only:
-            self.emit("\tLDY #0")
-            self.emit("\tLDA (TMP0),Y")
             if element_width == 2:
-                self.emit("\tPHA")  # Save low byte
-                self.emit("\tINY")
+                self.emit("\tLDY #1")
                 self.emit("\tLDA (TMP0),Y")
                 self.emit("\tTAX")  # X = high byte
-                self.emit("\tPLA")  # A = low byte (restored)
+                self.emit("\tDEY")
+                self.emit("\tLDA (TMP0),Y")
             else:
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
                 self.emit("\tLDX #0     ; note 3311")
         else:
             # Store RHS value (in TMP2/TMP2+1)
@@ -2551,15 +2650,15 @@ class CodeGen:
             return
 
         if load_only:
-            self.emit("\tLDY #0")
-            self.emit("\tLDA (TMP0),Y")
             if element_width == 2:
-                self.emit("\tPHA")  # Save low byte
-                self.emit("\tINY")
+                self.emit("\tLDY #1")
                 self.emit("\tLDA (TMP0),Y")
                 self.emit("\tTAX")  # X = high byte
-                self.emit("\tPLA")  # A = low byte (restored)
+                self.emit("\tDEY")
+                self.emit("\tLDA (TMP0),Y")
             else:
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
                 # For BYTE element, only set X if final target is not BYTE
                 # If target is BYTE, we only need the low byte in A
                 need_x = True
@@ -2752,27 +2851,26 @@ class CodeGen:
             if load_only:
                 if field_offset == 0:
                     # Field at offset 0: just load directly
-                    self.emit("\tLDY #0")
-                    self.emit("\tLDA (TMP0),Y")
-                    
                     if field_width == 2:
-                        # Load high byte
-                        self.emit("\tPHA")
-                        self.emit("\tINY")
+                        self.emit("\tLDY #1")
                         self.emit("\tLDA (TMP0),Y")
                         self.emit("\tTAX")
-                        self.emit("\tPLA")
+                        self.emit("\tDEY")
+                        self.emit("\tLDA (TMP0),Y")
+                    else:
+                        self.emit("\tLDY #0")
+                        self.emit("\tLDA (TMP0),Y")
                 else:
                     # Field at offset > 0, address is already in TMP0
-                    self.emit("\tLDY #0")
-                    self.emit("\tLDA (TMP0),Y")
-                    
                     if field_width == 2:
-                        self.emit("\tPHA")
-                        self.emit("\tINY")
+                        self.emit("\tLDY #1")
                         self.emit("\tLDA (TMP0),Y")
                         self.emit("\tTAX")
-                        self.emit("\tPLA")
+                        self.emit("\tDEY")
+                        self.emit("\tLDA (TMP0),Y")
+                    else:
+                        self.emit("\tLDY #0")
+                        self.emit("\tLDA (TMP0),Y")
         else:
             # obj.field - direct field access
             # obj can be: Identifier or SubscriptExpr (array[index])
@@ -2818,16 +2916,15 @@ class CodeGen:
                     self.emit(f"NOCARRY_ARRFIELD_{id(expr)}:")
                 
                 # 3) Load field value via indirect addressing
-                self.emit("\tLDY #0")
-                self.emit("\tLDA (TMP0),Y")
-                
                 if field_width == 2:
-                    self.emit("\tPHA")
-                    self.emit("\tINY")
+                    self.emit("\tLDY #1")
                     self.emit("\tLDA (TMP0),Y")
                     self.emit("\tTAX")
-                    self.emit("\tPLA")
+                    self.emit("\tDEY")
+                    self.emit("\tLDA (TMP0),Y")
                 else:
+                    self.emit("\tLDY #0")
+                    self.emit("\tLDA (TMP0),Y")
                     # BYTE field -> X = 0
                     # Optimization: skip LDX #0 if assignment target is BYTE
                     target_is_byte: None | bool = (self.assign_target_type and 
@@ -4547,7 +4644,7 @@ class CodeGen:
                         continue
 
                     # Substitute consts and fold before codegen
-                    arg = subst_const(arg, cast(SymbolTable, self.current_symtab))
+                    arg = subst_const(cast(Expr, arg), cast(SymbolTable, self.current_symtab))
                     arg = fold_expr(arg)
 
                     self.tc_check(arg)
@@ -5738,7 +5835,7 @@ class CodeGen:
                         continue
 
                     # Substitute consts and fold before codegen
-                    arg = subst_const(arg, cast(SymbolTable, self.current_symtab))
+                    arg = subst_const(cast(Expr, arg), cast(SymbolTable, self.current_symtab))
                     arg = fold_expr(arg)
 
                     self.tc_check(arg)

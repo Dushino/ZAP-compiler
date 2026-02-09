@@ -20,11 +20,15 @@ proc main()
     byte ch
 
     cls()
-    PLAYF2 = COLOR_GREEN3 + 4
+    PLAYF2 = COLOR_GREEN3 + 2
+    putchar('H')
+    putchar('i')    
+    putchar('!')
+    
     ch = getchar()
     while ch != 27
         switch ch
-    
+
             default
                 putx(ch)
                 break
