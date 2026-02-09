@@ -17,7 +17,7 @@ from ast_nodes import (
     UnOp,
     Expr, ExprInit, ListInit, StringInit, CallExpr,
     CallStmt, AssignStmt,
-    IfStmt, ReturnStmt, WhileStmt, ForStmt,
+    IfStmt, ReturnStmt, WhileStmt, ForStmt, SwitchStmt,
     AsmBlock, FieldAccess
 )
 from sema_expr import ExprTypeChecker
@@ -84,6 +84,9 @@ class CodeGen:
         # Track assignment target for safe temp reuse in expression codegen
         self.assign_target_sym: Symbol | None = None
         self.assign_target_blocked: bool = False
+        # Control-flow stacks
+        self.loop_stack: list[tuple[str, str]] = []
+        self.break_stack: list[str] = []
 
     def tc_check(self, expr, read_check_enabled: bool = True) -> ExprType:
         # Wrapper to attach source location to type-checker errors
@@ -5770,6 +5773,118 @@ class CodeGen:
             
             self.emit("\tRTS")
             return
+
+        if isinstance(stmt, SwitchStmt):
+            expr = subst_const(stmt.expr, cast(SymbolTable, self.current_symtab))
+            expr = fold_expr(expr)
+            expr_t = self.tc_check(expr)
+            is_word = expr_t.sem_type.base == "WORD" or expr_t.sem_type.is_pointer
+
+            self.used_temps.add("TMP4")
+
+            prev_force: bool = self.force_word_result
+            if is_word:
+                self.force_word_result = True
+            try:
+                self.gen_expr(expr)
+            finally:
+                self.force_word_result = prev_force
+
+            self.emit("\tSTA TMP4")
+            if is_word:
+                self.emit("\tSTX TMP4+1")
+            else:
+                self.emit("\tLDA #$00")
+                self.emit("\tSTA TMP4+1")
+
+            end_label: str = self.new_label("endswitch")
+
+            case_labels: list[str] = []
+            default_label: str | None = None
+            for case in stmt.cases:
+                lbl = self.new_label("case")
+                case_labels.append(lbl)
+                if case.is_default:
+                    default_label = lbl
+
+            comparisons: list[tuple[Expr, str]] = []
+            for case, lbl in zip(stmt.cases, case_labels):
+                for label_expr in case.labels:
+                    comparisons.append((label_expr, lbl))
+
+            fallback_label: str = self.new_label("switch_nomatch")
+            uses_tmp5 = False
+
+            for idx, (label_expr, lbl) in enumerate(comparisons):
+                next_label: str = fallback_label if idx == len(comparisons) - 1 else self.new_label("switch_next")
+
+                folded = fold_expr(subst_const(label_expr, cast(SymbolTable, self.current_symtab)))
+                if isinstance(folded, IntLiteral):
+                    val = folded.value & 0xFFFF
+                    if is_word:
+                        self.emit("\tLDA TMP4+1")
+                        self.emit(f"\tCMP #${(val >> 8) & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit("\tLDA TMP4")
+                        self.emit(f"\tCMP #${val & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tJMP {lbl}")
+                    else:
+                        self.emit("\tLDA TMP4")
+                        self.emit(f"\tCMP #${val & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tJMP {lbl}")
+                else:
+                    uses_tmp5 = True
+                    prev_force = self.force_word_result
+                    if is_word:
+                        self.force_word_result = True
+                    try:
+                        self.gen_expr(folded)
+                    finally:
+                        self.force_word_result = prev_force
+
+                    self.emit("\tSTA TMP5")
+                    if is_word:
+                        self.emit("\tSTX TMP5+1")
+                    else:
+                        self.emit("\tLDA #$00")
+                        self.emit("\tSTA TMP5+1")
+
+                    if is_word:
+                        self.emit("\tLDA TMP4+1")
+                        self.emit("\tCMP TMP5+1")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit("\tLDA TMP4")
+                        self.emit("\tCMP TMP5")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tJMP {lbl}")
+                    else:
+                        self.emit("\tLDA TMP4")
+                        self.emit("\tCMP TMP5")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tJMP {lbl}")
+
+                if next_label != fallback_label:
+                    self.emit(f"{next_label}:")
+
+            if uses_tmp5:
+                self.used_temps.add("TMP5")
+
+            self.emit(f"{fallback_label}:")
+            if default_label is not None:
+                self.emit(f"\tJMP {default_label}")
+            else:
+                self.emit(f"\tJMP {end_label}")
+
+            self.break_stack.append(end_label)
+            for case, lbl in zip(stmt.cases, case_labels):
+                self.emit(f"{lbl}:")
+                for s in case.body:
+                    self.gen_stmt(s)
+            self.emit(f"{end_label}:")
+            self.break_stack.pop()
+            return
         
         if isinstance(stmt, IfStmt):
             cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
@@ -5828,6 +5943,7 @@ class CodeGen:
 
             # PUSH
             self.loop_stack.append((lbl_start, lbl_end))
+            self.break_stack.append(lbl_end)
 
             self.emit(f"{lbl_start}:")
             cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
@@ -5854,12 +5970,13 @@ class CodeGen:
 
             # POP
             self.loop_stack.pop()
+            self.break_stack.pop()
             return
         
         if isinstance(stmt, BreakStmt):
-            if not self.loop_stack:
-                self._raise_error("BREAK outside of loop")
-            _, end_label = self.loop_stack[-1]
+            if not self.break_stack:
+                self._raise_error("BREAK outside of loop or switch")
+            end_label = self.break_stack[-1]
             self.emit(f"\tJMP {end_label}")
             return
 

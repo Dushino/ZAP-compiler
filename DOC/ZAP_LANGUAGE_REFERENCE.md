@@ -859,6 +859,56 @@ end
 **Semantics:** The `to` bound is exclusive (C-like). With a positive step, the loop runs while `i < end`. With a negative step, it runs while `i > end`.
 To include a specific last value, set `to` one step past it (e.g., `for i = 0 to 10` includes 9 with step 1; `for i = 0 to 110 step 10` includes 100).
 
+### switch Statement
+
+ZAP supports C-style `switch` with `case`, `default`, fallthrough, and `break`.
+
+```zap
+switch expr
+    case value1
+        ; statements
+        break
+    case value2
+    case value3
+        ; stacked labels
+        break
+    default
+        ; optional default
+        break
+end
+```
+
+**Rules:**
+- `case` labels must be compile-time constants.
+- `default` is optional but can appear only once.
+- Duplicate `case` values are an error.
+- Fallthrough is allowed: if a `case` body does not end with `break`, execution continues into the next case.
+- `break` exits the nearest `switch` or loop.
+
+Example:
+
+```zap
+switch ch
+    case 13
+        putchar(10)   ; CRLF
+        putchar(13)
+        break
+    case 8
+        putchar(8)    ; Backspace
+        putchar(32)   ; Space to clear character
+        putchar(8)    ; Move back again
+        break
+    case 'a'
+    case 'b'
+    case 'c'
+        PLAYF4 = COLOR_RED1 + (ch - 'a') * 2
+        break
+    default
+        putchar(ch)
+        break
+end
+```
+
 ### break Statement
 
 ```zap

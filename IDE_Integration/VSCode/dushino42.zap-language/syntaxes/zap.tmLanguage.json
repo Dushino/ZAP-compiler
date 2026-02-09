@@ -84,7 +84,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.zap",
-                    "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|WHILE|FOR|TO|STEP|WHILE|PROC|FUNC|END|ASM|RETURN|EXIT|STRUCT|ENUM)\\b"
+                    "match": "(?i)\\b(IF|THEN|ELSE|ELSEIF|ENDIF|SWITCH|CASE|BREAK|WHILE|FOR|TO|STEP|WHILE|PROC|FUNC|END|ASM|RETURN|EXIT|STRUCT|ENUM)\\b"
                 },
                 {
                     "name": "keyword.other.zap",

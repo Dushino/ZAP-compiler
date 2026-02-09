@@ -200,7 +200,10 @@ class ProcAnalyzer:
                 return fname, line, col
 
             def validate_stmt_exprs(statements: list) -> None:
-                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, Identifier, SubscriptExpr, FieldAccess
+                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, Identifier, SubscriptExpr, FieldAccess, IntLiteral
+                from constsubst import subst_const
+                from constfold import fold_expr
+                from sema_types import ExprKind
                 for st in statements:
                     if isinstance(st, AssignStmt):
                         # LHS write context: disable read checks (check LHS first so missing LHS is reported instead of RHS)
@@ -353,6 +356,50 @@ class ProcAnalyzer:
                                     raise err
                                 raise
                         validate_stmt_exprs(st.body)
+                    elif isinstance(st, SwitchStmt):
+                        try:
+                            sw_type = tc.check(st.expr)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err = SemanticError(e.message, line=line, col=col)
+                                err.filename = fname
+                                raise err
+                            raise
+
+                        if sw_type.kind != ExprKind.VALUE:
+                            raise SemanticError("SWITCH expression must be a value", node=st.expr)
+
+                        seen_default = False
+                        seen_values: set[int] = set()
+
+                        for case in st.cases:
+                            if case.is_default:
+                                if seen_default:
+                                    raise SemanticError("Duplicate DEFAULT in SWITCH", node=st)
+                                seen_default = True
+
+                            for label in case.labels:
+                                # Validate label expression and ensure it is constant
+                                tc.check(label)
+                                folded = fold_expr(subst_const(label, cast(SymbolTable, tc.symtab)))
+                                if not isinstance(folded, IntLiteral):
+                                    raise SemanticError("CASE label must be constant", node=label)
+                                val = folded.value
+
+                                if sw_type.sem_type.base == "BYTE" and not sw_type.sem_type.is_pointer:
+                                    if val < 0 or val > 0xFF:
+                                        raise SemanticError("CASE label out of range for BYTE", node=label)
+                                if sw_type.sem_type.base == "WORD" and not sw_type.sem_type.is_pointer:
+                                    if val < 0 or val > 0xFFFF:
+                                        raise SemanticError("CASE label out of range for WORD", node=label)
+
+                                if val in seen_values:
+                                    raise SemanticError("Duplicate CASE label", node=label)
+                                seen_values.add(val)
+
+                            validate_stmt_exprs(case.body)
 
             validate_stmt_exprs(proc.body)
 
@@ -360,7 +407,7 @@ class ProcAnalyzer:
         # set current_proc so analyze_call can check visibility
         self.current_proc = proc
         def walk(statements: list) -> None:
-            from ast_nodes import CallStmt, IfStmt, WhileStmt, ForStmt
+            from ast_nodes import CallStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt
             for st in statements:
                 if isinstance(st, CallStmt):
                     self.analyze_call(st)
@@ -372,6 +419,9 @@ class ProcAnalyzer:
                     walk(st.body)
                 elif isinstance(st, ForStmt):
                     walk(st.body)
+                elif isinstance(st, SwitchStmt):
+                    for case in st.cases:
+                        walk(case.body)
                 # other statements (AssignStmt, ReturnStmt, Break/Continue) need no proc validation
 
         walk(proc.body)

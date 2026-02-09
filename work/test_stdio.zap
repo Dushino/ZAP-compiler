@@ -4,18 +4,36 @@
 .define ATARI
 .include "lib/stdio.zap"
 
+
+proc getcmd()
+    byte ch
+    ch = getchar()
+    while ch == 0
+        ch = getchar()
+    end
+    return ch
+end
+
+
 proc main()
 
     byte ch
 
     cls()
-
     PLAYF2 = COLOR_GREEN3 + 4
-
-
     ch = getchar()
     while ch != 27
-        putchar(ch)
+        switch ch
+            case 13
+                break                
+                
+            case 8
+                break
+
+            default
+                putchar(ch)
+                break
+        end
         ch = getchar()
     end 
 

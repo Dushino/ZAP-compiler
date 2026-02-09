@@ -31,7 +31,7 @@ from ast_nodes import IfStmt
 from ast_nodes import IfStmt
 from ast_nodes import WhileStmt
 from ast_nodes import ForStmt
-from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, ErrorDirective, WarningDirective, InfoDirective, WhileStmt
+from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, ErrorDirective, WarningDirective, InfoDirective, WhileStmt, SwitchStmt, SwitchCase
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
@@ -1409,6 +1409,60 @@ class Parser:
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
 
+    def parse_switch(self) -> SwitchStmt:
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
+        self.expect(TOK_KEYWORD, "SWITCH")
+        expr = self.parse_expr()
+
+        cases: list[SwitchCase] = []
+        current_labels: list[Expr] = []
+        current_body: list = []
+        current_is_default: bool = False
+        seen_label: bool = False
+
+        def flush_case() -> None:
+            nonlocal current_labels, current_body, current_is_default
+            if current_labels or current_body or current_is_default:
+                cases.append(SwitchCase(current_labels, current_body, current_is_default))
+            current_labels = []
+            current_body = []
+            current_is_default = False
+
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
+            if self.cur.type == TOK_KEYWORD and self.cur.value == "CASE":
+                # Start a new case label; flush only if we already started a body
+                if current_body:
+                    flush_case()
+                self.advance()
+                current_labels.append(self.parse_expr())
+                seen_label = True
+                continue
+
+            if self.cur.type == TOK_KEYWORD and self.cur.value == "DEFAULT":
+                if current_body:
+                    flush_case()
+                self.advance()
+                current_is_default = True
+                seen_label = True
+                continue
+
+            if not seen_label:
+                self.error("SWITCH requires CASE or DEFAULT before statements")
+
+            current_body.append(self.parse_stmt())
+
+        flush_case()
+
+        if not cases:
+            self.error("SWITCH requires at least one CASE or DEFAULT")
+
+        self.expect(TOK_KEYWORD, "END")
+        node = SwitchStmt(expr, cases)
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
+        return node
+
 
     def parse_while(self) -> WhileStmt:
         start_line: int = self.cur.line
@@ -1457,7 +1511,7 @@ class Parser:
         return node
 
 
-    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | ForStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
+    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")
 
@@ -1540,6 +1594,8 @@ class Parser:
                 return self.parse_while()
             if self.cur.value == "FOR":
                 return self.parse_for()
+            if self.cur.value == "SWITCH":
+                return self.parse_switch()
             if self.cur.value == "BREAK":
                 self.advance()
                 return BreakStmt()

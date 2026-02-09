@@ -431,3 +431,16 @@ class ForStmt:
     end: Expr
     step: Expr | None
     body: list
+
+
+@dataclass(frozen=True)
+class SwitchCase:
+    labels: list[Expr]
+    body: list
+    is_default: bool = False
+
+
+@dataclass(frozen=True)
+class SwitchStmt:
+    expr: Expr
+    cases: list[SwitchCase]

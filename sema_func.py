@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from typing import Any
 from ast_nodes import Declaration, Expr, FuncDecl, Parameter, Parameter, ReturnStmt
 from sema_types import ExprType
@@ -143,7 +143,10 @@ class FuncAnalyzer:
 
         # Validate all expressions in all statements
         def validate_stmt_exprs(statements: list) -> None:
-            from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt
+            from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, IntLiteral
+            from constsubst import subst_const
+            from constfold import fold_expr
+            from sema_types import ExprKind
             for st in statements:
                 if isinstance(st, AssignStmt):
                     # Validate RHS (reads are checked)
@@ -216,6 +219,39 @@ class FuncAnalyzer:
                     if st.step is not None:
                         validate_expr(st.step, st)
                     validate_stmt_exprs(st.body)
+                elif isinstance(st, SwitchStmt):
+                    sw_type = validate_expr(st.expr, st)
+                    if sw_type.kind != ExprKind.VALUE:
+                        raise SemanticError("SWITCH expression must be a value", node=st.expr)
+
+                    seen_default = False
+                    seen_values: set[int] = set()
+
+                    for case in st.cases:
+                        if case.is_default:
+                            if seen_default:
+                                raise SemanticError("Duplicate DEFAULT in SWITCH", node=st)
+                            seen_default = True
+
+                        for label in case.labels:
+                            validate_expr(label, st)
+                            folded = fold_expr(subst_const(label, cast(SymbolTable, self.expr_tc.symtab)))
+                            if not isinstance(folded, IntLiteral):
+                                raise SemanticError("CASE label must be constant", node=label)
+                            val = folded.value
+
+                            if sw_type.sem_type.base == "BYTE" and not sw_type.sem_type.is_pointer:
+                                if val < 0 or val > 0xFF:
+                                    raise SemanticError("CASE label out of range for BYTE", node=label)
+                            if sw_type.sem_type.base == "WORD" and not sw_type.sem_type.is_pointer:
+                                if val < 0 or val > 0xFFFF:
+                                    raise SemanticError("CASE label out of range for WORD", node=label)
+
+                            if val in seen_values:
+                                raise SemanticError("Duplicate CASE label", node=label)
+                            seen_values.add(val)
+
+                        validate_stmt_exprs(case.body)
 
         validate_stmt_exprs(func.body)
 

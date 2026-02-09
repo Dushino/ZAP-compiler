@@ -170,6 +170,23 @@ end
 
 
 /*
+    crlf - move cursor to the beginning of the next line, scroll screen if needed
+*/
+proc crlf()
+    cur_xpos = 0
+
+    if cur_ypos < SCREEN_Y_SIZE - 1  then
+        cur_ypos = cur_ypos + 1
+    else
+        ; scroll screen up
+        memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
+        memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
+    endif
+    curptr = vlstart[cur_ypos]
+end
+
+
+/*
     putchar to current screen location and move cursor forward, scroll screen if needed
 */
 proc putchar(byte ch)
@@ -179,7 +196,7 @@ proc putchar(byte ch)
             lda _PUTCHAR_CH
             asl a               ; shift out the inverse bit
             adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
-            bpl __codeok          ; screen code ok?
+            bpl __codeok        ; screen code ok?
             eor #$40            ; needs correction
 __codeok:   lsr a               ; undo the shift
             bcc __sputc
@@ -195,15 +212,12 @@ __sputc:
     if cur_xpos >= SCREEN_X_SIZE then
         cur_xpos = 0
 
-        PLAYF4 = cur_ypos
         if cur_ypos < SCREEN_Y_SIZE - 1  then
             cur_ypos = cur_ypos + 1
+            curptr = vlstart[cur_ypos]
         else
-            ; scroll screen up
-            memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
-            memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
+            crlf()
         endif
-        curptr = vlstart[cur_ypos]
     endif
 end
 

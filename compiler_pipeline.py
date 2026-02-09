@@ -59,7 +59,7 @@ def _walk_expr(expr, ctx, global_symtab):
 
 def _walk_stmt(stmt, ctx, global_symtab):
     from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, BreakStmt,
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, BreakStmt,
         ContinueStmt
     )
 
@@ -101,6 +101,15 @@ def _walk_stmt(stmt, ctx, global_symtab):
             _walk_expr(stmt.step, ctx, global_symtab)
         for s in stmt.body:
             _walk_stmt(s, ctx, global_symtab)
+        return
+
+    if isinstance(stmt, SwitchStmt):
+        _walk_expr(stmt.expr, ctx, global_symtab)
+        for case in stmt.cases:
+            for label in case.labels:
+                _walk_expr(label, ctx, global_symtab)
+            for s in case.body:
+                _walk_stmt(s, ctx, global_symtab)
         return
 
     # Break/Continue and others carry no identifiers/calls
@@ -288,7 +297,7 @@ def _walk_expr_locals(expr, used: set[str], local_symtab):
 
 def _walk_stmt_locals(stmt, used: set[str], local_symtab):
     from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, BreakStmt,
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, BreakStmt,
         ContinueStmt
     )
 
@@ -329,6 +338,15 @@ def _walk_stmt_locals(stmt, used: set[str], local_symtab):
             _walk_expr_locals(stmt.step, used, local_symtab)
         for s in stmt.body:
             _walk_stmt_locals(s, used, local_symtab)
+        return
+
+    if isinstance(stmt, SwitchStmt):
+        _walk_expr_locals(stmt.expr, used, local_symtab)
+        for case in stmt.cases:
+            for label in case.labels:
+                _walk_expr_locals(label, used, local_symtab)
+            for s in case.body:
+                _walk_stmt_locals(s, used, local_symtab)
         return
 
     if isinstance(stmt, (BreakStmt, ContinueStmt)):
