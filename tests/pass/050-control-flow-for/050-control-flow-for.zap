@@ -4,11 +4,11 @@ proc main()
     byte arr[5]
     byte i
 
-    for i = 0 to 4
+    for i = 0 to 5
         arr[i] = i * 2
     end
 
-    for i = 0 to 4 STEP 2
+    for i = 0 to 5 STEP 2
         arr[i] = arr[i] + 1
     end
 

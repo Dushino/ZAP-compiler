@@ -59,8 +59,8 @@ byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40
 const byte SCREEN_Y_SIZE = 24
 
-byte ^vlstart[SCREEN_Y_SIZE]  #noexport   ; vertical line start positions for each row of the screen
-
+byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
+byte ^curptr                    #noexport   ; current position in the screen memory for output
 
 /*
     COMHEADER and AUTOSTRT data area
@@ -88,11 +88,13 @@ end
 /*
     Fill memory with byte value
 */
-proc memset(byte ^dest, byte value, word count)
+proc memset(word dest, byte value, word count)
     byte i
+    byte ^ptr = dest
 
-    for i = 0 to count - 1
-        dest[i] = value
+    for i = 0 to count
+        ptr^ = value
+        ptr = ptr + 1
     end
 end
 
@@ -102,17 +104,16 @@ end
 proc cls()
     word i
     byte ^ptr1 = vlstart[0]
-    ; ptr1^ = 3
 
     cur_xpos = 0
     cur_ypos = 0    
+    curptr = vlstart[0]
 
-    ; for i = 0 to (SCREEN_X_SIZE + 1) * (SCREEN_Y_SIZE + 1) ; full-screen: (SCREEN_X_SIZE+1)*(SCREEN_Y_SIZE+1) - 1
-    for i = 0 to SCREEN_X_SIZE
-        ptr1^ = 3
+    for i = 0 to SCREEN_X_SIZE * SCREEN_Y_SIZE
+        ptr1^ = 1
         ptr1 = ptr1 + 1
     end
-    ; vlstart[0]^ = 3
+    memset(vlstart[0], 2, SCREEN_X_SIZE * SCREEN_Y_SIZE)
 
 end
 
@@ -128,8 +129,7 @@ func byte getchar()
         PHA
         LDA $e424
         PHA
-        rts
-        
+        rts        
         sta _GETCHAR_CH
     end
 
@@ -150,8 +150,5 @@ proc CONSTRUCTOR()
     for i = 0 to SCREEN_Y_SIZE
         vlstart[i] = data
         data = data + SCREEN_X_SIZE   
-        vlstart[i]^ = i    
     end
-    vlstart[0]^ = 128
-    cls()
 end

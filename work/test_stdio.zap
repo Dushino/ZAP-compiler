@@ -8,7 +8,7 @@ proc main()
 
     byte ch
 
-    ; cls()
+    cls()
 
     PLAYF2 = COLOR_GREEN3 + 4
 

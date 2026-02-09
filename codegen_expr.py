@@ -6036,15 +6036,11 @@ class CodeGen:
         self.emit("\tLDA #1")
 
         self.emit(f"{lbl_end}:")
-        if not (func.ast.body and isinstance(func.ast.body[-1], ReturnStmt)):
-            if not (proc.ast.body and isinstance(proc.ast.body[-1], ReturnStmt)):
-                self.emit("\tRTS")
         self.emit("\tLDX #0     ; note 6178")
 
     def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
         """Emit relational test that jumps to lbl_true or lbl_false using only short local branches and absolute JMPs.
-        if not (proc.ast.body and isinstance(proc.ast.body[-1], ReturnStmt)):
-            self.emit("\tRTS")
+
         This avoids boolean materialization and keeps conditional branches within range by funneling through local labels.
         """
         left_t: ExprType = self.tc_check(cond.left)
