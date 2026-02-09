@@ -101,14 +101,17 @@ end
 */
 proc cls()
     word i
+    byte ^ptr1 = vlstart[0]
+    ; ptr1^ = 3
 
     cur_xpos = 0
     cur_ypos = 0    
 
-    ;for i = 0 to SCREEN_MAX_YPOS
-    ;    memset(vlstart[i], 1, SCREEN_MAX_XPOS + 1)        
-    ;end
-    vlstart[0]^ = 128
+    for i = 0 to (SCREEN_MAX_XPOS + 1) * (SCREEN_MAX_YPOS + 1) - 1 ; full-screen: (SCREEN_MAX_XPOS+1)*(SCREEN_MAX_YPOS+1) - 1
+        ptr1^ = 3
+        ptr1 = ptr1 + 1
+    end
+    ; vlstart[0]^ = 3
 
 end
 
@@ -148,5 +151,6 @@ proc CONSTRUCTOR()
         data = data + SCREEN_MAX_XPOS + 1    
         vlstart[i]^ = i    
     end
+    vlstart[0]^ = 128
     cls()
 end
