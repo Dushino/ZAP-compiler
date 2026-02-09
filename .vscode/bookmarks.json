@@ -89,12 +89,12 @@
 			"path": "work/test_stdio.s",
 			"bookmarks": [
 				{
-					"line": 80,
+					"line": 77,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 85,
+					"line": 82,
 					"column": 33,
 					"label": ""
 				}
