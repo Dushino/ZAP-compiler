@@ -1,5 +1,5 @@
 ﻿
-from typing import NoReturn
+from typing import NoReturn, Optional, Callable, Union, cast
 from ast_nodes import Program
 from ast_nodes import StructDef
 from ast_nodes import EnumDecl
@@ -67,6 +67,43 @@ class Parser:
         # Struct names for type checking in parse_declaration
         self.struct_names: set[str] = set()
 
+    def _readable_token(self, ttype: str, tvalue: Optional[str] = None) -> str:
+        """Return a human-readable description for a token type/value.
+
+        The mapping contains either a string or a callable that accepts an optional
+        token value and returns a string. Type annotations are explicit to avoid
+        Pylance errors where the inferred type could be "object".
+        """
+        mapping: dict[str, Union[str, Callable[[Optional[str]], str]]] = {
+            TOK_IDENT: "identifier",
+            TOK_NUMBER: "number",
+            TOK_STRING: "string",
+            TOK_KEYWORD: (lambda v: f"keyword '{v}'" if v else "keyword"),
+            TOK_TYPE: (lambda v: f"type '{v}'" if v else "type"),
+            TOK_TYPEMOD: "type modifier",
+            TOK_PTR: "pointer '^'",
+            TOK_DELIM: "delimiter",
+            TOK_EQU: "'='",
+            TOK_OP: (lambda v: f"'{v}'" if v else "operator"),
+            TOK_AT: "'@'",
+            TOK_EOF: "end of file",
+            TOK_SQB: "square brackets '[]'",
+            TOK_PREPROC: "preprocessor directive",
+            TOK_ASM_BLOCK: "assembly block",
+            TOK_DECLMOD: "declaration modifier",
+            TOK_LBRACE: "'('",
+            TOK_RBRACE: "')'",
+            TOK_LCURLY: "'{'",
+            TOK_RCURLY: "'}'",
+        }
+        val: Optional[Union[str, Callable[[Optional[str]], str]]] = mapping.get(ttype)
+        if val is None:
+            return ttype
+        if isinstance(val, str):
+            return val
+        # At this point val must be a callable; cast it for the type checker
+        return cast(Callable[[Optional[str]], str], val)(tvalue)
+
     def advance(self) -> None:
         self.pos += 1
         if self.pos < len(self.tokens):
@@ -83,8 +120,10 @@ class Parser:
 
     def expect(self, kind, value=None) -> None:
         if self.cur.type != kind:
+            expected = self._readable_token(kind, value)
+            got = self._readable_token(self.cur.type, self.cur.value)
             raise SyntaxError(
-                f'Expected token {kind}, got {self.cur.type} ({self.cur.value})',
+                f'Expected {expected}, got {got}',
                 line=self.cur.line,
                 col=self.cur.col,
             )
@@ -284,7 +323,7 @@ class Parser:
                 type_tok: Token = self.cur
                 self.advance()
             else:
-                self.error(f"Expected type in struct field, got {self.cur.type} {self.cur.value}")
+                self.error(f"Expected type in struct field, got {self._readable_token(self.cur.type, self.cur.value)}")
             
             field_type = TypeNode(type_name, is_pointer)
             
@@ -483,7 +522,7 @@ class Parser:
             ret_type_base: str = self.cur.value
             self.advance()
         else:
-            self.error(f"Expected type for function return, got {self.cur.type}")
+            self.error(f"Expected type for function return, got {self._readable_token(self.cur.type, self.cur.value)}")
         
         ret_is_pointer = False
         if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
@@ -566,7 +605,7 @@ class Parser:
             type_base: str = self.cur.value
             self.advance()
         else:
-            self.error(f"Expected type for parameter, got {self.cur.type}")
+            self.error(f"Expected type for parameter, got {self._readable_token(self.cur.type, self.cur.value)}")
         
         is_pointer = False
         if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
@@ -1316,7 +1355,7 @@ class Parser:
             self.expect(TOK_RBRACE)
             return node
 
-        self.error(f"Expected expression, got {self.cur.type}")
+        self.error(f"Expected expression, got {self._readable_token(self.cur.type, self.cur.value)}")
 
             
     def parse_if(self) -> IfStmt:

@@ -90,11 +90,11 @@ class CodeGen:
                 self._raise_error(e.message)
             raise
 
-    def new_label(self, prefix) -> str:
+    def new_label(self, prefix: str) -> str:
         self.label_id += 1
         return f"{prefix}_{self.label_id}"
 
-    def new_for_var(self, base) -> str:
+    def new_for_var(self, base: str) -> str:
         self.for_id += 1
         return f"__FOR_{base}_{self.for_id}"
 

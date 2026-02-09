@@ -1,7 +1,7 @@
 
 # token_types.py
-TOK_LBRACE      = "LBRACE"      # {
-TOK_RBRACE      = "RBRACE"      # }
+TOK_LBRACE      = "LBRACE"      # (
+TOK_RBRACE      = "RBRACE"      # )
 TOK_IDENT       = "IDENT"       # identifier
 TOK_NUMBER      = "NUMBER"      # number as a string with radix prefix
 TOK_STRING      = "STRING"      # string
