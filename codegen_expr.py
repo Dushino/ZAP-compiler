@@ -74,6 +74,11 @@ class CodeGen:
         self.port_labels: set[str] = set()
         # Track current function return type for narrowing WORD to BYTE
         self.current_func_return_type: str | None = None
+        self.current_func_return_is_pointer: bool = False
+        # Caller-side widening: mark when a byte result must be treated as 16-bit
+        self.force_word_result: bool = False
+        # Suppress clearing X for byte-return functions (ABI change)
+        self.suppress_byte_return_x: bool = False
         # Track assignment context for optimizations that need target type
         self.assign_target_type: SemType | None = None  # Current assignment LHS type
         # Track assignment target for safe temp reuse in expression codegen
@@ -1879,8 +1884,11 @@ class CodeGen:
         t: ExprType = self.tc_check(expr)
         val: int = expr.value
         self.emit(f"\tLDA #${val & 0xFF:02X}")
-        # Always set X = high byte to make word-store patterns safe (high byte is 0 for small literals)
-        self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
+        # Set X = high byte when needed; skip for byte-return ABI in return context
+        if t.sem_type.base == "WORD" or t.sem_type.is_pointer:
+            self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
+        elif not self.suppress_byte_return_x:
+            self.emit("\tLDX #$00")
 
 
     def _gen_identifier(self, expr: Identifier) -> None:
@@ -1955,7 +1963,7 @@ class CodeGen:
                             hasattr(self.assign_target_type, 'base') and
                             self.assign_target_type.base == "BYTE" and 
                             not getattr(self.assign_target_type, 'is_pointer', False))
-            if not target_is_byte:
+            if not target_is_byte and not self.suppress_byte_return_x:
                 self.emit("\tLDX #0     ; note 3056")
 
     def _is_zeropage_pointer_array_subscript(self, expr) -> tuple[bool, Symbol | None, int]:
@@ -3529,18 +3537,32 @@ class CodeGen:
             return False
 
         right_has_call = _contains_call_or_math(expr.right)
+        left_needs_word: bool = result_16_adj and left_t.sem_type.base == "BYTE" and not left_t.sem_type.is_pointer
+        right_needs_word: bool = result_16_adj and right_t.sem_type.base == "BYTE" and not right_t.sem_type.is_pointer
 
         if right_has_call and expr.op in {BinOp.ADD, BinOp.SUB} and not (left_is_ptr or right_is_ptr):
             # Special-case: right contains a call. Preserve left across call.
             if result_16_adj:
                 # 16-bit: save (A,X) → stack using PHA;TXA;PHA and restore with PLA;TAX;PLA
-                self.gen_expr(expr.left)
+                prev_force: bool = self.force_word_result
+                if left_needs_word:
+                    self.force_word_result = True
+                try:
+                    self.gen_expr(expr.left)
+                finally:
+                    self.force_word_result = prev_force
                 self.emit("\tPHA")
                 self.emit("\tTXA")
                 self.emit("\tPHA")
 
                 # Generate right operand (callee may clobber temps)
-                self.gen_expr(expr.right)
+                prev_force = self.force_word_result
+                if right_needs_word:
+                    self.force_word_result = True
+                try:
+                    self.gen_expr(expr.right)
+                finally:
+                    self.force_word_result = prev_force
 
                 # Save right (A=low, X=high) to TMP0/TMP0+1
                 self.emit("\tSTA TMP0")
@@ -3574,11 +3596,23 @@ class CodeGen:
                 return
             else:
                 # 8-bit case (existing behavior)
-                self.gen_expr(expr.left)
+                prev_force = self.force_word_result
+                if left_needs_word:
+                    self.force_word_result = True
+                try:
+                    self.gen_expr(expr.left)
+                finally:
+                    self.force_word_result = prev_force
                 self.emit("\tPHA")
 
                 # Generate right operand (callee may clobber TMPs)
-                self.gen_expr(expr.right)
+                prev_force = self.force_word_result
+                if right_needs_word:
+                    self.force_word_result = True
+                try:
+                    self.gen_expr(expr.right)
+                finally:
+                    self.force_word_result = prev_force
 
                 # Combine results: A contains right result; pull left from stack
                 if expr.op == BinOp.ADD:
@@ -3602,7 +3636,13 @@ class CodeGen:
             return
 
         # Generate left operand
-        self.gen_expr(expr.left)
+        prev_force = self.force_word_result
+        if left_needs_word:
+            self.force_word_result = True
+        try:
+            self.gen_expr(expr.left)
+        finally:
+            self.force_word_result = prev_force
         self.emit(f"\tSTA {left_tmp}")
         # Only save high byte if we need 16-bit result
         if result_16_adj:
@@ -3617,7 +3657,13 @@ class CodeGen:
             if target_used:
                 self.assign_target_blocked = True
             try:
-                self.gen_expr(expr.right, force_left_tmp=right_hint)
+                prev_force = self.force_word_result
+                if right_needs_word:
+                    self.force_word_result = True
+                try:
+                    self.gen_expr(expr.right, force_left_tmp=right_hint)
+                finally:
+                    self.force_word_result = prev_force
             finally:
                 self.assign_target_blocked = prev_blocked
         
@@ -4455,6 +4501,10 @@ class CodeGen:
                         else:
                             self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {expr.name}")
+            # Caller-side widening: only clear X when a byte result is used in word context
+            ret_t: ExprType = self.tc_check(expr)
+            if ret_t.sem_type.base == "BYTE" and not ret_t.sem_type.is_pointer and self.force_word_result:
+                self.emit("\tLDX #0     ; widen byte call result")
 
         elif isinstance(expr, BinaryExpr):
             # Conservative TMP usage check before generating potentially large expressions
@@ -5650,7 +5700,17 @@ class CodeGen:
         if isinstance(stmt, ReturnStmt):
             # Generate the return expression (if any - PROCs may have no return value)
             if stmt.expr is not None:
-                self.gen_expr(stmt.expr)
+                prev_suppress: bool = self.suppress_byte_return_x
+                prev_force: bool = self.force_word_result
+                if self.current_func_return_type == "BYTE" and not self.current_func_return_is_pointer:
+                    self.suppress_byte_return_x = True
+                elif self.current_func_return_type == "WORD" or self.current_func_return_is_pointer:
+                    self.force_word_result = True
+                try:
+                    self.gen_expr(stmt.expr)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                    self.force_word_result = prev_force
             
             # If function expects BYTE but expression is WORD, use only lower byte (A register already has it)
             # X register will be ignored on return
@@ -5775,10 +5835,12 @@ class CodeGen:
         prev_symtab: SymbolTable = self.current_symtab
         prev_tc_symtab: Any | None = getattr(self.tc, "symtab", None)
         prev_func_return_type: str | None = self.current_func_return_type
+        prev_func_return_is_pointer: bool = self.current_func_return_is_pointer
         
         self.current_symtab = cast(SymbolTable, func.symtab)
         self.tc.symtab = func.symtab
         self.current_func_return_type = func.ast.ret_type.base  # Set return type for this function
+        self.current_func_return_is_pointer = func.ast.ret_type.is_pointer
 
         self.emit("; -- Function " + func.ast.name + " --")
         self.emit(f"{func.ast.name}:")
@@ -5799,6 +5861,7 @@ class CodeGen:
         if prev_tc_symtab is not None:
             self.tc.symtab = prev_tc_symtab
         self.current_func_return_type = prev_func_return_type
+        self.current_func_return_is_pointer = prev_func_return_is_pointer
 
     def _gen_relational(self, expr: BinaryExpr) -> None:
         left_t: ExprType = self.tc_check(expr.left)
