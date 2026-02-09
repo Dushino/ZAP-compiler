@@ -253,6 +253,34 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
     return pruned_procs, pruned_funcs, referenced_globals, removed_procs
 
 
+def _format_assembly(lines: list[str]) -> list[str]:
+    flat: list[str] = []
+    for line in lines:
+        parts = line.splitlines()
+        if not parts:
+            flat.append("")
+        else:
+            flat.extend(parts)
+
+    compact = [ln for ln in flat if ln.strip() != ""]
+
+    def is_block_start(ln: str) -> bool:
+        return (
+            ln.startswith("; -- Procedure ") or
+            ln.startswith("; -- Function ") or
+            ln.startswith('.segment "ZEROPAGE"') or
+            ln.startswith('.segment "BSS"')
+        )
+
+    out: list[str] = []
+    for ln in compact:
+        if is_block_start(ln) and out:
+            out.append("")
+            out.append("")
+        out.append(ln)
+    return out
+
+
 def _walk_expr_locals(expr, used: set[str], local_symtab):
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
@@ -718,5 +746,6 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # Apply peephole optimizations only when explicitly enabled
     if enable_peephole:
         cg.peephole_optimize()
+    cg.code = _format_assembly(cg.code)
     return "\n".join(cg.code)
 
