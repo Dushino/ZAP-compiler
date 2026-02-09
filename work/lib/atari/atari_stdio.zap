@@ -89,7 +89,7 @@ end
     Fill memory with byte value
 */
 proc memset(word dest, byte value, word count)
-    byte i
+    word i
     byte ^ptr = dest
 
     for i = 0 to count
@@ -113,7 +113,7 @@ proc cls()
         ptr1^ = 1
         ptr1 = ptr1 + 1
     end
-    memset(vlstart[0], 2, SCREEN_X_SIZE * SCREEN_Y_SIZE)
+    memset(vlstart[0], 2, SCREEN_X_SIZE * SCREEN_Y_SIZE - 40)   ; clear color memory
 
 end
 

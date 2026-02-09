@@ -3303,6 +3303,10 @@ class CodeGen:
         # Pattern: arr[0] + arr[1] - arr[2]
         # Determine result type: use assignment target type if available, else expression result type
         result_16_temp: bool = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
+
+        # Force word-sized evaluation when required by caller context
+        if self.force_word_result:
+            result_16_temp = True
         
         # If we're in an assignment context and LHS is WORD, treat result as 16-bit
         # If we're in an assignment context and LHS is BYTE, treat result as 8-bit only when
@@ -4517,8 +4521,12 @@ class CodeGen:
                     else:
                         # No argument and no default - skip this parameter
                         continue
-                    
-                    arg_type: ExprType = self.tc_check(arg)
+
+                    # Substitute consts and fold before codegen
+                    arg = subst_const(arg, cast(SymbolTable, self.current_symtab))
+                    arg = fold_expr(arg)
+
+                    self.tc_check(arg)
                     asm: str = f"_{expr.name}_{pname}"
                     if width == 1:
                         if isinstance(arg, IntLiteral):
@@ -4531,19 +4539,18 @@ class CodeGen:
                                 self.emit(f"\tLDA {self._sym_operand(arg_sym, low_byte=True)}")
                                 self.emit(f"\tSTA {asm}")
                                 continue
-                    self.gen_expr(arg)
+                    prev_force: bool = self.force_word_result
+                    if width == 2:
+                        self.force_word_result = True
+                    try:
+                        self.gen_expr(arg)
+                    finally:
+                        self.force_word_result = prev_force
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
                         self.emit(f"\tSTA {asm}")
-                        if arg_type.sem_type.base == "BYTE" and not arg_type.sem_type.is_pointer:
-                            if self.is_65c02:
-                                self.emit(f"\tSTZ {asm}+1")
-                            else:
-                                self.emit("\tLDX #0")
-                                self.emit(f"\tSTX {asm}+1")
-                        else:
-                            self.emit(f"\tSTX {asm}+1")
+                        self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {expr.name}")
             # Caller-side widening: only clear X when a byte result is used in word context
             ret_t: ExprType = self.tc_check(expr)
@@ -5705,8 +5712,12 @@ class CodeGen:
                     else:
                         # No argument and no default - skip this parameter
                         continue
-                    
-                    arg_type: ExprType = self.tc_check(arg)
+
+                    # Substitute consts and fold before codegen
+                    arg = subst_const(arg, cast(SymbolTable, self.current_symtab))
+                    arg = fold_expr(arg)
+
+                    self.tc_check(arg)
                     asm: str = f"_{stmt.name}_{pname}"
                     if width == 1:
                         if isinstance(arg, IntLiteral):
@@ -5720,20 +5731,18 @@ class CodeGen:
                                 self.emit(f"\tSTA {asm}")
                                 continue
                     # evaluate arg into A/(X)
-                    self.gen_expr(arg)
+                    prev_force: bool = self.force_word_result
+                    if width == 2:
+                        self.force_word_result = True
+                    try:
+                        self.gen_expr(arg)
+                    finally:
+                        self.force_word_result = prev_force
                     if width == 1:
                         self.emit(f"\tSTA {asm}")
                     else:
-                        # If the argument is byte-sized, its high byte is zero; store zero safely
                         self.emit(f"\tSTA {asm}")
-                        if arg_type.sem_type.base == "BYTE" and not arg_type.sem_type.is_pointer:
-                            if self.is_65c02:
-                                self.emit(f"\tSTZ {asm}+1")
-                            else:
-                                self.emit("\tLDX #0")
-                                self.emit(f"\tSTX {asm}+1")
-                        else:
-                            self.emit(f"\tSTX {asm}+1")
+                        self.emit(f"\tSTX {asm}+1")
             self.emit(f"\tJSR {stmt.name}")
             return
 

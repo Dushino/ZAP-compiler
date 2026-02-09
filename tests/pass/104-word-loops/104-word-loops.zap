@@ -9,6 +9,8 @@ proc main()
     for i = 0 to endv
         result = result + 1
     end
+    ; result is now 280
+
 
     ; WHILE loop with 16-bit bounds
     i = 0
@@ -16,4 +18,5 @@ proc main()
         result = result + 1
         i = i + 1
     end
+    ; result is now 561 $0231
 end
