@@ -5942,6 +5942,87 @@ class CodeGen:
         cmp_lo = "TMP0"
         cmp_hi = "TMP0+1"
 
+        # Fast path: 16-bit compare against a simple right identifier without TMP0
+        if is_16bit and isinstance(cond.right, Identifier):
+            right_sym: Symbol = self.current_symtab.lookup(cond.right.name)
+            if (not right_sym.is_array and right_sym.address is None and
+                not right_sym.is_volatile and not right_sym.is_port):
+                cmp_lo = right_sym.asm_name()
+                cmp_hi = f"{cmp_lo}+1"
+                if right_sym.type.base != "WORD" and not right_sym.type.is_pointer:
+                    cmp_hi = "#$00"
+
+                # Load left side into A/X
+                self.gen_expr(cond.left)
+                if left_t.sem_type.base != "WORD":
+                    self.emit("\tLDX #0     ; note 7054")
+
+                if cond.op == BinOp.EQ:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.NE:
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.LT:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.LE:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_chk_hi: str = self.new_label("LE_CHK_HI")
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBEQ {lbl_chk_hi}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    self.emit(f"{lbl_chk_hi}:")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GT:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_else_tmp}")
+                    self.emit(f"\tBEQ @GT_CHECK_LOW")
+                    self.emit(f"\tJMP {lbl_true}")
+                    self.emit("@GT_CHECK_LOW:")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBEQ {lbl_else_tmp}")
+                    self.emit(f"\tBCS {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GE:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_else_tmp}")
+                    self.emit(f"\tBEQ @GE_CHECK_LOW")
+                    self.emit(f"\tJMP {lbl_true}")
+                    self.emit("@GE_CHECK_LOW:")
+                    self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBCS {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+
         # Fast path: both operands are simple WORD identifiers → evaluate right into TMP0 and compare
         if is_16bit and isinstance(cond.left, Identifier) and isinstance(cond.right, Identifier):
             left_sym: Symbol = self.current_symtab.lookup(cond.left.name)
