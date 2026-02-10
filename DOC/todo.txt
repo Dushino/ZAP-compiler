@@ -261,15 +261,15 @@ High impact
 
 Medium impact
 [x] Compile‑time boolean folding: constant boolean expressions still build temps and branch, instead of emitting a direct LDA #1/0; STA. Example: 058-operators-comparison_O1.s:39-44
-[ ] Expression scheduling to reduce stack saves: expression trees like a + b*(c+1) save A/X on the stack before the multiply and then restore. Reordering to evaluate the multiply first or spill a to a temp would avoid PHA/PLA. Example: 096-arithmetic-16bit_O1.s:54-90
-[ ] Immediate 16‑bit arithmetic for small constants: word arithmetic with small literals sometimes 
+[x] Expression scheduling to reduce stack saves: expression trees like a + b*(c+1) save A/X on the stack before the multiply and then restore. Reordering to evaluate the multiply first or spill a to a temp would avoid PHA/PLA. Example: 096-arithmetic-16bit_O1.s:54-90
+[x] Immediate 16‑bit arithmetic for small constants: word arithmetic with small literals sometimes 
 materializes a temp word before SBC/ADC. Emit ADC #$lo then ADC #$hi directly. Example: 096-arithmetic-16bit_O1.s:100-108
 
 Low impact
-[ ] 8‑bit mul/div/mod ABI could avoid high‑byte clears: byte-only ops still zero MATH_OP0+1/MATH_OP3 each time. A byte‑only calling convention would remove extra stores. Example: 099-mul-div-mod-variants_O1.s:126-133
-[ ] Function argument passing via globals: calls like addw(1000) store to _ADDW_A/_ADDW_B and then JSR. Passing in A/X would cut memory traffic and reduce call footprint. Example: 095-add-call-16bit_O1.s:53-61
-[ ] Return values in registers
-[ ] ; /home/dusan/src/ZAP-compiler/tests/pass/058-operators-comparison/058-operators-comparison.zap 6:     if (3 < 5) && (7 == 7) then
+[x] 8‑bit mul/div/mod ABI could avoid high‑byte clears: byte-only ops still zero MATH_OP0+1/MATH_OP3 each time. A byte‑only calling convention would remove extra stores. Example: 099-mul-div-mod-variants_O1.s:126-133
+[x] Function argument passing via globals: calls like addw(1000) store to _ADDW_A/_ADDW_B and then JSR. Passing in A/X would cut memory traffic and reduce call footprint. Example: 095-add-call-16bit_O1.s:53-61
+[x] Return values in registers
+[x] ; /home/dusan/src/ZAP-compiler/tests/pass/058-operators-comparison/058-operators-comparison.zap 6:     if (3 < 5) && (7 == 7) then
 	LDA #$01
 	BNE BR_SKIP_4
 	JMP else_1
@@ -282,3 +282,6 @@ Low impact
     do not emit ELSE branch
 -> 
     JMP BR_SKIP_4 is not needed
+
+[ ] Document registers usage in FUNC / PROC parameetrs passing
+

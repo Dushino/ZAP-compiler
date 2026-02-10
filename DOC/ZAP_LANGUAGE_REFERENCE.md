@@ -1072,6 +1072,24 @@ proc modify(byte x)
     x = 0           ; Modifies local copy only
 end
 
+#### Register Calling Convention (PROC/FUNC)
+
+ZAP uses a lightweight register convention for the first parameters, with the rest passed via parameter globals.
+
+- **1 BYTE parameter**: passed in `A`
+- **1 WORD parameter**: passed in `A`/`X` (low in `A`, high in `X`)
+- **2 BYTE parameters**: passed in `A`/`X` (param0 in `A`, param1 in `X`)
+- **More parameters**: first parameters follow the rules above; remaining parameters are passed via `_PROC_PARAM` / `_FUNC_PARAM` globals as before.
+
+At function/procedure entry, register-passed values are stored into the usual parameter globals so existing code sees the same variables.
+
+#### Return Values
+
+- **BYTE return**: `A`
+- **WORD return**: `A`/`X` (low in `A`, high in `X`)
+
+When used in a wider context, BYTE results are zero-extended to WORD (reg. X) by the caller as needed.
+
 proc main()
     byte value = 42
     modify(value)
@@ -1096,6 +1114,8 @@ proc main()
     countdown(5)    ; Prints: 5 4 3 2 1 0
 end
 ```
+
+Note: parameters and local variables are not stored on the stack, so recursive calls overwrite them; true recursion is not supported. 
 
 ---
 
