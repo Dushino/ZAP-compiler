@@ -4675,26 +4675,41 @@ class CodeGen:
         return False
 
     def _gen_logical(self, expr: BinaryExpr) -> None:
-        # TMP4 used to combine A/X when testing word values
-        self.used_temps.add("TMP4")
+        # Use TMP4 only when we must test a word value via A/X
+        def _is_word_value(e: Expr) -> bool:
+            t: ExprType = self.tc_check(e)
+            return t.sem_type.base == "WORD" or t.sem_type.is_pointer
+
+        def _branch_if_zero(is_word_val: bool, label: str) -> None:
+            if is_word_val:
+                self.used_temps.add("TMP4")
+                self.emit("\tSTA TMP4")
+                self.emit("\tTXA")
+                self.emit("\tORA TMP4")
+                self.emit(f"\tBEQ {label}")
+            else:
+                self.emit(f"\tBEQ {label}")
+
+        def _branch_if_nonzero(is_word_val: bool, label: str) -> None:
+            if is_word_val:
+                self.used_temps.add("TMP4")
+                self.emit("\tSTA TMP4")
+                self.emit("\tTXA")
+                self.emit("\tORA TMP4")
+                self.emit(f"\tBNE {label}")
+            else:
+                self.emit(f"\tBNE {label}")
         if expr.op == BinOp.LAND:
             lbl_false: str = self.new_label("LAND_FALSE")
             lbl_end: str   = self.new_label("LAND_END")
 
             # lhs
             self.gen_expr(expr.left)
-            # Merge low(A) and high(X) to test non-zero
-            self.emit("\tSTA TMP4")
-            self.emit("\tTXA")
-            self.emit("\tORA TMP4")
-            self.emit(f"\tBEQ {lbl_false}")   # lhs == 0 → false
+            _branch_if_zero(_is_word_value(expr.left), lbl_false)  # lhs == 0 → false
 
             # rhs
             self.gen_expr(expr.right)
-            self.emit("\tSTA TMP4")
-            self.emit("\tTXA")
-            self.emit("\tORA TMP4")
-            self.emit(f"\tBEQ {lbl_false}")   # rhs == 0 → false
+            _branch_if_zero(_is_word_value(expr.right), lbl_false)  # rhs == 0 → false
 
             # true
             self.emit("\tLDA #1")
@@ -4705,7 +4720,8 @@ class CodeGen:
             self.emit("\tLDA #0")
 
             self.emit(f"{lbl_end}:")
-            self.emit("\tLDX #0     ; note 5044")   # X = result high byte
+            if self.force_word_result:
+                self.emit("\tLDX #0     ; note 5044")   # X = result high byte
             return
         
         if expr.op == BinOp.LOR:
@@ -4714,17 +4730,11 @@ class CodeGen:
 
             # lhs
             self.gen_expr(expr.left)
-            self.emit("\tSTA TMP4")
-            self.emit("\tTXA")
-            self.emit("\tORA TMP4")
-            self.emit(f"\tBNE {lbl_true}")   # lhs != 0 → true
+            _branch_if_nonzero(_is_word_value(expr.left), lbl_true)  # lhs != 0 → true
 
             # rhs
             self.gen_expr(expr.right)
-            self.emit("\tSTA TMP4")
-            self.emit("\tTXA")
-            self.emit("\tORA TMP4")
-            self.emit(f"\tBNE {lbl_true}")   # rhs != 0 → true
+            _branch_if_nonzero(_is_word_value(expr.right), lbl_true)  # rhs != 0 → true
 
             # false
             self.emit("\tLDA #0")
@@ -4735,13 +4745,15 @@ class CodeGen:
             self.emit("\tLDA #1")
 
             self.emit(f"{lbl_end}:")
-            self.emit("\tLDX #0     ; note 5074")   # X = result high byte
+            if self.force_word_result:
+                self.emit("\tLDX #0     ; note 5074")   # X = result high byte
             return
 
 
     def gen_expr(self, expr, force_left_tmp=None) -> None:
-        # Apply constant folding and algebraic simplifications
+        # Apply constant substitution and folding
         from typing import cast
+        expr = subst_const(cast(Expr, expr), cast(SymbolTable, self.current_symtab))
         expr = cast(Expr, fold_expr(expr))
         
         if isinstance(expr, IntLiteral):
@@ -6183,13 +6195,24 @@ class CodeGen:
                 return
 
             # Default path: evaluate condition to boolean and branch on zero
-            self.used_temps.add("TMP4")
-            self.gen_expr(cond)
-            # Merge A/X to test non-zero (WORD-safe)
-            self.emit("\tSTA TMP4")
-            self.emit("\tTXA")
-            self.emit("\tORA TMP4")
-            self.emit(f"\tBEQ {lbl_else}")
+            cond_t: ExprType = self.tc_check(cond)
+            is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
+            prev_suppress: bool = self.suppress_byte_return_x
+            if not is_word_cond:
+                self.suppress_byte_return_x = True
+            try:
+                self.gen_expr(cond)
+            finally:
+                self.suppress_byte_return_x = prev_suppress
+            if is_word_cond:
+                self.used_temps.add("TMP4")
+                # Merge A/X to test non-zero (WORD-safe)
+                self.emit("\tSTA TMP4")
+                self.emit("\tTXA")
+                self.emit("\tORA TMP4")
+                self.emit(f"\tBEQ {lbl_else}")
+            else:
+                self.emit(f"\tBEQ {lbl_else}")
 
             for s in stmt.then_body:
                 self.gen_stmt(s)
@@ -6221,12 +6244,23 @@ class CodeGen:
             if isinstance(cond, BinaryExpr) and cond.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
                 self._emit_relational_branch(cond, lbl_true=lbl_body, lbl_false=lbl_end)
             else:
-                self.used_temps.add("TMP4")
-                self.gen_expr(cond)
-                self.emit("\tSTA TMP4")
-                self.emit("\tTXA")
-                self.emit("\tORA TMP4")
-                self.emit(f"\tBEQ {lbl_end}")
+                cond_t: ExprType = self.tc_check(cond)
+                is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
+                prev_suppress: bool = self.suppress_byte_return_x
+                if not is_word_cond:
+                    self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(cond)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                if is_word_cond:
+                    self.used_temps.add("TMP4")
+                    self.emit("\tSTA TMP4")
+                    self.emit("\tTXA")
+                    self.emit("\tORA TMP4")
+                    self.emit(f"\tBEQ {lbl_end}")
+                else:
+                    self.emit(f"\tBEQ {lbl_end}")
 
             self.emit(f"{lbl_body}:")
 
@@ -6430,7 +6464,8 @@ class CodeGen:
         self.emit("\tLDA #1")
 
         self.emit(f"{lbl_end}:")
-        self.emit("\tLDX #0     ; note 6178")
+        if self.force_word_result:
+            self.emit("\tLDX #0     ; note 6178")
 
     def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
         """Emit relational test that jumps to lbl_true or lbl_false using only short local branches and absolute JMPs.

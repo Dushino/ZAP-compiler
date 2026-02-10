@@ -658,6 +658,10 @@ proc logical_example()
 end
 ```
 
+**Boolean Representation**
+
+ZAP! represents boolean results as **byte** values. The compiler emits `0` for false and `1` for true. When a boolean is used in a word context, it is zero-extended to 16 bits. This keeps logic operations compact while preserving correct behavior in mixed-width expressions.
+
 ### Unary Operators
 
 ```zap
