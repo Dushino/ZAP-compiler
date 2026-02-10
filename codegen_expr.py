@@ -113,6 +113,27 @@ class CodeGen:
             self.emit("\tLDA #$00")
             self.emit(f"\tSTA {operand}")
 
+    def _emit_long_branch(self, branch_op: str, label: str) -> None:
+        """Emit a branch that is safe even when the target is out of range."""
+        invert: dict[str, str] = {
+            "BEQ": "BNE",
+            "BNE": "BEQ",
+            "BCC": "BCS",
+            "BCS": "BCC",
+            "BMI": "BPL",
+            "BPL": "BMI",
+            "BVC": "BVS",
+            "BVS": "BVC",
+        }
+        inv = invert.get(branch_op)
+        if inv is None:
+            self.emit(f"\t{branch_op} {label}")
+            return
+        skip_lbl: str = self.new_label("BR_SKIP")
+        self.emit(f"\t{inv} {skip_lbl}")
+        self.emit(f"\tJMP {label}")
+        self.emit(f"{skip_lbl}:")
+
     def _emit_indirect_store_zero(self, ptr: str) -> None:
         if self.is_65c02:
             self.emit(f"\tSTA ({ptr})")
@@ -6210,9 +6231,9 @@ class CodeGen:
                 self.emit("\tSTA TMP4")
                 self.emit("\tTXA")
                 self.emit("\tORA TMP4")
-                self.emit(f"\tBEQ {lbl_else}")
+                self._emit_long_branch("BEQ", lbl_else)
             else:
-                self.emit(f"\tBEQ {lbl_else}")
+                self._emit_long_branch("BEQ", lbl_else)
 
             for s in stmt.then_body:
                 self.gen_stmt(s)
@@ -6258,9 +6279,9 @@ class CodeGen:
                     self.emit("\tSTA TMP4")
                     self.emit("\tTXA")
                     self.emit("\tORA TMP4")
-                    self.emit(f"\tBEQ {lbl_end}")
+                    self._emit_long_branch("BEQ", lbl_end)
                 else:
-                    self.emit(f"\tBEQ {lbl_end}")
+                    self._emit_long_branch("BEQ", lbl_end)
 
             self.emit(f"{lbl_body}:")
 
@@ -6441,19 +6462,19 @@ class CodeGen:
             self.emit(f"\tCMP {cmp_operand}")
 
             if expr.op == BinOp.EQ:
-                self.emit(f"\tBEQ {lbl_true}")
+                self._emit_long_branch("BEQ", lbl_true)
             elif expr.op == BinOp.NE:
-                self.emit(f"\tBNE {lbl_true}")
+                self._emit_long_branch("BNE", lbl_true)
             elif expr.op == BinOp.LT:
-                self.emit(f"\tBCC {lbl_true}")
+                self._emit_long_branch("BCC", lbl_true)
             elif expr.op == BinOp.GE:
-                self.emit(f"\tBCS {lbl_true}")
+                self._emit_long_branch("BCS", lbl_true)
             elif expr.op == BinOp.GT:
-                self.emit(f"\tBEQ {lbl_end}")
-                self.emit(f"\tBCS {lbl_true}")
+                self._emit_long_branch("BEQ", lbl_end)
+                self._emit_long_branch("BCS", lbl_true)
             elif expr.op == BinOp.LE:
-                self.emit(f"\tBCC {lbl_true}")
-                self.emit(f"\tBEQ {lbl_true}")
+                self._emit_long_branch("BCC", lbl_true)
+                self._emit_long_branch("BEQ", lbl_true)
 
         # false
         self.emit("\tLDA #0")
@@ -6490,16 +6511,16 @@ class CodeGen:
                     self.emit("\tLDX #0     ; note 7054")
                 if cond.op in {BinOp.EQ, BinOp.LE}:
                     self.emit("\tCPX #$00")
-                    self.emit(f"\tBNE {lbl_false}")
+                    self._emit_long_branch("BNE", lbl_false)
                     self.emit("\tCMP #$00")
-                    self.emit(f"\tBEQ {lbl_true}")
+                    self._emit_long_branch("BEQ", lbl_true)
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op in {BinOp.NE, BinOp.GT}:
                     self.emit("\tCPX #$00")
-                    self.emit(f"\tBNE {lbl_true}")
+                    self._emit_long_branch("BNE", lbl_true)
                     self.emit("\tCMP #$00")
-                    self.emit(f"\tBNE {lbl_true}")
+                    self._emit_long_branch("BNE", lbl_true)
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
@@ -6510,11 +6531,11 @@ class CodeGen:
                     return
             else:
                 if cond.op in {BinOp.EQ, BinOp.LE}:
-                    self.emit(f"\tBEQ {lbl_true}")
+                    self._emit_long_branch("BEQ", lbl_true)
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op in {BinOp.NE, BinOp.GT}:
-                    self.emit(f"\tBNE {lbl_true}")
+                    self._emit_long_branch("BNE", lbl_true)
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
