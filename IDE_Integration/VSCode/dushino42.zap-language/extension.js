@@ -63,12 +63,39 @@ function activate(context) {
                 const ranges = [];
                 const stack = [];
                 let currentStart = null;
+                let inBlockComment = false;
 
                 const startRegex = /^(proc|func|if|else|elseif|switch|while|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/;
                 const endRegex = /^(return|end|else|\.endif|\.else)\b/;
 
                 for (let line = 0; line < document.lineCount; line++) {
-                    const text = document.lineAt(line).text;
+                    let text = document.lineAt(line).text;
+
+                    if (inBlockComment) {
+                        const endIndex = text.indexOf('*/');
+                        if (endIndex === -1) {
+                            continue;
+                        }
+                        inBlockComment = false;
+                        text = text.slice(endIndex + 2);
+                    }
+
+                    const blockStartIndex = text.indexOf('/*');
+                    if (blockStartIndex !== -1) {
+                        const blockEndIndex = text.indexOf('*/', blockStartIndex + 2);
+                        if (blockEndIndex === -1) {
+                            inBlockComment = true;
+                            text = text.slice(0, blockStartIndex);
+                        } else {
+                            text = text.slice(0, blockStartIndex) + text.slice(blockEndIndex + 2);
+                        }
+                    }
+
+                    const lineCommentIndex = text.indexOf(';');
+                    if (lineCommentIndex !== -1) {
+                        text = text.slice(0, lineCommentIndex);
+                    }
+
                     const trimmed = text.trimStart();
                     if (trimmed.length === 0) continue;
 
