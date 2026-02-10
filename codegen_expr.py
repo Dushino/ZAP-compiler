@@ -257,6 +257,14 @@ class CodeGen:
         
         PORT variables are hardware port-mapped and cannot be optimized.
         """
+        if not operand:
+            return False
+        operand = operand.strip()
+        if operand.startswith("#"):
+            return False
+        while operand.startswith("<") or operand.startswith(">"):
+            operand = operand[1:].strip()
+        operand = operand.replace("(", "").replace(")", "")
         # Extract label from operand (handle indexed modes like "LABEL,X" or "LABEL,Y" or "LABEL+1")
         label: str = operand.split(',')[0].strip()  # Remove ,X or ,Y
         label: str = label.split('+')[0].strip()    # Remove +1
@@ -360,6 +368,9 @@ class CodeGen:
         """
         optimized: list[str] = []
         i = 0
+
+        def _operand_is_port(operand: str) -> bool:
+            return self._is_port_variable(operand)
         
         while i < len(self.code):
             line = self.code[i]
@@ -438,7 +449,7 @@ class CodeGen:
                         # Stop at any other instruction
                         break
                     
-                    if stx_found:
+                    if stx_found and not _operand_is_port(sta_operand) and not _operand_is_port(stx_operand):
                         # Replace pattern: skip LDX #0, emit STA, replace STX with STZ
                         # Emit intermediate lines between LDX and STA
                         for idx in intermediate_lines:
@@ -501,7 +512,7 @@ class CodeGen:
                         l7_u.startswith("STX ")):
                     dest = l6_u.split(maxsplit=1)[1].strip()
                     dest_hi = l7_u.split(maxsplit=1)[1].strip()
-                    if dest_hi == f"{dest}+1":
+                    if dest_hi == f"{dest}+1" and not _operand_is_port(dest) and not _operand_is_port(dest_hi):
                         optimized.append(self.code[i])
                         optimized.append(self.code[i + 1])
                         indent = self.code[i + 5][:len(self.code[i + 5]) - len(self.code[i + 5].lstrip())]
@@ -544,7 +555,7 @@ class CodeGen:
                 l3_u = l3.split(';')[0].strip().upper()
                 if l1_u == "LDA TMP0" and l2_u == "TAY" and l3_u.startswith("LDA ") and l3_u.endswith(",Y"):
                     operand = l3_u.split(maxsplit=1)[1].strip()
-                    if not operand.startswith("(") and ")" not in operand:
+                    if not operand.startswith("(") and ")" not in operand and not _operand_is_port(operand):
                         indent = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
                         optimized.append(f"{indent}LDY TMP0\n")
                         optimized.append(self.code[i + 2])
@@ -694,7 +705,9 @@ class CodeGen:
                             lda_parts = next_line.split(maxsplit=1)
                             if len(lda_parts) == 2:
                                 lda_operand = lda_parts[1].strip()
-                                if lda_operand.upper() == sta_operand.upper():
+                                if (lda_operand.upper() == sta_operand.upper() and
+                                        not _operand_is_port(sta_operand) and
+                                        not _operand_is_port(lda_operand)):
                                     # Found redundant LDA - mark it for removal
                                     found_redundant_lda = True
                                     lda_index = j
@@ -744,29 +757,32 @@ class CodeGen:
                         op4 == "LDA" and op5 == "ADC" and op6 == "TAX" and op7 == "TYA" and
                         op8 == "STA" and op9 == "STX" and dst0 == dst2 and dst1 == f"{dst0}+1" and
                         dst3 == f"{dst0}+1" and src1 == f"{src0}+1"):
-                        # Ensure next instruction reloads the destination (safe to discard A/X result)
-                        j = i + 10
-                        next_inst_ok = False
-                        while j < len(self.code):
-                            next_line = self.code[j].strip()
-                            if not next_line or next_line.startswith(";"):
-                                j += 1
+                        if not (_operand_is_port(src0) or _operand_is_port(src1) or
+                                _operand_is_port(dst0) or _operand_is_port(dst1) or
+                                _operand_is_port(dst2) or _operand_is_port(dst3)):
+                            # Ensure next instruction reloads the destination (safe to discard A/X result)
+                            j = i + 10
+                            next_inst_ok = False
+                            while j < len(self.code):
+                                next_line = self.code[j].strip()
+                                if not next_line or next_line.startswith(";"):
+                                    j += 1
+                                    continue
+                                next_op, next_operand = _parse_inst(self.code[j])
+                                next_inst_ok = (next_op == "LDA" and next_operand == dst0)
+                                break
+                            if next_inst_ok:
+                                indent0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                                indent4 = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
+                                optimized.append(f"{indent0}LDA {src0}\n")
+                                optimized.append(f"{indent0}CLC\n")
+                                optimized.append(f"{indent0}ADC {dst0}\n")
+                                optimized.append(f"{indent0}STA {dst0}\n")
+                                optimized.append(f"{indent4}LDA {src1}\n")
+                                optimized.append(f"{indent4}ADC {dst0}+1\n")
+                                optimized.append(f"{indent4}STA {dst0}+1\n")
+                                i += 10
                                 continue
-                            next_op, next_operand = _parse_inst(self.code[j])
-                            next_inst_ok = (next_op == "LDA" and next_operand == dst0)
-                            break
-                        if next_inst_ok:
-                            indent0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
-                            indent4 = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
-                            optimized.append(f"{indent0}LDA {src0}\n")
-                            optimized.append(f"{indent0}CLC\n")
-                            optimized.append(f"{indent0}ADC {dst0}\n")
-                            optimized.append(f"{indent0}STA {dst0}\n")
-                            optimized.append(f"{indent4}LDA {src1}\n")
-                            optimized.append(f"{indent4}ADC {dst0}+1\n")
-                            optimized.append(f"{indent4}STA {dst0}+1\n")
-                            i += 10
-                            continue
 
             # Remove blank line right before RTS
             if not line_stripped:
