@@ -9,12 +9,12 @@
 [x] test file without main() should fail compilation
 [x] escape sequences for ASCII: \n, \t, \r, \", \', \\
 [x] update grammar.ebnf
-[x] .segment "name"
+[x] .segment "name" - removed
 [x] binary operators &, | 
 [x] struct support
-[ ] malloc, free?
+[x] malloc, free? not as internal library
 [x] clean up directives with #
-[ ] improve error messages 
+[x] improve error messages 
     filename:line:column: severity: message
     Example:
     main.zap:12:5: error: Undefined symbol 'TEMP_VAR'
@@ -45,11 +45,6 @@ Steps:
     - Supports both global and local scopes
 [x] Const struct initialization syntax 
     
-    const struct S {
-        byte a;
-        byte b;
-    } s1 = { 1, 2 };
-
     const S s2 = { 3, 4 };  ; regular struct initialization
 
     All struct elements must be initialized.
@@ -61,7 +56,7 @@ Steps:
     - Fast path for byte ADD/SUB: 3 instructions instead of 15+
     - Fast path for word ADD/SUB: 9 instructions instead of 19+
     - Direct 16-bit arithmetic without temporary register shuffle
-[ ] Peephole optimization rework.
+[x] Peephole optimization rework.
 [ ] Document peephole optimizations in the compiler documentation
 [x] Review VS Code integration files
     [x] Build on Ctrl-Shift-Z 
@@ -91,9 +86,9 @@ To optimize:
     STA _MAIN_Y 
 
 ---
-[ ] *2 /2 optimize to ASL, LSR
+[x] *2 /2 optimize to ASL, LSR
 
-[ ] different optimization for 5402 and 65c02
+[x] different optimization for 6502 and 65c02
 	LDA #$0A
 	STA _MAIN_X
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\024-increment-decrement\024-increment-decrement.zap 5:     x = x + 1
@@ -106,7 +101,7 @@ To optimize:
 
 
 Peephole optimization:
-[ ]
+[x]
 MAIN:
 ; /home/dusan/src/ZAP-compiler/tests/pass/014-structs-simple/014-structs-simple.zap 9:     p.age = 42
 	LDA #42
@@ -120,9 +115,9 @@ MAIN:
 	STA _RESULT
 	RTS
 
-[ ] !!! Peephole optimization must be disabled for ASM blocks and for PORT variables !!!
+[x] !!! Peephole optimization must be disabled for ASM blocks and for PORT variables !!!
  
-[ ] Only if there is no label before second JMP
+[x] Only if there is no label before second JMP
  	JMP endwhile_2
 	JMP endif_5
 
@@ -173,27 +168,27 @@ end
 
 [x] Implement .error "string", .warning "string", .info "string"
 
-[ ] improve and unify error messages for:
-    - undeclared identifier
-    - type mismatch
-    - wrong number of parameters in function/proc call
-    - invalid operand for operator
-    - invalid initializer for variable
-    - invalid struct field access
-    - array index out of bounds (if constant)
-    - invalid use of CONST, STATIC, PORT modifiers    
+[x] improve and unify error messages for:
+    - [x] undeclared identifier
+    - [x] type mismatch
+    - [x] wrong number of parameters in function/proc call
+    - [x] invalid operand for operator
+    - [x] invalid initializer for variable
+    - [x] invalid struct field access
+    - [x] array index out of bounds (if constant)
+    - [x] invalid use of CONST, STATIC, PORT modifiers    
 
 To check - enhance tests
-[ ] Pointer assignment to and from WORD 
+[x] Pointer assignment to and from WORD 
 [x] -I command line option for library path
 [x] Propagation of module symbols to including files
 [x] Module constructors
     proc CONSTRUCTOR() #KEEP #NOEXPORT
 [x] Address-of operator @
 [x] Const struct initialization syntax 
-[ ] Multi-dimensional arrays
+[x] Multi-dimensional arrays
 [ ] Logical NOT operator (!)
-[ ] STATIC local variable must have initial value
+[x] STATIC local variable must have initial value
 [ ] CONST static local variable
 [ ] CONST without initial value should error
 [ ] STATIC on global variable should error
@@ -209,10 +204,6 @@ To check - enhance tests
 [x] Errors in Problems tab can not open file
 [x] ENUM?
 
-[ ] Add a focused unit test that triggers the new error, or
-[ ] Tweak estimator behavior (make it less/ more conservative), or
-[ ] Proceed to improve expression flattening and constant folding to reduce temp needs so fewer expressions are rejected.
-[ ] Prepare unit test for estimator
 
 [ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. 
     Does it mean scopes implementation? I do not want it.
@@ -244,8 +235,8 @@ VIA_STRUCT VIA2 @40016
 
 [x] maybe struct NAME #port #rd for all struct members?
 
-[ ] Get high / low byte from two byte variables: low(x) and high(x) as internal functions
-[ ] Implement sizeof(<struct name>)
+[x] Get high / low byte from two byte variables: low(x) and high(x) as internal functions
+[x] Implement sizeof(<struct name>)
 
 [x] Tests for STRUCT name #port #rd #wr
 [x] Tests for ENUMs
@@ -284,5 +275,31 @@ Low impact
 -> 
     JMP BR_SKIP_4 is not needed
 
-[ ] Document registers usage in FUNC / PROC parameetrs passing
+[x] Document registers usage in FUNC / PROC parameetrs passing
+
+Possible changes in ZAP Design
+
+---------------------------------------
+proc main()
+    byte x = 0
+    
+    while x < 100
+        x = x + 1
+        if x == 50 then
+            break      ; Break outside of loop context (error???) 
+        end
+    end
+end
+
+
+---------------------------------------
+proc main()
+    byte x = 50
+    byte y[] = "ABC"
+    
+    byte z = x > y  ; comparsion requires values - ???
+end
+
+---------------------------------------
+
 
