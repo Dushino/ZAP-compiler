@@ -1,4 +1,4 @@
-proc add(byte a, byte b) -> byte
+proc add(byte a, byte b)
     byte res = a + b
     return res
 end

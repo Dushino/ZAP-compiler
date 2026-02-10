@@ -6,5 +6,6 @@ end
 VIA_STRUCT VIA1 @40000
 
 proc main()
+    byte x
     x = VIA1.ORA  ; read from write-only field should error
 end

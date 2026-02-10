@@ -1,4 +1,4 @@
-func f(a -> byte)
+func byte f(byte a)
     return a
 end
 
