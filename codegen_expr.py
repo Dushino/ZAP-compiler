@@ -368,6 +368,7 @@ class CodeGen:
         """
         optimized: list[str] = []
         i = 0
+        in_asm_block = False
 
         def _operand_is_port(operand: str) -> bool:
             return self._is_port_variable(operand)
@@ -376,6 +377,21 @@ class CodeGen:
             line = self.code[i]
             line_stripped = line.strip()
             line_upper = line_stripped.upper()
+
+            if line_stripped == "; ASM_BLOCK_BEGIN":
+                in_asm_block = True
+                optimized.append(line)
+                i += 1
+                continue
+            if line_stripped == "; ASM_BLOCK_END":
+                in_asm_block = False
+                optimized.append(line)
+                i += 1
+                continue
+            if in_asm_block:
+                optimized.append(line)
+                i += 1
+                continue
             
             # 65c02: Replace LDX #0; STA addr; STX addr+1 -> STA addr; STZ addr+1
             # Strip inline comments to check instruction
@@ -6299,8 +6315,10 @@ class CodeGen:
             return
 
         if isinstance(stmt, AsmBlock):
+            self.emit("; ASM_BLOCK_BEGIN")
             for line in stmt.text.splitlines():
                 self.emit(line)
+            self.emit("; ASM_BLOCK_END")
             return
 
         # Compile-time diagnostic directives: .error/.warning/.info
