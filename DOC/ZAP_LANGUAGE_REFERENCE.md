@@ -744,6 +744,50 @@ proc setup_pointers()
 end
 ```
 
+### Built-in Pseudofunctions
+
+ZAP provides a few compiler built-ins that look like function calls but are handled directly by the compiler. They do not generate real function calls.
+
+#### low(expr) / high(expr)
+
+Extract the low or high byte of a value.
+
+- Accepts any numeric expression (`byte`, `word`, or pointer).
+- Returns a `byte`.
+- For `byte` expressions, `high()` returns `0`.
+- Works in constant expressions (e.g., array sizes, addresses, const initializers).
+
+Examples:
+
+```zap
+word addr = $1234
+byte lo = low(addr)     ; $34
+byte hi = high(addr)    ; $12
+
+byte b = 7
+byte h = high(b)        ; 0
+```
+
+#### sizeof(StructName)
+
+Returns the size of a struct type in bytes.
+
+- Argument must be a struct type name (the struct identifier, not an instance).
+- Returns a `word`.
+- Works in constant expressions.
+
+Examples:
+
+```zap
+struct Point
+    byte x
+    byte y
+end
+
+const word PT_SIZE = sizeof(Point)
+byte buffer[sizeof(Point)]
+```
+
 ### Operator Precedence
 
 From lowest to highest:

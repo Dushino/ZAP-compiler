@@ -283,6 +283,35 @@ class ExprTypeChecker:
 
         # funkce
         if isinstance(expr, CallExpr):
+            name_upper = expr.name.upper()
+            if name_upper in {"LOW", "HIGH", "SIZEOF"}:
+                if len(expr.args) != 1 or expr.args[0] is None:
+                    raise SemanticError(f"{name_upper}() expects exactly one argument", node=expr)
+
+                arg = expr.args[0]
+
+                if name_upper == "SIZEOF":
+                    if not isinstance(arg, Identifier):
+                        raise SemanticError("SIZEOF expects a struct name", node=expr)
+                    if not self.struct_registry:
+                        raise SemanticError("Struct registry not available", node=expr)
+                    if self.struct_registry.is_defined(arg.name):
+                        return ExprType(SemType("WORD", False), ExprKind.VALUE)
+                    # Allow sizeof on a struct-typed variable as a convenience
+                    try:
+                        sym = self.symtab.lookup(arg.name)
+                    except KeyError:
+                        raise SemanticError(f"'{arg.name}' is not a defined struct", node=expr)
+                    if not sym.type.is_struct or not sym.type.struct_info:
+                        raise SemanticError("SIZEOF expects a struct type", node=expr)
+                    return ExprType(SemType("WORD", False), ExprKind.VALUE)
+
+                # LOW/HIGH
+                arg_t: ExprType = self.check(arg, read_check_enabled=read_check_enabled)
+                if arg_t.sem_type.is_struct and not arg_t.sem_type.is_pointer:
+                    raise SemanticError("LOW/HIGH not supported for struct values", node=expr)
+                return ExprType(SemType("BYTE", False), ExprKind.VALUE)
+
             fs: FuncSymbol = self.func_table.lookup(expr.name)
             # Allow arguments from required_params to param_count
             if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:

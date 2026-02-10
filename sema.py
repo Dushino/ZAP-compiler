@@ -28,12 +28,12 @@ from errors import SemanticError
 from errors import SemanticError
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
 from errors import *
-from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess
+from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr
 from ast_nodes import ListInit, StringInit, ExprInit
 from ast_nodes import Declaration, Declarator, StructDef, EnumDecl
 
 
-def eval_const_expr(expr, symtab=None):
+def eval_const_expr(expr, symtab=None, struct_registry=None):
     if isinstance(expr, IntLiteral):
         return expr.value
     
@@ -75,8 +75,8 @@ def eval_const_expr(expr, symtab=None):
         raise SemanticError("Constant expression required", node=expr)
 
     if isinstance(expr, BinaryExpr):
-        left = eval_const_expr(expr.left, symtab)
-        right = eval_const_expr(expr.right, symtab)
+        left = eval_const_expr(expr.left, symtab, struct_registry)
+        right = eval_const_expr(expr.right, symtab, struct_registry)
         if expr.op == BinOp.ADD:
             return left + right
         elif expr.op == BinOp.SUB:
@@ -89,10 +89,31 @@ def eval_const_expr(expr, symtab=None):
             return left % right
         else:
             raise SemanticError("Unsupported operation in constant expression", node=expr)
+    if isinstance(expr, CallExpr):
+        name_upper = expr.name.upper()
+        if name_upper in {"LOW", "HIGH", "SIZEOF"}:
+            if len(expr.args) != 1 or expr.args[0] is None:
+                raise SemanticError(f"{name_upper}() expects exactly one argument", node=expr)
+            arg = expr.args[0]
+            if name_upper == "SIZEOF":
+                if not isinstance(arg, Identifier):
+                    raise SemanticError("SIZEOF expects a struct name", node=expr)
+                if struct_registry is None:
+                    raise SemanticError("Struct registry not available", node=expr)
+                info = struct_registry.lookup(arg.name.upper()) if struct_registry else None
+                if not info:
+                    raise SemanticError(f"'{arg.name}' is not a defined struct", node=expr)
+                return info.size
+            value = eval_const_expr(arg, symtab, struct_registry)
+            if name_upper == "LOW":
+                return value & 0xFF
+            return (value >> 8) & 0xFF
+        raise SemanticError("Constant expression required", node=expr)
+
     raise SemanticError("Constant expression required", node=expr)
 
 
-def eval_array_dimensions(array_sizes, symtab, d_obj=None):
+def eval_array_dimensions(array_sizes, symtab, d_obj=None, struct_registry=None):
     """Extract and evaluate array dimensions from Declarator
     
     Returns: (is_array, array_dims, array_len)
@@ -109,7 +130,7 @@ def eval_array_dimensions(array_sizes, symtab, d_obj=None):
         is_array = True
         for size_expr in array_sizes:
             try:
-                sz_val = eval_const_expr(size_expr, symtab)
+                sz_val = eval_const_expr(size_expr, symtab, struct_registry)
             except SemanticError as e:
                 line: Any | int = getattr(d_obj, 'line', 0)
                 col: Any | int = getattr(d_obj, 'col', 0)
@@ -180,7 +201,7 @@ class StructAnalyzer:
                 array_sizes = []
                 for size_expr in field_ast.array_sizes:
                     try:
-                        size = eval_const_expr(size_expr)
+                        size = eval_const_expr(size_expr, struct_registry=self.registry)
                         array_sizes.append(size)
                     except SemanticError as e:
                         raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
@@ -197,7 +218,7 @@ class StructAnalyzer:
             fixed_addr = None
             if field_ast.address is not None:
                 try:
-                    fixed_addr = eval_const_expr(field_ast.address)
+                    fixed_addr = eval_const_expr(field_ast.address, struct_registry=self.registry)
                 except SemanticError as e:
                     raise SemanticError(f"Invalid field address: {e.message}", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
 
@@ -385,7 +406,12 @@ class DeclarationAnalyzer:
         else:
             lookup_symtab = self.symtab
 
-        is_array, array_dims, array_len = eval_array_dimensions(array_sizes_to_eval, lookup_symtab, d)  # type: ignore[assignment]
+        is_array, array_dims, array_len = eval_array_dimensions(
+            array_sizes_to_eval,
+            lookup_symtab,
+            d,
+            struct_registry=self.struct_registry
+        )  # type: ignore[assignment]
         
         address_val = None
 
@@ -397,7 +423,7 @@ class DeclarationAnalyzer:
                 lookup_symtab.local = self.symtab
             else:
                 lookup_symtab = self.symtab
-            address_val = eval_const_expr(d.address, lookup_symtab)
+            address_val = eval_const_expr(d.address, lookup_symtab, self.struct_registry)
 
         if is_array and array_dims:
             # Process each dimension
@@ -444,7 +470,7 @@ class DeclarationAnalyzer:
                         lookup_symtab.local = self.symtab
                     else:
                         lookup_symtab = self.symtab
-                    val = eval_const_expr(d.initializer.expr, lookup_symtab)
+                    val = eval_const_expr(d.initializer.expr, lookup_symtab, self.struct_registry)
                 except SemanticError as e:
                     raise SemanticError(e.message, line=d.line, col=d.col)
                 

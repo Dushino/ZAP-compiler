@@ -189,8 +189,8 @@ To check - enhance tests
 [x] Propagation of module symbols to including files
 [x] Module constructors
     proc CONSTRUCTOR() #KEEP #NOEXPORT
-[ ] Address-of operator @
-[ ] Const struct initialization syntax 
+[x] Address-of operator @
+[x] Const struct initialization syntax 
 [ ] Multi-dimensional arrays
 [ ] Logical NOT operator (!)
 [ ] STATIC local variable must have initial value
@@ -242,9 +242,10 @@ end
 VIA_STRUCT VIA1 @40000 
 VIA_STRUCT VIA2 @40016 
 
-maybe struct NAME #port #rd for all struct members?
+[x] maybe struct NAME #port #rd for all struct members?
 
-[ ] Something like VARNAME:L / VARNAME:H ? 
+[ ] Get high / low byte from two byte variables: low(x) and high(x) as internal functions
+[ ] Implement sizeof(<struct name>)
 
 [x] Tests for STRUCT name #port #rd #wr
 [x] Tests for ENUMs

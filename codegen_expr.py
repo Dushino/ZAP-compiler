@@ -3814,7 +3814,7 @@ class CodeGen:
             from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, FieldAccess
             # Detect explicit calls
             if isinstance(e, CallExpr):
-                return True
+                return e.name.upper() not in {"LOW", "HIGH", "SIZEOF"}
             # Detect nested math operations that call runtime routines (MUL/DIV/MOD)
             if isinstance(e, BinaryExpr):
                 if e.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
@@ -4839,6 +4839,58 @@ class CodeGen:
             if self.force_word_result:
                 self.emit("\tLDX #0     ; note 5044")   # X = result high byte
             return
+
+    def _sizeof_struct_arg(self, arg: Expr) -> int:
+        if not isinstance(arg, Identifier):
+            self._raise_error("SIZEOF expects a struct name")
+
+        if self.struct_registry and self.struct_registry.is_defined(arg.name):
+            info = self.struct_registry.lookup(arg.name)
+            if info:
+                return info.size
+
+        try:
+            sym: Symbol = self.current_symtab.lookup(arg.name)
+        except KeyError:
+            self._raise_error(f"'{arg.name}' is not a defined struct")
+            return 0
+
+        if sym.type.is_struct and sym.type.struct_info:
+            return sym.type.struct_info.size
+
+        self._raise_error("SIZEOF expects a struct type")
+        return 0
+
+    def _gen_builtin_call(self, expr: CallExpr) -> bool:
+        name_upper = expr.name.upper()
+        if name_upper not in {"LOW", "HIGH", "SIZEOF"}:
+            return False
+
+        if len(expr.args) != 1 or expr.args[0] is None:
+            self._raise_error(f"{name_upper}() expects exactly one argument")
+
+        arg = expr.args[0]
+        if name_upper == "SIZEOF":
+            size = self._sizeof_struct_arg(arg)
+            self.emit(f"\tLDA #${size & 0xFF:02X}")
+            self.emit(f"\tLDX #${(size >> 8) & 0xFF:02X}")
+            return True
+
+        arg_t: ExprType = self.tc_check(arg)
+        if arg_t.sem_type.is_struct and not arg_t.sem_type.is_pointer:
+            self._raise_error("LOW/HIGH not supported for struct values")
+
+        # Evaluate the expression to preserve side effects.
+        self.gen_expr(arg)
+        if name_upper == "HIGH":
+            if arg_t.sem_type.base == "BYTE" and not arg_t.sem_type.is_pointer:
+                self.emit("\tLDA #0")
+            else:
+                self.emit("\tTXA")
+
+        if self.force_word_result:
+            self.emit("\tLDX #0     ; widen byte builtin")
+        return True
         
         if expr.op == BinOp.LOR:
             lbl_true: str = self.new_label("LOR_TRUE")
@@ -4899,6 +4951,8 @@ class CodeGen:
                     return
             self._gen_field_access(expr, load_only=True)
         elif isinstance(expr, CallExpr):
+            if self._gen_builtin_call(expr):
+                return
             # Emit source comment for function call if available
             info = self.stmt_src.get(id(expr))
             if info:
