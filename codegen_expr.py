@@ -3784,6 +3784,45 @@ class CodeGen:
         left_needs_word: bool = result_16_adj and left_t.sem_type.base == "BYTE" and not left_t.sem_type.is_pointer
         right_needs_word: bool = result_16_adj and right_t.sem_type.base == "BYTE" and not right_t.sem_type.is_pointer
 
+        if (expr.op in {BinOp.ADD, BinOp.SUB} and isinstance(expr.right, BinaryExpr) and
+                expr.right.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD} and
+                isinstance(expr.left, (Identifier, IntLiteral)) and
+                not (left_is_ptr or right_is_ptr)):
+            # Evaluate right first (math call), then left, avoiding stack saves.
+            prev_force = self.force_word_result
+            if right_needs_word:
+                self.force_word_result = True
+            try:
+                self.gen_expr(expr.right)
+            finally:
+                self.force_word_result = prev_force
+
+            self.emit("\tSTA TMP0")
+            if result_16_adj:
+                self.emit("\tSTX TMP0+1")
+
+            prev_force = self.force_word_result
+            if left_needs_word:
+                self.force_word_result = True
+            try:
+                self.gen_expr(expr.left)
+            finally:
+                self.force_word_result = prev_force
+
+            self.emit("\tSTA TMP1")
+            if result_16_adj:
+                self.emit("\tSTX TMP1+1")
+
+            self.emit("\tLDA TMP0")
+            if result_16_adj:
+                self.emit("\tLDX TMP0+1")
+
+            if expr.op == BinOp.ADD:
+                self._gen_add(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, False, True, "TMP1")
+            else:
+                self._gen_sub(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, False, "TMP1")
+            return
+
         if right_has_call and expr.op in {BinOp.ADD, BinOp.SUB} and not (left_is_ptr or right_is_ptr):
             # Special-case: right contains a call. Preserve left across call.
             if result_16_adj:
