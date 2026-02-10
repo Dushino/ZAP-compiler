@@ -392,6 +392,41 @@ class CodeGen:
                 optimized.append(line)
                 i += 1
                 continue
+
+            # Remove redundant LDA/LDX/LDY when immediately preceded by STA/STX/STY
+            if line_upper.startswith("LDA ") or line_upper.startswith("LDX ") or line_upper.startswith("LDY "):
+                load_parts = line_stripped.split(maxsplit=1)
+                if len(load_parts) == 2:
+                    load_op = load_parts[0].upper()
+                    load_operand = load_parts[1].strip()
+
+                    if not _operand_is_port(load_operand):
+                        k = len(optimized) - 1
+                        prev_line = None
+                        while k >= 0:
+                            prev_line = optimized[k].strip()
+                            if not prev_line or prev_line.startswith(";"):
+                                k -= 1
+                                continue
+                            break
+                        if prev_line and prev_line.endswith(":"):
+                            prev_line = None
+
+                        if prev_line:
+                            prev_parts = prev_line.split(maxsplit=1)
+                            if len(prev_parts) == 2:
+                                prev_op = prev_parts[0].upper()
+                                prev_operand = prev_parts[1].strip()
+
+                                store_for_load = {
+                                    "LDA": "STA",
+                                    "LDX": "STX",
+                                    "LDY": "STY",
+                                }
+                                if prev_op == store_for_load.get(load_op, ""):
+                                    if prev_operand.upper() == load_operand.upper():
+                                        i += 1
+                                        continue
             
             # 65c02: Replace LDX #0; STA addr; STX addr+1 -> STA addr; STZ addr+1
             # Strip inline comments to check instruction
