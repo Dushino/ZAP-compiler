@@ -16,8 +16,5 @@ proc main()
        
     result1 = sizeof(MyStruct)
     result2 = sizeof(ms)
-
-    result3 = sizeof(byte)
-    result4 = sizeof(word)
-
+    
 end
