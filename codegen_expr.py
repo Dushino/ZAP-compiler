@@ -6291,6 +6291,15 @@ class CodeGen:
             cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
             cond: Expr = fold_expr(cond)
 
+            if isinstance(cond, IntLiteral):
+                if (cond.value & 0xFFFF) != 0:
+                    for s in stmt.then_body:
+                        self.gen_stmt(s)
+                elif stmt.else_body:
+                    for s in stmt.else_body:
+                        self.gen_stmt(s)
+                return
+
             lbl_else: str = self.new_label("else")
             lbl_end: str  = self.new_label("endif")
             lbl_then: str = self.new_label("then")
@@ -6360,6 +6369,21 @@ class CodeGen:
             self.emit(f"{lbl_start}:")
             cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
             cond: Expr = fold_expr(cond)
+
+            if isinstance(cond, IntLiteral):
+                if (cond.value & 0xFFFF) == 0:
+                    self.emit(f"{lbl_end}:")
+                    self.loop_stack.pop()
+                    self.break_stack.pop()
+                    return
+                self.emit(f"{lbl_body}:")
+                for s in stmt.body:
+                    self.gen_stmt(s)
+                self.emit(f"\tJMP {lbl_start}")
+                self.emit(f"{lbl_end}:")
+                self.loop_stack.pop()
+                self.break_stack.pop()
+                return
 
             from ast_nodes import BinaryExpr
             if isinstance(cond, BinaryExpr) and cond.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
