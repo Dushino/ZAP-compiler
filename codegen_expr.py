@@ -4251,12 +4251,31 @@ class CodeGen:
         self.used_temps.add("TMP3")
         # Shift count is in A
         if shift_count is not None:
-            if not result_16 and 0 <= shift_count <= 5:
+            if shift_count <= 0:
                 self.emit(f"\tLDA {left_tmp}")
-                for _ in range(shift_count):
-                    self.emit("\tASL A")
+                if result_16:
+                    self.emit(f"\tLDX {left_tmp}+1")
                 return
-            self.emit(f"\tLDA #${shift_count & 0xFF:02X}")
+            if result_16:
+                self.emit(f"\tLDA {left_tmp}")
+                self.emit(f"\tLDX {left_tmp}+1")
+                if left_tmp != "TMP0":
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+                for _ in range(shift_count):
+                    self.emit("\tLDA TMP0")
+                    self.emit("\tASL A")
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tLDA TMP0+1")
+                    self.emit("\tROL A")
+                    self.emit("\tSTA TMP0+1")
+                self.emit("\tLDA TMP0")
+                self.emit("\tLDX TMP0+1")
+                return
+            self.emit(f"\tLDA {left_tmp}")
+            for _ in range(shift_count):
+                self.emit("\tASL A")
+            return
         if result_16:
             # 16-bit shift left (left_tmp,left_tmp+1) << A → (A,X)
             self.emit("\tSTA TMP2")    # Store shift count
@@ -4312,12 +4331,31 @@ class CodeGen:
         self.used_temps.add("TMP3")
         # Shift count is in A
         if shift_count is not None:
-            if not result_16 and 0 <= shift_count <= 5:
+            if shift_count <= 0:
                 self.emit(f"\tLDA {left_tmp}")
-                for _ in range(shift_count):
-                    self.emit("\tLSR A")
+                if result_16:
+                    self.emit(f"\tLDX {left_tmp}+1")
                 return
-            self.emit(f"\tLDA #${shift_count & 0xFF:02X}")
+            if result_16:
+                self.emit(f"\tLDA {left_tmp}")
+                self.emit(f"\tLDX {left_tmp}+1")
+                if left_tmp != "TMP0":
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+                for _ in range(shift_count):
+                    self.emit("\tLDA TMP0+1")
+                    self.emit("\tLSR A")
+                    self.emit("\tSTA TMP0+1")
+                    self.emit("\tLDA TMP0")
+                    self.emit("\tROR A")
+                    self.emit("\tSTA TMP0")
+                self.emit("\tLDA TMP0")
+                self.emit("\tLDX TMP0+1")
+                return
+            self.emit(f"\tLDA {left_tmp}")
+            for _ in range(shift_count):
+                self.emit("\tLSR A")
+            return
         if result_16:
             # 16-bit shift right (left_tmp,left_tmp+1) >> A → (A,X)
             self.emit("\tSTA TMP2")    # Store shift count
