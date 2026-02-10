@@ -772,7 +772,7 @@ byte h = high(b)        ; 0
 
 Returns the size of a struct type in bytes.
 
-- Argument must be a struct type name (the struct identifier, not an instance).
+name - Argument must be a struct type name or a variable declared as that struct.
 - Returns a `word`.
 - Works in constant expressions.
 
@@ -786,6 +786,9 @@ end
 
 const word PT_SIZE = sizeof(Point)
 byte buffer[sizeof(Point)]
+
+Point p
+word sz = sizeof(p)
 ```
 
 ### Operator Precedence
