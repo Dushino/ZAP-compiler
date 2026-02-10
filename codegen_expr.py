@@ -720,6 +720,54 @@ class CodeGen:
                     i += 1
                     continue
 
+            # Replace 16-bit add temp shuffle with direct stores when safe
+            def _parse_inst(src_line: str) -> tuple[str, str]:
+                inst = src_line.split(";", 1)[0].strip()
+                if not inst:
+                    return "", ""
+                parts = inst.split(maxsplit=1)
+                op = parts[0].upper()
+                operand = parts[1].strip() if len(parts) == 2 else ""
+                return op, operand
+
+            if i + 9 < len(self.code):
+                ops = []
+                for k in range(10):
+                    op, operand = _parse_inst(self.code[i + k])
+                    if not op or op.endswith(":"):
+                        ops = []
+                        break
+                    ops.append((op, operand))
+                if ops:
+                    (op0, src0), (op1, _), (op2, dst0), (op3, _), (op4, src1), (op5, dst1), (op6, _), (op7, _), (op8, dst2), (op9, dst3) = ops
+                    if (op0 == "LDA" and op1 == "CLC" and op2 == "ADC" and op3 == "TAY" and
+                        op4 == "LDA" and op5 == "ADC" and op6 == "TAX" and op7 == "TYA" and
+                        op8 == "STA" and op9 == "STX" and dst0 == dst2 and dst1 == f"{dst0}+1" and
+                        dst3 == f"{dst0}+1" and src1 == f"{src0}+1"):
+                        # Ensure next instruction reloads the destination (safe to discard A/X result)
+                        j = i + 10
+                        next_inst_ok = False
+                        while j < len(self.code):
+                            next_line = self.code[j].strip()
+                            if not next_line or next_line.startswith(";"):
+                                j += 1
+                                continue
+                            next_op, next_operand = _parse_inst(self.code[j])
+                            next_inst_ok = (next_op == "LDA" and next_operand == dst0)
+                            break
+                        if next_inst_ok:
+                            indent0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                            indent4 = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
+                            optimized.append(f"{indent0}LDA {src0}\n")
+                            optimized.append(f"{indent0}CLC\n")
+                            optimized.append(f"{indent0}ADC {dst0}\n")
+                            optimized.append(f"{indent0}STA {dst0}\n")
+                            optimized.append(f"{indent4}LDA {src1}\n")
+                            optimized.append(f"{indent4}ADC {dst0}+1\n")
+                            optimized.append(f"{indent4}STA {dst0}+1\n")
+                            i += 10
+                            continue
+
             # Remove blank line right before RTS
             if not line_stripped:
                 j = i + 1
@@ -3949,6 +3997,35 @@ class CodeGen:
         # Only save high byte if we need 16-bit result
         if result_16_adj:
             self.emit(f"\tSTX {left_tmp}+1")
+
+        # Immediate 16-bit add/sub without temp shuffles
+        if (expr.op in {BinOp.ADD, BinOp.SUB} and isinstance(expr.right, IntLiteral) and
+                result_16_adj and not use_inc_opt and not use_dec_opt):
+            imm_val: int = expr.right.value & 0xFFFF
+            scale: int = 1
+            if left_is_ptr or right_is_ptr:
+                scale = ptr_elem_size
+            total: int = (imm_val * scale) & 0xFFFF
+            lo: int = total & 0xFF
+            hi: int = (total >> 8) & 0xFF
+
+            if expr.op == BinOp.ADD:
+                self.emit(f"\tLDA {left_tmp}")
+                self.emit("\tCLC")
+                self.emit(f"\tADC #${lo:02X}")
+                self.emit("\tTAY")
+                self.emit(f"\tLDA {left_tmp}+1")
+                self.emit(f"\tADC #${hi:02X}")
+            else:
+                self.emit(f"\tLDA {left_tmp}")
+                self.emit("\tSEC")
+                self.emit(f"\tSBC #${lo:02X}")
+                self.emit("\tTAY")
+                self.emit(f"\tLDA {left_tmp}+1")
+                self.emit(f"\tSBC #${hi:02X}")
+            self.emit("\tTAX")
+            self.emit("\tTYA")
+            return
 
         # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
         shift_count: int | None = None
