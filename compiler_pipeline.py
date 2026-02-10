@@ -7,6 +7,7 @@ from sema_proc import ProcAnalyzer
 from sema_func import FuncAnalyzer
 from codegen_expr import CodeGen
 from dce import dce_block
+from errors import SemanticError
 from collections import deque
 from typing import Optional, Set
 
@@ -458,20 +459,36 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # --- debug info ---
     debug = getattr(program, "debug", None) or {}
 
+    def _map_debug_line(fname: str | None, line: int | None) -> int | None:
+        if fname and isinstance(line, int):
+            orig_map = (debug.get("orig_line_map_per_file") or {}).get(fname)
+            if orig_map and 1 <= line <= len(orig_map):
+                return orig_map[line - 1]
+        return line
+
+    def _attach_source_text(err, fname: str | None) -> None:
+        if not fname:
+            return
+        orig_src = (debug.get("orig_source_lines_per_file") or {}).get(fname)
+        if orig_src:
+            err.source_text = "\n".join(orig_src)
+            return
+        file_lines = (debug.get("file_lines") or {}).get(fname)
+        if file_lines:
+            err.source_text = "\n".join(file_lines)
+
     # Check for collisions with .define symbols
     if defined_symbols:
         for name in list(global_symtab._symbols.keys()):
             if name in defined_symbols or name.upper() in defined_symbols:
-                from errors import SemanticError
                 gdecl = debug.get("global_decl_src") or {}
                 info = gdecl.get(name)
                 if info:
                     fname, line, col, _text = info
-                    e = SemanticError(f"Variable '{name}' conflicts with .define symbol", line=line, col=col)
+                    mapped_line = _map_debug_line(fname, line)
+                    e = SemanticError(f"Variable '{name}' conflicts with .define symbol", line=mapped_line, col=col)
                     e.filename = fname
-                    src_lines = debug.get("source_lines")
-                    if src_lines:
-                        e.source_text = "\n".join(src_lines)
+                    _attach_source_text(e, fname)
                     raise e
                 # No per-declaration source info available; attach a fallback position
                 raise SemanticError(f"Variable '{name}' conflicts with .define symbol", line=1, col=1)
@@ -491,31 +508,27 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             proc_an.analyze_decl(p)
             # Check for collision with existing global variables
             if global_symtab._key(p.name) in global_symtab._symbols:
-                from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
-                    e = SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=line, col=col)
+                    mapped_line = _map_debug_line(fname, line)
+                    e = SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=mapped_line, col=col)
                     e.filename = fname
-                    src_lines = debug.get("source_lines")
-                    if src_lines:
-                        e.source_text = "\n".join(src_lines)
+                    _attach_source_text(e, fname)
                     raise e
                 # No per-proc source info available; attach a fallback position
                 raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=1, col=1)
             # Check for collision with .define symbols
             if defined_symbols and p.name.upper() in defined_symbols:
-                from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
-                    e = SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=line, col=col)
+                    mapped_line = _map_debug_line(fname, line)
+                    e = SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=mapped_line, col=col)
                     e.filename = fname
-                    src_lines = debug.get("source_lines")
-                    if src_lines:
-                        e.source_text = "\n".join(src_lines)
+                    _attach_source_text(e, fname)
                     raise e
                 # No per-proc source info available; attach a fallback position
                 raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=1, col=1)
@@ -523,31 +536,27 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
             func_an.analyze_decl(p)
             # Check for collision with existing global variables
             if global_symtab._key(p.name) in global_symtab._symbols:
-                from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
-                    e = SemanticError(f"Function '{p.name}' conflicts with existing variable", line=line, col=col)
+                    mapped_line = _map_debug_line(fname, line)
+                    e = SemanticError(f"Function '{p.name}' conflicts with existing variable", line=mapped_line, col=col)
                     e.filename = fname
-                    src_lines = debug.get("source_lines")
-                    if src_lines:
-                        e.source_text = "\n".join(src_lines)
+                    _attach_source_text(e, fname)
                     raise e
                 # No per-func source info available; attach a fallback position
                 raise SemanticError(f"Function '{p.name}' conflicts with existing variable", line=1, col=1)
             # Check for collision with .define symbols
             if defined_symbols and p.name.upper() in defined_symbols:
-                from errors import SemanticError
                 proc_src = debug.get("proc_src") or {}
                 info = proc_src.get(p.name)
                 if info:
                     fname, line, col, _text = info
-                    e = SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=line, col=col)
+                    mapped_line = _map_debug_line(fname, line)
+                    e = SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=mapped_line, col=col)
                     e.filename = fname
-                    src_lines = debug.get("source_lines")
-                    if src_lines:
-                        e.source_text = "\n".join(src_lines)
+                    _attach_source_text(e, fname)
                     raise e
                 # No per-func source info available; attach a fallback position
                 raise SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=1, col=1)
@@ -556,7 +565,6 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     try:
         proc_table.lookup("MAIN")
     except KeyError:
-        from errors import SemanticError
         # Give a stable fallback location if main() is missing
         raise SemanticError("Program must have a 'main()' procedure", line=1, col=1)
     

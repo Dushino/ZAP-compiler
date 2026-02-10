@@ -66,6 +66,9 @@ class CodeGen:
         self.global_decl_src = self.debug.get("global_decl_src", {})
         self.proc_src = self.debug.get("proc_src", {})
         self.source_lines = self.debug.get("source_lines", [])
+        self.file_lines = self.debug.get("file_lines", {})
+        self.orig_line_map_per_file = self.debug.get("orig_line_map_per_file", {})
+        self.orig_source_lines_per_file = self.debug.get("orig_source_lines_per_file", {})
         # Track current statement source info for error reporting
         self.current_stmt_info: tuple[str, int, int, str] | None = None
         # Track fixed-address variables (hardware registers) - never optimize these
@@ -93,6 +96,16 @@ class CodeGen:
         try:
             return self.tc.check(expr, read_check_enabled=read_check_enabled)
         except SemanticError as e:
+            if self.current_stmt_info and getattr(e, "filename", None) is None:
+                fname, _, _, _ = self.current_stmt_info
+                if getattr(e, "line", None) is not None:
+                    mapped_line = self._map_clean_line_to_orig(fname, e.line)
+                    if mapped_line is not None:
+                        e.line = mapped_line
+                e.filename = fname
+                src_lines = self._get_source_lines_for_file(fname)
+                if src_lines:
+                    e.source_text = "\n".join(src_lines)
             # If error lacks position, attach current statement info
             if getattr(e, 'line', None) is None and self.current_stmt_info:
                 self._raise_error(e.message)
@@ -2128,7 +2141,8 @@ class CodeGen:
             else:
                 fname, line, col, text = info
                 self.current_stmt_info = (fname, line, col, text)
-            self.emit(f"; {fname} {line}: {text}")
+            display_line = self._map_clean_line_to_orig(fname, line)
+            self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
 
     def emit_src_comment_for_local(self, proc_name: str, var_name: str) -> None:
         info = self.local_decl_src.get((proc_name, var_name))
@@ -2136,7 +2150,8 @@ class CodeGen:
             fname, line, col, text = info
             # Also attach current_stmt_info so subsequent raises have context
             self.current_stmt_info = (fname, line, col, text)
-            self.emit(f"; {fname} {line}: {text}")
+            display_line = self._map_clean_line_to_orig(fname, line)
+            self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
 
     def emit_src_comment_for_global(self, var_name: str) -> None:
         info = self.global_decl_src.get(var_name)
@@ -2144,18 +2159,39 @@ class CodeGen:
             fname, line, col, text = info
             # Also attach current_stmt_info so subsequent raises have context
             self.current_stmt_info = (fname, line, col, text)
-            self.emit(f"; {fname} {line}: {text}")
+            display_line = self._map_clean_line_to_orig(fname, line)
+            self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
+
+    def _map_clean_line_to_orig(self, fname: str, line: int | None) -> int | None:
+        if fname and isinstance(line, int):
+            orig_map = self.orig_line_map_per_file.get(fname)
+            if orig_map and 1 <= line <= len(orig_map):
+                return orig_map[line - 1]
+        return line
+
+    def _get_source_lines_for_file(self, fname: str | None) -> list[str] | None:
+        if not fname:
+            return self.source_lines if self.source_lines else None
+        orig_src = self.orig_source_lines_per_file.get(fname)
+        if orig_src:
+            return orig_src
+        cleaned_src = self.file_lines.get(fname)
+        if cleaned_src:
+            return cleaned_src
+        return self.source_lines if self.source_lines else None
 
     def _raise_error(self, msg: str) -> NoReturn:
         # Attach line/col and source text for better error output
         from errors import SemanticError
         if self.current_stmt_info:
             fname, line, col, _ = self.current_stmt_info
-            e = SemanticError(msg, line=line, col=col)
-            # Provide full source text when available
-            if self.source_lines:
-                e.source_text = "\n".join(self.source_lines)
-            e.filename = fname
+            mapped_line = self._map_clean_line_to_orig(fname, line)
+            e = SemanticError(msg, line=mapped_line if mapped_line is not None else line, col=col)
+            src_lines = self._get_source_lines_for_file(fname)
+            if src_lines:
+                e.source_text = "\n".join(src_lines)
+            if fname:
+                e.filename = fname
             raise e
         else:
             # Attach current expression node if present so error has location

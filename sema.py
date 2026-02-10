@@ -311,8 +311,10 @@ class DeclarationAnalyzer:
             line = orig_map[line - 1]
 
         err.filename = fname
-        err.line = line if isinstance(line, int) and line >= 1 else err.line
-        err.col = col if isinstance(col, int) and col >= 1 else err.col
+        if getattr(err, "line", None) is None:
+            err.line = line if isinstance(line, int) and line >= 1 else err.line
+        if getattr(err, "col", None) is None:
+            err.col = col if isinstance(col, int) and col >= 1 else err.col
 
         orig_src = (debug.get("orig_source_lines_per_file") or {}).get(fname)
         if orig_src:
@@ -477,10 +479,16 @@ class DeclarationAnalyzer:
                 # Check if constant fits in its type
                 if sem_type.base == "BYTE" and not sem_type.is_pointer:
                     if val < 0 or val > 0xFF:
-                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)", line=d.line, col=d.col)
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)",
+                            node=d.initializer.expr
+                        )
                 elif sem_type.base == "WORD" or sem_type.is_pointer:
                     if val < 0 or val > 0xFFFF:
-                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)", line=d.line, col=d.col)
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
+                            node=d.initializer.expr
+                        )
 
                 # Use effective rd/wr computed earlier
                 sym = Symbol(
@@ -519,6 +527,9 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                     elif array_len != len(d.initializer.values):
+                        size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
+                        if size_expr is not None:
+                            raise SemanticError("Array initializer size mismatch", node=size_expr)
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
                 # Use effective rd/wr computed earlier
@@ -640,6 +651,9 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                     elif array_len != len(d.initializer.values):
+                        size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
+                        if size_expr is not None:
+                            raise SemanticError("Array initializer size mismatch", node=size_expr)
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
                     # Resolve inferred dimensions in array_dims from initializer
@@ -652,6 +666,9 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                     elif array_len != len(d.initializer.values):
+                        size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
+                        if size_expr is not None:
+                            raise SemanticError("Array initializer size mismatch", node=size_expr)
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
                     
                     # Resolve inferred dimensions in array_dims from initializer
@@ -661,13 +678,19 @@ class DeclarationAnalyzer:
                         array_dims[-1] = inferred_size
 
             elif isinstance(d.initializer, StringInit):
+                init_line = getattr(d.initializer, "line", d.line)
+                init_col = getattr(d.initializer, "col", d.col)
                 if sem_type.base.lower() != "byte":
-                    raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
+                    raise SemanticError("String only allowed for byte array", line=init_line, col=init_col)
                 
                 # Check if string fits in the specified array size
                 string_len: int = len(d.initializer.value) + 1  # +1 for NUL terminator
                 if array_len is not None and string_len > array_len:
-                    raise SemanticError(f"String length {len(d.initializer.value)} + 1 (NUL) = {string_len} exceeds array size {array_len}", line=d.line, col=d.col)
+                    raise SemanticError(
+                        f"String length {len(d.initializer.value)} + 1 = {string_len} exceeds array size {array_len}",
+                        line=init_line,
+                        col=init_col
+                    )
                 
                 if array_len is None:
                     array_len: int = string_len
@@ -697,7 +720,9 @@ class DeclarationAnalyzer:
                     self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
 
             if isinstance(d.initializer, StringInit):
-                raise SemanticError("String initializer for scalar", line=d.line, col=d.col)
+                init_line = getattr(d.initializer, "line", d.line)
+                init_col = getattr(d.initializer, "col", d.col)
+                raise SemanticError("String initializer for scalar", line=init_line, col=init_col)
             
             # Check if initializer is a constant that fits in the type
             if isinstance(d.initializer, ExprInit) and isinstance(d.initializer.expr, IntLiteral):
@@ -705,10 +730,16 @@ class DeclarationAnalyzer:
                 # Check range
                 if sem_type.base == "BYTE" and not sem_type.is_pointer:
                     if val < 0 or val > 0xFF:
-                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)", line=d.line, col=d.col)
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in BYTE (0-255)",
+                            node=d.initializer.expr
+                        )
                 elif sem_type.base == "WORD" or sem_type.is_pointer:
                     if val < 0 or val > 0xFFFF:
-                        raise SemanticError(f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)", line=d.line, col=d.col)
+                        raise SemanticError(
+                            f"Constant value {val} (0x{val:X}) does not fit in WORD (0-65535)",
+                            node=d.initializer.expr
+                        )
             
             # Type-check all expression initializers to trigger validation
             # (e.g., array bounds checking for subscript expressions)

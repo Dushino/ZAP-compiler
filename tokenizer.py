@@ -478,6 +478,6 @@ class Tokenizer:
                 self._emit(TOK_OP, self.sline, self.scol, ch)
                 continue
 
-            # Unknown char: skip
-            self._advance(1)
+            # Unknown char: report error
+            raise TokenizerError(f"Unknown character: {ch}", line=self.sline, col=self.scol)
         return

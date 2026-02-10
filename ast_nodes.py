@@ -80,6 +80,8 @@ class ListInit(InitValue):
 @dataclass(frozen=True)
 class StringInit(InitValue):
     value: str
+    line: int = 0
+    col: int = 0
 
     def __repr__(self) -> str:
         return f'InitString("{self.value}")'

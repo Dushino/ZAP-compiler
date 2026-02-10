@@ -758,8 +758,10 @@ class Parser:
                     # string initializer
                     if self.cur.type == TOK_STRING:
                         val: str = self.cur.value
+                        str_line: int = self.cur.line
+                        str_col: int = self.cur.col
                         self.advance()
-                        init = StringInit(val)
+                        init = StringInit(val, line=str_line, col=str_col)
                         continue
 
                     init = ExprInit(self.parse_expr())
@@ -921,8 +923,10 @@ class Parser:
                     # string initializer
                     if self.cur.type == TOK_STRING:
                         val = self.cur.value
+                        str_line: int = self.cur.line
+                        str_col: int = self.cur.col
                         self.advance()
-                        init = StringInit(val)
+                        init = StringInit(val, line=str_line, col=str_col)
                         continue
 
                     init = ExprInit(self.parse_expr())
@@ -1368,7 +1372,7 @@ class Parser:
 
         while not (
             self.cur.type == TOK_KEYWORD and
-            self.cur.value in ("ELSE", "ELSEIF", "ENDIF")
+            self.cur.value in ("ELSE", "ELSEIF", "ENDIF", "END")
         ):
             then_body.append(self.parse_stmt())
 
@@ -1384,7 +1388,7 @@ class Parser:
             body = []
             while not (
                 self.cur.type == TOK_KEYWORD and
-                self.cur.value in ("ELSE", "ELSEIF", "ENDIF")
+                self.cur.value in ("ELSE", "ELSEIF", "ENDIF", "END")
             ):
                 body.append(self.parse_stmt())
 
@@ -1398,12 +1402,15 @@ class Parser:
             else_body = []
             while not (
                 self.cur.type == TOK_KEYWORD and
-                self.cur.value == "ENDIF"
+                self.cur.value in ("ENDIF", "END")
             ):
                 else_body.append(self.parse_stmt())
             cur_if.else_body = else_body
 
-        self.expect(TOK_KEYWORD, "ENDIF")
+        if self.cur.type == TOK_KEYWORD and self.cur.value in ("ENDIF", "END"):
+            self.advance()
+        else:
+            self.expect(TOK_KEYWORD, "ENDIF")
         node: IfStmt = root_if
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
@@ -1597,12 +1604,24 @@ class Parser:
             if self.cur.value == "SWITCH":
                 return self.parse_switch()
             if self.cur.value == "BREAK":
+                start_line: int = self.cur.line
+                start_col: int = self.cur.col
                 self.advance()
-                return BreakStmt()
+                node = BreakStmt()
+                line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+                self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
+                return node
             if self.cur.value == "CONTINUE":
+                start_line: int = self.cur.line
+                start_col: int = self.cur.col
                 self.advance()
-                return ContinueStmt()
+                node = ContinueStmt()
+                line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+                self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
+                return node
             if self.cur.value == "RETURN":
+                start_line: int = self.cur.line
+                start_col: int = self.cur.col
                 self.advance()
                 # Expression is optional for PROCs
                 expr = None
@@ -1613,10 +1632,8 @@ class Parser:
                     if self.cur.type not in (TOK_KEYWORD,):
                         expr = self.parse_expr()
                 node = ReturnStmt(expr)
-                ret_line: int = self.cur.line
-                ret_col: int = self.cur.col
-                line_text: str = self.source_lines[ret_line-1] if 1 <= ret_line <= len(self.source_lines) else ""
-                self.stmt_src[id(node)] = (self.filename, ret_line, ret_col, line_text)
+                line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+                self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node
 
         # Call statement: IDENT(...)

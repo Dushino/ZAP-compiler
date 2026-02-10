@@ -182,7 +182,6 @@ class SymbolTable:
         if sym.is_array and sym.type.is_pointer:
             total_size = sym.get_total_array_size()
             if total_size > 255:
-                from errors import SemanticError
                 raise SemanticError(
                     f"Pointer array '{sym.name}' exceeds maximum size of 255 bytes (got {total_size} bytes). "
                     f"Pointer arrays must fit in ZEROPAGE for efficient Y-indexed indirect addressing.",

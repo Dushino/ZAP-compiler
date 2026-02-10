@@ -25,6 +25,20 @@ class FuncAnalyzer:
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
 
+    def _map_debug_line(self, fname: str | None, line: int | None) -> int | None:
+        if fname and isinstance(line, int):
+            orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+            if orig_map and 1 <= line <= len(orig_map):
+                return orig_map[line - 1]
+        return line
+
+    def _attach_source_text(self, err: SemanticError, fname: str | None) -> None:
+        if not fname:
+            return
+        orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+        if orig_src:
+            err.source_text = "\n".join(orig_src)
+
     def analyze_decl(self, func: FuncDecl) -> None:
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
         # Count required parameters (those without defaults)
@@ -42,8 +56,10 @@ class FuncAnalyzer:
                     col = 1
                 else:
                     fname, line, col, _text = info
-                err = SemanticError(e.message, line=line, col=col)
+                mapped_line = self._map_debug_line(fname, line)
+                err = SemanticError(e.message, line=mapped_line, col=col)
                 err.filename = fname
+                self._attach_source_text(err, fname)
                 raise err
             raise
 
@@ -136,8 +152,13 @@ class FuncAnalyzer:
                     info = None
                 if info:
                     fname, line, col = info
-                    err = SemanticError(e.message, line=line, col=col)
+                    err_line = getattr(e, "line", None) or line
+                    err_col = getattr(e, "col", None) or col
+                    err = SemanticError(e.message, line=err_line, col=err_col)
                     err.filename = fname
+                    orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                    if orig_src:
+                        err.source_text = "\n".join(orig_src)
                     raise err
                 raise
 
@@ -189,19 +210,15 @@ class FuncAnalyzer:
 
                                 if not allowed:
                                     # Attach contextual source info if available
-                                    stmt_src = self.debug.get("stmt_src") or {}
-                                    info = stmt_src.get(id(st))
+                                    info = _map_stmt_info(st)
+                                    err = SemanticError("Write to read-only port", node=st.lhs)
                                     if info:
-                                        if len(info) == 3:
-                                            fname, line, _text = info
-                                            col = 1
-                                        else:
-                                            fname, line, col, _text = info
-                                        err = SemanticError("Write to read-only port", line=line, col=col)
+                                        fname, _line, _col = info
                                         err.filename = fname
-                                        raise err
-                                    # Fall back to providing the AST node so the error has a source location
-                                    raise SemanticError("Write to read-only port", node=st)
+                                        orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                        if orig_src:
+                                            err.source_text = "\n".join(orig_src)
+                                    raise err
                         except KeyError:
                             pass
 
@@ -281,25 +298,13 @@ class FuncAnalyzer:
                         # BYTE: must fit 0..255
                         if ret_sem.base == "BYTE" and not ret_sem.is_pointer:
                             if val < 0 or val > 0xFF:
-                                info = _map_stmt_info(stmt)
                                 msg = f"Return value {val} (0x{val:X}) does not fit in BYTE (0-255)"
-                                if info:
-                                    fname, line, col = info
-                                    err = SemanticError(msg, line=line, col=col)
-                                    err.filename = fname
-                                    raise err
-                                raise SemanticError(msg, node=stmt)
+                                raise SemanticError(msg, node=stmt.expr)
                         # WORD: must fit 0..65535
                         if ret_sem.base == "WORD" and not ret_sem.is_pointer:
                             if val < 0 or val > 0xFFFF:
-                                info = _map_stmt_info(stmt)
                                 msg = f"Return value {val} (0x{val:X}) does not fit in WORD (0-65535)"
-                                if info:
-                                    fname, line, col = info
-                                    err = SemanticError(msg, line=line, col=col)
-                                    err.filename = fname
-                                    raise err
-                                raise SemanticError(msg, node=stmt)
+                                raise SemanticError(msg, node=stmt.expr)
 
                 if et is not None and et.sem_type.base != ret_sem.base:
                     # Allow implicit narrowing from WORD to BYTE (use lower byte)

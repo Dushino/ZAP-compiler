@@ -22,6 +22,20 @@ class ProcAnalyzer:
         # Track the currently-analyzed ProcDecl. May be None when no proc is active.
         self.current_proc: ProcDecl | None = None
 
+    def _map_debug_line(self, fname: str | None, line: int | None) -> int | None:
+        if fname and isinstance(line, int):
+            orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+            if orig_map and 1 <= line <= len(orig_map):
+                return orig_map[line - 1]
+        return line
+
+    def _attach_source_text(self, err: SemanticError, fname: str | None) -> None:
+        if not fname:
+            return
+        orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+        if orig_src:
+            err.source_text = "\n".join(orig_src)
+
     def analyze_decl(self, proc: ProcDecl) -> None:
         # Count required parameters (those without defaults)
         required_params: int = sum(1 for p in proc.params if p.default_value is None)
@@ -52,8 +66,10 @@ class ProcAnalyzer:
                     col = 1
                 else:
                     fname, line, col, _text = info
-                err = SemanticError(e.message, line=line, col=col)
+                mapped_line = self._map_debug_line(fname, line)
+                err = SemanticError(e.message, line=mapped_line, col=col)
                 err.filename = fname
+                self._attach_source_text(err, fname)
                 raise err
             raise
 
@@ -68,6 +84,26 @@ class ProcAnalyzer:
         try:
             proc_sym: ProcSymbol = self.procs.lookup(call.name, caller_file=caller_file)
         except SemanticError as e:
+            # If a function exists with this name, report parameter issues at arg position
+            if self.func_table is not None:
+                try:
+                    fs = self.func_table.lookup(call.name, node=call)
+                    if len(call.args) > fs.param_count:
+                        extra_arg = call.args[fs.param_count]
+                        raise SemanticError(
+                            f"Function '{call.name}' expects {fs.param_count} parameters, but {len(call.args)} were provided",
+                            node=extra_arg
+                        )
+                    if len(call.args) < fs.required_params:
+                        raise SemanticError(
+                            f"Function '{call.name}' expects {fs.param_count} parameters, but {len(call.args)} were provided",
+                            node=call
+                        )
+                except SemanticError:
+                    raise
+                except KeyError:
+                    pass
+
             # Re-raise with source location attached
             stmt_src_map = self.debug.get("stmt_src") or {}
             info = stmt_src_map.get(id(call))
@@ -77,8 +113,10 @@ class ProcAnalyzer:
                     col = 1
                 else:
                     fname, line, col, _text = info
-                err = SemanticError(e.message, line=line, col=col)
+                mapped_line = self._map_debug_line(fname, line)
+                err = SemanticError(e.message, line=mapped_line, col=col)
                 err.filename = fname
+                self._attach_source_text(err, fname)
                 raise err
             raise
         # Allow arguments from required_params to param_count
@@ -95,8 +133,10 @@ class ProcAnalyzer:
                     col = 1
                 else:
                     fname, line, col, _text = info
-                err = SemanticError(msg, line=line, col=col)
+                mapped_line = self._map_debug_line(fname, line)
+                err = SemanticError(msg, line=mapped_line, col=col)
                 err.filename = fname
+                self._attach_source_text(err, fname)
                 raise err
             # Attach call node to provide source location when available
             raise SemanticError(msg, node=call)
@@ -213,8 +253,13 @@ class ProcAnalyzer:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
                                 fname, line, col = info
-                                err = SemanticError(e.message, line=line, col=col)
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
                                 err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
                         # RHS is read context
@@ -224,8 +269,13 @@ class ProcAnalyzer:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
                                 fname, line, col = info
-                                err = SemanticError(e.message, line=line, col=col)
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
                                 err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
 
@@ -277,13 +327,14 @@ class ProcAnalyzer:
 
                                 if not allowed:
                                     info = _map_stmt_info(st)
+                                    err = SemanticError("Write to read-only port", node=st.lhs)
                                     if info:
-                                        fname, line, col = info
-                                        err = SemanticError("Write to read-only port", line=line, col=col)
+                                        fname, _line, _col = info
                                         err.filename = fname
-                                        raise err
-                                    # Fall back to providing the AST node so the error has a source location
-                                    raise SemanticError("Write to read-only port", node=st)
+                                        orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                        if orig_src:
+                                            err.source_text = "\n".join(orig_src)
+                                    raise err
 
                     elif isinstance(st, ReturnStmt):
                         if st.expr is not None:
@@ -293,8 +344,13 @@ class ProcAnalyzer:
                                 info = _map_stmt_info(st)
                                 if info and getattr(e, "filename", None) is None:
                                     fname, line, col = info
-                                    err = SemanticError(e.message, line=line, col=col)
+                                    err_line = getattr(e, "line", None) or line
+                                    err_col = getattr(e, "col", None) or col
+                                    err = SemanticError(e.message, line=err_line, col=err_col)
                                     err.filename = fname
+                                    orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                    if orig_src:
+                                        err.source_text = "\n".join(orig_src)
                                     raise err
                                 raise
                     elif isinstance(st, IfStmt):
@@ -304,8 +360,13 @@ class ProcAnalyzer:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
                                 fname, line, col = info
-                                err = SemanticError(e.message, line=line, col=col)
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
                                 err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
                         validate_stmt_exprs(st.then_body)
@@ -318,8 +379,13 @@ class ProcAnalyzer:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
                                 fname, line, col = info
-                                err = SemanticError(e.message, line=line, col=col)
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
                                 err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
                         validate_stmt_exprs(st.body)
@@ -330,8 +396,13 @@ class ProcAnalyzer:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
                                 fname, line, col = info
-                                err = SemanticError(e.message, line=line, col=col)
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
                                 err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
                         try:
@@ -340,8 +411,13 @@ class ProcAnalyzer:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
                                 fname, line, col = info
-                                err = SemanticError(e.message, line=line, col=col)
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
                                 err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
                         if st.step is not None:
@@ -351,8 +427,13 @@ class ProcAnalyzer:
                                 info = _map_stmt_info(st)
                                 if info and getattr(e, "filename", None) is None:
                                     fname, line, col = info
-                                    err = SemanticError(e.message, line=line, col=col)
+                                    err_line = getattr(e, "line", None) or line
+                                    err_col = getattr(e, "col", None) or col
+                                    err = SemanticError(e.message, line=err_line, col=err_col)
                                     err.filename = fname
+                                    orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                    if orig_src:
+                                        err.source_text = "\n".join(orig_src)
                                     raise err
                                 raise
                         validate_stmt_exprs(st.body)
