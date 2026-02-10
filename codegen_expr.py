@@ -3869,6 +3869,25 @@ class CodeGen:
             # Special-case handled inline, skip the generic handlers
             return
 
+        # Strength-reduce byte DIV/MOD by power-of-two constants.
+        if (expr.op in {BinOp.DIV, BinOp.MOD} and isinstance(expr.right, IntLiteral) and
+                not left_16 and not right_16 and not result_16_adj and
+                not left_is_ptr and not right_is_ptr and
+                not left_is_promoted_byte_arith and not right_is_promoted_byte_arith):
+            divisor: int = expr.right.value & 0xFF
+            if divisor != 0 and (divisor & (divisor - 1)) == 0:
+                shift_count: int = 0
+                while (1 << shift_count) < divisor:
+                    shift_count += 1
+                self.gen_expr(expr.left)
+                if expr.op == BinOp.DIV:
+                    for _ in range(shift_count):
+                        self.emit("\tLSR A")
+                else:
+                    mask: int = divisor - 1
+                    self.emit(f"\tAND #${mask:02X}")
+                return
+
         if expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
             self._gen_math_binop(expr, left_16, right_16)
             return
