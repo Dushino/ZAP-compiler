@@ -24,6 +24,7 @@ proc main()
     putchar('H')
     putchar('i')    
     putchar('!')
+    putchar(' ')
     
     ch = getchar()
     while ch != 27
@@ -31,13 +32,13 @@ proc main()
 
             default
                 putx(ch)
+                putchar(' ')
+                putchar(' ')
                 break
         end
         ch = getchar()
     end 
 
     PLAYF4 = COLOR_BLUE1  + 2
-
-    ch1 = 1
 
 end
