@@ -113,27 +113,6 @@ class CodeGen:
             self.emit("\tLDA #$00")
             self.emit(f"\tSTA {operand}")
 
-    def _emit_long_branch(self, branch_op: str, label: str) -> None:
-        """Emit a branch that is safe even when the target is out of range."""
-        invert: dict[str, str] = {
-            "BEQ": "BNE",
-            "BNE": "BEQ",
-            "BCC": "BCS",
-            "BCS": "BCC",
-            "BMI": "BPL",
-            "BPL": "BMI",
-            "BVC": "BVS",
-            "BVS": "BVC",
-        }
-        inv = invert.get(branch_op)
-        if inv is None:
-            self.emit(f"\t{branch_op} {label}")
-            return
-        skip_lbl: str = self.new_label("BR_SKIP")
-        self.emit(f"\t{inv} {skip_lbl}")
-        self.emit(f"\tJMP {label}")
-        self.emit(f"{skip_lbl}:")
-
     def _emit_indirect_store_zero(self, ptr: str) -> None:
         if self.is_65c02:
             self.emit(f"\tSTA ({ptr})")
@@ -4812,49 +4791,7 @@ class CodeGen:
             # Evaluate and pass arguments to function parameters
             specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(expr.name)
             if specs is not None:
-                for i, spec in enumerate(specs):
-                    pname, width, default_value = spec
-                    # Determine which argument to use
-                    arg = None
-                    if i < len(expr.args) and expr.args[i] is not None:
-                        # Use provided argument
-                        arg = expr.args[i]
-                    elif default_value is not None:
-                        # Use default value
-                        arg: object = default_value
-                    else:
-                        # No argument and no default - skip this parameter
-                        continue
-
-                    # Substitute consts and fold before codegen
-                    arg = subst_const(cast(Expr, arg), cast(SymbolTable, self.current_symtab))
-                    arg = fold_expr(arg)
-
-                    self.tc_check(arg)
-                    asm: str = f"_{expr.name}_{pname}"
-                    if width == 1:
-                        if isinstance(arg, IntLiteral):
-                            self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
-                            self.emit(f"\tSTA {asm}")
-                            continue
-                        if isinstance(arg, Identifier):
-                            arg_sym: Symbol = self.current_symtab.lookup(arg.name)
-                            if arg_sym.type.base == "BYTE" and not arg_sym.type.is_pointer and not arg_sym.is_array:
-                                self.emit(f"\tLDA {self._sym_operand(arg_sym, low_byte=True)}")
-                                self.emit(f"\tSTA {asm}")
-                                continue
-                    prev_force: bool = self.force_word_result
-                    if width == 2:
-                        self.force_word_result = True
-                    try:
-                        self.gen_expr(arg)
-                    finally:
-                        self.force_word_result = prev_force
-                    if width == 1:
-                        self.emit(f"\tSTA {asm}")
-                    else:
-                        self.emit(f"\tSTA {asm}")
-                        self.emit(f"\tSTX {asm}+1")
+                self._emit_call_args(expr.name, expr.args, specs)
             self.emit(f"\tJSR {expr.name}")
             # Caller-side widening: only clear X when a byte result is used in word context
             ret_t: ExprType = self.tc_check(expr)
@@ -5940,6 +5877,11 @@ class CodeGen:
         self.emit("; -- Procedure " + proc.ast.name + " --")
         self.emit(f"{proc.ast.name}:")
 
+        # Store register-passed arguments into param globals (if any)
+        proc_specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(proc.ast.name)
+        if proc_specs:
+            self._emit_param_reg_stores(proc.ast.name, proc_specs)
+
         # INIT lokálů
         for sym in proc.locals:
             self.gen_init(cast(Symbol, sym))
@@ -5955,6 +5897,206 @@ class CodeGen:
         self.current_symtab = prev_symtab
         if prev_tc_symtab is not None:
             self.tc.symtab = prev_tc_symtab
+
+    def _resolve_call_args(self, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> list[tuple[int, str, int, Expr]]:
+        resolved: list[tuple[int, str, int, Expr]] = []
+        for i, spec in enumerate(specs):
+            pname, width, default_value = spec
+            arg: object | None
+            if i < len(args) and args[i] is not None:
+                arg = args[i]
+            elif default_value is not None:
+                arg = default_value
+            else:
+                continue
+
+            # Substitute consts and fold before codegen
+            arg = subst_const(cast(Expr, arg), cast(SymbolTable, self.current_symtab))
+            arg = fold_expr(arg)
+            self.tc_check(arg)
+            resolved.append((i, pname, width, cast(Expr, arg)))
+        return resolved
+
+    def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object]]) -> None:
+        if not specs:
+            return
+        width0 = specs[0][1]
+        pname0 = specs[0][0]
+        if width0 == 2:
+            asm0 = f"_{callee_name}_{pname0}"
+            self.emit(f"\tSTA {asm0}")
+            self.emit(f"\tSTX {asm0}+1")
+            return
+        if width0 == 1:
+            asm0 = f"_{callee_name}_{pname0}"
+            self.emit(f"\tSTA {asm0}")
+            if len(specs) > 1 and specs[1][1] == 1:
+                pname1 = specs[1][0]
+                asm1 = f"_{callee_name}_{pname1}"
+                self.emit(f"\tSTX {asm1}")
+
+    def _emit_call_args(self, callee_name: str, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> None:
+        resolved = self._resolve_call_args(args, specs)
+        if not resolved:
+            return
+
+        indices = {i for i, _, _, _ in resolved}
+        last_index = max(indices) if indices else -1
+
+        reg_case: str | None = None
+        reg_a_index: int | None = None
+        reg_x_index: int | None = None
+        if specs:
+            width0 = specs[0][1]
+            if width0 == 2 and 0 in indices:
+                reg_case = "word0"
+                reg_a_index = 0
+                reg_x_index = 0
+            elif width0 == 1 and 0 in indices:
+                reg_case = "byte0"
+                reg_a_index = 0
+                if len(specs) > 1 and specs[1][1] == 1 and 1 in indices:
+                    reg_case = "two_bytes"
+                    reg_x_index = 1
+
+        saved_regs_pair = False
+        saved_a_only = False
+        saved_param0 = False
+        saved_param1 = False
+
+        def _simple_arg(e: Expr) -> bool:
+            return isinstance(e, (IntLiteral, Identifier, SubscriptExpr, FieldAccess)) or (
+                isinstance(e, UnaryExpr) and e.op == UnOp.ADDROF
+            )
+
+        def _can_reorder_regs() -> bool:
+            if reg_case == "word0":
+                for i, _, _, arg in resolved:
+                    if i == reg_a_index and not _simple_arg(arg):
+                        return False
+            if reg_case in {"byte0", "two_bytes"}:
+                for i, _, _, arg in resolved:
+                    if i == reg_a_index and not _simple_arg(arg):
+                        return False
+                    if reg_case == "two_bytes" and i == reg_x_index and not _simple_arg(arg):
+                        return False
+            return True
+
+        reorder_regs = _can_reorder_regs()
+
+        for index, pname, width, arg in resolved:
+            asm: str = f"_{callee_name}_{pname}"
+
+            if reg_case == "word0" and index == reg_a_index:
+                if reorder_regs:
+                    continue
+                prev_force: bool = self.force_word_result
+                self.force_word_result = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.force_word_result = prev_force
+                self.emit("\tPHA")
+                self.emit("\tTXA")
+                self.emit("\tPHA")
+                saved_regs_pair = True
+                continue
+
+            if reg_case in {"byte0", "two_bytes"} and index == reg_a_index:
+                if reorder_regs:
+                    continue
+                prev_suppress: bool = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                self.emit("\tPHA")
+                if reg_case == "two_bytes":
+                    saved_param0 = True
+                else:
+                    saved_a_only = True
+                continue
+
+            if reg_case == "two_bytes" and index == reg_x_index:
+                if reorder_regs:
+                    continue
+                prev_suppress: bool = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                self.emit("\tPHA")
+                saved_param1 = True
+                continue
+
+            if width == 1:
+                if isinstance(arg, IntLiteral):
+                    self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
+                    self.emit(f"\tSTA {asm}")
+                    continue
+                if isinstance(arg, Identifier):
+                    arg_sym: Symbol = self.current_symtab.lookup(arg.name)
+                    if arg_sym.type.base == "BYTE" and not arg_sym.type.is_pointer and not arg_sym.is_array:
+                        self.emit(f"\tLDA {arg_sym.asm_name()}")
+                        self.emit(f"\tSTA {asm}")
+                        continue
+                prev_suppress: bool = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                self.emit(f"\tSTA {asm}")
+                continue
+
+            prev_force: bool = self.force_word_result
+            self.force_word_result = True
+            try:
+                self.gen_expr(arg)
+            finally:
+                self.force_word_result = prev_force
+            self.emit(f"\tSTA {asm}")
+            self.emit(f"\tSTX {asm}+1")
+
+        if reorder_regs:
+            if reg_case == "word0" and reg_a_index is not None:
+                arg = next(a for i, _, _, a in resolved if i == reg_a_index)
+                prev_force: bool = self.force_word_result
+                self.force_word_result = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.force_word_result = prev_force
+            elif reg_case in {"byte0", "two_bytes"} and reg_a_index is not None:
+                if reg_case == "two_bytes" and reg_x_index is not None:
+                    arg_x = next(a for i, _, _, a in resolved if i == reg_x_index)
+                    prev_suppress: bool = self.suppress_byte_return_x
+                    self.suppress_byte_return_x = True
+                    try:
+                        self.gen_expr(arg_x)
+                    finally:
+                        self.suppress_byte_return_x = prev_suppress
+                    self.emit("\tTAX")
+                arg_a = next(a for i, _, _, a in resolved if i == reg_a_index)
+                prev_suppress = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg_a)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+        else:
+            if saved_regs_pair:
+                self.emit("\tPLA")
+                self.emit("\tTAX")
+                self.emit("\tPLA")
+            elif saved_param1:
+                self.emit("\tPLA")
+                self.emit("\tTAX")
+                self.emit("\tPLA")
+            elif saved_a_only:
+                self.emit("\tPLA")
 
 
     def gen_stmt(self, stmt):
@@ -6003,52 +6145,10 @@ class CodeGen:
             # Pass arguments to callee parameters (simple ABI via memory)
             specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(stmt.name)
             if specs is not None:
-                for i, spec in enumerate(specs):
-                    pname, width, default_value = spec
-                    # Determine which argument to use
-                    arg = None
-                    if i < len(stmt.args) and stmt.args[i] is not None:
-                        # Use provided argument
-                        arg = stmt.args[i]
-                    elif default_value is not None:
-                        # Use default value
-                        arg: object = default_value
-                    else:
-                        # No argument and no default - skip this parameter
-                        continue
-
-                    # Substitute consts and fold before codegen
-                    arg = subst_const(cast(Expr, arg), cast(SymbolTable, self.current_symtab))
-                    arg = fold_expr(arg)
-
-                    self.tc_check(arg)
-                    asm: str = f"_{stmt.name}_{pname}"
-                    if width == 1:
-                        if isinstance(arg, IntLiteral):
-                            self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
-                            self.emit(f"\tSTA {asm}")
-                            continue
-                        if isinstance(arg, Identifier):
-                            arg_sym: Symbol = self.current_symtab.lookup(arg.name)
-                            if arg_sym.type.base == "BYTE" and not arg_sym.type.is_pointer and not arg_sym.is_array:
-                                self.emit(f"\tLDA {arg_sym.asm_name()}")
-                                self.emit(f"\tSTA {asm}")
-                                continue
-                    # evaluate arg into A/(X)
-                    prev_force: bool = self.force_word_result
-                    if width == 2:
-                        self.force_word_result = True
-                    try:
-                        self.gen_expr(arg)
-                    finally:
-                        self.force_word_result = prev_force
-                    if width == 1:
-                        self.emit(f"\tSTA {asm}")
-                    else:
-                        self.emit(f"\tSTA {asm}")
-                        self.emit(f"\tSTX {asm}+1")
+                self._emit_call_args(stmt.name, stmt.args, specs)
             self.emit(f"\tJSR {stmt.name}")
             return
+
 
         if isinstance(stmt, AssignStmt):
             self.gen_assign(stmt.lhs, stmt.rhs)
@@ -6231,9 +6331,9 @@ class CodeGen:
                 self.emit("\tSTA TMP4")
                 self.emit("\tTXA")
                 self.emit("\tORA TMP4")
-                self._emit_long_branch("BEQ", lbl_else)
+                self.emit(f"\tBEQ {lbl_else}")
             else:
-                self._emit_long_branch("BEQ", lbl_else)
+                self.emit(f"\tBEQ {lbl_else}")
 
             for s in stmt.then_body:
                 self.gen_stmt(s)
@@ -6279,9 +6379,9 @@ class CodeGen:
                     self.emit("\tSTA TMP4")
                     self.emit("\tTXA")
                     self.emit("\tORA TMP4")
-                    self._emit_long_branch("BEQ", lbl_end)
+                    self.emit(f"\tBEQ {lbl_end}")
                 else:
-                    self._emit_long_branch("BEQ", lbl_end)
+                    self.emit(f"\tBEQ {lbl_end}")
 
             self.emit(f"{lbl_body}:")
 
@@ -6337,6 +6437,11 @@ class CodeGen:
 
         self.emit("; -- Function " + func.ast.name + " --")
         self.emit(f"{func.ast.name}:")
+
+        # Store register-passed arguments into param globals (if any)
+        func_specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(func.ast.name)
+        if func_specs:
+            self._emit_param_reg_stores(func.ast.name, func_specs)
 
         # init lokálů
         for sym in func.locals:
@@ -6462,19 +6567,19 @@ class CodeGen:
             self.emit(f"\tCMP {cmp_operand}")
 
             if expr.op == BinOp.EQ:
-                self._emit_long_branch("BEQ", lbl_true)
+                self.emit(f"\tBEQ {lbl_true}")
             elif expr.op == BinOp.NE:
-                self._emit_long_branch("BNE", lbl_true)
+                self.emit(f"\tBNE {lbl_true}")
             elif expr.op == BinOp.LT:
-                self._emit_long_branch("BCC", lbl_true)
+                self.emit(f"\tBCC {lbl_true}")
             elif expr.op == BinOp.GE:
-                self._emit_long_branch("BCS", lbl_true)
+                self.emit(f"\tBCS {lbl_true}")
             elif expr.op == BinOp.GT:
-                self._emit_long_branch("BEQ", lbl_end)
-                self._emit_long_branch("BCS", lbl_true)
+                self.emit(f"\tBEQ {lbl_end}")
+                self.emit(f"\tBCS {lbl_true}")
             elif expr.op == BinOp.LE:
-                self._emit_long_branch("BCC", lbl_true)
-                self._emit_long_branch("BEQ", lbl_true)
+                self.emit(f"\tBCC {lbl_true}")
+                self.emit(f"\tBEQ {lbl_true}")
 
         # false
         self.emit("\tLDA #0")
@@ -6511,16 +6616,16 @@ class CodeGen:
                     self.emit("\tLDX #0     ; note 7054")
                 if cond.op in {BinOp.EQ, BinOp.LE}:
                     self.emit("\tCPX #$00")
-                    self._emit_long_branch("BNE", lbl_false)
+                    self.emit(f"\tBNE {lbl_false}")
                     self.emit("\tCMP #$00")
-                    self._emit_long_branch("BEQ", lbl_true)
+                    self.emit(f"\tBEQ {lbl_true}")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op in {BinOp.NE, BinOp.GT}:
                     self.emit("\tCPX #$00")
-                    self._emit_long_branch("BNE", lbl_true)
+                    self.emit(f"\tBNE {lbl_true}")
                     self.emit("\tCMP #$00")
-                    self._emit_long_branch("BNE", lbl_true)
+                    self.emit(f"\tBNE {lbl_true}")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
@@ -6531,11 +6636,11 @@ class CodeGen:
                     return
             else:
                 if cond.op in {BinOp.EQ, BinOp.LE}:
-                    self._emit_long_branch("BEQ", lbl_true)
+                    self.emit(f"\tBEQ {lbl_true}")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op in {BinOp.NE, BinOp.GT}:
-                    self._emit_long_branch("BNE", lbl_true)
+                    self.emit(f"\tBNE {lbl_true}")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
