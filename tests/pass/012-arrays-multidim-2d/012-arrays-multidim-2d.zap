@@ -20,7 +20,7 @@ proc main()
     matrix[2][2] = 11
     matrix[2][3] = 12
     
-    ; Sum = 1+2+3+4+5+6+7+8+9+10+11+12 = 78 (0x4E)
+    ; Sum = 1+6+11 = 18 (0x12)
     sum = matrix[0][0] + matrix[1][1] + matrix[2][2]  ; 1 + 6 + 11 = 18 (0x12)
     result = sum
 end

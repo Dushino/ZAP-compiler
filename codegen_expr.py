@@ -2388,8 +2388,11 @@ class CodeGen:
                 self.emit(f"\tADC #${offset_high:02X}")
                 self.emit("\tSTA TMP0+1")
             
-            # If only calculating address, we're done
+            # If only calculating address, stop here
             if calc_addr_only:
+                return
+
+            if load_only:
                 if element_width == 2:
                     self.emit("\tLDY #1")
                     self.emit("\tLDA (TMP0),Y")
@@ -2606,6 +2609,8 @@ class CodeGen:
                             self.emit("\tLDX #0     ; note 3499")
                         return
 
+                if arr_label is None:
+                    self._raise_error(f"Const array '{sym.name}' has no initialization")
                 self._load_sym_addr(arr_label)
             else:
                 # base address -> TMP0/TMP0+1 (regular non-const array)
