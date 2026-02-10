@@ -2076,7 +2076,13 @@ class CodeGen:
         if t.sem_type.base == "WORD" or t.sem_type.is_pointer:
             self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
         elif not self.suppress_byte_return_x:
-            self.emit("\tLDX #$00")
+            # Skip clearing X when assigning to a BYTE target
+            target_is_byte: None | bool = (self.assign_target_type and
+                            hasattr(self.assign_target_type, 'base') and
+                            self.assign_target_type.base == "BYTE" and
+                            not getattr(self.assign_target_type, 'is_pointer', False))
+            if not target_is_byte:
+                self.emit("\tLDX #$00")
 
 
     def _gen_identifier(self, expr: Identifier) -> None:
@@ -3876,12 +3882,12 @@ class CodeGen:
                 not left_is_promoted_byte_arith and not right_is_promoted_byte_arith):
             divisor: int = expr.right.value & 0xFF
             if divisor != 0 and (divisor & (divisor - 1)) == 0:
-                shift_count: int = 0
-                while (1 << shift_count) < divisor:
-                    shift_count += 1
+                div_shift_count: int = 0
+                while (1 << div_shift_count) < divisor:
+                    div_shift_count += 1
                 self.gen_expr(expr.left)
                 if expr.op == BinOp.DIV:
-                    for _ in range(shift_count):
+                    for _ in range(div_shift_count):
                         self.emit("\tLSR A")
                 else:
                     mask: int = divisor - 1
@@ -6435,6 +6441,54 @@ class CodeGen:
         right_t: ExprType = self.tc_check(cond.right)
         is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
 
+        # Fast path: compare-to-zero simplification (unsigned)
+        if isinstance(cond.right, IntLiteral) and (cond.right.value & 0xFFFF) == 0:
+            prev_suppress: bool = self.suppress_byte_return_x
+            if not is_16bit:
+                self.suppress_byte_return_x = True
+            try:
+                self.gen_expr(cond.left)
+            finally:
+                self.suppress_byte_return_x = prev_suppress
+            if is_16bit:
+                if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
+                    self.emit("\tLDX #0     ; note 7054")
+                if cond.op in {BinOp.EQ, BinOp.LE}:
+                    self.emit("\tCPX #$00")
+                    self.emit(f"\tBNE {lbl_false}")
+                    self.emit("\tCMP #$00")
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op in {BinOp.NE, BinOp.GT}:
+                    self.emit("\tCPX #$00")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit("\tCMP #$00")
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GE:
+                    self.emit(f"\tJMP {lbl_true}")
+                    return
+                if cond.op == BinOp.LT:
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+            else:
+                if cond.op in {BinOp.EQ, BinOp.LE}:
+                    self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op in {BinOp.NE, BinOp.GT}:
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+                if cond.op == BinOp.GE:
+                    self.emit(f"\tJMP {lbl_true}")
+                    return
+                if cond.op == BinOp.LT:
+                    self.emit(f"\tJMP {lbl_false}")
+                    return
+
         cmp_lo = "TMP0"
         cmp_hi = "TMP0+1"
 
@@ -6774,8 +6828,6 @@ class CodeGen:
             return None
 
         # Optimize: if right side is a constant, use immediate addressing
-        from ast_nodes import IntLiteral
-        from typing import cast
         use_immediate: bool = isinstance(cond.right, IntLiteral)
         
         if use_immediate:
