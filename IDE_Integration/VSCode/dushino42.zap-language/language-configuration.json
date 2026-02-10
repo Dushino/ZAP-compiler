@@ -69,6 +69,6 @@
             "start": "(?i)^\\s*(PROC|FUNC|IF|ELSE|ELSEIF|SWITCH|CASE|WHILE|ASM|STRUCT|ENUM|\\.ifdef|\\.ifndef|\\.else)",
             "end": "(?i)^\\s*(RETURN|END|BREAK|\\.endif|\\.else)"
         },
-        "offSide": true
+        "offSide": false
     }
 }

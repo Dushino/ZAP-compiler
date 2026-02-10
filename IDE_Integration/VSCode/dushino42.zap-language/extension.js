@@ -55,6 +55,58 @@ function activate(context) {
             }
         })
     );
+
+    // Folding provider for CASE/DEFAULT -> BREAK fallthrough blocks.
+    context.subscriptions.push(
+        vscode.languages.registerFoldingRangeProvider('zap', {
+            provideFoldingRanges(document) {
+                const ranges = [];
+                const stack = [];
+                let currentStart = null;
+
+                const startRegex = /^(proc|func|if|else|elseif|switch|while|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/;
+                const endRegex = /^(return|end|else|\.endif|\.else)\b/;
+
+                for (let line = 0; line < document.lineCount; line++) {
+                    const text = document.lineAt(line).text;
+                    const trimmed = text.trimStart();
+                    if (trimmed.length === 0) continue;
+
+                    const lower = trimmed.toLowerCase();
+                    const isCase = lower.startsWith('case ') || lower === 'case';
+                    const isDefault = lower.startsWith('default ') || lower === 'default';
+                    const isBreak = lower.startsWith('break ') || lower === 'break';
+
+                    if ((isCase || isDefault) && currentStart === null) {
+                        currentStart = line;
+                        continue;
+                    }
+
+                    if (isBreak && currentStart !== null) {
+                        if (line > currentStart) {
+                            ranges.push(new vscode.FoldingRange(currentStart, line));
+                        }
+                        currentStart = null;
+                    }
+
+                    if (endRegex.test(lower)) {
+                        if (stack.length > 0) {
+                            const startLine = stack.pop();
+                            if (line > startLine) {
+                                ranges.push(new vscode.FoldingRange(startLine, line));
+                            }
+                        }
+                    }
+
+                    if (startRegex.test(lower)) {
+                        stack.push(line);
+                    }
+                }
+
+                return ranges;
+            }
+        })
+    );
 }
 
 function deactivate() { }
