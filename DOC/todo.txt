@@ -303,3 +303,10 @@ end
 ---------------------------------------
 
 
+Full MATH0 accumulator caching would require:
+
+Propagate result_location through _gen_binary(), _gen_literal(), _gen_identifier() etc.
+Update all 40+ expression types to respect result_location
+Implement smart detection of expression chains where result will be immediately re-used
+Result: Eliminate ~6-10 stack/load shuffle instructions per complex expression
+

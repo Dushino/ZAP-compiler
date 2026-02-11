@@ -1129,6 +1129,63 @@ MATH1:      .res 2      ; 16-bit operand
 - `MATH_STACK` is used to spill intermediate operands in complex expressions.
 - Runtime math routines use `TMP0..TMP4` as scratch and will reserve them when emitted.
 
+### Accumulator-Mode Arithmetic (ADD16/SUB16)
+
+For better efficiency with chained arithmetic, the compiler uses `ADD16` and `SUB16` runtime routines:
+
+```asm
+; ADD16 - Accumulator-style 16-bit addition
+; Input:  MATH0 (left operand), MATH1 (right operand)
+; Output: MATH0 (sum)
+ADD16:
+    LDA MATH0
+    CLC
+    ADC MATH1
+    STA MATH0
+    LDA MATH0+1
+    ADC MATH1+1
+    STA MATH0+1
+    RTS
+
+; SUB16 - Accumulator-style 16-bit subtraction  
+; Input:  MATH0 (left operand), MATH1 (right operand)
+; Output: MATH0 (difference)
+SUB16:
+    LDA MATH0
+    SEC
+    SBC MATH1
+    STA MATH0
+    LDA MATH0+1
+    SBC MATH1+1
+    STA MATH0+1
+    RTS
+```
+
+When evaluating expressions like `a + b * (c + 1) - 10`:
+1. `b * (c + 1)` is evaluated and stored in MATH0
+2. `ADD16` is called to compute MATH0 += a
+3. Immediate subtraction handles the final `-10`
+
+This avoids repeated temp spilling compared to fully inline arithmetic, reducing code size and improving instruction cache locality for complex expressions.
+
+**Note on SUB16 with immediate constants:** The compiler uses SUB16 (subroutine) instead of inline SBC instructions for 16-bit immediate subtractions of constants. This unifies the subtraction ABI and allows for future optimization opportunities where intermediate results are cached in MATH0.
+
+### Future Optimization: MATH0 Result Caching
+
+The accumulator-based architecture supports a future optimization: **keeping results in MATH0 across expression chains** to eliminate unnecessary temp shuttling. Currently, each operation loads its result to A/X for downstream use, then the next operation in a chain loads from A/X back to MATH0 for its computation.
+
+**Proposed enhancement:**
+- Add `result_location` parameter to `gen_expr()` ("A/X" or "MATH0")
+- For nested expressions, keep intermediate results in MATH0
+- Only load to A/X at expression boundaries (assignments, function calls, external returns)
+- Would save ~10+ bytes of ZP temp pressure and improve code efficiency
+  
+**Implementation notes:**
+- Infrastructure partially in place (result_location parameter added)
+- Requires propagating result_location through all recursive `gen_expr()` calls
+- Needs special handling for each expression type (literals, identifiers, math ops, etc.)
+- May require two-pass or lookahead logic to determine when result will be immediately re-used in another math operation
+
 ### How Arrays Are Accessed
 
 ```zap

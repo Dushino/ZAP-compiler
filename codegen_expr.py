@@ -126,6 +126,19 @@ class CodeGen:
             self.emit("\tLDA #$00")
             self.emit(f"\tSTA {operand}")
 
+    def _stz_multiple(self, operands: list[str]) -> None:
+        """Clear multiple memory locations efficiently. Uses single LDA #$00 for 6502."""
+        if not operands:
+            return
+        if self.is_65c02:
+            for op in operands:
+                self.emit(f"\tSTZ {op}")
+        else:
+            # Load zero once, then store to all locations
+            self.emit("\tLDA #$00")
+            for op in operands:
+                self.emit(f"\tSTA {op}")
+
     def _emit_indirect_store_zero(self, ptr: str) -> None:
         if self.is_65c02:
             self.emit(f"\tSTA ({ptr})")
@@ -156,8 +169,6 @@ class CodeGen:
         self.emit("\tSTA MATH0")
         self.emit(f"\tLDA MATH_STACK+{offset + 1}")
         self.emit("\tSTA MATH0+1")
-        self._stz("MATH0+2")
-        self._stz("MATH0+3")
 
     def _emit_store_byte_const(self, sym: Symbol, value: int) -> None:
         value &= 0xFF
@@ -1187,10 +1198,7 @@ class CodeGen:
             self._stz("TMP0+1")
             self.emit("\tLDA MATH1")
             self.emit("\tSTA TMP1")
-            self._stz("MATH0")
-            self._stz("MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0", "MATH0+1", "MATH0+2", "MATH0+3"])
             self.emit("\tLDX #$08")
             self.emit("MUL8_LOOP:")
             self.emit("\tLSR TMP1")
@@ -1220,10 +1228,7 @@ class CodeGen:
             self.emit("\tSTA TMP0+1")
             self.emit("\tLDA MATH1")
             self.emit("\tSTA TMP1")
-            self._stz("MATH0")
-            self._stz("MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0", "MATH0+1", "MATH0+2", "MATH0+3"])
             self.emit("\tLDX #$08")
             self.emit("MUL16_8_LOOP:")
             self.emit("\tLSR TMP1")
@@ -1266,10 +1271,7 @@ class CodeGen:
             self.emit("\tLDA MATH1+1")
             self.emit("\tSTA TMP4+1")
             # Clear accumulator (MATH0)
-            self._stz("MATH0")
-            self._stz("MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0", "MATH0+1", "MATH0+2", "MATH0+3"])
             self.emit("\tLDX #$10")
             self.emit("MUL16_LOOP:")
             # Shift multiplier right, test LSB in carry
@@ -1318,9 +1320,7 @@ class CodeGen:
             self.emit("\tDEX")
             self.emit("\tBNE DIV8_LOOP")
             self.emit("\tROL MATH0")
-            self._stz("MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0+1", "MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
         def emit_div16_8() -> None:
@@ -1345,8 +1345,7 @@ class CodeGen:
             self.emit("\tBNE DIV16_8_LOOP")
             self.emit("\tROL MATH0")
             self.emit("\tROL MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
         def emit_div8_16() -> None:
@@ -1389,8 +1388,7 @@ class CodeGen:
             self.emit("\tBNE DIV16_LOOP")
             self.emit("\tROL MATH0")
             self.emit("\tROL MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
         def emit_mod8() -> None:
@@ -1411,9 +1409,7 @@ class CodeGen:
             self.emit("\tDEX")
             self.emit("\tBNE MOD8_LOOP")
             self.emit("\tSTA MATH0")
-            self._stz("MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0+1", "MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
         def emit_mod16_8() -> None:
@@ -1438,9 +1434,7 @@ class CodeGen:
             self.emit("\tBNE MOD16_8_LOOP")
             self.emit("\tLDA MATH0+2")
             self.emit("\tSTA MATH0")
-            self._stz("MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0+1", "MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
         def emit_mod8_16() -> None:
@@ -1485,11 +1479,42 @@ class CodeGen:
             self.emit("\tSTA MATH0")
             self.emit("\tLDA MATH0+3")
             self.emit("\tSTA MATH0+1")
-            self._stz("MATH0+2")
-            self._stz("MATH0+3")
+            self._stz_multiple(["MATH0+2", "MATH0+3"])
+            self.emit("\tRTS")
+
+        def emit_add16() -> None:
+            self.emit("; ADD16: 16-bit addition (accumulator style)")
+            self.emit("; Input: MATH0 low word (left operand), MATH1 low word (right operand)")
+            self.emit("; Output: MATH0=sum (32-bit, high word cleared)")
+            self.emit("ADD16:")
+            self.emit("\tLDA MATH0")
+            self.emit("\tCLC")
+            self.emit("\tADC MATH1")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tADC MATH1+1")
+            self.emit("\tSTA MATH0+1")
+            self._stz_multiple(["MATH0+2", "MATH0+3"])
+            self.emit("\tRTS")
+
+        def emit_sub16() -> None:
+            self.emit("; SUB16: 16-bit subtraction (accumulator style)")
+            self.emit("; Input: MATH0 low word (left operand), MATH1 low word (right operand)")
+            self.emit("; Output: MATH0=difference (32-bit, high word cleared)")
+            self.emit("SUB16:")
+            self.emit("\tLDA MATH0")
+            self.emit("\tSEC")
+            self.emit("\tSBC MATH1")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tSBC MATH1+1")
+            self.emit("\tSTA MATH0+1")
+            self._stz_multiple(["MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
         emitters: list[tuple[str, Any]] = [
+            ("ADD16", emit_add16),
+            ("SUB16", emit_sub16),
             ("MUL8", emit_mul8),
             ("MUL16_8", emit_mul16_8),
             ("MUL16", emit_mul16),
@@ -3868,6 +3893,11 @@ class CodeGen:
             isinstance(expr.left, (Identifier, IntLiteral)) and
             isinstance(expr.right, (Identifier, IntLiteral))
         )
+
+        if is_simple_word_add_sub and isinstance(expr.right, IntLiteral):
+            imm: int = expr.right.value & 0xFFFF
+            if not ((expr.op == BinOp.ADD and imm == 1) or (expr.op == BinOp.SUB and imm == 1)):
+                is_simple_word_add_sub = False
         
         if is_simple_word_add_sub:
             # Generate left operand low byte
@@ -4023,7 +4053,30 @@ class CodeGen:
             if result_16_adj:
                 self.emit("\tLDX TMP0+1")
 
-            if expr.op == BinOp.ADD:
+            # Use ADD16/SUB16 for 16-bit arithmetic
+            if expr.op == BinOp.ADD and result_16_adj:
+                self.math_routines_needed.add("ADD16")
+                self.emit("\tSTA MATH0")
+                self.emit("\tSTX MATH0+1")
+                self.emit("\tLDA TMP1")
+                self.emit("\tSTA MATH1")
+                self.emit("\tLDA TMP1+1")
+                self.emit("\tSTA MATH1+1")
+                self.emit("\tJSR ADD16")
+                self.emit("\tLDA MATH0")
+                self.emit("\tLDX MATH0+1")
+            elif expr.op == BinOp.SUB and result_16_adj:
+                self.math_routines_needed.add("SUB16")
+                self.emit("\tSTA MATH0")
+                self.emit("\tSTX MATH0+1")
+                self.emit("\tLDA TMP1")
+                self.emit("\tSTA MATH1")
+                self.emit("\tLDA TMP1+1")
+                self.emit("\tSTA MATH1+1")
+                self.emit("\tJSR SUB16")
+                self.emit("\tLDA MATH0")
+                self.emit("\tLDX MATH0+1")
+            elif expr.op == BinOp.ADD:
                 self._gen_add(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, False, True, "TMP1")
             else:
                 self._gen_sub(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, False, "TMP1")
@@ -4062,24 +4115,31 @@ class CodeGen:
                 self.emit("\tTAX")
                 self.emit("\tPLA")
 
+                # Use ADD16/SUB16 routines for better accumulator usage
                 if expr.op == BinOp.ADD:
-                    # 16-bit add: low then high with carry
-                    self.emit("\tCLC")
-                    self.emit("\tADC TMP0")
-                    self.emit("\tTAY")
-                    self.emit("\tTXA")
-                    self.emit("\tADC TMP0+1")
-                    self.emit("\tTAX")
-                    self.emit("\tTYA")
+                    # Use ADD16: left in A/X, right in TMP0/TMP0+1
+                    self.math_routines_needed.add("ADD16")
+                    self.emit("\tSTA MATH0")
+                    self.emit("\tSTX MATH0+1")
+                    self.emit("\tLDA TMP0")
+                    self.emit("\tSTA MATH1")
+                    self.emit("\tLDA TMP0+1")
+                    self.emit("\tSTA MATH1+1")
+                    self.emit("\tJSR ADD16")
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tLDX MATH0+1")
                 else:
-                    # 16-bit sub: low then high with borrow
-                    self.emit("\tSEC")
-                    self.emit("\tSBC TMP0")
-                    self.emit("\tTAY")
-                    self.emit("\tTXA")
-                    self.emit("\tSBC TMP0+1")
-                    self.emit("\tTAX")
-                    self.emit("\tTYA")
+                    # Use SUB16: left in A/X, right in TMP0/TMP0+1
+                    self.math_routines_needed.add("SUB16")
+                    self.emit("\tSTA MATH0")
+                    self.emit("\tSTX MATH0+1")
+                    self.emit("\tLDA TMP0")
+                    self.emit("\tSTA MATH1")
+                    self.emit("\tLDA TMP0+1")
+                    self.emit("\tSTA MATH1+1")
+                    self.emit("\tJSR SUB16")
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tLDX MATH0+1")
 
                 # Special-case handled inline, skip generic handling
                 return
@@ -4168,21 +4228,37 @@ class CodeGen:
             hi: int = (total >> 8) & 0xFF
 
             if expr.op == BinOp.ADD:
+                # Use ADD16 routine for 16-bit immediate addition
+                self.math_routines_needed.add("ADD16")
                 self.emit(f"\tLDA {left_tmp}")
-                self.emit("\tCLC")
-                self.emit(f"\tADC #${lo:02X}")
-                self.emit("\tTAY")
+                self.emit(f"\tSTA MATH0")
                 self.emit(f"\tLDA {left_tmp}+1")
-                self.emit(f"\tADC #${hi:02X}")
+                self.emit(f"\tSTA MATH0+1")
+                self.emit(f"\tLDA #${lo:02X}")
+                self.emit(f"\tSTA MATH1")
+                self.emit(f"\tLDA #${hi:02X}")
+                self.emit(f"\tSTA MATH1+1")
+                self.emit("\tJSR ADD16")
+                # Load result from MATH0 to A/X
+                self.emit("\tLDA MATH0")
+                self.emit("\tLDX MATH0+1")
+                return
             else:
+                # Use SUB16 routine for 16-bit immediate subtraction
+                self.math_routines_needed.add("SUB16")
                 self.emit(f"\tLDA {left_tmp}")
-                self.emit("\tSEC")
-                self.emit(f"\tSBC #${lo:02X}")
-                self.emit("\tTAY")
+                self.emit(f"\tSTA MATH0")
                 self.emit(f"\tLDA {left_tmp}+1")
-                self.emit(f"\tSBC #${hi:02X}")
-            self.emit("\tTAX")
-            self.emit("\tTYA")
+                self.emit(f"\tSTA MATH0+1")
+                self.emit(f"\tLDA #${lo:02X}")
+                self.emit(f"\tSTA MATH1")
+                self.emit(f"\tLDA #${hi:02X}")
+                self.emit(f"\tSTA MATH1+1")
+                self.emit("\tJSR SUB16")
+                # Load result from MATH0 to A/X
+                self.emit("\tLDA MATH0")
+                self.emit("\tLDX MATH0+1")
+                return
             return
 
         # Generate right operand (skip for INC/DEC optimization on BYTE pointers)
@@ -4208,8 +4284,36 @@ class CodeGen:
             finally:
                 self.assign_target_blocked = prev_blocked
         
-        # Handle different operations
-        if expr.op == BinOp.ADD:
+        # Handle different operations - try accumulator mode for 16-bit ADD/SUB
+        if expr.op == BinOp.ADD and result_16_adj and not (left_is_ptr or right_is_ptr) and not use_inc_opt:
+            # Use ADD16 routine for 16-bit non-pointer addition
+            self.math_routines_needed.add("ADD16")
+            # Right operand is in A/X, left is in left_tmp
+            self.emit(f"\tSTA MATH1")
+            self.emit(f"\tSTX MATH1+1")
+            self.emit(f"\tLDA {left_tmp}")
+            self.emit(f"\tSTA MATH0")
+            self.emit(f"\tLDA {left_tmp}+1")
+            self.emit(f"\tSTA MATH0+1")
+            self.emit("\tJSR ADD16")
+            # Load result from MATH0 to A/X for downstream code
+            self.emit("\tLDA MATH0")
+            self.emit("\tLDX MATH0+1")
+        elif expr.op == BinOp.SUB and result_16_adj and not (left_is_ptr or right_is_ptr) and not use_dec_opt:
+            # Use SUB16 routine for 16-bit non-pointer subtraction
+            self.math_routines_needed.add("SUB16")
+            # Right operand is in A/X, left is in left_tmp
+            self.emit(f"\tSTA MATH1")
+            self.emit(f"\tSTX MATH1+1")
+            self.emit(f"\tLDA {left_tmp}")
+            self.emit(f"\tSTA MATH0")
+            self.emit(f"\tLDA {left_tmp}+1")
+            self.emit(f"\tSTA MATH0+1")
+            self.emit("\tJSR SUB16")
+            # Load result from MATH0 to A/X for downstream code
+            self.emit("\tLDA MATH0")
+            self.emit("\tLDX MATH0+1")
+        elif expr.op == BinOp.ADD:
             self._gen_add(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_inc_opt, right_16, left_tmp)
         elif expr.op == BinOp.SUB:
             self._gen_sub(result_16_adj, ptr_elem_size if (left_is_ptr or right_is_ptr) else 1, use_dec_opt, left_tmp)
@@ -4387,8 +4491,6 @@ class CodeGen:
                     self.emit("\tSTA MATH0+1")
                 else:
                     self._stz("MATH0+1")
-                self._stz("MATH0+2")
-                self._stz("MATH0+3")
                 return
             if isinstance(op, Identifier):
                 sym = self.current_symtab.lookup(op.name)
@@ -4399,8 +4501,6 @@ class CodeGen:
                     self.emit("\tSTA MATH0+1")
                 else:
                     self._stz("MATH0+1")
-                self._stz("MATH0+2")
-                self._stz("MATH0+3")
                 return
 
         def _emit_op1(op: Expr, is_16: bool) -> None:
