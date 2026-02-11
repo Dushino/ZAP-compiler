@@ -1113,6 +1113,22 @@ Procedure P1           → P1 (label)
 Parameter in P1        → _P1_PARAM
 ```
 
+### Math Runtime Registers (6502)
+
+The compiler uses a dedicated zero-page math area when lowering `*`, `/`, and `%`:
+
+```asm
+.segment "ZEROPAGE"
+MATH_STACK: .res 8      ; 4x 16-bit slots for expression evaluation
+MATH0:      .res 4      ; 32-bit accumulator (result)
+MATH1:      .res 2      ; 16-bit operand
+```
+
+- `MATH0` holds the final result (low word in `MATH0`/`MATH0+1`).
+- `MATH1` holds the second operand for math routines.
+- `MATH_STACK` is used to spill intermediate operands in complex expressions.
+- Runtime math routines use `TMP0..TMP4` as scratch and will reserve them when emitted.
+
 ### How Arrays Are Accessed
 
 ```zap
