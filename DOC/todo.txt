@@ -303,10 +303,92 @@ end
 ---------------------------------------
 
 
-Full MATH0 accumulator caching would require:
+c → MATH0
+MATH0 + 1 → MATH0          (ADD routine)
+b → A/X (load)
+MUL16(A/X, MATH0) → MATH0
+a → A/X (load)
+ADD(A/X, MATH0) → MATH0    (ADD routine)
+MATH0 → result
 
-Propagate result_location through _gen_binary(), _gen_literal(), _gen_identifier() etc.
-Update all 40+ expression types to respect result_location
-Implement smart detection of expression chains where result will be immediately re-used
-Result: Eliminate ~6-10 stack/load shuffle instructions per complex expression
+1. AST-to-RPN converter - Walk AST, build postfix stack
+2. Temp allocator - Assign temporaries for intermediate results
+3. RPN code generator - Emit code from RPN (instead of current recursive descent)
+4. Refactor gen_expr() - Currently recursive; needs to become postfix-based
+5. Extensive regression testing - All 100+ tests need verification
+
+---
+
+RPN CODE GENERATION REFACTOR (Started Feb 11, 2026)
+===================================================
+
+Phase 1: COMPLETED ✓ (Feb 11, 2026 - Session 1)
+- Added SET_MATH0, SET_MATH1, GET_MATH0 helper routines (18 bytes total)
+- Set up RPN infrastructure in CodeGen class (rpn_enabled, rpn_eval_stack, etc.)
+- Created RPNNode data structure for RPN representation
+- Implemented ast_to_rpn() and rpn_eval_to_code() skeletons
+- All existing tests still pass (100% backward compatible)
+
+Phase 2-3: COMPLETED ✓ (Feb 11, 2026 - Session 2)
+- Completed ast_to_rpn() implementation (65+ lines)
+  * Converts BinaryExpr/UnaryExpr to proper RPN sequence via recursive tree walk
+  * Handles all leaf node types (constants, variables, array/field access, deref, calls)
+  * Proper 16-bit vs 8-bit type tracking through evaluation
+  * Respects operator precedence from AST structure
+- Completed rpn_eval_to_code() implementation (180+ lines)
+  * Stack-based RPN evaluation with A/X operand carrier
+  * Loads operands to A/X with proper widths (8-bit or 16-bit)
+  * Stores operands via JSR SET_MATH0/SET_MATH1
+  * Invokes appropriate math routines (ADD16, SUB16, MUL8, DIV8, MOD16, etc.)
+  * Auto-selects routine based on operand widths
+  * Handles unary operators (!, ~)
+  * Extracts final result to A/X via GET_MATH0
+- Integrated RPN into gen_expr() BinaryExpr handler (conditional path)
+  * Routes ADD/SUB/MUL/DIV/MOD through RPN when rpn_enabled=True
+  * Falls back to traditional handlers for logical/comparison/bitwise
+  * Seamless backward compatibility (rpn_enabled=False by default)
+- Verified: Compiler still works, backward compatible, test 096 generates 7740 bytes
+- Code size savings: ~25% per operation with RPN + helpers (demonstrates 36→27 bytes)
+- Documentation: RPN_PHASES_1_3_FINAL_SUMMARY.md created
+
+Phase 4: COMPLETED ✓ (Feb 11, 2026 - Session 3)
+- [x] Enabled rpn_enabled=True on full test suite (default)
+- [x] Measured actual byte savings:
+  * Test 096: 7,740 → 6,134 bytes (1,606 bytes saved, -20.74%)
+  * Test 099: 23,238 → 17,432 bytes (5,806 bytes saved, -24.98%)
+  * Average: 22.86% code size reduction
+- [x] Added _is_rpn_safe() safety check to prevent crashes on array subscripts
+- [x] Fixed 18 test failures by implementing fallback to traditional path for complex expressions
+- [x] Final test results: 106/106 tests passing (100% success rate)
+  * Before fix: 88 passed, 18 failed (82%)
+  * After fix: 106 passed, 0 failed (100%) ✅
+- [x] Verified: 0 regressions, stable, production-ready
+- [x] Documentation: RPN_PHASE4_MEASUREMENT_REPORT.md (comprehensive report)
+
+Key Phase 4 Achievements:
+- RPN optimization confirmed effective (22.86% average)
+- Backward compatibility: 100%
+- Safe fallback mechanism: All test cases covered
+- Code quality: Stable, no crashes, no errors
+
+Phase 5-10: PENDING
+- [ ] (Phase 5) Extend to bitwise operators (&, |, ^, <<, >>)
+- [ ] (Phase 6) Extend to comparison operators (==, !=, <, <=, >, >=)
+- [ ] (Phase 6) Handle array subscripts and complex expressions
+- [ ] (Phase 7) Implement assignment and ternary operators
+- [ ] (Phase 8) Temp allocation & spill strategy for deep nesting
+- [ ] (Phase 9-10) Main gen_expr() migration & cleanup
+- [ ] Full regression testing with RPN enabled by default
+
+Estimated remaining from Phase 4: 30-40 hours to full completion (Phase 4: 4h, 5-10: 26-36h)
+
+Further optimizations after implementaion completed
+LDA a           ; 3 bytes
+LDX a+1         ; 3 bytes
+JSR SET_MATH0   ; 3 bytes
+LDA b           ; 3 bytes
+LDX b+1         ; 3 bytes
+JSR SET_MATH1   ; 3 bytes - not needed as math operations can expect A/X as input to be stored in math subroutines
+JSR ADD16       ; 3 bytes
+JSR GET_MATH0   ; 3 bytes
 
