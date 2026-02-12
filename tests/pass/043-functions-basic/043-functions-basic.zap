@@ -3,9 +3,9 @@ byte result @40000 = 0
 
 func byte add2(byte a, byte b)
 
-    if a > 5 then
+    if a > 5 
         return a
-    endif
+    end
 
     return a + b
 end

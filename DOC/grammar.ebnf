@@ -98,10 +98,10 @@ assignment      ::= lvalue "=" expression ;
 
 call_stmt       ::= IDENT "(" [ expr_list ] ")" ;
 
-if_stmt         ::= "if" expression "then" { statement }
-                    { "elseif" expression "then" { statement } }
+if_stmt         ::= "if" expression { statement }
+                    { "elseif" expression { statement } }
                     [ "else" { statement } ]
-                    "endif" ;
+                    "end" ;
 
 while_stmt      ::= "while" expression { statement } "end" ;
 
@@ -219,7 +219,7 @@ expr_list       ::= expression { "," expression } ;
    - FOR loops require NEXT statement with loop variable
    - WHILE loops terminate with END
    - Binary \b escape sequences must have at least one binary digit following
-   - IF statements use IF-THEN-ELSEIF-ELSE-ENDIF structure (ELSEIF/ELSE optional)
+   - IF statements use IF-ELSEIF-ELSE-END structure (ELSEIF/ELSE optional)
    - Module system: .module marks a file as importable, .include loads dependencies
    - .segment directive controls code/data segment placement (ca65 compatible)
    - ASM blocks embed raw 6502 assembly code

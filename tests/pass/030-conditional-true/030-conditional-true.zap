@@ -4,7 +4,7 @@ proc main()
     byte x = 100
     byte y = 50
     
-    if x > y then
+    if x > y 
         result = 1
-    endif
+    end
 end

@@ -5,11 +5,11 @@ proc main()
     byte y = 20
     word x1 = $1030
 
-    if x != y then
+    if x != y 
         result = 1
-    endif
+    end
 
-    if x1 != x then
+    if x1 != x 
         result = result + $10
-    endif
+    end
 end

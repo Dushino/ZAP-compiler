@@ -5,16 +5,16 @@ proc main()
     byte y = 50
     word x1 = 50
 
-    if x == y then
+    if x == y
         result = result + 1
-    endif
+    end
 
-    if x == x1 then
+    if x == x1
         result = result + 16    
-    endif
+    end
 
-    if x1 == y then
+    if x1 == y
         result = result + $20
-    endif
+    end
 
 end

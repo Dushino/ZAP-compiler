@@ -6,7 +6,7 @@ proc main()
     while i < 10
         if i == 5
             break
-        endif
+        end
         i = i + 1
     end
 
