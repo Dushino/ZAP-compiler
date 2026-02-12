@@ -267,15 +267,34 @@ class CodeGen:
             """If AX is on stack, spill it to a temp to avoid overwriting."""
             for i, (loc, is_16) in enumerate(stack):
                 if loc == "AX":
-                    # Allocation of temp
+                    # Allocation of spill slot in MATH_STACK (2 bytes per slot)
                     nonlocal temp_index
-                    temp_name = f"TMP{temp_index}"
-                    temp_index = (temp_index + 1) % 6
+                    if temp_index >= 4:
+                        self._raise_error("RPN: evaluation stack overflow (spill slots exhausted)")
+                    spill_base = f"MATH_STACK+{temp_index * 2}"
+                    temp_index += 1
                     
-                    self.emit(f"\tSTA {temp_name}")
+                    self.emit(f"\tSTA {spill_base}")
                     if is_16:
-                        self.emit(f"\tSTX {temp_name}+1")
-                    stack[i] = (temp_name, is_16)
+                        self.emit(f"\tSTX {spill_base}+1")
+                    stack[i] = (spill_base, is_16)
+
+        def spill_math0_if_needed(stack: list[tuple[str, bool]]) -> None:
+            """Spill MATH0 if it remains on the stack to avoid clobbering."""
+            for i, (loc, is_16) in enumerate(stack):
+                if loc == "MATH0":
+                    nonlocal temp_index
+                    if temp_index >= 4:
+                        self._raise_error("RPN: evaluation stack overflow (spill slots exhausted)")
+                    spill_base = f"MATH_STACK+{temp_index * 2}"
+                    temp_index += 1
+                    
+                    self.emit("\tLDA MATH0")
+                    self.emit(f"\tSTA {spill_base}")
+                    if is_16:
+                        self.emit("\tLDA MATH0+1")
+                        self.emit(f"\tSTA {spill_base}+1")
+                    stack[i] = (spill_base, is_16)
 
         def get_math_routine_for_op(op: 'BinOp', left_16: bool, right_16: bool) -> str | None:
             """Map binary operator to math routine. Returns routine name or None if not a math op."""
@@ -333,34 +352,39 @@ class CodeGen:
                 
                 right_loc, right_16 = eval_stack.pop()
                 left_loc, left_16 = eval_stack.pop()
+
+                # If an older stack entry still lives in MATH0, spill it before reuse.
+                spill_math0_if_needed(eval_stack)
                 
-                # Optimization: keep MATH0 as accumulator whenever possible (RPN principle)
-                # Case 1: right operand is already in MATH0 - just load left to MATH1
+                # Operand loading strategy with correct ordering for non-commutative ops.
+                from ast_nodes import BinOp
+                commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                
                 if right_loc == "MATH0" and left_loc != "MATH0":
-                    load_to_ax(left_loc, left_16)
-                    self.emit("\tJSR SET_MATH1")
-                    self.rpn_helper_routines_needed.add("SET_MATH1")
-                # Case 2: left operand is already in MATH0 - just load right to MATH1 (skip loading left)
-                elif left_loc == "MATH0" and right_loc != "MATH0":
-                    load_to_ax(right_loc, right_16)
-                    self.emit("\tJSR SET_MATH1")
-                    self.rpn_helper_routines_needed.add("SET_MATH1")
-                # Case 3: only load what's needed
+                    if node.value in commutative_ops:
+                        # Keep MATH0 as accumulator, load left to MATH1
+                        load_to_ax(left_loc, left_16)
+                        self.emit("\tJSR SET_MATH1")
+                        self.rpn_helper_routines_needed.add("SET_MATH1")
+                    else:
+                        # Preserve right in MATH1, then load left to MATH0 (order matters)
+                        load_to_ax(right_loc, right_16)
+                        self.emit("\tJSR SET_MATH1")
+                        self.rpn_helper_routines_needed.add("SET_MATH1")
+                        load_to_ax(left_loc, left_16)
+                        self.emit("\tJSR SET_MATH0")
+                        self.rpn_helper_routines_needed.add("SET_MATH0")
                 else:
-                    # Load left operand to MATH0 (if not already there)
                     if left_loc != "MATH0":
                         load_to_ax(left_loc, left_16)
                         self.emit("\tJSR SET_MATH0")
                         self.rpn_helper_routines_needed.add("SET_MATH0")
-                    
-                    # Load right operand to MATH1 (if not already there)
                     if right_loc != "MATH1":
                         load_to_ax(right_loc, right_16)
                         self.emit("\tJSR SET_MATH1")
                         self.rpn_helper_routines_needed.add("SET_MATH1")
                 
                 # 3. Perform operation
-                from ast_nodes import BinOp
                 routine = get_math_routine_for_op(cast(BinOp, node.value), left_16, right_16)
                 if routine:
                     self.emit(f"\tJSR {routine}")
@@ -380,6 +404,36 @@ class CodeGen:
                         self.emit("\tSBC MATH1")
                         self.emit("\tSTA MATH0")
                         eval_stack.append(("MATH0", False))
+                    elif node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
+                        result_16 = node.is_16bit
+                        self.emit("\tLDA MATH1")
+                        if result_16:
+                            self.emit("\tLDX MATH1+1")
+                        if node.value == BinOp.BAND:
+                            self._gen_bitwise_and(result_16, "MATH0")
+                        elif node.value == BinOp.BOR:
+                            self._gen_bitwise_or(result_16, "MATH0")
+                        else:
+                            self._gen_bitwise_xor(result_16, "MATH0")
+                        self.emit("\tSTA MATH0")
+                        if result_16:
+                            self.emit("\tSTX MATH0+1")
+                        eval_stack.append(("MATH0", result_16))
+                    elif node.value in {BinOp.LSHIFT, BinOp.RSHIFT}:
+                        result_16 = node.is_16bit
+                        shift_count: int | None = None
+                        if right_loc.startswith("CONST:"):
+                            shift_count = int(right_loc.split(":")[1]) & 0xFF
+                        if shift_count is None:
+                            self.emit("\tLDA MATH1")
+                        if node.value == BinOp.LSHIFT:
+                            self._gen_lshift(result_16, "MATH0", shift_count)
+                        else:
+                            self._gen_rshift(result_16, "MATH0", shift_count)
+                        self.emit("\tSTA MATH0")
+                        if result_16:
+                            self.emit("\tSTX MATH0+1")
+                        eval_stack.append(("MATH0", result_16))
                     else:
                         self.emit(f"\t; TODO: operator {node.value} not yet implemented")
                         eval_stack.append(("AX", node.is_16bit))
