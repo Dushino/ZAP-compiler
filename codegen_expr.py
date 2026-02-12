@@ -6119,7 +6119,14 @@ class CodeGen:
                         offset: int = index_val * element_width
                         
                         # Generate RHS value into A/X
-                        self.gen_expr(rhs)
+                        # For BYTE elements, suppress X register loading
+                        if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
+                            prev_suppress = self.suppress_byte_return_x
+                            self.suppress_byte_return_x = True
+                            self.gen_expr(rhs)
+                            self.suppress_byte_return_x = prev_suppress
+                        else:
+                            self.gen_expr(rhs)
                         
                         # Direct store using calculated offset
                         if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
