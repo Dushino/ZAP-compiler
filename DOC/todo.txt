@@ -278,21 +278,8 @@ Low impact
 [x] Document registers usage in FUNC / PROC parameetrs passing
 
 Possible changes in ZAP Design
-
 ---------------------------------------
-proc main()
-    byte x = 0
-    
-    while x < 100
-        x = x + 1
-        if x == 50 then
-            break      ; Break outside of loop context (error???) 
-        end
-    end
-end
 
-
----------------------------------------
 proc main()
     byte x = 50
     byte y[] = "ABC"
@@ -300,8 +287,8 @@ proc main()
     byte z = x > y  ; comparsion requires values - ???
 end
 
----------------------------------------
 
+========================================
 
 c → MATH0
 MATH0 + 1 → MATH0          (ADD routine)
@@ -408,4 +395,11 @@ JSR GET_MATH0   ; 3 bytes
 
 
 
-
+Inconstinet syntax of WHILE and IF - WHILE is missing something like DO in place of THEN on IF
+    while i <= endv
+        result = result + 1
+        i = i + 1
+        if i == 100 then
+            break
+        endif
+    end
