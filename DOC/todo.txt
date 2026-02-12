@@ -389,7 +389,7 @@ Key Phase 5 Achievements:
 Phase 6-10: PENDING
 - [x] (Phase 6) Extend to comparison operators (==, !=, <, <=, >, >=)
 - [ ] (Phase 6) Handle array subscripts and complex expressions in RPN
-- [ ] (Phase 7) Implement logical operators (&&, ||) in RPN
+- [x] (Phase 7) Implement logical operators (&&, ||) in RPN
 - [ ] (Phase 8) Temp allocation & spill strategy for very deep nesting (>4 levels)
 - [ ] (Phase 9-10) Main gen_expr() migration & cleanup
 - [ ] Check pointers math

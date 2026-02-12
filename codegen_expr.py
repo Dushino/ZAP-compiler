@@ -514,7 +514,8 @@ class CodeGen:
                         
                         self.emit(f"{lbl_end}:")
                         self.emit("\tSTA MATH0")
-                        self.emit("\tLDX #$00")  # Comparisons always return BYTE
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")  # Comparisons always return BYTE
                         eval_stack.append(("MATH0", False))
 
                     elif node.value in {BinOp.LAND, BinOp.LOR}:
@@ -562,7 +563,8 @@ class CodeGen:
                             self.emit(f"{lbl_end}:")
                         
                         self.emit("\tSTA MATH0")
-                        self.emit("\tLDX #$00")  # Logical operators always return BYTE
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")  # Logical operators always return BYTE
                         eval_stack.append(("MATH0", False))
             
             elif node.node_type == 'UNOP':
@@ -603,7 +605,8 @@ class CodeGen:
                         self.emit("\tLDA #$00")
                         self.emit(f"{lbl_end}:")
                     self.emit("\tSTA MATH0")            # Store result
-                    self.emit("\tLDX #$00")             # Logical NOT always returns BYTE
+                    if not self.suppress_byte_return_x:
+                        self.emit("\tLDX #$00")         # Logical NOT always returns BYTE
                     eval_stack.append(("MATH0", False))
                 elif node.value == UnOp.BNOT:
                     # Bitwise NOT: invert all bits
@@ -619,7 +622,8 @@ class CodeGen:
                         # BYTE: invert just A
                         self.emit("\tEOR #$FF")
                         self.emit("\tSTA MATH0")        # Store result
-                        self.emit("\tLDX #$00")
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")
                         eval_stack.append(("MATH0", False))
                 else:
                     self.emit(f"\t; TODO: unary {node.value}")
