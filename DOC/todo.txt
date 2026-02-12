@@ -384,7 +384,7 @@ Phase 6-10: COMPLETED ✓
 
 
 Further optimizations after implementaion completed
-[ ] DIV16 registers settings before calling proc.
+[x] DIV16 registers settings before calling proc.
 
 
 
