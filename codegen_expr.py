@@ -264,6 +264,30 @@ class CodeGen:
                 elif not self.suppress_byte_return_x:
                     self.emit("\tLDX #$00")
 
+        def load_to_ax_for_math(loc: str, is_16bit: bool) -> None:
+            """Load operand into A/X for math setup without forcing X for bytes."""
+            prev = self.suppress_byte_return_x
+            if not is_16bit:
+                self.suppress_byte_return_x = True
+            load_to_ax(loc, is_16bit)
+            self.suppress_byte_return_x = prev
+
+        def emit_set_math0_from_ax(is_16bit: bool) -> None:
+            """Store A/X into MATH0, inlining for byte values."""
+            if is_16bit:
+                self.emit("\tJSR SET_MATH0")
+                self.rpn_helper_routines_needed.add("SET_MATH0")
+            else:
+                self.emit("\tSTA MATH0")
+
+        def emit_set_math1_from_ax(is_16bit: bool) -> None:
+            """Store A/X into MATH1, inlining for byte values."""
+            if is_16bit:
+                self.emit("\tJSR SET_MATH1")
+                self.rpn_helper_routines_needed.add("SET_MATH1")
+            else:
+                self.emit("\tSTA MATH1")
+
         def spill_ax_if_needed(stack: list[tuple[str, bool]]) -> None:
             """If AX is on stack, spill it to a temp to avoid overwriting."""
             for i, (loc, is_16) in enumerate(stack):
@@ -343,6 +367,23 @@ class CodeGen:
             else:
                 # Comparison, bitwise, logical - not math routines (handled elsewhere)
                 return None
+
+        def get_math_ax_entry(routine: str) -> str | None:
+            """Map a math routine to its right-operand-in-A/X entrypoint."""
+            ax_map = {
+                "MUL8": "MUL8_A",
+                "MUL16_8": "MUL16_8_A",
+                "MUL16": "MUL16_AX",
+                "DIV8": "DIV8_A",
+                "DIV16_8": "DIV16_8_A",
+                "DIV8_16": "DIV8_16_AX",
+                "DIV16": "DIV16_AX",
+                "MOD8": "MOD8_A",
+                "MOD16_8": "MOD16_8_A",
+                "MOD8_16": "MOD8_16_AX",
+                "MOD16": "MOD16_AX",
+            }
+            return ax_map.get(routine)
         
         # Evaluate RPN sequence
         for i, node in enumerate(rpn):
@@ -451,36 +492,47 @@ class CodeGen:
                 
                 # Operand loading strategy with correct ordering for non-commutative ops.
                 commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LAND, BinOp.LOR}
+                routine = get_math_routine_for_op(cast(BinOp, node.value), left_16, right_16)
+                use_ax_right = False
+                routine_ax: str | None = None
+                if routine:
+                    routine_ax = get_math_ax_entry(routine)
+                    # Only use AX entry if right operand is not already in MATH0/MATH1.
+                    use_ax_right = routine_ax is not None and right_loc not in ("MATH0", "MATH1")
                 
                 if right_loc == "MATH0" and left_loc != "MATH0":
                     if node.value in commutative_ops:
                         # Keep MATH0 as accumulator, load left to MATH1
-                        load_to_ax(left_loc, left_16)
-                        self.emit("\tJSR SET_MATH1")
-                        self.rpn_helper_routines_needed.add("SET_MATH1")
+                        load_to_ax_for_math(left_loc, left_16)
+                        emit_set_math1_from_ax(left_16)
                     else:
                         # Preserve right in MATH1, then load left to MATH0 (order matters)
-                        load_to_ax(right_loc, right_16)
-                        self.emit("\tJSR SET_MATH1")
-                        self.rpn_helper_routines_needed.add("SET_MATH1")
-                        load_to_ax(left_loc, left_16)
-                        self.emit("\tJSR SET_MATH0")
-                        self.rpn_helper_routines_needed.add("SET_MATH0")
+                        load_to_ax_for_math(right_loc, right_16)
+                        emit_set_math1_from_ax(right_16)
+                        load_to_ax_for_math(left_loc, left_16)
+                        emit_set_math0_from_ax(left_16)
+                    use_ax_right = False
                 else:
                     if left_loc != "MATH0":
-                        load_to_ax(left_loc, left_16)
-                        self.emit("\tJSR SET_MATH0")
-                        self.rpn_helper_routines_needed.add("SET_MATH0")
-                    if right_loc != "MATH1":
-                        load_to_ax(right_loc, right_16)
-                        self.emit("\tJSR SET_MATH1")
-                        self.rpn_helper_routines_needed.add("SET_MATH1")
+                        load_to_ax_for_math(left_loc, left_16)
+                        emit_set_math0_from_ax(left_16)
+                    if use_ax_right:
+                        if right_loc != "AX":
+                            load_to_ax_for_math(right_loc, right_16)
+                    else:
+                        if right_loc != "MATH1":
+                            load_to_ax_for_math(right_loc, right_16)
+                            emit_set_math1_from_ax(right_16)
                 
                 # 3. Perform operation
-                routine = get_math_routine_for_op(cast(BinOp, node.value), left_16, right_16)
                 if routine:
-                    self.emit(f"\tJSR {routine}")
-                    self.math_routines_needed.add(routine)
+                    if use_ax_right and routine_ax:
+                        self.emit(f"\tJSR {routine_ax}")
+                        self.math_routines_needed.add(routine_ax)
+                        self.math_routines_needed.add(routine)
+                    else:
+                        self.emit(f"\tJSR {routine}")
+                        self.math_routines_needed.add(routine)
                     eval_stack.append(("MATH0", node.is_16bit))
                 else:
                     # Inline 8-bit math
@@ -2157,6 +2209,66 @@ class CodeGen:
             self.emit("\tSTX MATH1+1")
             self.emit("\tRTS")
 
+        def emit_mul8_a() -> None:
+            self.emit("; MUL8_A: right operand in A")
+            self.emit("MUL8_A:")
+            self.emit("\tSTA MATH1")
+
+        def emit_mul16_8_a() -> None:
+            self.emit("; MUL16_8_A: right operand (byte) in A")
+            self.emit("MUL16_8_A:")
+            self.emit("\tSTA MATH1")
+
+        def emit_mul16_ax() -> None:
+            self.emit("; MUL16_AX: right operand (word) in A/X")
+            self.emit("MUL16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
+        def emit_div8_a() -> None:
+            self.emit("; DIV8_A: right operand in A")
+            self.emit("DIV8_A:")
+            self.emit("\tSTA MATH1")
+
+        def emit_div16_8_a() -> None:
+            self.emit("; DIV16_8_A: right operand (byte) in A")
+            self.emit("DIV16_8_A:")
+            self.emit("\tSTA MATH1")
+
+        def emit_div8_16_ax() -> None:
+            self.emit("; DIV8_16_AX: right operand (word) in A/X")
+            self.emit("DIV8_16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
+        def emit_div16_ax() -> None:
+            self.emit("; DIV16_AX: right operand (word) in A/X")
+            self.emit("DIV16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
+        def emit_mod8_a() -> None:
+            self.emit("; MOD8_A: right operand in A")
+            self.emit("MOD8_A:")
+            self.emit("\tSTA MATH1")
+
+        def emit_mod16_8_a() -> None:
+            self.emit("; MOD16_8_A: right operand (byte) in A")
+            self.emit("MOD16_8_A:")
+            self.emit("\tSTA MATH1")
+
+        def emit_mod8_16_ax() -> None:
+            self.emit("; MOD8_16_AX: right operand (word) in A/X")
+            self.emit("MOD8_16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
+        def emit_mod16_ax() -> None:
+            self.emit("; MOD16_AX: right operand (word) in A/X")
+            self.emit("MOD16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
         def emit_get_math0() -> None:
             self.emit("; GET_MATH0: MATH0/MATH0+1 -> A/X (for RPN code generation)")
             self.emit("; Input: MATH0 (low word)")
@@ -2202,16 +2314,27 @@ class CodeGen:
             ("GET_MATH0", emit_get_math0),
             ("ADD16", emit_add16),
             ("SUB16", emit_sub16),
+            ("MUL8_A", emit_mul8_a),
             ("MUL8", emit_mul8),
+            ("MUL16_8_A", emit_mul16_8_a),
             ("MUL16_8", emit_mul16_8),
+            ("MUL16_AX", emit_mul16_ax),
             ("MUL16", emit_mul16),
+            ("DIV8_A", emit_div8_a),
             ("DIV8", emit_div8),
+            ("DIV16_8_A", emit_div16_8_a),
             ("DIV16_8", emit_div16_8),
+            ("DIV8_16_AX", emit_div8_16_ax),
             ("DIV8_16", emit_div8_16),
+            ("DIV16_AX", emit_div16_ax),
             ("DIV16", emit_div16),
+            ("MOD8_A", emit_mod8_a),
             ("MOD8", emit_mod8),
+            ("MOD16_8_A", emit_mod16_8_a),
             ("MOD16_8", emit_mod16_8),
+            ("MOD8_16_AX", emit_mod8_16_ax),
             ("MOD8_16", emit_mod8_16),
+            ("MOD16_AX", emit_mod16_ax),
             ("MOD16", emit_mod16),
         ]
 

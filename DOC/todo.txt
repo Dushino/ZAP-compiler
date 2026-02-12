@@ -384,14 +384,7 @@ Phase 6-10: COMPLETED ✓
 
 
 Further optimizations after implementaion completed
-LDA a           ; 3 bytes
-LDX a+1         ; 3 bytes
-JSR SET_MATH0   ; 3 bytes
-LDA b           ; 3 bytes
-LDX b+1         ; 3 bytes
-JSR SET_MATH1   ; 3 bytes - not needed as math operations can expect A/X as input to be stored in math subroutines
-JSR ADD16       ; 3 bytes
-JSR GET_MATH0   ; 3 bytes
+[ ] DIV16 registers settings before calling proc.
 
 
 
