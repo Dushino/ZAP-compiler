@@ -271,7 +271,9 @@ class CodeGen:
                     # Allocation of spill slot in MATH_STACK (2 bytes per slot)
                     nonlocal temp_index
                     if temp_index >= 4:
-                        self._raise_error("RPN: evaluation stack overflow (spill slots exhausted)")
+                        self._raise_error(
+                            "Expression is too complex: Please simplify the expression by breaking it into smaller statements."
+                        )
                     spill_base = f"MATH_STACK+{temp_index * 2}"
                     temp_index += 1
                     
@@ -286,7 +288,9 @@ class CodeGen:
                 if loc == "MATH0":
                     nonlocal temp_index
                     if temp_index >= 4:
-                        self._raise_error("RPN: evaluation stack overflow (spill slots exhausted)")
+                        self._raise_error(
+                            "Expression is too complex: Please simplify the expression by breaking it into smaller statements."
+                        )
                     spill_base = f"MATH_STACK+{temp_index * 2}"
                     temp_index += 1
                     
