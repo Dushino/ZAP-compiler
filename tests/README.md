@@ -10,7 +10,7 @@ The test suite provides comprehensive validation of the ZAP compiler across mult
 tests/
 ├── pass/          Tests that SHOULD compile and run successfully
 │   ├── *.zap      Test source files
-│   └── *.ref      Reference output files (REQUIRED for each test)
+│   ├── *.ref      Reference output files (REQUIRED for each test)
 │   └── *.json     Configuration file for simulator (REQUIRED for each test)
 └── fail/          Tests that SHOULD fail compilation (negative tests)
     └── *.zap      Test source files
