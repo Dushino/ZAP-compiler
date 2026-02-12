@@ -358,11 +358,98 @@ class CodeGen:
                 right_loc, right_16 = eval_stack.pop()
                 left_loc, left_16 = eval_stack.pop()
 
+                # FAST PATH OPTIMIZATION: For simple byte operations (var/const op var/const),
+                # generate direct accumulator code instead of using MATH0/MATH1 registers
+                from ast_nodes import BinOp
+                simple_left = not left_loc.startswith("MATH_STACK") and left_loc not in ("MATH0", "MATH1", "AX")
+                simple_right = not right_loc.startswith("MATH_STACK") and right_loc not in ("MATH0", "MATH1", "AX")
+                both_byte = not left_16 and not right_16
+                fast_path_ops = {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, 
+                                BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                
+                if simple_left and simple_right and both_byte and node.value in fast_path_ops:
+                    # CRITICAL: Spill MATH0 if it's already in use before we overwrite it
+                    spill_math0_if_needed(eval_stack)
+                    
+                    # Generate optimized code using accumulator directly
+                    # Load left operand
+                    if left_loc.startswith("CONST:"):
+                        val = int(left_loc.split(":")[1]) & 0xFF
+                        self.emit(f"\tLDA #${val:02X}")
+                    else:
+                        self.emit(f"\tLDA {left_loc}")
+                    
+                    # Format right operand for instruction
+                    if right_loc.startswith("CONST:"):
+                        val = int(right_loc.split(":")[1]) & 0xFF
+                        right_operand = f"#${val:02X}"
+                    else:
+                        right_operand = right_loc
+                    
+                    # Perform operation
+                    if node.value == BinOp.ADD:
+                        self.emit("\tCLC")
+                        self.emit(f"\tADC {right_operand}")
+                        self.emit("\tSTA MATH0")
+                        eval_stack.append(("MATH0", False))
+                        continue
+                    elif node.value == BinOp.SUB:
+                        self.emit("\tSEC")
+                        self.emit(f"\tSBC {right_operand}")
+                        self.emit("\tSTA MATH0")
+                        eval_stack.append(("MATH0", False))
+                        continue
+                    elif node.value == BinOp.BAND:
+                        self.emit(f"\tAND {right_operand}")
+                        self.emit("\tSTA MATH0")
+                        eval_stack.append(("MATH0", False))
+                        continue
+                    elif node.value == BinOp.BOR:
+                        self.emit(f"\tORA {right_operand}")
+                        self.emit("\tSTA MATH0")
+                        eval_stack.append(("MATH0", False))
+                        continue
+                    elif node.value == BinOp.BXOR:
+                        self.emit(f"\tEOR {right_operand}")
+                        self.emit("\tSTA MATH0")
+                        eval_stack.append(("MATH0", False))
+                        continue
+                    elif node.value in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                        # Comparison: use CMP and convert to boolean
+                        self.emit(f"\tCMP {right_operand}")
+                        lbl_true = self.new_label("CMP_TRUE")
+                        lbl_end = self.new_label("CMP_END")
+                        
+                        if node.value == BinOp.EQ:
+                            self.emit(f"\tBEQ {lbl_true}")
+                        elif node.value == BinOp.NE:
+                            self.emit(f"\tBNE {lbl_true}")
+                        elif node.value == BinOp.LT:
+                            self.emit(f"\tBCC {lbl_true}")
+                        elif node.value == BinOp.GE:
+                            self.emit(f"\tBCS {lbl_true}")
+                        elif node.value == BinOp.GT:
+                            # a > b: !(a < b) && a != b
+                            self.emit(f"\tBCC {lbl_end}")  # If less, result is false
+                            self.emit(f"\tBNE {lbl_true}")  # If not equal and not less, it's greater
+                        elif node.value == BinOp.LE:
+                            # a <= b: (a < b) || a == b
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBEQ {lbl_true}")
+                        
+                        self.emit("\tLDA #$00")
+                        self.emit(f"\tJMP {lbl_end}")
+                        self.emit(f"{lbl_true}:")
+                        self.emit("\tLDA #$01")
+                        self.emit(f"{lbl_end}:")
+                        self.emit("\tSTA MATH0")
+                        eval_stack.append(("MATH0", False))
+                        continue  # Skip general path
+
                 # If an older stack entry still lives in MATH0, spill it before reuse.
                 spill_math0_if_needed(eval_stack)
                 
                 # Operand loading strategy with correct ordering for non-commutative ops.
-                from ast_nodes import BinOp
                 commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LAND, BinOp.LOR}
                 
                 if right_loc == "MATH0" and left_loc != "MATH0":
@@ -5843,6 +5930,79 @@ class CodeGen:
             max_temps: int = 6  # TMP0..TMP5 available
             if needed > max_temps:
                 self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but only {max_temps} available. Simplify the expression.")
+
+            # FAST PATH: Optimize simple byte operations (a op b) to avoid RPN overhead
+            # For expressions like: a < b, a + b, a & b where both are identifiers/literals
+            # Generate direct accumulator code instead of using MATH registers
+            if (isinstance(expr.left, (Identifier, IntLiteral)) and 
+                isinstance(expr.right, (Identifier, IntLiteral)) and
+                not self.force_word_result):
+                
+                # Check if operands are byte-sized
+                left_t: ExprType = self.tc_check(expr.left)
+                right_t: ExprType = self.tc_check(expr.right)
+                left_is_byte: bool = left_t.sem_type.base == "BYTE" and not left_t.sem_type.is_pointer
+                right_is_byte: bool = right_t.sem_type.base == "BYTE" and not right_t.sem_type.is_pointer
+                
+                if left_is_byte and right_is_byte and expr.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
+                    # Generate left operand into accumulator
+                    if isinstance(expr.left, Identifier):
+                        left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
+                        self.emit(f"\tLDA {self._sym_operand(left_sym, low_byte=True)}")
+                    else:  # IntLiteral
+                        val: int = expr.left.value & 0xFF
+                        self.emit(f"\tLDA #${val:02X}")
+                    
+                    # Generate operation with right operand
+                    if isinstance(expr.right, Identifier):
+                        right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
+                        right_operand: str = self._sym_operand(right_sym, low_byte=True)
+                    else:  # IntLiteral
+                        val: int = expr.right.value & 0xFF
+                        right_operand: str = f"#${val:02X}"
+                    
+                    if expr.op == BinOp.ADD:
+                        self.emit("\tCLC")
+                        self.emit(f"\tADC {right_operand}")
+                    elif expr.op == BinOp.SUB:
+                        self.emit("\tSEC")
+                        self.emit(f"\tSBC {right_operand}")
+                    elif expr.op == BinOp.BAND:
+                        self.emit(f"\tAND {right_operand}")
+                    elif expr.op == BinOp.BOR:
+                        self.emit(f"\tORA {right_operand}")
+                    elif expr.op == BinOp.BXOR:
+                        self.emit(f"\tEOR {right_operand}")
+                    elif expr.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                        # Comparison: use CMP and convert to boolean
+                        self.emit(f"\tCMP {right_operand}")
+                        true_label: str = self.new_label("CMP_TRUE")
+                        end_label: str = self.new_label("CMP_END")
+                        
+                        if expr.op == BinOp.EQ:
+                            self.emit(f"\tBEQ {true_label}")
+                        elif expr.op == BinOp.NE:
+                            self.emit(f"\tBNE {true_label}")
+                        elif expr.op == BinOp.LT:
+                            self.emit(f"\tBCC {true_label}")
+                        elif expr.op == BinOp.GE:
+                            self.emit(f"\tBCS {true_label}")
+                        elif expr.op == BinOp.GT:
+                            # a > b: !(a < b) && a != b → BCS && BNE
+                            self.emit(f"\tBCC {end_label}")  # If less, skip to false
+                            self.emit(f"\tBNE {true_label}")  # If not equal and not less, it's greater
+                        elif expr.op == BinOp.LE:
+                            # a <= b: (a < b) || a == b → BCC || BEQ
+                            self.emit(f"\tBCC {true_label}")
+                            self.emit(f"\tBEQ {true_label}")
+                        
+                        self.emit("\tLDA #$00")
+                        self.emit(f"\tJMP {end_label}")
+                        self.emit(f"{true_label}:")
+                        self.emit("\tLDA #$01")
+                        self.emit(f"{end_label}:")
+                    
+                    return  # Fast path complete
 
             # Try RPN-based code generation if enabled and expression is arithmetic/bitwise/comparison/logical
             if self.rpn_enabled and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LSHIFT, BinOp.RSHIFT, BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, BinOp.LAND, BinOp.LOR} and self._is_rpn_safe(expr):
