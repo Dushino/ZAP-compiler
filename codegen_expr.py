@@ -574,27 +574,56 @@ class CodeGen:
                 
                 from ast_nodes import UnOp
                 if node.value == UnOp.NOT:
-                    self.emit("\tORA")
-                    self.emit("\tBEQ NOT_TRUE")
-                    self.emit("\tLDA #$00")
-                    self.emit("\tBRA NOT_DONE")
-                    self.emit("NOT_TRUE:")
-                    self.emit("\tLDA #$01")
-                    self.emit("NOT_DONE:")
-                    self.emit("\tLDX #$00")
-                    eval_stack.append(("AX", False))
-                elif node.value == UnOp.BNOT:
-                    self.emit("\tEOR #$FF")
+                    # Logical NOT: result is 1 if operand is 0, else 0
+                    # For BYTE: test A directly
+                    # For WORD: test if A or X is nonzero
                     if operand_16:
-                        self.emit("\tPHA")
+                        # WORD: merge A/X to test non-zero
+                        self.emit("\tSTA MATH0")        # Save A
                         self.emit("\tTXA")
+                        self.emit("\tORA MATH0")
+                        lbl_nonzero = self.new_label("NOT_NONZERO")
+                        lbl_end = self.new_label("NOT_END")
+                        self.emit(f"\tBNE {lbl_nonzero}")
+                        # Value was zero, result = 1
+                        self.emit("\tLDA #$01")
+                        self.emit(f"\tJMP {lbl_end}")
+                        self.emit(f"{lbl_nonzero}:")
+                        self.emit("\tLDA #$00")
+                        self.emit(f"{lbl_end}:")
+                    else:
+                        # BYTE: test A only
+                        lbl_nonzero = self.new_label("NOT_NONZERO")
+                        lbl_end = self.new_label("NOT_END")
+                        self.emit(f"\tBNE {lbl_nonzero}")
+                        # A was zero, result = 1
+                        self.emit("\tLDA #$01")
+                        self.emit(f"\tJMP {lbl_end}")
+                        self.emit(f"{lbl_nonzero}:")
+                        self.emit("\tLDA #$00")
+                        self.emit(f"{lbl_end}:")
+                    self.emit("\tSTA MATH0")            # Store result
+                    self.emit("\tLDX #$00")             # Logical NOT always returns BYTE
+                    eval_stack.append(("MATH0", False))
+                elif node.value == UnOp.BNOT:
+                    # Bitwise NOT: invert all bits
+                    if operand_16:
+                        # WORD: invert both bytes
+                        self.emit("\tEOR #$FF")         # Invert low byte
+                        self.emit("\tSTA MATH0")        # Save low byte
+                        self.emit("\tTXA")
+                        self.emit("\tEOR #$FF")         # Invert high byte
+                        self.emit("\tSTA MATH0+1")      # Save high byte
+                        eval_stack.append(("MATH0", True))
+                    else:
+                        # BYTE: invert just A
                         self.emit("\tEOR #$FF")
-                        self.emit("\tTAX")
-                        self.emit("\tPLA")
-                    eval_stack.append(("AX", operand_16))
+                        self.emit("\tSTA MATH0")        # Store result
+                        self.emit("\tLDX #$00")
+                        eval_stack.append(("MATH0", False))
                 else:
                     self.emit(f"\t; TODO: unary {node.value}")
-                    eval_stack.append(("AX", operand_16))
+                    eval_stack.append(("MATH0", operand_16))
             
             elif node.node_type == 'CALL':
                 # Calls are not handled in RPN yet (see _is_rpn_safe)
