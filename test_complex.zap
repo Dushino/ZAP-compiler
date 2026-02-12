@@ -6,7 +6,7 @@ proc main()
     
     d = a + b + c
     
-    if (a < b) && (b < c) then
+    if (a < b) && (b < c)
         d = 99
-    endif
+    end
 end

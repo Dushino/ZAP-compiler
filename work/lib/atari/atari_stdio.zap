@@ -175,13 +175,13 @@ end
 proc crlf()
     cur_xpos = 0
 
-    if cur_ypos < SCREEN_Y_SIZE - 1  then
+    if cur_ypos < SCREEN_Y_SIZE - 1
         cur_ypos = cur_ypos + 1
     else
         ; scroll screen up
         memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
         memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
-    endif
+    end
     curptr = vlstart[cur_ypos]
 end
 
@@ -209,16 +209,16 @@ __sputc:
     curptr = curptr + 1
     
     cur_xpos = cur_xpos + 1
-    if cur_xpos >= SCREEN_X_SIZE then
+    if cur_xpos >= SCREEN_X_SIZE
         cur_xpos = 0
 
-        if cur_ypos < SCREEN_Y_SIZE - 1  then
+        if cur_ypos < SCREEN_Y_SIZE - 1
             cur_ypos = cur_ypos + 1
             curptr = vlstart[cur_ypos]
         else
             crlf()
-        endif
-    endif
+        end
+    end
 end
 
 

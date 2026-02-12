@@ -5,15 +5,15 @@ proc main()
     byte x1     @40000 = 5
     byte result @40001 = 0
 
-    if x1 == 5 then
+    if x1 == 5
         result = result + 1
     else
         result = result + 2
-    endif
+    end
     
-    if x1 > 3 then
-        if x1 < 10 then
+    if x1 > 3
+        if x1 < 10
             result = result + 16
-        endif
-    endif
+        end
+    end
 end

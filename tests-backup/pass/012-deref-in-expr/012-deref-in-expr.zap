@@ -63,17 +63,17 @@ proc main()
     warr[1] = warr[1] + wptr1^
     
     ; Comparisons with dereferenced values
-    if bptr1^ == bptr2^ then
+    if bptr1^ == bptr2^
         b = 1
-    endif
+    end
     
-    if barr[0] < barr[1] then
+    if barr[0] < barr[1]
         b = 2
-    endif
+    end
     
     ; Logical operations
     b = !bptr1^
-    if !barr[0] then
+    if !barr[0]
         b = 3
-    endif
+    end
 end

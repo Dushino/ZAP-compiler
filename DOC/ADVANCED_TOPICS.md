@@ -287,13 +287,13 @@ byte object_active[MAX_OBJECTS]
 byte object_count = 0
 
 proc allocate_object()
-    if object_count < MAX_OBJECTS then
+    if object_count < MAX_OBJECTS
         object_count = object_count + 1
         byte idx = object_count - 1
         object_x[idx] = 0
         object_y[idx] = 0
         object_active[idx] = 1
-    endif
+    end
 end
 ```
 
@@ -349,20 +349,20 @@ end
 proc game_state()
     static byte state = 0  ; 0=menu, 1=playing, 2=paused
     
-    if state = 0 then
+    if state = 0
         ; Handle menu
         state = 1
-    elseif state = 1 then
+    elseif state = 1
         ; Handle game
-        if player_pressed_pause then
+        if player_pressed_pause
             state = 2
-        endif
-    elseif state = 2 then
+        end
+    elseif state = 2
         ; Handle pause
-        if player_pressed_resume then
+        if player_pressed_resume
             state = 1
-        endif
-    endif
+        end
+    end
 end
 ```
 
@@ -373,13 +373,13 @@ const byte MAX_SPRITES = 10
 proc allocate_sprite()
     static byte sprite_count = 0
     
-    if sprite_count < MAX_SPRITES then
+    if sprite_count < MAX_SPRITES
         byte id = sprite_count
         sprite_count = sprite_count + 1
         return id
     else
         return 255  ; Error code
-    endif
+    end
 end
 ```
 
@@ -547,9 +547,9 @@ byte POKEY_AUDC1 @$D201         ; Audio control 1
 ```zap
 proc check_collision()
     byte collision = GTIA_M0PL
-    if collision != 0 then
+    if collision != 0
         ; Collision detected!
-    endif
+    end
 end
 ```
 
@@ -592,10 +592,10 @@ byte last_joystick = 0
 proc poll_joystick()
     byte joystick = POKEY_STICK0    ; Read joystick
     
-    if joystick != last_joystick then
+    if joystick != last_joystick
         ; Joystick changed
         handle_input(joystick)
-    endif
+    end
     
     last_joystick = joystick
 end
@@ -668,9 +668,9 @@ proc dce_example()
     return
     byte unused = 42    ; Never reaches here - removed!
     
-    if 0 then           ; Condition always false
+    if 0           ; Condition always false
         byte x = 1      ; Removed
-    endif
+    end
 end
 ```
 
@@ -771,9 +771,9 @@ python compiler.py program.zap -o program.s
 .module "math"
 
 func byte abs(byte x)
-    if x < 0 then
+    if x < 0
         return -x
-    endif
+    end
     return x
 end
 ```
@@ -927,24 +927,24 @@ const byte STATE_OVER = 3
 byte game_state = STATE_INIT
 
 proc update_state()
-    if game_state == STATE_INIT then
+    if game_state == STATE_INIT
         initialize_game()
         game_state = STATE_PLAY
-    endif
+    end
     
-    if game_state == STATE_PLAY then
+    if game_state == STATE_PLAY
         update_game()
         check_pause()
         check_game_over()
-    endif
+    end
     
-    if game_state == STATE_PAUSE then
+    if game_state == STATE_PAUSE
         check_unpause()
-    endif
+    end
     
-    if game_state == STATE_OVER then
+    if game_state == STATE_OVER
         show_game_over()
-    endif
+    end
 end
 ```
 
@@ -957,20 +957,20 @@ byte event_powerup = 0
 byte event_death = 0
 
 proc handle_events()
-    if event_collision then
+    if event_collision
         on_collision()
         event_collision = 0
-    endif
+    end
     
-    if event_powerup then
+    if event_powerup
         on_powerup()
         event_powerup = 0
-    endif
+    end
     
-    if event_death then
+    if event_death
         on_death()
         event_death = 0
-    endif
+    end
 end
 ```
 
@@ -985,12 +985,12 @@ byte sprite_active[MAX_SPRITES]
 byte sprite_count = 0
 
 proc spawn_sprite(byte x, byte y)
-    if sprite_count < MAX_SPRITES then
+    if sprite_count < MAX_SPRITES
         sprite_x[sprite_count] = x
         sprite_y[sprite_count] = y
         sprite_active[sprite_count] = 1
         sprite_count = sprite_count + 1
-    endif
+    end
 end
 
 proc update_sprites()
@@ -999,10 +999,10 @@ proc update_sprites()
         if sprite_active[i] then
             sprite_y[i] = sprite_y[i] + 1
             
-            if sprite_y[i] > 191 then
+            if sprite_y[i] > 191
                 sprite_active[i] = 0
-            endif
-        endif
+            end
+        end
     end
 end
 ```
@@ -1015,10 +1015,10 @@ byte message_queue[MAX_MESSAGES]
 byte message_count = 0
 
 proc send_message(byte msg)
-    if message_count < MAX_MESSAGES then
+    if message_count < MAX_MESSAGES
         message_queue[message_count] = msg
         message_count = message_count + 1
-    endif
+    end
 end
 
 proc process_messages()
@@ -1039,10 +1039,10 @@ proc game_update()
     frame_counter = frame_counter + 1
     
     ; Every 30 frames
-    if frame_counter == 30 then
+    if frame_counter == 30
         do_expensive_operation()
         frame_counter = 0
-    endif
+    end
     
     ; Do fast updates every frame
     do_fast_operation()

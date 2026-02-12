@@ -7,7 +7,7 @@ from errors import TokenizerError
 
 ESCAPES: dict[str, str]         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\","a":"\a","b":"\b","f":"\f","v":"\v","0":"\0"}
 KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
-                   "if","else", "elseif", "then", "endif", "end", 
+                   "if","else", "elseif", "end", 
                    "for", "to", "step",
                    "while", "repeat", "until",
                    "switch", "case", "default",

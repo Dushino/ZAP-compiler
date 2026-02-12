@@ -4,9 +4,9 @@ byte result @ 40000
 proc main()
     byte i @40001 = 0
     while i < 10
-        if i == 5 then
+        if i == 5
             break
-        endif
+        end
         i = i + 1
     end
     result = i

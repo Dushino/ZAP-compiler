@@ -8,46 +8,46 @@ const byte chfalse = $10     ; ATASCII character for FALSE result
 
 proc compare1(byte a, byte b)
 
-    if a > b then
+    if a > b
         ptr^ = chtrue
     else
         ptr^ = chfalse
-    endif
+    end
     ptr = ptr + 1
 
-    if a >= b then
+    if a >= b
         ptr^ = chtrue
     else
         ptr^ = chfalse
-    endif
+    end
     ptr = ptr + 1
 
-    if a == b then
+    if a == b
         ptr^ = chtrue
     else
         ptr^ = chfalse
-    endif
+    end
     ptr = ptr + 1
 
-    if a <= b then
+    if a <= b
         ptr^ = chtrue
     else
         ptr^ = chfalse
-    endif
+    end
     ptr = ptr + 1
 
-    if a < b then
+    if a < b
         ptr^ = chtrue
     else
         ptr^ = chfalse
-    endif
+    end
     ptr = ptr + 1
 
-    if a != b then
+    if a != b
         ptr^ = chtrue
     else
         ptr^ = chfalse
-    endif
+    end
     ptr = ptr + 2
 
 

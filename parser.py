@@ -1367,12 +1367,11 @@ class Parser:
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "IF")
         cond = self.parse_expr()
-        self.expect(TOK_KEYWORD, "THEN")        
         then_body = []
 
         while not (
             self.cur.type == TOK_KEYWORD and
-            self.cur.value in ("ELSE", "ELSEIF", "ENDIF", "END")
+            self.cur.value in ("ELSE", "ELSEIF", "END")
         ):
             then_body.append(self.parse_stmt())
 
@@ -1383,12 +1382,11 @@ class Parser:
         while self.cur.type == TOK_KEYWORD and self.cur.value == "ELSEIF":
             self.advance()
             cond = self.parse_expr()
-            self.expect(TOK_KEYWORD, "THEN")
 
             body = []
             while not (
                 self.cur.type == TOK_KEYWORD and
-                self.cur.value in ("ELSE", "ELSEIF", "ENDIF", "END")
+                self.cur.value in ("ELSE", "ELSEIF", "END")
             ):
                 body.append(self.parse_stmt())
 
@@ -1402,15 +1400,15 @@ class Parser:
             else_body = []
             while not (
                 self.cur.type == TOK_KEYWORD and
-                self.cur.value in ("ENDIF", "END")
+                self.cur.value in ("END")
             ):
                 else_body.append(self.parse_stmt())
             cur_if.else_body = else_body
 
-        if self.cur.type == TOK_KEYWORD and self.cur.value in ("ENDIF", "END"):
+        if self.cur.type == TOK_KEYWORD and self.cur.value in ("END"):
             self.advance()
         else:
-            self.expect(TOK_KEYWORD, "ENDIF")
+            self.expect(TOK_KEYWORD, "END")
         node: IfStmt = root_if
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)

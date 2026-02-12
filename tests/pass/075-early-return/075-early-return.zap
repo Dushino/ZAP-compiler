@@ -4,23 +4,23 @@ byte result @40000 = 0
 
 
 proc helper2(byte a)
-    if a > 10 then
+    if a > 10
         return
-    endif
+    end
     
-    if a > 5 then
+    if a > 5
         return
-    endif
+    end
 end
 
 func byte helper1(byte par1) 
-    if par1 > 10 then
+    if par1 > 10
         return 1
-    endif
+    end
     
-    if par1 > 5 then
+    if par1 > 5
         return 2
-    endif
+    end
     
     return 3
 end

@@ -9,15 +9,15 @@ proc main()
     c = a | b
     c = a ^ b
     
-    if a == b then
+    if a == b
         c = 1
-    endif
+    end
     
-    if a < b then
+    if a < b
         c = 2
-    endif
+    end
     
-    if a > b then
+    if a > b
         c = 3
-    endif
+    end
 end

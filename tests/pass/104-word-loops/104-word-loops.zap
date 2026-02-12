@@ -17,9 +17,9 @@ proc main()
     while i <= endv
         result = result + 1
         i = i + 1
-        if i == 100 then
+        if i == 100
             break
-        endif
+        end
     end
     ; result is now 380 $0174
 end

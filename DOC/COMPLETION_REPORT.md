@@ -23,7 +23,7 @@ A comprehensive, professional documentation package for the ZAP! programming lan
   - First program walkthrough
   - Basic concepts (procedures, functions, variables)
   - Variables and scope (global vs local)
-  - Decision making (if/then/else)
+  - Decision making (if/else)
   - Loops (while, for, break)
   - Functions and procedures
   - Arrays and strings
@@ -40,7 +40,7 @@ A comprehensive, professional documentation package for the ZAP! programming lan
   - Data types (byte, word, pointers)
   - Variables (global, local, scope)
   - Operators (arithmetic, comparison, logical)
-  - Control flow (if/then/else, while, for, break)
+  - Control flow (if/else, while, for, break)
   - Procedures and functions (parameters, return, recursion)
   - Arrays and strings (declaration, initialization, indexing)
   - Pointers (declaration, dereferencing, arithmetic)
