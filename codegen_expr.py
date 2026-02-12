@@ -334,15 +334,30 @@ class CodeGen:
                 right_loc, right_16 = eval_stack.pop()
                 left_loc, left_16 = eval_stack.pop()
                 
-                # 1. Load left operand and store in MATH0
-                load_to_ax(left_loc, left_16)
-                self.emit("\tJSR SET_MATH0")
-                self.rpn_helper_routines_needed.add("SET_MATH0")
-                
-                # 2. Load right operand and store in MATH1
-                load_to_ax(right_loc, right_16)
-                self.emit("\tJSR SET_MATH1")
-                self.rpn_helper_routines_needed.add("SET_MATH1")
+                # Optimization: keep MATH0 as accumulator whenever possible (RPN principle)
+                # Case 1: right operand is already in MATH0 - just load left to MATH1
+                if right_loc == "MATH0" and left_loc != "MATH0":
+                    load_to_ax(left_loc, left_16)
+                    self.emit("\tJSR SET_MATH1")
+                    self.rpn_helper_routines_needed.add("SET_MATH1")
+                # Case 2: left operand is already in MATH0 - just load right to MATH1 (skip loading left)
+                elif left_loc == "MATH0" and right_loc != "MATH0":
+                    load_to_ax(right_loc, right_16)
+                    self.emit("\tJSR SET_MATH1")
+                    self.rpn_helper_routines_needed.add("SET_MATH1")
+                # Case 3: only load what's needed
+                else:
+                    # Load left operand to MATH0 (if not already there)
+                    if left_loc != "MATH0":
+                        load_to_ax(left_loc, left_16)
+                        self.emit("\tJSR SET_MATH0")
+                        self.rpn_helper_routines_needed.add("SET_MATH0")
+                    
+                    # Load right operand to MATH1 (if not already there)
+                    if right_loc != "MATH1":
+                        load_to_ax(right_loc, right_16)
+                        self.emit("\tJSR SET_MATH1")
+                        self.rpn_helper_routines_needed.add("SET_MATH1")
                 
                 # 3. Perform operation
                 from ast_nodes import BinOp
