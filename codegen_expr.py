@@ -272,21 +272,25 @@ class CodeGen:
             load_to_ax(loc, is_16bit)
             self.suppress_byte_return_x = prev
 
-        def emit_set_math0_from_ax(is_16bit: bool) -> None:
+        def emit_set_math0_from_ax(is_16bit: bool, *, force_word: bool = False) -> None:
             """Store A/X into MATH0, inlining for byte values."""
             if is_16bit:
                 self.emit("\tJSR SET_MATH0")
                 self.rpn_helper_routines_needed.add("SET_MATH0")
             else:
                 self.emit("\tSTA MATH0")
+                if force_word:
+                    self._stz("MATH0+1")
 
-        def emit_set_math1_from_ax(is_16bit: bool) -> None:
+        def emit_set_math1_from_ax(is_16bit: bool, *, force_word: bool = False) -> None:
             """Store A/X into MATH1, inlining for byte values."""
             if is_16bit:
                 self.emit("\tJSR SET_MATH1")
                 self.rpn_helper_routines_needed.add("SET_MATH1")
             else:
                 self.emit("\tSTA MATH1")
+                if force_word:
+                    self._stz("MATH1+1")
 
         def spill_ax_if_needed(stack: list[tuple[str, bool]]) -> None:
             """If AX is on stack, spill it to a temp to avoid overwriting."""
@@ -371,6 +375,8 @@ class CodeGen:
         def get_math_ax_entry(routine: str) -> str | None:
             """Map a math routine to its right-operand-in-A/X entrypoint."""
             ax_map = {
+                "ADD16": "ADD16_AX",
+                "SUB16": "SUB16_AX",
                 "MUL8": "MUL8_A",
                 "MUL16_8": "MUL16_8_A",
                 "MUL16": "MUL16_AX",
@@ -493,6 +499,7 @@ class CodeGen:
                 # Operand loading strategy with correct ordering for non-commutative ops.
                 commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LAND, BinOp.LOR}
                 routine = get_math_routine_for_op(cast(BinOp, node.value), left_16, right_16)
+                force_word_operands = routine in {"ADD16", "SUB16"}
                 use_ax_right = False
                 routine_ax: str | None = None
                 if routine:
@@ -502,27 +509,41 @@ class CodeGen:
                 
                 if right_loc == "MATH0" and left_loc != "MATH0":
                     if node.value in commutative_ops:
-                        # Keep MATH0 as accumulator, load left to MATH1
-                        load_to_ax_for_math(left_loc, left_16)
-                        emit_set_math1_from_ax(left_16)
+                        # For commutative ops with right in MATH0, try using _AX variant
+                        if routine_ax:
+                            # Load left operand to A/X and use _AX variant (MATH0 stays intact, gets stored to MATH1 by _AX)
+                            prev = self.suppress_byte_return_x
+                            self.suppress_byte_return_x = False
+                            load_to_ax(left_loc, left_16)
+                            self.suppress_byte_return_x = prev
+                            use_ax_right = True  # Signal to use the _AX variant
+                        else:
+                            # No _AX variant available, use traditional approach
+                            load_to_ax_for_math(left_loc, left_16)
+                            emit_set_math1_from_ax(left_16, force_word=force_word_operands)
+                            use_ax_right = False
                     else:
                         # Preserve right in MATH1, then load left to MATH0 (order matters)
                         load_to_ax_for_math(right_loc, right_16)
-                        emit_set_math1_from_ax(right_16)
+                        emit_set_math1_from_ax(right_16, force_word=force_word_operands)
                         load_to_ax_for_math(left_loc, left_16)
-                        emit_set_math0_from_ax(left_16)
-                    use_ax_right = False
+                        emit_set_math0_from_ax(left_16, force_word=force_word_operands)
+                        use_ax_right = False
                 else:
                     if left_loc != "MATH0":
                         load_to_ax_for_math(left_loc, left_16)
-                        emit_set_math0_from_ax(left_16)
+                        emit_set_math0_from_ax(left_16, force_word=force_word_operands)
                     if use_ax_right:
                         if right_loc != "AX":
-                            load_to_ax_for_math(right_loc, right_16)
+                            # For _AX entrypoints, always load both A and X (even for byte operands)
+                            prev = self.suppress_byte_return_x
+                            self.suppress_byte_return_x = False
+                            load_to_ax(right_loc, right_16)
+                            self.suppress_byte_return_x = prev
                     else:
                         if right_loc != "MATH1":
                             load_to_ax_for_math(right_loc, right_16)
-                            emit_set_math1_from_ax(right_16)
+                            emit_set_math1_from_ax(right_16, force_word=force_word_operands)
                 
                 # 3. Perform operation
                 if routine:
@@ -2308,11 +2329,25 @@ class CodeGen:
             self._stz_multiple(["MATH0+2", "MATH0+3"])
             self.emit("\tRTS")
 
+        def emit_add16_ax() -> None:
+            self.emit("; ADD16_AX: right operand (word) in A/X")
+            self.emit("ADD16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
+        def emit_sub16_ax() -> None:
+            self.emit("; SUB16_AX: right operand (word) in A/X")
+            self.emit("SUB16_AX:")
+            self.emit("\tSTA MATH1")
+            self.emit("\tSTX MATH1+1")
+
         emitters: list[tuple[str, Any]] = [
             ("SET_MATH0", emit_set_math0),
             ("SET_MATH1", emit_set_math1),
             ("GET_MATH0", emit_get_math0),
+            ("ADD16_AX", emit_add16_ax),
             ("ADD16", emit_add16),
+            ("SUB16_AX", emit_sub16_ax),
             ("SUB16", emit_sub16),
             ("MUL8_A", emit_mul8_a),
             ("MUL8", emit_mul8),
