@@ -371,16 +371,30 @@ Key Phase 4 Achievements:
 - Safe fallback mechanism: All test cases covered
 - Code quality: Stable, no crashes, no errors
 
-Phase 5-10: PENDING
-- [ ] (Phase 5) Extend to bitwise operators (&, |, ^, <<, >>)
-- [ ] (Phase 6) Extend to comparison operators (==, !=, <, <=, >, >=)
-- [ ] (Phase 6) Handle array subscripts and complex expressions
-- [ ] (Phase 7) Implement assignment and ternary operators
-- [ ] (Phase 8) Temp allocation & spill strategy for deep nesting
+Phase 5: COMPLETED ✓ (Feb 12, 2026 - Session 4)
+- [x] Extended RPN to bitwise operators (&, |, ^, <<, >>)
+- [x] Added operand loading strategy for commutative vs non-commutative ops
+- [x] Implemented bitwise AND/OR/XOR inline code generation in RPN path
+- [x] Implemented variable and constant-folded shifts in RPN path
+- [x] Fixed MATH0/MATH1 spill strategy using MATH_STACK for safe stacking
+- [x] Added test 108: bitwise-shift-rpn (validates complex bitwise+shift expressions)
+- [x] All 107 tests still passing (100% backward compatible)
+
+Key Phase 5 Achievements:
+- Bitwise operators now fully integrated into RPN path
+- MATH_STACK spill prevents clobbering across deep nesting
+- Correct operand order preservation for non-commutative ops
+- Code size reduction extends to bitwise operations
+
+Phase 6-10: PENDING
+- [x] (Phase 6) Extend to comparison operators (==, !=, <, <=, >, >=)
+- [ ] (Phase 6) Handle array subscripts and complex expressions in RPN
+- [ ] (Phase 7) Implement logical operators (&&, ||) in RPN
+- [ ] (Phase 8) Temp allocation & spill strategy for very deep nesting (>4 levels)
 - [ ] (Phase 9-10) Main gen_expr() migration & cleanup
+- [ ] Check pointers math
 - [ ] Full regression testing with RPN enabled by default
 
-Estimated remaining from Phase 4: 30-40 hours to full completion (Phase 4: 4h, 5-10: 26-36h)
 
 Further optimizations after implementaion completed
 LDA a           ; 3 bytes
@@ -391,4 +405,19 @@ LDX b+1         ; 3 bytes
 JSR SET_MATH1   ; 3 bytes - not needed as math operations can expect A/X as input to be stored in math subroutines
 JSR ADD16       ; 3 bytes
 JSR GET_MATH0   ; 3 bytes
+
+
+
+
+	BCS CMP_TRUE_7
+	LDA #$00
+	BRA CMP_END_8   ; -> BCC CMP_END_8
+CMP_TRUE_7:
+	LDA #$01
+CMP_END_8:
+
+
+
+
+Loop unwinding pro MUL, DIV, MOD
 

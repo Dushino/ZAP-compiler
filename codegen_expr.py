@@ -254,13 +254,14 @@ class CodeGen:
                     self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
                 else:
                     self.emit(f"\tLDA #${val & 0xFF:02X}")
-                    self.emit("\tLDX #$00")
+                    if not self.suppress_byte_return_x:
+                        self.emit("\tLDX #$00")
             else:
                 # Memory location
                 self.emit(f"\tLDA {loc}")
                 if is_16bit:
                     self.emit(f"\tLDX {loc}+1")
-                else:
+                elif not self.suppress_byte_return_x:
                     self.emit("\tLDX #$00")
 
         def spill_ax_if_needed(stack: list[tuple[str, bool]]) -> None:
@@ -358,7 +359,7 @@ class CodeGen:
                 
                 # Operand loading strategy with correct ordering for non-commutative ops.
                 from ast_nodes import BinOp
-                commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LAND, BinOp.LOR}
                 
                 if right_loc == "MATH0" and left_loc != "MATH0":
                     if node.value in commutative_ops:
@@ -434,9 +435,135 @@ class CodeGen:
                         if result_16:
                             self.emit("\tSTX MATH0+1")
                         eval_stack.append(("MATH0", result_16))
-                    else:
-                        self.emit(f"\t; TODO: operator {node.value} not yet implemented")
-                        eval_stack.append(("AX", node.is_16bit))
+                    elif node.value in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                        # Comparison operators: always produce BYTE (0 or 1)
+                        # MATH0 = left, MATH1 = right
+                        lbl_true = self.new_label("CMP_TRUE")
+                        lbl_end = self.new_label("CMP_END")
+                        
+                        # Compare MATH0 vs MATH1
+                        if left_16 or right_16:
+                            # 16-bit comparison - more complex
+                            if node.value == BinOp.EQ:
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA MATH0+1")
+                                self.emit("\tCMP MATH1+1")
+                                self.emit(f"\tBEQ {lbl_true}")
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                self.emit(f"{lbl_true}:")
+                                self.emit("\tLDA #$01")
+                            elif node.value == BinOp.NE:
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA MATH0+1")
+                                self.emit("\tCMP MATH1+1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                self.emit(f"{lbl_true}:")
+                                self.emit("\tLDA #$01")
+                            else:
+                                # For <, <=, >, >= with 16-bit: use SEC/SBC or similar
+                                # Simplified: subtract and check carry/sign
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tSEC")
+                                self.emit("\tSBC MATH1")
+                                self.emit("\tLDA MATH0+1")
+                                self.emit("\tSBC MATH1+1")
+                                if node.value == BinOp.LT:
+                                    self.emit("\tBMI " + lbl_true)
+                                elif node.value == BinOp.LE:
+                                    self.emit("\tBMI " + lbl_true)
+                                    self.emit("\tBEQ " + lbl_true)
+                                elif node.value == BinOp.GT:
+                                    self.emit("\tBPL " + lbl_true)
+                                    self.emit("\tBNE " + lbl_true)
+                                else:  # GE
+                                    self.emit("\tBPL " + lbl_true)
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                self.emit(f"{lbl_true}:")
+                                self.emit("\tLDA #$01")
+                        else:
+                            # 8-bit comparison
+                            self.emit("\tLDA MATH0")
+                            self.emit("\tCMP MATH1")
+                            if node.value == BinOp.EQ:
+                                self.emit(f"\tBEQ {lbl_true}")
+                            elif node.value == BinOp.NE:
+                                self.emit(f"\tBNE {lbl_true}")
+                            elif node.value == BinOp.LT:
+                                self.emit(f"\tBCC {lbl_true}")  # A < operand if carry clear
+                            elif node.value == BinOp.LE:
+                                self.emit(f"\tBCC {lbl_true}")  # A <= operand: carry clear or zero
+                                self.emit(f"\tBEQ {lbl_true}")
+                            elif node.value == BinOp.GT:
+                                self.emit(f"\tBCS {lbl_true}")  # A > operand if carry set and not zero
+                                self.emit(f"\tBNE {lbl_true}")
+                            else:  # GE
+                                self.emit(f"\tBCS {lbl_true}")  # A >= operand if carry set
+                            
+                            self.emit("\tLDA #$00")
+                            self.emit(f"\tJMP {lbl_end}")
+                            self.emit(f"{lbl_true}:")
+                            self.emit("\tLDA #$01")
+                        
+                        self.emit(f"{lbl_end}:")
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tLDX #$00")  # Comparisons always return BYTE
+                        eval_stack.append(("MATH0", False))
+
+                    elif node.value in {BinOp.LAND, BinOp.LOR}:
+                        # Logical AND/OR: Both operands should be BYTE (0 or 1)
+                        # MATH0 = left, MATH1 = right
+                        if node.value == BinOp.LAND:
+                            # AND: result is true only if both are true
+                            # Optimization: if left is 0, result is 0 without evaluating right
+                            # But in RPN, both are already evaluated
+                            # So: result = (left != 0) && (right != 0) ? 1 : 0
+                            lbl_zero = self.new_label("AND_ZERO")
+                            lbl_end = self.new_label("AND_END")
+                            
+                            self.emit("\tLDA MATH0")
+                            self.emit(f"\tBEQ {lbl_zero}")  # If left=0, result=0
+                            self.emit("\tLDA MATH1")
+                            self.emit(f"\tBEQ {lbl_zero}")  # If right=0, result=0
+                            
+                            # Both non-zero, result = 1
+                            self.emit("\tLDA #$01")
+                            self.emit(f"\tJMP {lbl_end}")
+                            
+                            self.emit(f"{lbl_zero}:")
+                            self.emit("\tLDA #$00")
+                            
+                            self.emit(f"{lbl_end}:")
+                        else:
+                            # OR: result is true if either is true
+                            # result = (left != 0) || (right != 0) ? 1 : 0
+                            lbl_one = self.new_label("OR_ONE")
+                            lbl_end = self.new_label("OR_END")
+                            
+                            self.emit("\tLDA MATH0")
+                            self.emit(f"\tBNE {lbl_one}")  # If left!=0, result=1
+                            self.emit("\tLDA MATH1")
+                            self.emit(f"\tBNE {lbl_one}")  # If right!=0, result=1
+                            
+                            # Both zero, result = 0
+                            self.emit("\tLDA #$00")
+                            self.emit(f"\tJMP {lbl_end}")
+                            
+                            self.emit(f"{lbl_one}:")
+                            self.emit("\tLDA #$01")
+                            
+                            self.emit(f"{lbl_end}:")
+                        
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tLDX #$00")  # Logical operators always return BYTE
+                        eval_stack.append(("MATH0", False))
             
             elif node.node_type == 'UNOP':
                 if len(eval_stack) < 1:
@@ -5680,8 +5807,8 @@ class CodeGen:
             if needed > max_temps:
                 self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but only {max_temps} available. Simplify the expression.")
 
-            # Try RPN-based code generation if enabled and expression is arithmetic
-            if self.rpn_enabled and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD} and self._is_rpn_safe(expr):
+            # Try RPN-based code generation if enabled and expression is arithmetic/bitwise/comparison/logical
+            if self.rpn_enabled and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LSHIFT, BinOp.RSHIFT, BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, BinOp.LAND, BinOp.LOR} and self._is_rpn_safe(expr):
                 rpn_sequence = self.ast_to_rpn(expr)
                 self.rpn_eval_to_code(rpn_sequence, target_16bit=self.force_word_result)
                 return  # RPN path complete, don't fall through to traditional generators
