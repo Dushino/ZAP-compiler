@@ -2409,7 +2409,7 @@ class CodeGen:
         return temps
 
     def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None) -> None:
-        temp_sizes: dict[str, int] = {"TMP0": 2, "TMP1": 2, "TMP2": 4, "TMP3": 2, "TMP4": 2, "TMP5": 2}
+        temp_sizes: dict[str, int] = {"TMP0": 2, "TMP1": 2, "TMP2": 2, "TMP3": 2, "TMP4": 2, "TMP5": 2}
         temps_in_use: set[str] = self._detect_temp_usage(code)
 
         self.emit(".segment \"ZEROPAGE\"")
