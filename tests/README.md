@@ -11,6 +11,7 @@ tests/
 ├── pass/          Tests that SHOULD compile and run successfully
 │   ├── *.zap      Test source files
 │   └── *.ref      Reference output files (REQUIRED for each test)
+│   └── *.json     Configuration file for simulator (REQUIRED for each test)
 └── fail/          Tests that SHOULD fail compilation (negative tests)
     └── *.zap      Test source files
 ```
@@ -34,9 +35,9 @@ For each positive test (in `tests/pass/`), the test suite:
 1. **Requires a `.ref` file** - Each test must have a corresponding `.ref` reference file containing expected simulator output
 2. **Tests 4 compilation variants**:
    - Default (65C02 target)
-   - `--peepholes` (65C02 with optimizations)
+   - `--O1`  (optimizations)
    - `-6502` (NMOS 6502 target)
-   - `-6502 --peepholes` (NMOS 6502 with optimizations)
+   - `-6502 --O1` (NMOS 6502 with optimizations)
 3. **For each variant**:
    - Compiles ZAP → assembly (detects ZAP compiler errors)
    - Assembles → object file with ca65 (detects CA65 errors)
@@ -81,7 +82,7 @@ When you create a new test in `tests/pass/`:
    ca65 -I lib -t none --cpu 65c02 -g test.s -o test.o
    ca65 -I lib -t none --cpu 65c02 -g lib/atari/exehdr.s -o exehdr.o
    ld65 -C cfg/my_atari.cfg test.o exehdr.o -o test.com
-   6502_simulator --cpu 65c02 --max-cycles 8192 --verbose --dump-memory 40000-40120 --dump-file tests/pass/001_my_test.ref test.com
+   6502_simulator --cpu 65c02 --config tests/pass/001_my_test.json --verbose --dump-file tests/pass/001_my_test.ref test.com
    ```
 3. Verify the reference output is correct
 4. Run `make tests` to validate
