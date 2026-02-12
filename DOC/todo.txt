@@ -388,9 +388,9 @@ Key Phase 5 Achievements:
 
 Phase 6-10: PENDING
 - [x] (Phase 6) Extend to comparison operators (==, !=, <, <=, >, >=)
-- [ ] (Phase 6) Handle array subscripts and complex expressions in RPN
+- [x] (Phase 6) Handle array subscripts and complex expressions in RPN
 - [x] (Phase 7) Implement logical operators (&&, ||) in RPN
-- [ ] (Phase 8) Temp allocation & spill strategy for very deep nesting (>4 levels)
+- [x] (Phase 8) Temp allocation & spill strategy for very deep nesting (>4 levels)
 - [ ] (Phase 9-10) Main gen_expr() migration & cleanup
 - [ ] Check pointers math
 - [ ] Full regression testing with RPN enabled by default
@@ -405,18 +405,6 @@ LDX b+1         ; 3 bytes
 JSR SET_MATH1   ; 3 bytes - not needed as math operations can expect A/X as input to be stored in math subroutines
 JSR ADD16       ; 3 bytes
 JSR GET_MATH0   ; 3 bytes
-
-
-
-
-	BCS CMP_TRUE_7
-	LDA #$00
-	BRA CMP_END_8   ; -> BCC CMP_END_8
-CMP_TRUE_7:
-	LDA #$01
-CMP_END_8:
-
-
 
 
 Loop unwinding pro MUL, DIV, MOD
