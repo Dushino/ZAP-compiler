@@ -61,8 +61,8 @@ PROC Main()
   
   WHILE x < max
     x = x + 1
-    if x > 5
-        END
+    IF x > 5
+        BREAK
     END
   END
   
