@@ -9,7 +9,7 @@ from codegen_expr import CodeGen
 from dce import dce_block
 from errors import SemanticError
 from collections import deque
-from typing import Optional, Set
+from typing import Optional, Set, Dict, Tuple, List
 
 
 def _walk_expr(expr, ctx, global_symtab):
@@ -420,6 +420,662 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         af.locals = prune_one(af.ast.body, af.locals, af.symtab.local, af.ast.params)
 
 
+def _expr_used_locals(expr, name_to_id: dict[str, str]) -> set[str]:
+    from ast_nodes import (
+        IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
+        SubscriptExpr, CallExpr, FieldAccess
+    )
+
+    used: set[str] = set()
+
+    if expr is None:
+        return used
+
+    if isinstance(expr, IntLiteral):
+        return used
+
+    if isinstance(expr, Identifier):
+        key = expr.name.upper() if isinstance(expr.name, str) else expr.name
+        local_id = name_to_id.get(key)
+        if local_id:
+            used.add(local_id)
+        return used
+
+    if isinstance(expr, CallExpr):
+        for a in expr.args:
+            used |= _expr_used_locals(a, name_to_id)
+        return used
+
+    if isinstance(expr, BinaryExpr):
+        used |= _expr_used_locals(expr.left, name_to_id)
+        used |= _expr_used_locals(expr.right, name_to_id)
+        return used
+
+    if isinstance(expr, UnaryExpr):
+        used |= _expr_used_locals(expr.expr, name_to_id)
+        return used
+
+    if isinstance(expr, DerefExpr):
+        used |= _expr_used_locals(expr.pointer, name_to_id)
+        return used
+
+    if isinstance(expr, SubscriptExpr):
+        used |= _expr_used_locals(expr.array, name_to_id)
+        used |= _expr_used_locals(expr.index, name_to_id)
+        return used
+
+    if isinstance(expr, FieldAccess):
+        used |= _expr_used_locals(expr.object, name_to_id)
+        return used
+
+    return used
+
+
+def _init_used_locals(init, name_to_id: dict[str, str]) -> set[str]:
+    from ast_nodes import ExprInit, ListInit, StringInit
+    used: set[str] = set()
+    if init is None:
+        return used
+    if isinstance(init, ExprInit):
+        return _expr_used_locals(init.expr, name_to_id)
+    if isinstance(init, ListInit):
+        for v in init.values:
+            if isinstance(v, ExprInit):
+                used |= _expr_used_locals(v.expr, name_to_id)
+            elif isinstance(v, ListInit):
+                used |= _init_used_locals(v, name_to_id)
+            elif isinstance(v, StringInit):
+                continue
+            else:
+                used |= _expr_used_locals(v, name_to_id)
+        return used
+    if isinstance(init, StringInit):
+        return used
+    return used
+
+
+def _expr_call_names(expr) -> set[str]:
+    from ast_nodes import (
+        IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
+        SubscriptExpr, CallExpr, FieldAccess
+    )
+
+    calls: set[str] = set()
+
+    if expr is None:
+        return calls
+
+    if isinstance(expr, (IntLiteral, Identifier)):
+        return calls
+
+    if isinstance(expr, CallExpr):
+        calls.add(expr.name)
+        for a in expr.args:
+            calls |= _expr_call_names(a)
+        return calls
+
+    if isinstance(expr, BinaryExpr):
+        calls |= _expr_call_names(expr.left)
+        calls |= _expr_call_names(expr.right)
+        return calls
+
+    if isinstance(expr, UnaryExpr):
+        calls |= _expr_call_names(expr.expr)
+        return calls
+
+    if isinstance(expr, DerefExpr):
+        calls |= _expr_call_names(expr.pointer)
+        return calls
+
+    if isinstance(expr, SubscriptExpr):
+        calls |= _expr_call_names(expr.array)
+        calls |= _expr_call_names(expr.index)
+        return calls
+
+    if isinstance(expr, FieldAccess):
+        calls |= _expr_call_names(expr.object)
+        return calls
+
+    return calls
+
+
+def _init_call_names(init) -> set[str]:
+    from ast_nodes import ExprInit, ListInit, StringInit
+    calls: set[str] = set()
+    if init is None:
+        return calls
+    if isinstance(init, ExprInit):
+        return _expr_call_names(init.expr)
+    if isinstance(init, ListInit):
+        for v in init.values:
+            if isinstance(v, ExprInit):
+                calls |= _expr_call_names(v.expr)
+            elif isinstance(v, ListInit):
+                calls |= _init_call_names(v)
+            elif isinstance(v, StringInit):
+                continue
+            else:
+                calls |= _expr_call_names(v)
+        return calls
+    if isinstance(init, StringInit):
+        return calls
+    return calls
+
+
+def _stmt_call_names(stmt) -> set[str]:
+    from ast_nodes import (
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt,
+        SwitchStmt, BreakStmt, ContinueStmt, SwitchCase
+    )
+
+    calls: set[str] = set()
+
+    if isinstance(stmt, CallStmt):
+        calls.add(stmt.name)
+        for a in stmt.args:
+            calls |= _expr_call_names(a)
+        return calls
+
+    if isinstance(stmt, AssignStmt):
+        calls |= _expr_call_names(stmt.lhs)
+        calls |= _expr_call_names(stmt.rhs)
+        return calls
+
+    if isinstance(stmt, ReturnStmt):
+        calls |= _expr_call_names(stmt.expr)
+        return calls
+
+    if isinstance(stmt, IfStmt):
+        calls |= _expr_call_names(stmt.cond)
+        for s in stmt.then_body:
+            calls |= _stmt_call_names(s)
+        if stmt.else_body:
+            for s in stmt.else_body:
+                calls |= _stmt_call_names(s)
+        return calls
+
+    if isinstance(stmt, WhileStmt):
+        calls |= _expr_call_names(stmt.cond)
+        for s in stmt.body:
+            calls |= _stmt_call_names(s)
+        return calls
+
+    if isinstance(stmt, ForStmt):
+        calls |= _expr_call_names(stmt.start)
+        calls |= _expr_call_names(stmt.end)
+        if stmt.step is not None:
+            calls |= _expr_call_names(stmt.step)
+        for s in stmt.body:
+            calls |= _stmt_call_names(s)
+        return calls
+
+    if isinstance(stmt, SwitchStmt):
+        calls |= _expr_call_names(stmt.expr)
+        for case in stmt.cases:
+            for label in case.labels:
+                calls |= _expr_call_names(label)
+            for s in case.body:
+                calls |= _stmt_call_names(s)
+        return calls
+
+    if isinstance(stmt, (BreakStmt, ContinueStmt)):
+        return calls
+
+    return calls
+
+
+def _add_interference(live_set: set[str], graph: dict[str, set[str]], class_key: dict[str, tuple]) -> None:
+    live_list = list(live_set)
+    for i in range(len(live_list)):
+        a = live_list[i]
+        for j in range(i + 1, len(live_list)):
+            b = live_list[j]
+            if class_key.get(a) != class_key.get(b):
+                continue
+            graph.setdefault(a, set()).add(b)
+            graph.setdefault(b, set()).add(a)
+
+
+def _add_edge(a: str, b: str, graph: dict[str, set[str]], class_key: dict[str, tuple]) -> None:
+    if a == b:
+        return
+    if class_key.get(a) != class_key.get(b):
+        return
+    graph.setdefault(a, set()).add(b)
+    graph.setdefault(b, set()).add(a)
+
+
+def _liveness_block(
+    statements: list,
+    live_out: set[str],
+    name_to_id: dict[str, str],
+    valid_callees: set[str],
+    call_live_across: dict[tuple[str, str], set[str]],
+    caller_name: str,
+    graph: dict[str, set[str]],
+    class_key: dict[str, tuple],
+    break_live: set[str] | None = None,
+    continue_live: set[str] | None = None,
+) -> set[str]:
+    from ast_nodes import (
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt,
+        BreakStmt, ContinueStmt, Identifier, AsmBlock
+    )
+
+    live: set[str] = set(live_out)
+
+    for st in reversed(statements):
+        if isinstance(st, AsmBlock):
+            live = set(name_to_id.values()) | live
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, CallStmt):
+            for callee in [st.name]:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(live)
+            uses: set[str] = set()
+            for a in st.args:
+                uses |= _expr_used_locals(a, name_to_id)
+            live = live | uses
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, AssignStmt):
+            call_names = _stmt_call_names(st)
+            for callee in call_names:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(live)
+
+            uses_rhs = _expr_used_locals(st.rhs, name_to_id)
+            uses_lhs = set()
+            defs: set[str] = set()
+            if isinstance(st.lhs, Identifier):
+                key = st.lhs.name.upper() if isinstance(st.lhs.name, str) else st.lhs.name
+                if key in name_to_id:
+                    defs.add(name_to_id[key])
+            else:
+                uses_lhs = _expr_used_locals(st.lhs, name_to_id)
+
+            for d in defs:
+                for l in live:
+                    _add_edge(d, l, graph, class_key)
+            live = (live - defs) | uses_rhs | uses_lhs
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, ReturnStmt):
+            call_names = _stmt_call_names(st)
+            for callee in call_names:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(set())
+            uses = _expr_used_locals(st.expr, name_to_id)
+            live = uses
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, IfStmt):
+            then_in = _liveness_block(
+                st.then_body,
+                live,
+                name_to_id,
+                valid_callees,
+                call_live_across,
+                caller_name,
+                graph,
+                class_key,
+                break_live=break_live,
+                continue_live=continue_live,
+            )
+            else_in = live
+            if st.else_body:
+                else_in = _liveness_block(
+                    st.else_body,
+                    live,
+                    name_to_id,
+                    valid_callees,
+                    call_live_across,
+                    caller_name,
+                    graph,
+                    class_key,
+                    break_live=break_live,
+                    continue_live=continue_live,
+                )
+            cond_uses = _expr_used_locals(st.cond, name_to_id)
+            cond_calls = _expr_call_names(st.cond)
+            cond_live_out = then_in | else_in
+            for callee in cond_calls:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out)
+            live = cond_uses | cond_live_out
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, WhileStmt):
+            loop_live_in = set(live)
+            while True:
+                body_in = _liveness_block(
+                    st.body,
+                    loop_live_in,
+                    name_to_id,
+                    valid_callees,
+                    call_live_across,
+                    caller_name,
+                    graph,
+                    class_key,
+                    break_live=live,
+                    continue_live=loop_live_in,
+                )
+                cond_uses = _expr_used_locals(st.cond, name_to_id)
+                new_live_in = cond_uses | body_in
+                if new_live_in == loop_live_in:
+                    break
+                loop_live_in = new_live_in
+            cond_calls = _expr_call_names(st.cond)
+            cond_live_out = body_in | live
+            for callee in cond_calls:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out)
+            live = loop_live_in
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, ForStmt):
+            loop_live_in = set(live)
+            loop_uses = _expr_used_locals(st.start, name_to_id)
+            loop_uses |= _expr_used_locals(st.end, name_to_id)
+            if st.step is not None:
+                loop_uses |= _expr_used_locals(st.step, name_to_id)
+            # Be conservative: treat loop var as used by control logic
+            key = st.var.name.upper() if isinstance(st.var.name, str) else st.var.name
+            if key in name_to_id:
+                loop_uses.add(name_to_id[key])
+
+            loop_calls = _expr_call_names(st.start) | _expr_call_names(st.end)
+            if st.step is not None:
+                loop_calls |= _expr_call_names(st.step)
+
+            while True:
+                body_in = _liveness_block(
+                    st.body,
+                    loop_live_in,
+                    name_to_id,
+                    valid_callees,
+                    call_live_across,
+                    caller_name,
+                    graph,
+                    class_key,
+                    break_live=live,
+                    continue_live=loop_live_in,
+                )
+                new_live_in = loop_uses | body_in
+                if new_live_in == loop_live_in:
+                    break
+                loop_live_in = new_live_in
+
+            for callee in loop_calls:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(loop_live_in)
+
+            live = loop_live_in
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, SwitchStmt):
+            case_ins: list[set[str]] = []
+            for case in st.cases:
+                case_in = _liveness_block(
+                    case.body,
+                    live,
+                    name_to_id,
+                    valid_callees,
+                    call_live_across,
+                    caller_name,
+                    graph,
+                    class_key,
+                    break_live=break_live,
+                    continue_live=continue_live,
+                )
+                case_ins.append(case_in)
+            cond_uses = _expr_used_locals(st.expr, name_to_id)
+            cond_calls = _expr_call_names(st.expr)
+            merged = set()
+            for ci in case_ins:
+                merged |= ci
+            for callee in cond_calls:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(merged)
+            live = cond_uses | merged
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, BreakStmt):
+            live = set(break_live or set())
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, ContinueStmt):
+            live = set(continue_live or set())
+            _add_interference(live, graph, class_key)
+            continue
+
+    return live
+
+
+def _liveness_inits(
+    locals_list: list,
+    live_out: set[str],
+    name_to_id: dict[str, str],
+    valid_callees: set[str],
+    call_live_across: dict[tuple[str, str], set[str]],
+    caller_name: str,
+    graph: dict[str, set[str]],
+    class_key: dict[str, tuple],
+) -> set[str]:
+    live = set(live_out)
+    for sym in reversed(locals_list):
+        init = getattr(sym, "init", None)
+        if init is None:
+            continue
+
+        call_names = _init_call_names(init)
+        for callee in call_names:
+            if callee in valid_callees:
+                call_live_across.setdefault((caller_name, callee), set()).update(live)
+
+        uses = _init_used_locals(init, name_to_id)
+        defs: set[str] = set()
+        key = sym.name.upper() if isinstance(sym.name, str) else sym.name
+        if key in name_to_id:
+            defs.add(name_to_id[key])
+
+        for d in defs:
+            for l in live:
+                _add_edge(d, l, graph, class_key)
+
+        live = (live - defs) | uses
+        _add_interference(live, graph, class_key)
+
+    return live
+
+
+def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
+    from symbols import Symbol
+
+    def is_eligible(sym: Symbol) -> bool:
+        if sym.is_const:
+            return False
+        if sym.address is not None:
+            return False
+        if sym.is_port:
+            return False
+        if sym.is_static:
+            return False
+        if sym.is_array and sym.get_total_array_size() == 0:
+            return False
+        return True
+
+    def sym_size(sym: Symbol) -> int:
+        if sym.is_array:
+            return sym.get_total_array_size()
+        if sym.type.is_struct and sym.type.struct_info:
+            return sym.type.struct_info.size
+        return sym.type.width
+
+    def class_for(sym: Symbol) -> tuple | None:
+        size = sym_size(sym)
+        if size <= 0:
+            return None
+        if sym.type.is_pointer:
+            if sym.is_array:
+                return ("ptr_array", size)
+            return ("ptr_scalar", size)
+        if sym.is_array:
+            return ("array", size)
+        if sym.type.is_struct:
+            return ("struct", size)
+        if sym.type.base == "BYTE":
+            return ("byte", size)
+        return ("word", size)
+
+    proc_names = {ap.ast.name for ap in analyzed_procs}
+    func_names = {af.ast.name for af in analyzed_funcs}
+    valid_callees = proc_names | func_names
+
+    # Local identity mapping
+    local_info: dict[str, Symbol] = {}
+    local_class: dict[str, tuple] = {}
+    routine_locals: dict[str, list[str]] = {}
+
+    for ap in analyzed_procs:
+        ids: list[str] = []
+        for sym in ap.locals:
+            if not is_eligible(sym):
+                continue
+            key = class_for(sym)
+            if key is None:
+                continue
+            local_id = f"{ap.ast.name}::{sym.name}"
+            local_info[local_id] = sym
+            local_class[local_id] = key
+            ids.append(local_id)
+        routine_locals[ap.ast.name] = ids
+
+    for af in analyzed_funcs:
+        ids = []
+        for sym in af.locals:
+            if not is_eligible(sym):
+                continue
+            key = class_for(sym)
+            if key is None:
+                continue
+            local_id = f"{af.ast.name}::{sym.name}"
+            local_info[local_id] = sym
+            local_class[local_id] = key
+            ids.append(local_id)
+        routine_locals[af.ast.name] = ids
+
+    if not local_info:
+        return
+
+    # Liveness + interference
+    graph: dict[str, set[str]] = {}
+    call_live_across: dict[tuple[str, str], set[str]] = {}
+
+    for ap in analyzed_procs:
+        name_to_id = {
+            local_id.split("::", 1)[1].upper(): local_id
+            for local_id in routine_locals.get(ap.ast.name, [])
+        }
+        live_after_body = _liveness_block(
+            ap.ast.body,
+            set(),
+            name_to_id,
+            valid_callees,
+            call_live_across,
+            ap.ast.name,
+            graph,
+            local_class,
+        )
+        _liveness_inits(
+            ap.locals,
+            live_after_body,
+            name_to_id,
+            valid_callees,
+            call_live_across,
+            ap.ast.name,
+            graph,
+            local_class,
+        )
+
+    for af in analyzed_funcs:
+        name_to_id = {
+            local_id.split("::", 1)[1].upper(): local_id
+            for local_id in routine_locals.get(af.ast.name, [])
+        }
+        live_after_body = _liveness_block(
+            af.ast.body,
+            set(),
+            name_to_id,
+            valid_callees,
+            call_live_across,
+            af.ast.name,
+            graph,
+            local_class,
+        )
+        _liveness_inits(
+            af.locals,
+            live_after_body,
+            name_to_id,
+            valid_callees,
+            call_live_across,
+            af.ast.name,
+            graph,
+            local_class,
+        )
+
+    # Cross-call interference: locals live across a call interfere with callee locals
+    for (caller, callee), live_ids in call_live_across.items():
+        callee_ids = routine_locals.get(callee, [])
+        if not callee_ids:
+            continue
+        for caller_id in live_ids:
+            for callee_id in callee_ids:
+                _add_edge(caller_id, callee_id, graph, local_class)
+
+    # Color per class
+    by_class: dict[tuple, list[str]] = {}
+    for local_id, key in local_class.items():
+        by_class.setdefault(key, []).append(local_id)
+
+    slot_counter = 0
+    for key, ids in by_class.items():
+        # Greedy coloring
+        ids.sort(key=lambda i: len(graph.get(i, set())), reverse=True)
+        color_of: dict[str, int] = {}
+        for local_id in ids:
+            neighbor_colors = {color_of[n] for n in graph.get(local_id, set()) if n in color_of}
+            color = 0
+            while color in neighbor_colors:
+                color += 1
+            color_of[local_id] = color
+
+        # Group by color and assign shared slots where used by multiple locals
+        color_groups: dict[int, list[str]] = {}
+        for local_id, color in color_of.items():
+            color_groups.setdefault(color, []).append(local_id)
+
+        for _, group in sorted(color_groups.items()):
+            if len(group) <= 1:
+                continue
+            slot_counter += 1
+            slot_label = f"__LVSLOT_{slot_counter}"
+            for local_id in group:
+                sym = local_info.get(local_id)
+                if sym is not None:
+                    sym.shared_slot = slot_label
+
+
 def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
@@ -715,6 +1371,9 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         updated_stmt_src = get_updated_stmt_src()
         original_debug["stmt_src"].clear()
         original_debug["stmt_src"].update(updated_stmt_src)
+
+    # Liveness-based local sharing (after DCE updates)
+    share_locals_liveness(analyzed_procs, analyzed_funcs)
     
     # Now generate code with updated stmt_src
     for p in program.procs:

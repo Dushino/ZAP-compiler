@@ -1523,7 +1523,12 @@ class CodeGen:
                         if ptr2_u == ptr5_u:
                             dest = l6_raw.split(maxsplit=1)[1].strip()
                             dest_hi = l7_raw.split(maxsplit=1)[1].strip()
-                            if dest_hi.upper() == f"{dest.upper()}+1" and not _operand_is_port(dest) and not _operand_is_port(dest_hi):
+                            ptr2_u_norm = ptr2_u.upper()
+                            dest_u = dest.upper()
+                            dest_hi_u = dest_hi.upper()
+                            if (dest_hi_u == f"{dest_u}+1" and
+                                    not _operand_is_port(dest) and not _operand_is_port(dest_hi) and
+                                    ptr2_u_norm not in {dest_u, dest_hi_u}):
                                 indent = self.code[i + 5][:len(self.code[i + 5]) - len(self.code[i + 5].lstrip())]
                                 ptr2 = l2_raw[len("LDA ("):-len("),Y")].strip()
                                 optimized.append(self.code[i])
@@ -6228,10 +6233,8 @@ class CodeGen:
         if sym.address is not None:
             # Fixed address variable
             return f"${sym.address:04X}"
-        else:
-            # Dynamic address - use symbol name as label
-            prefix: str = sym.proc_name + "_" if sym.proc_name else ""
-            return f"_{prefix}{sym.name.upper()}"
+        # Dynamic address - use symbol label (supports shared slots)
+        return sym.asm_name()
     
     def _get_field_offset(self, struct_expr: Expr, field_name: str) -> int:
         """Calculate byte offset of field within struct"""
@@ -7617,10 +7620,19 @@ class CodeGen:
         self.emit("; -- Procedure " + proc.ast.name + " --")
         self.emit(f"{proc.ast.name}:")
 
-        # Store register-passed arguments into param globals (if any)
+        # Emit parameter name equates for inline assembly references
         proc_specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(proc.ast.name)
         if proc_specs:
+            self._emit_param_name_equates(proc.ast.name, proc_specs)
+
+        # Store register-passed arguments into param globals (if any)
+        if proc_specs:
             self._emit_param_reg_stores(proc.ast.name, proc_specs)
+
+        # Embed local variable equates for inline assembly references (excluding parameters)
+        param_names = {pname for pname, _, _ in proc_specs} if proc_specs else set()
+        for sym in proc.locals:
+            self._emit_local_name_equate(proc.ast.name, sym, param_names)
 
         # INIT lokálů
         for sym in proc.locals:
@@ -7657,30 +7669,55 @@ class CodeGen:
             resolved.append((i, pname, width, cast(Expr, arg)))
         return resolved
 
+    def _emit_param_name_equates(self, callee_name: str, specs: list[tuple[str, int, object]]) -> None:
+        """Emit equate declarations for parameter names to their actual storage locations.
+        This allows inline assembly blocks to reference parameters by name even when
+        they are assigned to shared slots. Only emits when location differs from standard names."""
+        for pname, width, _ in specs:
+            sym = self.current_symtab.lookup(pname)
+            asm_loc = sym.asm_name()
+            param_label = f"_{callee_name.upper()}_{pname.upper()}"
+            # Only emit if location is different (has shared slot or other reassignment)
+            if asm_loc != param_label:
+                self.emit(f"{param_label} = {asm_loc}")
+
+    def _emit_local_name_equate(self, proc_name: str, sym: Symbol, param_names: set[str] | None = None) -> None:
+        """Emit equate declaration for a local variable name to its actual storage location.
+        This allows inline assembly blocks to reference locals by name even when
+        they are assigned to shared slots. Only emits for locals with actual shared slots."""
+        # Only emit for locals that have shared slots assigned (different from their normal name)
+        if sym.proc_name and sym.name not in (param_names or set()) and sym.shared_slot:
+            asm_loc = sym.asm_name()
+            local_label = f"_{proc_name.upper()}_{sym.name.upper()}"
+            self.emit(f"{local_label} = {asm_loc}")
+
     def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object]]) -> None:
         if not specs:
             return
         width0 = specs[0][1]
         pname0 = specs[0][0]
+        sym0 = self.current_symtab.lookup(pname0)
+        asm0 = sym0.asm_name()
         if width0 == 2:
-            asm0 = f"_{callee_name}_{pname0}"
             self.emit(f"\tSTA {asm0}")
             self.emit(f"\tSTX {asm0}+1")
             if len(specs) > 1 and specs[1][1] == 1:
                 pname1 = specs[1][0]
-                asm1 = f"_{callee_name}_{pname1}"
+                sym1 = self.current_symtab.lookup(pname1)
+                asm1 = sym1.asm_name()
                 self.emit(f"\tSTY {asm1}")
             return
         if width0 == 1:
-            asm0 = f"_{callee_name}_{pname0}"
             self.emit(f"\tSTA {asm0}")
             if len(specs) > 1 and specs[1][1] == 1:
                 pname1 = specs[1][0]
-                asm1 = f"_{callee_name}_{pname1}"
+                sym1 = self.current_symtab.lookup(pname1)
+                asm1 = sym1.asm_name()
                 self.emit(f"\tSTX {asm1}")
                 if len(specs) > 2 and specs[2][1] == 1:
                     pname2 = specs[2][0]
-                    asm2 = f"_{callee_name}_{pname2}"
+                    sym2 = self.current_symtab.lookup(pname2)
+                    asm2 = sym2.asm_name()
                     self.emit(f"\tSTY {asm2}")
 
     def _emit_call_args(self, callee_name: str, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> None:
@@ -8262,10 +8299,19 @@ class CodeGen:
         self.emit("; -- Function " + func.ast.name + " --")
         self.emit(f"{func.ast.name}:")
 
-        # Store register-passed arguments into param globals (if any)
+        # Emit parameter name equates for inline assembly references
         func_specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(func.ast.name)
         if func_specs:
+            self._emit_param_name_equates(func.ast.name, func_specs)
+
+        # Store register-passed arguments into param globals (if any)
+        if func_specs:
             self._emit_param_reg_stores(func.ast.name, func_specs)
+
+        # Emit local variable equates for inline assembly references (excluding parameters)
+        param_names = {pname for pname, _, _ in func_specs} if func_specs else set()
+        for sym in func.locals:
+            self._emit_local_name_equate(func.ast.name, sym, param_names)
 
         # init lokálů
         for sym in func.locals:

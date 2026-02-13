@@ -1,76 +1,6 @@
 {
 	"files": [
 		{
-			"path": "Makefile",
-			"bookmarks": [
-				{
-					"line": 107,
-					"column": 45,
-					"label": ""
-				},
-				{
-					"line": 126,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 147,
-					"column": 16,
-					"label": ""
-				},
-				{
-					"line": 159,
-					"column": 29,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "codegen_expr.py",
-			"bookmarks": [
-				{
-					"line": 1521,
-					"column": 48,
-					"label": ""
-				},
-				{
-					"line": 1786,
-					"column": 0,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "DOC/advanced_notes.md",
-			"bookmarks": [
-				{
-					"line": 184,
-					"column": 0,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "make.bat",
-			"bookmarks": [
-				{
-					"line": 232,
-					"column": 17,
-					"label": ""
-				},
-				{
-					"line": 310,
-					"column": 82,
-					"label": ""
-				},
-				{
-					"line": 373,
-					"column": 25,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "IDE_Integration/VSCode/dushino42.zap-language/syntaxes/zap.tmLanguage.json",
 			"bookmarks": [
 				{
@@ -80,26 +10,6 @@
 				},
 				{
 					"line": 88,
-					"column": 0,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "work/test_stdio.s",
-			"bookmarks": [
-				{
-					"line": 77,
-					"column": 4,
-					"label": ""
-				},
-				{
-					"line": 82,
-					"column": 33,
-					"label": ""
-				},
-				{
-					"line": 364,
 					"column": 0,
 					"label": ""
 				}

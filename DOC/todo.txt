@@ -381,3 +381,6 @@ Further optimizations after implementaion completed
 
 [x] Use registers A,X,Y as much as possible for parameters in PROC and FUNC calling
 
+[ ] Analyze load/store frequency for each local across all calls
+[ ] Prioritize hot variables into zero page (limited resource: ~256 bytes)
+[ ] Run AFTER sharing (to see effective locals post-sharing)

@@ -130,9 +130,13 @@ class Symbol:
     is_keep: bool = False           # #KEEP - don't dead-strip this symbol
     noexport: bool = False          # #NOEXPORT - do not export this symbol from .module
     export: bool = False            # #EXPORT - force export even from non-module
+    # Optional shared storage slot for local sharing
+    shared_slot: str | None = None
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""
+        if self.shared_slot:
+            return self.shared_slot
         if self.proc_name:
             return f"_{self.proc_name}_{self.name}"
         return f"_{self.name}"
