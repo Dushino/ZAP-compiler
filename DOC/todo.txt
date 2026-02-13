@@ -379,5 +379,5 @@ Phase 6-10: COMPLETED ✓
 Further optimizations after implementaion completed
 [x] DIV16 registers settings before calling proc.
 
-
+[ ] Use registers A,X,Y as much as possible for parameters in PROC and FUNC calling
 

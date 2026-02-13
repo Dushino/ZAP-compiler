@@ -7299,6 +7299,10 @@ class CodeGen:
             asm0 = f"_{callee_name}_{pname0}"
             self.emit(f"\tSTA {asm0}")
             self.emit(f"\tSTX {asm0}+1")
+            if len(specs) > 1 and specs[1][1] == 1:
+                pname1 = specs[1][0]
+                asm1 = f"_{callee_name}_{pname1}"
+                self.emit(f"\tSTY {asm1}")
             return
         if width0 == 1:
             asm0 = f"_{callee_name}_{pname0}"
@@ -7307,6 +7311,10 @@ class CodeGen:
                 pname1 = specs[1][0]
                 asm1 = f"_{callee_name}_{pname1}"
                 self.emit(f"\tSTX {asm1}")
+                if len(specs) > 2 and specs[2][1] == 1:
+                    pname2 = specs[2][0]
+                    asm2 = f"_{callee_name}_{pname2}"
+                    self.emit(f"\tSTY {asm2}")
 
     def _emit_call_args(self, callee_name: str, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> None:
         resolved = self._resolve_call_args(args, specs)
@@ -7319,23 +7327,27 @@ class CodeGen:
         reg_case: str | None = None
         reg_a_index: int | None = None
         reg_x_index: int | None = None
+        reg_y_index: int | None = None
         if specs:
             width0 = specs[0][1]
             if width0 == 2 and 0 in indices:
                 reg_case = "word0"
                 reg_a_index = 0
                 reg_x_index = 0
+                if len(specs) > 1 and specs[1][1] == 1 and 1 in indices:
+                    reg_case = "word0_byte1"
+                    reg_y_index = 1
             elif width0 == 1 and 0 in indices:
                 reg_case = "byte0"
                 reg_a_index = 0
                 if len(specs) > 1 and specs[1][1] == 1 and 1 in indices:
                     reg_case = "two_bytes"
                     reg_x_index = 1
+                    if len(specs) > 2 and specs[2][1] == 1 and 2 in indices:
+                        reg_case = "three_bytes"
+                        reg_y_index = 2
 
-        saved_regs_pair = False
-        saved_a_only = False
-        saved_param0 = False
-        saved_param1 = False
+        restore_ops: list[str] = []
 
         def _simple_arg(e: Expr) -> bool:
             return isinstance(e, (IntLiteral, Identifier, SubscriptExpr, FieldAccess)) or (
@@ -7343,6 +7355,8 @@ class CodeGen:
             )
 
         def _can_reorder_regs() -> bool:
+            if reg_case in {"word0_byte1", "three_bytes"}:
+                return False
             if reg_case == "word0":
                 for i, _, _, arg in resolved:
                     if i == reg_a_index and not _simple_arg(arg):
@@ -7360,7 +7374,7 @@ class CodeGen:
         for index, pname, width, arg in resolved:
             asm: str = f"_{callee_name}_{pname}"
 
-            if reg_case == "word0" and index == reg_a_index:
+            if reg_case in {"word0", "word0_byte1"} and index == reg_a_index:
                 if reorder_regs:
                     continue
                 prev_force: bool = self.force_word_result
@@ -7370,12 +7384,13 @@ class CodeGen:
                 finally:
                     self.force_word_result = prev_force
                 self.emit("\tPHA")
+                restore_ops.append("A")
                 self.emit("\tTXA")
                 self.emit("\tPHA")
-                saved_regs_pair = True
+                restore_ops.append("X")
                 continue
 
-            if reg_case in {"byte0", "two_bytes"} and index == reg_a_index:
+            if reg_case in {"byte0", "two_bytes", "three_bytes"} and index == reg_a_index:
                 if reorder_regs:
                     continue
                 prev_suppress: bool = self.suppress_byte_return_x
@@ -7385,13 +7400,10 @@ class CodeGen:
                 finally:
                     self.suppress_byte_return_x = prev_suppress
                 self.emit("\tPHA")
-                if reg_case == "two_bytes":
-                    saved_param0 = True
-                else:
-                    saved_a_only = True
+                restore_ops.append("A")
                 continue
 
-            if reg_case == "two_bytes" and index == reg_x_index:
+            if reg_case in {"two_bytes", "three_bytes"} and index == reg_x_index:
                 if reorder_regs:
                     continue
                 prev_suppress: bool = self.suppress_byte_return_x
@@ -7401,7 +7413,20 @@ class CodeGen:
                 finally:
                     self.suppress_byte_return_x = prev_suppress
                 self.emit("\tPHA")
-                saved_param1 = True
+                restore_ops.append("X")
+                continue
+
+            if reg_case in {"word0_byte1", "three_bytes"} and index == reg_y_index:
+                if reorder_regs:
+                    continue
+                prev_suppress: bool = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                self.emit("\tPHA")
+                restore_ops.append("Y")
                 continue
 
             if width == 1:
@@ -7460,16 +7485,13 @@ class CodeGen:
                 finally:
                     self.suppress_byte_return_x = prev_suppress
         else:
-            if saved_regs_pair:
+            while restore_ops:
+                op = restore_ops.pop()
                 self.emit("\tPLA")
-                self.emit("\tTAX")
-                self.emit("\tPLA")
-            elif saved_param1:
-                self.emit("\tPLA")
-                self.emit("\tTAX")
-                self.emit("\tPLA")
-            elif saved_a_only:
-                self.emit("\tPLA")
+                if op == "X":
+                    self.emit("\tTAX")
+                elif op == "Y":
+                    self.emit("\tTAY")
 
 
     def gen_stmt(self, stmt):
