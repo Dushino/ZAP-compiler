@@ -187,7 +187,7 @@ To check - enhance tests
 [x] Address-of operator @
 [x] Const struct initialization syntax 
 [x] Multi-dimensional arrays
-[ ] Logical NOT operator (!)
+[x] Logical NOT operator (!)
 [x] STATIC local variable must have initial value
 [ ] CONST static local variable
 [ ] CONST without initial value should error
