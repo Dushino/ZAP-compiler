@@ -6,6 +6,9 @@
 
 
 proc getcmd()
+    const byte CMD_SIZE = 16
+
+
     byte ch
     ch = getchar()
     while ch == 0

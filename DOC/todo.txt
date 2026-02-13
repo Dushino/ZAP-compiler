@@ -189,11 +189,11 @@ To check - enhance tests
 [x] Multi-dimensional arrays
 [x] Logical NOT operator (!)
 [x] STATIC local variable must have initial value
-[ ] CONST static local variable
-[ ] CONST without initial value should error
-[ ] STATIC on global variable should error
-[ ] STATIC on CONST variable should error
-[ ] KEEP keyword to keep unused functions and procedures in the final binary
+[x] CONST static local variable = nonsense
+[x] CONST without initial value should error
+[x] STATIC on global variable should error
+[x] STATIC on CONST variable should error
+[x] KEEP keyword to keep unused functions and procedures in the final binary
 
 [x] ASM / END act as comment in VSCode syntax highlighting
     Hybrid syntax highlighting now works
