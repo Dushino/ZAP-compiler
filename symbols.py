@@ -132,6 +132,8 @@ class Symbol:
     export: bool = False            # #EXPORT - force export even from non-module
     # Optional shared storage slot for local sharing
     shared_slot: str | None = None
+    # ZP prioritization: frequency score for allocation ordering (higher = more important for ZP)
+    zp_priority: int = 0            # Loop-weighted frequency score for ZP allocation
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""

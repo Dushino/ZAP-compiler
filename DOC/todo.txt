@@ -381,6 +381,18 @@ Further optimizations after implementaion completed
 
 [x] Use registers A,X,Y as much as possible for parameters in PROC and FUNC calling
 
-[ ] Analyze load/store frequency for each local across all calls
-[ ] Prioritize hot variables into zero page (limited resource: ~256 bytes)
-[ ] Run AFTER sharing (to see effective locals post-sharing)
+[x] Analyze load/store frequency for each local across all calls
+[x] Prioritize hot variables into zero page (limited resource: ~256 bytes)
+[x] Run AFTER sharing (to see effective locals post-sharing)
+
+Change generated variable naming- remove starting _:
+__LVSLOT_n__CONSTRUCTOR__atari_stdio:
+___CONSTRUCTOR__ATARI_STDIO_VRAM = __LVSLOT_1
+___CONSTRUCTOR__ATARI_STDIO_DATA = __LVSLOT_1
+___CONSTRUCTOR__ATARI_STDIO_I = __LVSLOT_2
+; /home/dusan/src/ZAP-compiler/work/lib/atari/a
+
+[ ] Start Ctrl-Shift Build ZAP code on .zap extensions only
+
+[ ] Document sources *.py and *.zap
+

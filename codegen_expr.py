@@ -96,6 +96,10 @@ class CodeGen:
         # Control-flow stacks
         self.loop_stack: list[tuple[str, str]] = []
         self.break_stack: list[str] = []
+        
+        # ZP Prioritization: Track load/store frequency for each local scalar
+        # Format: {"ROUTINE::LOCAL_NAME": frequency_count, ...}
+        self.local_access_frequency: dict[str, int] = {}
 
     def tc_check(self, expr, read_check_enabled: bool = True) -> ExprType:
         # Wrapper to attach source location to type-checker errors
@@ -2818,6 +2822,33 @@ class CodeGen:
                     self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
             self.emit("")
 
+        # Shared slots for aliased locals (need to be emitted before individual locals)
+        shared_slots: dict[str, int] = {}  # slot_label -> size (in bytes)
+        for sym in all_vars:
+            if getattr(sym, 'shared_slot', None):
+                slot_label = sym.shared_slot
+                # Determine size: WORD = 2, BYTE = 1, struct/array = struct_size or array total_size
+                if slot_label not in shared_slots:
+                    if sym.type.base == "WORD" or sym.type.is_pointer:
+                        shared_slots[slot_label] = 2
+                    elif sym.type.base == "BYTE":
+                        shared_slots[slot_label] = 1
+                    elif sym.is_array and sym.type.base == "BYTE":
+                        shared_slots[slot_label] = sym.get_total_array_size()
+                    elif sym.is_array and sym.type.base == "WORD":
+                        shared_slots[slot_label] = sym.get_total_array_size()
+                    elif sym.type.is_struct and sym.type.struct_info:
+                        shared_slots[slot_label] = sym.type.struct_info.size
+                    else:
+                        # Default to 2 bytes (word)
+                        shared_slots[slot_label] = 2
+        
+        if shared_slots:
+            self.emit("; Shared slots (for aliased locals)")
+            for slot_label, size in sorted(shared_slots.items()):
+                self.emit(f"{slot_label}:\t.res {size}")
+            self.emit("")
+
         # Zero page offset tracking (starts after emitted system variables)
         zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
         ZEROPAGE_SIZE = 256
@@ -2834,19 +2865,23 @@ class CodeGen:
         if pointer_scalars or pointer_arrays:
             self.emit("; Pointer variables")
             for sym in pointer_scalars:
-                if zp_offset + 2 > ZEROPAGE_SIZE:
-                    self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
-                self.emit(f"{sym.asm_name()}:\t.res 2")
-                zp_offset += 2
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    if zp_offset + 2 > ZEROPAGE_SIZE:
+                        self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
+                    self.emit(f"{sym.asm_name()}:\t.res 2")
+                    zp_offset += 2
 
             for sym in pointer_arrays:
-                total_size: int = sym.get_total_array_size()
-                if total_size == 0:
-                    self._raise_error(f"Array pointer '{sym.name}' has unknown size")
-                if zp_offset + total_size > ZEROPAGE_SIZE:
-                    self._raise_error(f"Zero page exhausted: pointer array '{sym.name}' cannot fit (need {zp_offset + total_size} bytes)")
-                self.emit(f"{sym.asm_name()}:\t.res {total_size}")
-                zp_offset += total_size
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    total_size: int = sym.get_total_array_size()
+                    if total_size == 0:
+                        self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+                    if zp_offset + total_size > ZEROPAGE_SIZE:
+                        self._raise_error(f"Zero page exhausted: pointer array '{sym.name}' cannot fit (need {zp_offset + total_size} bytes)")
+                    self.emit(f"{sym.asm_name()}:\t.res {total_size}")
+                    zp_offset += total_size
         
         # Step 2: Try to put BYTE variables in zero page, overflow to BSS
         byte_vars: list[Symbol] = [s for s in all_vars 
@@ -2854,9 +2889,26 @@ class CodeGen:
                      and not s.type.is_pointer and not s.is_array
                      and s.type.base == "BYTE"]
         
+        # Separate high-priority (marked for ZP) from regular byte vars
+        zp_priority_bytes = [s for s in byte_vars if s.zp_priority > 0]
+        regular_bytes = [s for s in byte_vars if s.zp_priority <= 0]
+        
+        # Sort priority bytes by frequency (descending)
+        zp_priority_bytes.sort(key=lambda s: -s.zp_priority)
+        
         zp_byte_vars = []
         bss_byte_vars = []
-        for sym in byte_vars:
+        
+        # First, try to fit priority bytes in ZP
+        for sym in zp_priority_bytes:
+            if zp_offset + 1 <= ZEROPAGE_SIZE:
+                zp_byte_vars.append(sym)
+                zp_offset += 1
+            else:
+                bss_byte_vars.append(sym)
+        
+        # Then try to fit regular bytes (lower priority)
+        for sym in regular_bytes:
             if zp_offset + 1 <= ZEROPAGE_SIZE:
                 zp_byte_vars.append(sym)
                 zp_offset += 1
@@ -2866,7 +2918,9 @@ class CodeGen:
         if zp_byte_vars:
             self.emit("; Byte variables")
             for sym in zp_byte_vars:
-                self.emit(f"{sym.asm_name()}:\t.res 1")
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res 1")
         
         # Step 3: WORD (non-pointer, non-array) variables - try zero page first
         word_vars: list[Symbol] = [s for s in all_vars 
@@ -2874,9 +2928,26 @@ class CodeGen:
                      and not s.type.is_pointer and not s.is_array
                      and s.type.base == "WORD"]
         
+        # Separate high-priority (marked for ZP) from regular word vars
+        zp_priority_words = [s for s in word_vars if s.zp_priority > 0]
+        regular_words = [s for s in word_vars if s.zp_priority <= 0]
+        
+        # Sort priority words by frequency (descending)
+        zp_priority_words.sort(key=lambda s: -s.zp_priority)
+        
         zp_word_vars = []
         bss_word_vars = []
-        for sym in word_vars:
+        
+        # First, try to fit priority words in ZP
+        for sym in zp_priority_words:
+            if zp_offset + 2 <= ZEROPAGE_SIZE:
+                zp_word_vars.append(sym)
+                zp_offset += 2
+            else:
+                bss_word_vars.append(sym)
+        
+        # Then try to fit regular words (lower priority)
+        for sym in regular_words:
             if zp_offset + 2 <= ZEROPAGE_SIZE:
                 zp_word_vars.append(sym)
                 zp_offset += 2
@@ -2886,7 +2957,9 @@ class CodeGen:
         if zp_word_vars:
             self.emit("; Word variables")
             for sym in zp_word_vars:
-                self.emit(f"{sym.asm_name()}:\t.res 2")
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res 2")
         
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
         struct_vars: list[Symbol] = [s for s in all_vars 
@@ -2910,40 +2983,48 @@ class CodeGen:
             if bss_byte_vars:
                 self.emit("; Byte variables (BSS)")
                 for sym in bss_byte_vars:
-                    self.emit(f"{sym.asm_name()}:\t.res 1")
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 1")
             
             if bss_word_vars:
                 self.emit("; Word variables (BSS)")
                 for sym in bss_word_vars:
-                    self.emit(f"{sym.asm_name()}:\t.res 2")
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 2")
             
             if bss_struct_vars:
                 self.emit("; Struct variables (BSS)")
                 for sym in bss_struct_vars:
-                    if sym.type.is_struct and sym.type.struct_info:
-                        struct_size: int = sym.type.struct_info.size
-                        self.emit(f"{sym.asm_name()}:\t.res {struct_size}")
-                    else:
-                        # Fallback (shouldn't happen if is_struct is correct)
-                        self.emit(f"{sym.asm_name()}:\t.res 1")
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        if sym.type.is_struct and sym.type.struct_info:
+                            struct_size: int = sym.type.struct_info.size
+                            self.emit(f"{sym.asm_name()}:\t.res {struct_size}")
+                        else:
+                            # Fallback (shouldn't happen if is_struct is correct)
+                            self.emit(f"{sym.asm_name()}:\t.res 1")
             
             if array_vars:
                 self.emit("; Array variables (BSS)")
                 for sym in array_vars:
-                    # Use the new get_total_array_size() method for multi-dimensional support
-                    total_size: int = sym.get_total_array_size()
-                    if total_size == 0:
-                        # Fallback for old-style arrays without array_dims
-                        size: int = sym.array_len if sym.array_len else 1
-                        # Calculate element size based on type
-                        if sym.type.is_struct and sym.type.struct_info:
-                            element_size: int = sym.type.struct_info.size
-                        elif sym.type.base == "WORD":
-                            element_size = 2
-                        else:
-                            element_size = 1
-                        total_size: int = size * element_size
-                    self.emit(f"{sym.asm_name()}:\t.res {total_size}")
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        # Use the new get_total_array_size() method for multi-dimensional support
+                        total_size: int = sym.get_total_array_size()
+                        if total_size == 0:
+                            # Fallback for old-style arrays without array_dims
+                            size: int = sym.array_len if sym.array_len else 1
+                            # Calculate element size based on type
+                            if sym.type.is_struct and sym.type.struct_info:
+                                element_size: int = sym.type.struct_info.size
+                            elif sym.type.base == "WORD":
+                                element_size = 2
+                            else:
+                                element_size = 1
+                            total_size: int = size * element_size
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
 
 
     def gen_globals_header(self) -> None:
@@ -3400,6 +3481,50 @@ class CodeGen:
 
     def emit(self, line: str) -> None:
         self.code.append(line)
+        # Track frequency for ZP prioritization
+        self._track_local_access_frequency(line)
+
+    def _track_local_access_frequency(self, line: str) -> None:
+        """Track load/store frequency for ZP prioritization.
+        Only tracks scalar locals (not arrays, fixed-address, or pointers)."""
+        # Detect LDA/STA/LDX/STX/LDY/STY operations on local variable references
+        # Pattern: instruction _PROCNAME_LOCALNAME[+offset] or instruction (_PROCNAME_LOCALNAME[,Y])
+        import re
+        
+        # Match main instruction operand patterns
+        # Format: STA _PROCNAME_LOCALNAME or STA _PROCNAME_LOCALNAME+1 or LDA (_ptr),Y
+        pattern = r'\s+(LDA|STA|LDX|STX|LDY|STY)\s+([_A-Z0-9]+)'
+        match = re.search(pattern, line)
+        if not match:
+            return
+        
+        operand = match.group(2)
+        # Skip system temps, equation labels (with equals sign in previous line context)
+        if operand in ('MATH_STACK', 'MATH0', 'MATH1', 'TMP0', 'TMP1', 'TMP2', 'TMP3', 'TMP4',
+                       'A', 'X', 'Y'):  # Avoid register references
+            return
+        
+        # Extract _PROCNAME_LOCALNAME from operand (strip +1, etc.)
+        base_operand = operand.split('+')[0].split(',')[0]
+        if not base_operand.startswith('_') or base_operand.count('_') < 2:
+            return
+        
+        # Parse _PROCNAME_LOCALNAME → (PROCNAME, LOCALNAME)
+        parts = base_operand[1:].split('_', 1)  # Skip leading underscore
+        if len(parts) < 2:
+            return
+        
+        proc_name, local_name = parts[0], parts[1]
+        local_id = f"{proc_name}::{local_name}"
+        
+        # Verify this is a real local scalar (not array, not port, not fixed-address)
+        try:
+            sym = self.current_symtab.lookup(local_name)
+            if sym and not sym.is_array and not sym.is_port and sym.address is None and sym.proc_name:
+                # Track this access (combined load/store frequency)
+                self.local_access_frequency[local_id] = self.local_access_frequency.get(local_id, 0) + 1
+        except:
+            pass  # Symbol not found or lookup failed
 
     def emit_src_comment_for_stmt(self, stmt) -> None:
         info = self.stmt_src.get(id(stmt))

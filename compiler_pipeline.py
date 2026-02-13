@@ -1076,6 +1076,174 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
                     sym.shared_slot = slot_label
 
 
+def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
+    """Analyze load/store frequency for scalar locals and prioritize to ZP.
+    
+    Allocation priority:
+    1. All pointers/pointer-arrays → ZP (mandatory for fast dereferencing)
+    2. High-frequency scalar locals → ZP (space permitting)
+    3. Arrays, fixed-address, static → always BSS
+    
+    Frequency scoring accounts for:
+    - Loop nesting depth (inner loops heavily weighted)
+    - Combined load/store operations
+    """
+    from symbols import Symbol
+    from ast_nodes import Identifier, WhileStmt, ForStmt
+    
+    def count_local_accesses(node, symtab: SymbolTable, proc_name: str) -> dict[str, int]:
+        """Count loop-weighted frequency for each local scalar.
+        
+        Variables in loops get exponentially higher weights:
+        - Base (outside loops): weight = 1
+        - Loop depth 1: weight = 10x
+        - Loop depth 2: weight = 100x
+        - Loop depth 3+: weight = 1000x+
+        """
+        freq = {}
+        
+        def visit(n, loop_depth=0):
+            nonlocal freq
+            if n is None:
+                return
+            
+            if hasattr(n, '__class__'):
+                name = n.__class__.__name__
+                
+                # Calculate weight factor based on loop depth
+                # Exponential growth model: weight = 10^loop_depth
+                weight_factor = 10 ** max(0, loop_depth)
+                
+                # Count identifier references (loads)
+                if name == 'Identifier':
+                    try:
+                        sym = symtab.lookup(n.name)
+                        if sym and sym.proc_name and not sym.is_array and not sym.is_port and sym.address is None:
+                            local_id = f"{proc_name}::{sym.name}"
+                            freq[local_id] = freq.get(local_id, 0) + weight_factor
+                    except:
+                        pass
+                
+                # Detect loop constructs and increase depth for their bodies
+                if name in ('WhileStmt', 'ForStmt'):
+                    # Visit condition/init at current depth
+                    if name == 'WhileStmt':
+                        condition = getattr(n, 'condition', None)
+                        if condition:
+                            visit(condition, loop_depth)
+                        # Visit body with increased depth
+                        body = getattr(n, 'body', None)
+                        if body:
+                            if isinstance(body, list):
+                                for stmt in body:
+                                    visit(stmt, loop_depth + 1)
+                            else:
+                                visit(body, loop_depth + 1)
+                    elif name == 'ForStmt':
+                        # Visit init, condition, step at current depth
+                        for attr in ['init', 'condition', 'step']:
+                            child = getattr(n, attr, None)
+                            if child:
+                                visit(child, loop_depth)
+                        # Visit body with increased depth
+                        body = getattr(n, 'body', None)
+                        if body:
+                            if isinstance(body, list):
+                                for stmt in body:
+                                    visit(stmt, loop_depth + 1)
+                            else:
+                                visit(body, loop_depth + 1)
+                    return  # Don't double-process children below
+                
+                # Recursively visit other children at same depth
+                for attr in ['left', 'right', 'operand', 'condition', 'then_stmt', 'else_stmt', 
+                             'init', 'body', 'expr', 'base', 'index', 'object', 'args', 'value']:
+                    child = getattr(n, attr, None)
+                    if child is not None:
+                        if isinstance(child, list):
+                            for item in child:
+                                visit(item, loop_depth)
+                        else:
+                            visit(child, loop_depth)
+        
+        visit(node)
+        return freq
+    
+    # Collect frequency for all locals
+    total_freq = {}
+    
+    for proc in analyzed_procs:
+        freq = count_local_accesses(proc.ast.body, proc.symtab, proc.ast.name)
+        total_freq.update(freq)
+    
+    for func in analyzed_funcs:
+        freq = count_local_accesses(func.ast.body, func.symtab, func.ast.name)
+        total_freq.update(freq)
+    
+    # Allocate high-frequency locals to ZP
+    # Priority order:
+    # 1. All pointers (mandatory for fast dereferencing) → ZP
+    # 2. High-frequency scalars (by frequency score) → ZP
+    # 3. Arrays, fixed-address, static → always BSS
+    
+    def sym_size(sym: Symbol) -> int:
+        """Get size of symbol in bytes."""
+        if sym.is_array:
+            return sym.get_total_array_size()
+        if sym.type.is_struct and sym.type.struct_info:
+            return sym.type.struct_info.size
+        return sym.type.width
+    
+    # Collect candidates for ZP allocation
+    zp_candidates = []  # List of (proc_name, sym) tuples
+    
+    for proc in analyzed_procs:
+        for sym in proc.locals:
+            # Skip ineligible symbols
+            if sym.is_const or sym.is_array or sym.address is not None or sym.is_port or sym.is_static:
+                continue
+            
+            # Pointers get priority (always allocate to ZP)
+            is_pointer = sym.type.is_pointer
+            local_id = f"{proc.ast.name}::{sym.name}"
+            freq = total_freq.get(local_id, 0)
+            
+            zp_candidates.append((sym, proc.ast.name, is_pointer, freq, sym_size(sym)))
+    
+    for func in analyzed_funcs:
+        for sym in func.locals:
+            # Skip ineligible symbols
+            if sym.is_const or sym.is_array or sym.address is not None or sym.is_port or sym.is_static:
+                continue
+            
+            is_pointer = sym.type.is_pointer
+            local_id = f"{func.ast.name}::{sym.name}"
+            freq = total_freq.get(local_id, 0)
+            
+            zp_candidates.append((sym, func.ast.name, is_pointer, freq, sym_size(sym)))
+    
+    # Sort candidates: pointers first (by frequency), then non-pointers by frequency
+    # Key: (not is_pointer, -freq, -size) puts pointers first, then sorts by desc frequency
+    zp_candidates.sort(key=lambda x: (not x[2], -x[3], -x[4]))
+    
+    # Estimate available ZP space (256 bytes total minus system vars)
+    # System: MATH_STACK(8), MATH0(4), MATH1(2), TMP0-4(10) = 24 bytes
+    # Fixed vars: typically ~0-50 bytes depending on config
+    # Conservative estimate: 150 bytes available for local allocation
+    zp_available = 150  # bytes
+    zp_used = 0
+    
+    # Mark symbols that fit in ZP
+    for sym, proc_name, is_pointer, freq, size in zp_candidates:
+        if zp_used + size <= zp_available:
+            sym.zp_priority = freq  # Mark with frequency score as priority
+            zp_used += size
+        else:
+            sym.zp_priority = -1  # Mark as "not allocated to ZP"
+    
+    return total_freq  # Will be used by codegen for ZP allocation
+
+
 def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False) -> str:
     # --- symbol tables ---
     global_symtab = SymbolTable()
@@ -1374,6 +1542,9 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # Liveness-based local sharing (after DCE updates)
     share_locals_liveness(analyzed_procs, analyzed_funcs)
+    
+    # ZP prioritization (analyze frequency for optimal ZP allocation)
+    local_freq = prioritize_locals_to_zp(analyzed_procs, analyzed_funcs)
     
     # Now generate code with updated stmt_src
     for p in program.procs:
