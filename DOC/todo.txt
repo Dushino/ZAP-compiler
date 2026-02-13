@@ -25,7 +25,6 @@
 [x] implement module constructors? No. 
 [x] fix wrong code generation as ORA X is wrong
 [x] compiler defines in command line - tested also with conflicting defines and PROC name
-[ ] create sbc.zap and atari.zap to distinguish between Atari and SBC
 [ ] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Introduce ZAP! to github:
 [ ] Add to GitHub Linguist
@@ -57,10 +56,10 @@ Steps:
     - Fast path for word ADD/SUB: 9 instructions instead of 19+
     - Direct 16-bit arithmetic without temporary register shuffle
 [x] Peephole optimization rework.
-[ ] Document peephole optimizations in the compiler documentation
+
 [x] Review VS Code integration files
     [x] Build on Ctrl-Shift-Z 
-    [x] Ctrl+Shift+P command "Build: ZAP: Compile current file"
+    [ ] Ctrl+Shift+P command "Build: ZAP: Compile current file" - recheck hotkeys
     
 [ ] Tutorials with examples.
 [x] .error, .warning directives
@@ -69,6 +68,7 @@ Steps:
 Generated code review checklist:
 ----------------------------------------------
 To optimize:
+[x] 
 ; /home/dusan/src/ZAP-compiler/tests/pass/012-operator-precedence/012-operator-precedence.zap 5:     byte y = x + x + x
 	LDA _MAIN_X
 	CLC
@@ -96,9 +96,6 @@ To optimize:
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\024-increment-decrement\024-increment-decrement.zap 6:     result = x
 	LDA _MAIN_X
     STA RESULT
-
-[ ] 026-nested-arrays - arrays are not nested
-
 
 Peephole optimization:
 [x]
@@ -203,10 +200,6 @@ To check - enhance tests
     byte arr[3] = {10, 20, 30}
 [x] Errors in Problems tab can not open file
 [x] ENUM?
-
-
-[ ] Access to global variable inside in PROC / FUNC where the variable is shadowed by local one. 
-    Does it mean scopes implementation? I do not want it.
 
 [x] Enhance STRUCT declarations:
 
