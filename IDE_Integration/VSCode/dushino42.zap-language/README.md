@@ -12,9 +12,11 @@ This extension provides syntax highlighting for the Zap programming language.
 ## Supported Syntax
 
 ### Keywords
-- Control flow: `IF`, `THEN`, `ELSE`, `ELSEIF`, `ENDIF`, `WHILE`, `FOR`, `TO`, `STEP`, `UNTIL`, `RETURN`, `EXIT`
+- Control flow: `IF`, `ELSE`, `ELSEIF`, `ENDIF`, `WHILE`, `FOR`, `TO`, `STEP`, `RETURN`, `EXIT`
 - Declarations: `PROC`, `FUNC`, `END`
 - Inline assembler: `ASM`, `END` supporting ca65 syntax highlighting
+- Embedded ca65 assembler syntax highlighting between ASM / END
+
 
 ### Data Types
 - `BYTE`, `WORD`, `STRUCT`
@@ -27,13 +29,14 @@ This extension provides syntax highlighting for the Zap programming language.
 
 ### Operators
 - Arithmetic: `+`, `-`, `*`, `/`, `%`, `&`, `|`, `^`, `<<`, `>>`
-- Comparison: `=`, `#`, `<`, `>`, `<=`, `>=`, `<>`
+- Comparison: `=`, `!=`, `<`, `>`, `<=`, `>=`, `<>`
 
 ### Literals
 - Decimal numbers: `123`, `0`
 - Hexadecimal numbers: `$FF`, `$1234`
 - Binary numbers: `%1010`, `%11001100`
 - Strings: `"Hello, World!"`
+- ASCII values: `'a'`
 
 
 ## Installation
@@ -56,8 +59,11 @@ PROC Main()
     x = 0
   .endif
   
-  WHILE x < max DO
+  WHILE x < max
     x = x + 1
+    if x > 5
+        END
+    END
   END
   
 END
