@@ -1125,6 +1125,34 @@ class CodeGen:
 
         def _operand_is_port(operand: str) -> bool:
             return self._is_port_variable(operand)
+
+        def _parse_imm(operand: str) -> int | None:
+            operand = operand.strip().upper()
+            if not operand.startswith("#"):
+                return None
+            value = operand[1:]
+            try:
+                if value.startswith("$"):
+                    return int(value[1:], 16)
+                return int(value, 10)
+            except ValueError:
+                return None
+
+        def _clobbers_x(line: str) -> bool:
+            op = line.split(maxsplit=1)[0].upper() if line else ""
+            return op in {"LDX", "INX", "DEX", "TAX", "TXA", "TSX", "PLX"}
+
+        def _clobbers_y(line: str) -> bool:
+            op = line.split(maxsplit=1)[0].upper() if line else ""
+            return op in {"LDY", "INY", "DEY", "TAY", "TYA", "PLY"}
+
+        def _clobbers_reg(line: str, reg: str) -> bool:
+            """Check if instruction clobbers given register (X or Y)."""
+            if reg.upper() == "X":
+                return _clobbers_x(line)
+            elif reg.upper() == "Y":
+                return _clobbers_y(line)
+            return False
         
         while i < len(self.code):
             line = self.code[i]
@@ -1145,6 +1173,73 @@ class CodeGen:
                 optimized.append(line)
                 i += 1
                 continue
+
+            # Remove redundant immediate loads when the register was not clobbered by the middle instruction.
+            if i + 2 < len(self.code):
+                l1 = self.code[i].strip()
+                l2 = self.code[i + 1].strip()
+                l3 = self.code[i + 2].strip()
+                l1_u = l1.split(';')[0].strip().upper()
+                l2_u = l2.split(';')[0].strip().upper()
+                l3_u = l3.split(';')[0].strip().upper()
+
+                if l1_u.startswith("LDX #") and l3_u.startswith("LDX #") and not _clobbers_x(l2_u):
+                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
+                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
+                    if imm1 is not None and imm1 == imm3:
+                        optimized.append(self.code[i])
+                        optimized.append(self.code[i + 1])
+                        i += 3
+                        continue
+
+                if l1_u.startswith("LDY #") and l3_u.startswith("LDY #") and not _clobbers_y(l2_u):
+                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
+                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
+                    if imm1 is not None and imm1 == imm3:
+                        optimized.append(self.code[i])
+                        optimized.append(self.code[i + 1])
+                        i += 3
+                        continue
+
+            # Remove redundant immediate loads if the same value was just loaded and only stored in between.
+            if i + 2 < len(self.code):
+                l1 = self.code[i].strip()
+                l2 = self.code[i + 1].strip()
+                l3 = self.code[i + 2].strip()
+                l1_u = l1.split(';')[0].strip().upper()
+                l2_u = l2.split(';')[0].strip().upper()
+                l3_u = l3.split(';')[0].strip().upper()
+
+                def _is_load(op: str, instr: str) -> bool:
+                    return instr.startswith(f"{op} #")
+
+                def _is_store(op: str, instr: str) -> bool:
+                    return instr.startswith(f"{op} ")
+
+                if _is_load("LDA", l1_u) and _is_store("STA", l2_u) and _is_load("LDA", l3_u):
+                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
+                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
+                    if imm1 is not None and imm1 == imm3:
+                        optimized.append(self.code[i])
+                        optimized.append(self.code[i + 1])
+                        i += 3
+                        continue
+                if _is_load("LDX", l1_u) and _is_store("STX", l2_u) and _is_load("LDX", l3_u):
+                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
+                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
+                    if imm1 is not None and imm1 == imm3:
+                        optimized.append(self.code[i])
+                        optimized.append(self.code[i + 1])
+                        i += 3
+                        continue
+                if _is_load("LDY", l1_u) and _is_store("STY", l2_u) and _is_load("LDY", l3_u):
+                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
+                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
+                    if imm1 is not None and imm1 == imm3:
+                        optimized.append(self.code[i])
+                        optimized.append(self.code[i + 1])
+                        i += 3
+                        continue
 
             # Remove redundant LDA/LDX/LDY when immediately preceded by STA/STX/STY
             if line_upper.startswith("LDA ") or line_upper.startswith("LDX ") or line_upper.startswith("LDY "):
@@ -1295,7 +1390,7 @@ class CodeGen:
                     i += 1
                     continue
 
-            # Optimize word load/store via (TMP0),Y: avoid TAX/STX
+            # Optimize word load/store via (ptr),Y: avoid TAX/STX
             if i + 6 < len(self.code):
                 l1 = self.code[i].strip()
                 l2 = self.code[i + 1].strip()
@@ -1304,28 +1399,43 @@ class CodeGen:
                 l5 = self.code[i + 4].strip()
                 l6 = self.code[i + 5].strip()
                 l7 = self.code[i + 6].strip()
-                l1_u = l1.split(';')[0].strip().upper()
-                l2_u = l2.split(';')[0].strip().upper()
-                l3_u = l3.split(';')[0].strip().upper()
-                l4_u = l4.split(';')[0].strip().upper()
-                l5_u = l5.split(';')[0].strip().upper()
-                l6_u = l6.split(';')[0].strip().upper()
-                l7_u = l7.split(';')[0].strip().upper()
-                if (l1_u == "LDY #1" and l2_u == "LDA (TMP0),Y" and l3_u == "TAX" and
-                        l4_u == "DEY" and l5_u == "LDA (TMP0),Y" and l6_u.startswith("STA ") and
-                        l7_u.startswith("STX ")):
-                    dest = l6_u.split(maxsplit=1)[1].strip()
-                    dest_hi = l7_u.split(maxsplit=1)[1].strip()
-                    if dest_hi == f"{dest}+1" and not _operand_is_port(dest) and not _operand_is_port(dest_hi):
-                        optimized.append(self.code[i])
-                        optimized.append(self.code[i + 1])
-                        indent = self.code[i + 5][:len(self.code[i + 5]) - len(self.code[i + 5].lstrip())]
-                        optimized.append(f"{indent}STA {dest}+1\n")
-                        optimized.append(self.code[i + 3])
-                        optimized.append(self.code[i + 4])
-                        optimized.append(self.code[i + 5])
-                        i += 7
-                        continue
+                l1_raw = l1.split(';')[0].strip()
+                l2_raw = l2.split(';')[0].strip()
+                l3_raw = l3.split(';')[0].strip()
+                l4_raw = l4.split(';')[0].strip()
+                l5_raw = l5.split(';')[0].strip()
+                l6_raw = l6.split(';')[0].strip()
+                l7_raw = l7.split(';')[0].strip()
+                l1_u = l1_raw.upper()
+                l2_u = l2_raw.upper()
+                l3_u = l3_raw.upper()
+                l4_u = l4_raw.upper()
+                l5_u = l5_raw.upper()
+                l6_u = l6_raw.upper()
+                l7_u = l7_raw.upper()
+                if (l1_u == "LDY #1" and l3_u == "TAX" and l4_u == "DEY" and
+                        l6_u.startswith("STA ") and l7_u.startswith("STX ")):
+                    if l2_u.startswith("LDA (") and l2_u.endswith("),Y") and l5_u.startswith("LDA (") and l5_u.endswith("),Y"):
+                        ptr2_u = l2_u[len("LDA ("):-len("),Y")].strip()
+                        ptr5_u = l5_u[len("LDA ("):-len("),Y")].strip()
+                        if ptr2_u == ptr5_u:
+                            dest = l6_raw.split(maxsplit=1)[1].strip()
+                            dest_hi = l7_raw.split(maxsplit=1)[1].strip()
+                            if dest_hi.upper() == f"{dest.upper()}+1" and not _operand_is_port(dest) and not _operand_is_port(dest_hi):
+                                indent = self.code[i + 5][:len(self.code[i + 5]) - len(self.code[i + 5].lstrip())]
+                                ptr2 = l2_raw[len("LDA ("):-len("),Y")].strip()
+                                optimized.append(self.code[i])
+                                optimized.append(self.code[i + 1])
+                                optimized.append(f"{indent}STA {dest}+1\n")
+                                if self.is_65c02:
+                                    optimized.append(f"{indent}LDA ({ptr2})\n")
+                                    optimized.append(f"{indent}STA {dest}\n")
+                                else:
+                                    optimized.append(self.code[i + 3])
+                                    optimized.append(self.code[i + 4])
+                                    optimized.append(self.code[i + 5])
+                                i += 7
+                                continue
 
             # Replace LDX #0; CLC; ADC TMP0; STA TMP0; TXA -> CLC; ADC TMP0; STA TMP0; LDA #0
             if i + 4 < len(self.code):
@@ -1348,6 +1458,89 @@ class CodeGen:
                     optimized.append(f"{indent}LDA #0\n")
                     i += 5
                     continue
+
+            # Optimize LD<reg>#N; ...; DE<reg>; ...; LD<reg>#(N-1) -> skip final load
+            # Pattern: Load register with immediate, decrement it (with safe intervening code),
+            # then reload with one less value. The reload is redundant since DEX/DEY decreases
+            # the register by 1 and nothing clobbers it in between.
+            if i + 3 < len(self.code):
+                l1 = self.code[i].strip()
+                l1_upper = l1.split(';')[0].strip().upper()
+                
+                # Check if first line is LD<X/Y> #imm
+                if l1_upper.startswith("LDX #") or l1_upper.startswith("LDY #"):
+                    reg_char = l1_upper[2]  # 'X' or 'Y'
+                    dec_instr = f"DE{reg_char}"
+                    imm_str = l1_upper.split(maxsplit=1)[1] if ' ' in l1_upper else ""
+                    imm_initial = _parse_imm(imm_str)
+                    
+                    if imm_initial is not None:
+                        # Scan forward to find DE<reg> and then LD<reg> #(imm_initial-1)
+                        j = i + 1
+                        dec_idx = -1
+                        final_ld_idx = -1
+                        expected_after_dec = (imm_initial - 1) & 0xFF
+                        
+                        while j < len(self.code):
+                            lj = self.code[j].strip()
+                            lj_upper = lj.split(';')[0].strip().upper()
+                            
+                            # Skip blank and comment lines
+                            if not lj or lj_upper.startswith(";"):
+                                j += 1
+                                continue
+                            
+                            # Stop at labels
+                            if lj_upper.endswith(":"):
+                                break
+                            
+                            # Stop at control flow
+                            if lj_upper.startswith("B") or lj_upper in {"JMP", "JSR", "RTS", "RTI", "BRK"}:
+                                break
+                            
+                            # Found the decrement instruction
+                            if lj_upper == dec_instr:
+                                if dec_idx == -1:
+                                    dec_idx = j
+                                j += 1
+                                continue
+                            
+                            # After finding DEC, look for LD<reg> #(expected_value)
+                            if dec_idx != -1:
+                                if lj_upper.startswith(f"LD{reg_char} #"):
+                                    final_imm_str = lj_upper.split(maxsplit=1)[1] if ' ' in lj_upper else ""
+                                    final_imm = _parse_imm(final_imm_str)
+                                    if final_imm is not None and final_imm == expected_after_dec:
+                                        # Check that nothing between initial load and this point clobbers the register
+                                        # EXCEPT for the DEC instruction itself, which is the pattern we're optimizing
+                                        all_safe = True
+                                        for k in range(i + 1, j):
+                                            lk = self.code[k].strip()
+                                            lk_upper = lk.split(';')[0].strip().upper()
+                                            if not lk or lk_upper.startswith(";") or lk_upper.endswith(":"):
+                                                continue
+                                            # Don't check the DEC instruction itself - it's part of the pattern
+                                            if k == dec_idx:
+                                                continue
+                                            if _clobbers_reg(lk, reg_char):
+                                                all_safe = False
+                                                break
+                                        if all_safe:
+                                            final_ld_idx = j
+                                            break
+                            elif dec_idx == -1:
+                                # Before finding DEC, check for register clobber
+                                if _clobbers_reg(lj, reg_char):
+                                    break
+                            
+                            j += 1
+                        
+                        # If pattern found, skip the final load
+                        if final_ld_idx != -1:
+                            for k in range(i, final_ld_idx):
+                                optimized.append(self.code[k])
+                            i = final_ld_idx + 1
+                            continue
 
             # Replace LDA TMP0; TAY; LDA label,Y -> LDY TMP0; LDA label,Y
             if i + 2 < len(self.code):
@@ -7354,8 +7547,34 @@ class CodeGen:
                 isinstance(e, UnaryExpr) and e.op == UnOp.ADDROF
             )
 
+        def _y_simple_loadable(e: Expr) -> bool:
+            if isinstance(e, IntLiteral):
+                return True
+            if isinstance(e, Identifier):
+                sym = self.current_symtab.lookup(e.name)
+                return (sym.type.base == "BYTE" and not sym.type.is_pointer and
+                        not sym.is_array and not sym.is_volatile)
+            return False
+
+        def _emit_load_y_simple(e: Expr) -> None:
+            if isinstance(e, IntLiteral):
+                self.emit(f"\tLDY #${e.value & 0xFF:02X}")
+                return
+            if isinstance(e, Identifier):
+                sym = self.current_symtab.lookup(e.name)
+                self.emit(f"\tLDY {sym.asm_name()}")
+                return
+
         def _can_reorder_regs() -> bool:
-            if reg_case in {"word0_byte1", "three_bytes"}:
+            if reg_case == "word0_byte1":
+                if reg_a_index is None or reg_y_index is None:
+                    return False
+                arg_a = next((a for i, _, _, a in resolved if i == reg_a_index), None)
+                arg_y = next((a for i, _, _, a in resolved if i == reg_y_index), None)
+                if arg_a is None or arg_y is None:
+                    return False
+                return _simple_arg(arg_a) and _y_simple_loadable(arg_y)
+            if reg_case == "three_bytes":
                 return False
             if reg_case == "word0":
                 for i, _, _, arg in resolved:
@@ -7467,6 +7686,16 @@ class CodeGen:
                     self.gen_expr(arg)
                 finally:
                     self.force_word_result = prev_force
+            elif reg_case == "word0_byte1" and reg_a_index is not None and reg_y_index is not None:
+                arg_a = next(a for i, _, _, a in resolved if i == reg_a_index)
+                prev_force = self.force_word_result
+                self.force_word_result = True
+                try:
+                    self.gen_expr(arg_a)
+                finally:
+                    self.force_word_result = prev_force
+                arg_y = next(a for i, _, _, a in resolved if i == reg_y_index)
+                _emit_load_y_simple(arg_y)
             elif reg_case in {"byte0", "two_bytes"} and reg_a_index is not None:
                 if reg_case == "two_bytes" and reg_x_index is not None:
                     arg_x = next(a for i, _, _, a in resolved if i == reg_x_index)
