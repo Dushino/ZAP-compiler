@@ -245,7 +245,11 @@ class CodeGen:
 
         def load_to_ax(loc: str, is_16bit: bool) -> None:
             """Emit code to load a location into A/X."""
-            if loc == "AX":
+            if loc == "AX" or loc == "A":
+                # Already in A/X or just in A (for byte results from shifts)
+                if loc == "A" and is_16bit:
+                    # If we need 16-bit but only have A, zero-extend
+                    self.emit("\tLDX #$00")
                 return
             if loc.startswith("CONST:"):
                 val = int(loc.split(":")[1])
@@ -507,6 +511,10 @@ class CodeGen:
                     # Only use AX entry if right operand is not already in MATH0/MATH1.
                     use_ax_right = routine_ax is not None and right_loc not in ("MATH0", "MATH1")
                 
+                # OPTIMIZATION: For constant-count shifts, don't store to MATH0 - keep in A/X
+                skip_math0_store = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and 
+                                   right_loc.startswith("CONST:"))
+                
                 if right_loc == "MATH0" and left_loc != "MATH0":
                     if node.value in commutative_ops:
                         # For commutative ops with right in MATH0, try using _AX variant
@@ -532,7 +540,8 @@ class CodeGen:
                 else:
                     if left_loc != "MATH0":
                         load_to_ax_for_math(left_loc, left_16)
-                        emit_set_math0_from_ax(left_16, force_word=force_word_operands)
+                        if not skip_math0_store:
+                            emit_set_math0_from_ax(left_16, force_word=force_word_operands)
                     if use_ax_right:
                         if right_loc != "AX":
                             # For _AX entrypoints, always load both A and X (even for byte operands)
@@ -541,7 +550,11 @@ class CodeGen:
                             load_to_ax(right_loc, right_16)
                             self.suppress_byte_return_x = prev
                     else:
-                        if right_loc != "MATH1":
+                        # OPTIMIZATION: Skip MATH1 loading for shift operations with constant counts
+                        # since inline shifts don't read MATH1
+                        skip_math1_load = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and 
+                                         right_loc.startswith("CONST:"))
+                        if right_loc != "MATH1" and not skip_math1_load:
                             load_to_ax_for_math(right_loc, right_16)
                             emit_set_math1_from_ax(right_16, force_word=force_word_operands)
                 
@@ -589,16 +602,34 @@ class CodeGen:
                         shift_count: int | None = None
                         if right_loc.startswith("CONST:"):
                             shift_count = int(right_loc.split(":")[1]) & 0xFF
-                        if shift_count is None:
-                            self.emit("\tLDA MATH1")
-                        if node.value == BinOp.LSHIFT:
-                            self._gen_lshift(result_16, "MATH0", shift_count)
+                        
+                        # OPTIMIZATION: For constant-count shifts, keep value in A instead of reload from MATH0
+                        # For variable shifts, use MATH0/MATH1 path as before
+                        if shift_count is not None:
+                            # Constant-count shift: load left operand to A/X if not there
+                            # Left operand should already be in A/X from earlier operand loading
+                            # Use "A" as left_tmp to indicate value is in accumulator
+                            if node.value == BinOp.LSHIFT:
+                                self._gen_lshift(result_16, "A", shift_count)
+                            else:
+                                self._gen_rshift(result_16, "A", shift_count)
                         else:
-                            self._gen_rshift(result_16, "MATH0", shift_count)
-                        self.emit("\tSTA MATH0")
-                        if result_16:
-                            self.emit("\tSTX MATH0+1")
-                        eval_stack.append(("MATH0", result_16))
+                            # Variable-count shift: use traditional MATH0/MATH1 path
+                            self.emit("\tLDA MATH1")
+                            if node.value == BinOp.LSHIFT:
+                                self._gen_lshift(result_16, "MATH0", shift_count)
+                            else:
+                                self._gen_rshift(result_16, "MATH0", shift_count)
+                        # OPTIMIZATION: For 8-bit constant shifts, result stays in A - no need for MATH0
+                        # Only store to MATH0 for 16-bit shifts or variable shifts
+                        if not (result_16 == False and shift_count is not None):
+                            self.emit("\tSTA MATH0")
+                            if result_16:
+                                self.emit("\tSTX MATH0+1")
+                            eval_stack.append(("MATH0", result_16))
+                        else:
+                            # 8-bit constant shift: result stays in A
+                            eval_stack.append(("A", False))
                     elif node.value in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
                         # Comparison operators: always produce BYTE (0 or 1)
                         # MATH0 = left, MATH1 = right
@@ -1241,7 +1272,8 @@ class CodeGen:
                         i += 3
                         continue
 
-            # Remove redundant LDA/LDX/LDY when immediately preceded by STA/STX/STY
+            # Remove redundant LDA/LDX/LDY when immediately preceded by STA/STX/STY to same location
+            # SAFE optimization: only when store and load have no intervening register-modifying instructions
             if line_upper.startswith("LDA ") or line_upper.startswith("LDX ") or line_upper.startswith("LDY "):
                 load_parts = line_stripped.split(maxsplit=1)
                 if len(load_parts) == 2:
@@ -1249,32 +1281,73 @@ class CodeGen:
                     load_operand = load_parts[1].strip()
 
                     if not _operand_is_port(load_operand):
+                        store_for_load = {
+                            "LDA": "STA",
+                            "LDX": "STX",
+                            "LDY": "STY",
+                        }
+                        expected_store = store_for_load.get(load_op, "")
+                        
+                        # Look back for matching store, but only within a close window
+                        # and only if no intervening instructions could clobber the register
                         k = len(optimized) - 1
-                        prev_line = None
-                        while k >= 0:
+                        found_match = False
+                        instructions_back = 0
+                        
+                        while k >= 0 and instructions_back < 6:  # Only look back 6 actual instructions
                             prev_line = optimized[k].strip()
+                            
+                            # Skip comments and blanks
                             if not prev_line or prev_line.startswith(";"):
                                 k -= 1
                                 continue
-                            break
-                        if prev_line and prev_line.endswith(":"):
-                            prev_line = None
-
-                        if prev_line:
+                            
+                            # Stop at labels
+                            if prev_line.endswith(":"):
+                                break
+                            
+                            instructions_back += 1
+                            
                             prev_parts = prev_line.split(maxsplit=1)
                             if len(prev_parts) == 2:
                                 prev_op = prev_parts[0].upper()
                                 prev_operand = prev_parts[1].strip()
-
-                                store_for_load = {
-                                    "LDA": "STA",
-                                    "LDX": "STX",
-                                    "LDY": "STY",
-                                }
-                                if prev_op == store_for_load.get(load_op, ""):
-                                    if prev_operand.upper() == load_operand.upper():
-                                        i += 1
-                                        continue
+                                
+                                # Check for matching store to same location
+                                if prev_op == expected_store and prev_operand.upper() == load_operand.upper():
+                                    # Verify no register-clobbering instructions between store and this load
+                                    can_remove = True
+                                    for verify_idx in range(k + 1, len(optimized)):
+                                        verify_line = optimized[verify_idx].strip()
+                                        if verify_line == line_stripped:
+                                            break
+                                        if verify_line and not verify_line.startswith(";"):
+                                            verify_op = verify_line.split(maxsplit=1)[0].upper()
+                                            # If ANY instruction that loads into our register, can't remove
+                                            if verify_op == load_op:  # LDA, LDX, or LDY
+                                                can_remove = False
+                                                break
+                                            # Arithmetic/logical ops also clobber
+                                            if verify_op in {"AND", "ORA", "EOR", "ADC", "SBC", "CMP", "BIT", "ASL", "LSR", "ROL", "ROR", "INC", "DEC"}:
+                                                if load_op == "LDA":  # These affect A
+                                                    can_remove = False
+                                                    break
+                                    
+                                    if can_remove:
+                                        found_match = True
+                                        break
+                                    else:
+                                        break  # Found store but unsafe - don't keep looking
+                                else:
+                                    # This is a store to a different location, stop searching
+                                    if prev_op in store_for_load.values():
+                                        break
+                            
+                            k -= 1
+                        
+                        if found_match:
+                            i += 1
+                            continue
             
             # 65c02: Replace LDX #0; STA addr; STX addr+1 -> STA addr; STZ addr+1
             # Strip inline comments to check instruction
@@ -1671,6 +1744,52 @@ class CodeGen:
                             if k != rts_index:
                                 optimized.append(self.code[k])
                         i = j + 1
+                        continue
+            
+            # Remove jumps to labels that are reachable by falling through
+            # Pattern: JMP target_label when target_label is reached by only labels in between
+            if line_upper.startswith("JMP "):
+                parts = line_stripped.split(maxsplit=1)
+                if len(parts) == 2:
+                    jmp_target = parts[1].strip()
+                    
+                    # Look ahead to find if the target label is reachable by falling through
+                    j = i + 1
+                    target_found = False
+                    only_labels = True
+                    jmp_target_upper = jmp_target.upper()
+                    
+                    while j < len(self.code):
+                        next_line = self.code[j].strip()
+                        next_upper = next_line.upper()
+                        
+                        # Skip blank lines and comments
+                        if not next_line or next_line.startswith(";"):
+                            j += 1
+                            continue
+                        
+                        # Check if this is the target label
+                        if next_upper.endswith(":"):
+                            label_name = next_upper[:-1].strip()  # Remove the colon
+                            if label_name == jmp_target_upper:
+                                # Found the target label - safe to remove JMP
+                                target_found = True
+                                break
+                            else:
+                                # Different label, keep scanning
+                                j += 1
+                                continue
+                        
+                        # If we hit any actual instruction before finding the target, stop
+                        if next_line:
+                            only_labels = False
+                            break
+                        
+                        j += 1
+                    
+                    # If we found the target with only labels in between, remove the JMP
+                    if target_found and only_labels:
+                        i += 1
                         continue
             
             # Check for STA instruction
@@ -3875,7 +3994,10 @@ class CodeGen:
                         self.emit(f"\tLDA {arr_label},Y")
                         # For BYTE element, only set X if final target is not BYTE
                         need_x = True
-                        if self.assign_target_type:
+                        if self.suppress_byte_return_x:
+                            # When passing single byte to function, X is not needed
+                            need_x = False
+                        elif self.assign_target_type:
                             if hasattr(self.assign_target_type, 'base'):
                                 if (self.assign_target_type.base == "BYTE" and
                                     not getattr(self.assign_target_type, 'is_pointer', False)):
@@ -4006,7 +4128,10 @@ class CodeGen:
                 # For BYTE element, only set X if final target is not BYTE
                 # If target is BYTE, we only need the low byte in A
                 need_x = True
-                if self.assign_target_type:
+                if self.suppress_byte_return_x:
+                    # When passing single byte to function, X is not needed
+                    need_x = False
+                elif self.assign_target_type:
                     if hasattr(self.assign_target_type, 'base'):
                         if (self.assign_target_type.base == "BYTE" and 
                             not getattr(self.assign_target_type, 'is_pointer', False)):
@@ -5699,33 +5824,43 @@ class CodeGen:
             self.emit(f"\tEOR {left_tmp}")
 
     def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0", shift_count: int | None = None) -> None:
-        """Generate left shift: left_tmp << A (shift count in A)"""
+        """Generate left shift: left_tmp << A (shift count in A)
+        Special case: left_tmp="A" means value is already in accumulator (for constant-count shifts)
+        For 16-bit shifts with left_tmp="A", both A and X contain the operand (low and high bytes)
+        """
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
         # Shift count is in A
         if shift_count is not None:
             if shift_count <= 0:
-                self.emit(f"\tLDA {left_tmp}")
+                if left_tmp != "A":
+                    self.emit(f"\tLDA {left_tmp}")
                 if result_16:
-                    self.emit(f"\tLDX {left_tmp}+1")
+                    if left_tmp != "A":
+                        self.emit(f"\tLDX {left_tmp}+1")
                 return
             if result_16:
-                self.emit(f"\tLDA {left_tmp}")
-                self.emit(f"\tLDX {left_tmp}+1")
-                if left_tmp != "TMP0":
+                if left_tmp == "A":
+                    # Value is already in A/X (both low and high bytes from operand loading)
+                    # Save both bytes to TMP0/TMP0+1
                     self.emit("\tSTA TMP0")
-                    self.emit("\tSTX TMP0+1")
+                    self.emit("\tSTX TMP0+1")  # X already contains high byte, don't change it
+                else:
+                    self.emit(f"\tLDA {left_tmp}")
+                    self.emit(f"\tLDX {left_tmp}+1")
+                    if left_tmp != "TMP0":
+                        self.emit("\tSTA TMP0")
+                        self.emit("\tSTX TMP0+1")
+                # OPTIMIZATION: Use absolute addressing mode to shift directly in memory
                 for _ in range(shift_count):
-                    self.emit("\tLDA TMP0")
-                    self.emit("\tASL A")
-                    self.emit("\tSTA TMP0")
-                    self.emit("\tLDA TMP0+1")
-                    self.emit("\tROL A")
-                    self.emit("\tSTA TMP0+1")
+                    self.emit("\tASL TMP0")
+                    self.emit("\tROL TMP0+1")
                 self.emit("\tLDA TMP0")
                 self.emit("\tLDX TMP0+1")
                 return
-            self.emit(f"\tLDA {left_tmp}")
+            # 8-bit constant shift
+            if left_tmp != "A":
+                self.emit(f"\tLDA {left_tmp}")
             for _ in range(shift_count):
                 self.emit("\tASL A")
             return
@@ -5779,33 +5914,43 @@ class CodeGen:
             self.emit("\tLDA TMP0")    # Load result
 
     def _gen_rshift(self, result_16: bool, left_tmp: str = "TMP0", shift_count: int | None = None) -> None:
-        """Generate right shift: left_tmp >> A (shift count in A)"""
+        """Generate right shift: left_tmp >> A (shift count in A)
+        Special case: left_tmp="A" means value is already in accumulator (for constant-count shifts)
+        For 16-bit shifts with left_tmp="A", both A and X contain the operand (low and high bytes)
+        """
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
         # Shift count is in A
         if shift_count is not None:
             if shift_count <= 0:
-                self.emit(f"\tLDA {left_tmp}")
+                if left_tmp != "A":
+                    self.emit(f"\tLDA {left_tmp}")
                 if result_16:
-                    self.emit(f"\tLDX {left_tmp}+1")
+                    if left_tmp != "A":
+                        self.emit(f"\tLDX {left_tmp}+1")
                 return
             if result_16:
-                self.emit(f"\tLDA {left_tmp}")
-                self.emit(f"\tLDX {left_tmp}+1")
-                if left_tmp != "TMP0":
+                if left_tmp == "A":
+                    # Value is already in A/X (both low and high bytes from operand loading)
+                    # Save both bytes to TMP0/TMP0+1
                     self.emit("\tSTA TMP0")
-                    self.emit("\tSTX TMP0+1")
+                    self.emit("\tSTX TMP0+1")  # X already contains high byte, don't change it
+                else:
+                    self.emit(f"\tLDA {left_tmp}")
+                    self.emit(f"\tLDX {left_tmp}+1")
+                    if left_tmp != "TMP0":
+                        self.emit("\tSTA TMP0")
+                        self.emit("\tSTX TMP0+1")
+                # OPTIMIZATION: Use absolute addressing mode to shift directly in memory
                 for _ in range(shift_count):
-                    self.emit("\tLDA TMP0+1")
-                    self.emit("\tLSR A")
-                    self.emit("\tSTA TMP0+1")
-                    self.emit("\tLDA TMP0")
-                    self.emit("\tROR A")
-                    self.emit("\tSTA TMP0")
+                    self.emit("\tLSR TMP0+1")
+                    self.emit("\tROR TMP0")
                 self.emit("\tLDA TMP0")
                 self.emit("\tLDX TMP0+1")
                 return
-            self.emit(f"\tLDA {left_tmp}")
+            # 8-bit constant shift
+            if left_tmp != "A":
+                self.emit(f"\tLDA {left_tmp}")
             for _ in range(shift_count):
                 self.emit("\tLSR A")
             return

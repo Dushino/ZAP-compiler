@@ -193,16 +193,16 @@ proc putchar(byte ch)
 
     ; convert ATASCII to screen code, handle inverse bit
     asm
-            lda _PUTCHAR_CH
-            asl a               ; shift out the inverse bit
-            adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
-            bpl __codeok        ; screen code ok?
-            eor #$40            ; needs correction
-__codeok:   lsr a               ; undo the shift
-            bcc __sputc
-            eor #$80            ; restore the inverse bit            
-__sputc:
-            sta _PUTCHAR_CH
+                    lda _PUTCHAR_CH
+                    asl a               ; shift out the inverse bit
+                    adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
+                    bpl putchar_codeok        ; screen code ok?
+                    eor #$40            ; needs correction
+putchar_codeok:     lsr a               ; undo the shift
+                    bcc putchar_sputc
+                    eor #$80            ; restore the inverse bit            
+putchar_sputc:
+                    sta _PUTCHAR_CH
     end
 
     curptr^ = ch
