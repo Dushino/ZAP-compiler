@@ -1281,6 +1281,35 @@ class CodeGen:
                     load_operand = load_parts[1].strip()
 
                     if not _operand_is_port(load_operand):
+                        # Special-case: STA addr; STX addr+1; LDA addr -> LDA is redundant
+                        # STX does not clobber A, so the value is still in A.
+                        if load_op == "LDA":
+                            k = len(optimized) - 1
+                            prior_instrs: list[str] = []
+                            while k >= 0 and len(prior_instrs) < 2:
+                                prev_line = optimized[k].strip()
+                                if not prev_line or prev_line.startswith(";"):
+                                    k -= 1
+                                    continue
+                                if prev_line.endswith(":"):
+                                    break
+                                prior_instrs.append(prev_line)
+                                k -= 1
+
+                            if len(prior_instrs) == 2:
+                                prev1 = prior_instrs[0].split(maxsplit=1)
+                                prev2 = prior_instrs[1].split(maxsplit=1)
+                                if len(prev1) == 2 and len(prev2) == 2:
+                                    prev1_op, prev1_operand = prev1[0].upper(), prev1[1].strip()
+                                    prev2_op, prev2_operand = prev2[0].upper(), prev2[1].strip()
+                                    if (prev1_op == "STX"
+                                            and prev2_op == "STA"
+                                            and prev2_operand.upper() == load_operand.upper()
+                                            and prev1_operand.upper() == load_operand.upper() + "+1"
+                                            and not _operand_is_port(prev1_operand)):
+                                        i += 1
+                                        continue
+
                         store_for_load = {
                             "LDA": "STA",
                             "LDX": "STX",

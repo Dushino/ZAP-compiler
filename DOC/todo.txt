@@ -381,20 +381,3 @@ Further optimizations after implementaion completed
 
 [x] Use registers A,X,Y as much as possible for parameters in PROC and FUNC calling
 
-
-; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 230:     putchar(hex_digits[value >> 4])
-    LSR A
-    LSR A
-    LSR A
-    LSR A
-    STA MATH0
-    TAY
-    LDA ARRAY_DATA_1,Y
-    JSR PUTCHAR
-I can see MATH0 is set, but not used. Is it neccessary to emit STA MATH0 in shifts for constant number? It is not about peephole optimization but about code generation for shifts.
-
-
-	STA MATH0
-	STX MATH0+1
-	LDA MATH0
-
