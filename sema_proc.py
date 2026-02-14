@@ -265,7 +265,7 @@ class ProcAnalyzer:
                     AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt,
                     ForStmt, SwitchStmt, CallStmt, Identifier, SubscriptExpr,
                     FieldAccess, IntLiteral, UnaryExpr, BinaryExpr, DerefExpr,
-                    CallExpr, UnOp
+                    CallExpr, UnOp, StructLiteral, ListInit
                 )
                 from constsubst import subst_const
                 from constfold import fold_expr
@@ -313,6 +313,16 @@ class ProcAnalyzer:
                             for a in node.args:
                                 if a is not None:
                                     walk(a)
+                            return
+                        if isinstance(node, StructLiteral):
+                            def walk_init(val) -> None:
+                                if isinstance(val, ListInit):
+                                    for item in val.values:
+                                        walk_init(item)
+                                    return
+                                walk(val)
+                            for v in node.values:
+                                walk_init(v)
                             return
                     walk(expr)
 
@@ -436,7 +446,8 @@ class ProcAnalyzer:
                             if a is None:
                                 continue
                             try:
-                                tc.check(a)
+                                if not isinstance(a, StructLiteral):
+                                    tc.check(a)
                                 _check_uninitialized(a, st)
                             except SemanticError as e:
                                 info = _map_stmt_info(st)

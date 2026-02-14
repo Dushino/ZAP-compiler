@@ -15,7 +15,7 @@ from ast_nodes import (
     BinaryExpr,
     UnaryExpr,
     UnOp,
-    Expr, ExprInit, ListInit, StringInit, CallExpr,
+    Expr, ExprInit, ListInit, StringInit, CallExpr, StructLiteral,
     CallStmt, AssignStmt,
     IfStmt, ReturnStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
     AsmBlock, FieldAccess, StringLiteral
@@ -35,7 +35,7 @@ class CodeGen:
     loop_stack = []
     internal_label_prefix = "__ZAP_"
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
         """Initialize code generation state.
         Stores symbol tables, options, and debug maps.
         """
@@ -66,9 +66,9 @@ class CodeGen:
         self.rpn_eval_stack: list[tuple[str, bool]] = []  # Stack of (value, is_16bit) during RPN evaluation
         self.rpn_temp_count: int = 0  # Counter for allocating temporary values
         self.rpn_helper_routines_needed: set[str] = set()  # Track SET_MATH0, SET_MATH1, GET_MATH0
-        # Parameter specs: mapping name -> list of (param_name, width_bytes)
-        self.proc_param_specs: dict[str, list[tuple[str, int, object]]] = proc_param_specs or {}
-        self.func_param_specs: dict[str, list[tuple[str, int, object]]] = func_param_specs or {}
+        # Parameter specs: mapping name -> list of (param_name, width_bytes, default_value, sem_type)
+        self.proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] = proc_param_specs or {}
+        self.func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] = func_param_specs or {}
         self.pruned_procs: list[str] = pruned_procs or []
         # Exports set (populated by pipeline)
         self.exports: set[str] = set()
@@ -7005,7 +7005,7 @@ class CodeGen:
                 fname, line, text = info
                 self.emit(f"; {fname} {line}: {text}")
             # Evaluate and pass arguments to function parameters
-            specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(expr.name)
+            specs: list[tuple[str, int, object, SemType]] | None = self.func_param_specs.get(expr.name)
             if specs is not None:
                 self._emit_call_args(expr.name, expr.args, specs)
             self.emit(f"\tJSR {self.asm_symbol_name(expr.name)}")
@@ -8204,7 +8204,7 @@ class CodeGen:
         self.emit(f"{self.asm_symbol_name(proc.ast.name)}:")
 
         # Emit parameter name equates for inline assembly references
-        proc_specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(proc.ast.name)
+        proc_specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(proc.ast.name)
         if proc_specs:
             self._emit_param_name_equates(proc.ast.name, proc_specs)
 
@@ -8213,7 +8213,7 @@ class CodeGen:
             self._emit_param_reg_stores(proc.ast.name, proc_specs)
 
         # Embed local variable equates for inline assembly references (excluding parameters)
-        param_names = {pname for pname, _, _ in proc_specs} if proc_specs else set()
+        param_names = {pname for pname, _, _, _ in proc_specs} if proc_specs else set()
         for sym in proc.locals:
             self._emit_local_name_equate(proc.ast.name, sym, param_names)
 
@@ -8233,13 +8233,13 @@ class CodeGen:
         if prev_tc_symtab is not None:
             self.tc.symtab = prev_tc_symtab
 
-    def _resolve_call_args(self, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> list[tuple[int, str, int, Expr]]:
+    def _resolve_call_args(self, args: list[Expr | None], specs: list[tuple[str, int, object, SemType]]) -> list[tuple[int, str, int, SemType, Expr]]:
         """Resolve call args.
         Internal helper used during code generation.
         """
-        resolved: list[tuple[int, str, int, Expr]] = []
+        resolved: list[tuple[int, str, int, SemType, Expr]] = []
         for i, spec in enumerate(specs):
-            pname, width, default_value = spec
+            pname, width, default_value, sem_type = spec
             arg: object | None
             if i < len(args) and args[i] is not None:
                 arg = args[i]
@@ -8249,17 +8249,21 @@ class CodeGen:
                 continue
 
             # Substitute consts and fold before codegen
+            if isinstance(arg, StructLiteral) and sem_type.is_struct and not sem_type.is_pointer:
+                resolved.append((i, pname, width, sem_type, cast(Expr, arg)))
+                continue
+
             arg = subst_const(cast(Expr, arg), cast(SymbolTable, self.current_symtab))
             arg = fold_expr(arg)
             self.tc_check(arg)
-            resolved.append((i, pname, width, cast(Expr, arg)))
+            resolved.append((i, pname, width, sem_type, cast(Expr, arg)))
         return resolved
 
-    def _emit_param_name_equates(self, callee_name: str, specs: list[tuple[str, int, object]]) -> None:
+    def _emit_param_name_equates(self, callee_name: str, specs: list[tuple[str, int, object, SemType]]) -> None:
         """Emit equate declarations for parameter names to their actual storage locations.
         This allows inline assembly blocks to reference parameters by name even when
         they are assigned to shared slots. Only emits when location differs from standard names."""
-        for pname, width, _ in specs:
+        for pname, width, _default, _sem_type in specs:
             sym = self.current_symtab.lookup(pname)
             asm_loc = sym.asm_name()
             param_label = f"_{callee_name.upper()}_{pname.upper()}"
@@ -8277,20 +8281,21 @@ class CodeGen:
             local_label = f"_{proc_name.upper()}_{sym.name.upper()}"
             self.emit(f"{local_label} = {asm_loc}")
 
-    def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object]]) -> None:
+    def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object, SemType]]) -> None:
         """Emit param reg stores.
         Internal helper used during code generation.
         """
         if not specs:
             return
-        width0 = specs[0][1]
-        pname0 = specs[0][0]
+        pname0, width0, _default0, sem0 = specs[0]
+        if sem0.is_struct and not sem0.is_pointer:
+            return
         sym0 = self.current_symtab.lookup(pname0)
         asm0 = sym0.asm_name()
         if width0 == 2:
             self.emit(f"\tSTA {asm0}")
             self.emit(f"\tSTX {asm0}+1")
-            if len(specs) > 1 and specs[1][1] == 1:
+            if len(specs) > 1 and specs[1][1] == 1 and not specs[1][3].is_struct:
                 pname1 = specs[1][0]
                 sym1 = self.current_symtab.lookup(pname1)
                 asm1 = sym1.asm_name()
@@ -8298,18 +8303,18 @@ class CodeGen:
             return
         if width0 == 1:
             self.emit(f"\tSTA {asm0}")
-            if len(specs) > 1 and specs[1][1] == 1:
+            if len(specs) > 1 and specs[1][1] == 1 and not specs[1][3].is_struct:
                 pname1 = specs[1][0]
                 sym1 = self.current_symtab.lookup(pname1)
                 asm1 = sym1.asm_name()
                 self.emit(f"\tSTX {asm1}")
-                if len(specs) > 2 and specs[2][1] == 1:
+                if len(specs) > 2 and specs[2][1] == 1 and not specs[2][3].is_struct:
                     pname2 = specs[2][0]
                     sym2 = self.current_symtab.lookup(pname2)
                     asm2 = sym2.asm_name()
                     self.emit(f"\tSTY {asm2}")
 
-    def _emit_call_args(self, callee_name: str, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> None:
+    def _emit_call_args(self, callee_name: str, args: list[Expr | None], specs: list[tuple[str, int, object, SemType]]) -> None:
         """Emit call args.
         Internal helper used during code generation.
         """
@@ -8317,7 +8322,9 @@ class CodeGen:
         if not resolved:
             return
 
-        indices = {i for i, _, _, _ in resolved}
+        indices = {i for i, _, _, _, _ in resolved}
+        struct_indices = {i for i, _, _, sem, _ in resolved if sem.is_struct and not sem.is_pointer}
+        reg_indices = indices - struct_indices
         last_index = max(indices) if indices else -1
 
         reg_case: str | None = None
@@ -8326,26 +8333,27 @@ class CodeGen:
         reg_y_index: int | None = None
         if specs:
             width0 = specs[0][1]
-            if width0 == 2 and 0 in indices:
+            sem0 = specs[0][3]
+            if not (sem0.is_struct and not sem0.is_pointer) and width0 == 2 and 0 in reg_indices:
                 reg_case = "word0"
                 reg_a_index = 0
                 reg_x_index = 0
-                if len(specs) > 1 and specs[1][1] == 1 and 1 in indices:
+                if len(specs) > 1 and specs[1][1] == 1 and 1 in reg_indices and not specs[1][3].is_struct:
                     reg_case = "word0_byte1"
                     reg_y_index = 1
-            elif width0 == 1 and 0 in indices:
+            elif not (sem0.is_struct and not sem0.is_pointer) and width0 == 1 and 0 in reg_indices:
                 reg_case = "byte0"
                 reg_a_index = 0
-                if len(specs) > 1 and specs[1][1] == 1 and 1 in indices:
+                if len(specs) > 1 and specs[1][1] == 1 and 1 in reg_indices and not specs[1][3].is_struct:
                     reg_case = "two_bytes"
                     reg_x_index = 1
-                    if len(specs) > 2 and specs[2][1] == 1 and 2 in indices:
+                    if len(specs) > 2 and specs[2][1] == 1 and 2 in reg_indices and not specs[2][3].is_struct:
                         reg_case = "three_bytes"
                         reg_y_index = 2
 
             # Fast path: only register args (no memory params to store)
-            if reg_case == "word0" and indices == {0}:
-                arg = next(a for i, _, _, a in resolved if i == 0)
+            if reg_case == "word0" and reg_indices == {0}:
+                arg = next(a for i, _, _, _, a in resolved if i == 0)
                 prev_force: bool = self.force_word_result
                 self.force_word_result = True
                 try:
@@ -8353,8 +8361,8 @@ class CodeGen:
                 finally:
                     self.force_word_result = prev_force
                 return
-            if reg_case == "byte0" and indices == {0}:
-                arg = next(a for i, _, _, a in resolved if i == 0)
+            if reg_case == "byte0" and reg_indices == {0}:
+                arg = next(a for i, _, _, _, a in resolved if i == 0)
                 prev_suppress: bool = self.suppress_byte_return_x
                 self.suppress_byte_return_x = True
                 try:
@@ -8404,19 +8412,19 @@ class CodeGen:
             if reg_case == "word0_byte1":
                 if reg_a_index is None or reg_y_index is None:
                     return False
-                arg_a = next((a for i, _, _, a in resolved if i == reg_a_index), None)
-                arg_y = next((a for i, _, _, a in resolved if i == reg_y_index), None)
+                arg_a = next((a for i, _, _, _, a in resolved if i == reg_a_index), None)
+                arg_y = next((a for i, _, _, _, a in resolved if i == reg_y_index), None)
                 if arg_a is None or arg_y is None:
                     return False
                 return _simple_arg(arg_a) and _y_simple_loadable(arg_y)
             if reg_case == "three_bytes":
                 return False
             if reg_case == "word0":
-                for i, _, _, arg in resolved:
+                for i, _, _, _, arg in resolved:
                     if i == reg_a_index and not _simple_arg(arg):
                         return False
             if reg_case in {"byte0", "two_bytes"}:
-                for i, _, _, arg in resolved:
+                for i, _, _, _, arg in resolved:
                     if i == reg_a_index and not _simple_arg(arg):
                         return False
                     if reg_case == "two_bytes" and i == reg_x_index and not _simple_arg(arg):
@@ -8425,8 +8433,90 @@ class CodeGen:
 
         reorder_regs = _can_reorder_regs()
 
-        for index, pname, width, arg in resolved:
+        for index, pname, width, sem_type, arg in resolved:
             asm: str = f"_{callee_name}_{pname}"
+
+            if sem_type.is_struct and not sem_type.is_pointer:
+                struct_info = sem_type.struct_info
+                struct_size = struct_info.size if struct_info is not None else sem_type.width
+                if struct_size <= 0:
+                    self._raise_error(f"Cannot determine size of struct parameter '{pname}'")
+                if struct_size > 255:
+                    self._raise_error(f"Struct parameter '{pname}' is too large ({struct_size} bytes)")
+
+                if isinstance(arg, StructLiteral):
+                    # Flatten nested list initializers into a byte sequence
+                    flattened: list[Expr] = []
+
+                    def flatten_values(val) -> None:
+                        if isinstance(val, ListInit):
+                            for item in val.values:
+                                flatten_values(item)
+                            return
+                        flattened.append(val)
+
+                    for v in arg.values:
+                        flatten_values(v)
+
+                    if len(flattened) != struct_size:
+                        self._raise_error(
+                            f"Struct literal for '{pname}' has {len(flattened)} byte(s), "
+                            f"expected {struct_size}"
+                        )
+
+                    for offset, ex in enumerate(flattened):
+                        prev_suppress = self.suppress_byte_return_x
+                        self.suppress_byte_return_x = True
+                        try:
+                            self.gen_expr(ex)
+                        finally:
+                            self.suppress_byte_return_x = prev_suppress
+                        self.emit(f"\tSTA {asm}+{offset}")
+                    continue
+
+                if isinstance(arg, Identifier):
+                    src_sym: Symbol = self.current_symtab.lookup(arg.name)
+                    if not src_sym.type.is_struct or src_sym.type.is_pointer:
+                        self._raise_error(f"Struct parameter '{pname}' expects a struct value")
+                    if src_sym.type.base.upper() != sem_type.base.upper():
+                        self._raise_error(
+                            f"Struct parameter '{pname}' expects '{sem_type.base}', got '{src_sym.type.base}'"
+                        )
+
+                    # Use COPY_BYTES to copy struct payload into parameter storage
+                    self.copy_bytes_needed = True
+
+                    if src_sym.is_const:
+                        if not src_sym.init or not isinstance(src_sym.init, ListInit):
+                            self._raise_error(f"Const struct '{src_sym.name}' has no initialization")
+                        values = [ex.value for ex in src_sym.init.values if isinstance(ex, IntLiteral)]
+                        data_key = (tuple(values), False)
+                        if data_key not in self.array_literals:
+                            self.array_id += 1
+                            self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
+                        src_label = self.array_literals[data_key]
+                        self.emit(f"\tLDA #<{src_label}")
+                        self.emit("\tSTA TMP0")
+                        self.emit(f"\tLDA #>{src_label}")
+                        self.emit("\tSTA TMP0+1")
+                    else:
+                        src_label = src_sym.asm_name()
+                        self.emit(f"\tLDA #<{src_label}")
+                        self.emit("\tSTA TMP0")
+                        self.emit(f"\tLDA #>{src_label}")
+                        self.emit("\tSTA TMP0+1")
+
+                    self.emit(f"\tLDA #<{asm}")
+                    self.emit("\tSTA TMP2")
+                    self.emit(f"\tLDA #>{asm}")
+                    self.emit("\tSTA TMP2+1")
+                    self.emit(f"\tLDX #${struct_size:02X}")
+                    self.emit("\tLDY #$00")
+                    self.emit("\tJSR COPY_BYTES")
+                    continue
+
+                self._raise_error(f"Struct parameter '{pname}' requires a struct value or literal")
+
 
             if reg_case in {"word0", "word0_byte1"} and index == reg_a_index:
                 if reorder_regs:
@@ -8514,7 +8604,7 @@ class CodeGen:
 
         if reorder_regs:
             if reg_case == "word0" and reg_a_index is not None:
-                arg = next(a for i, _, _, a in resolved if i == reg_a_index)
+                arg = next(a for i, _, _, _, a in resolved if i == reg_a_index)
                 prev_force: bool = self.force_word_result
                 self.force_word_result = True
                 try:
@@ -8522,18 +8612,18 @@ class CodeGen:
                 finally:
                     self.force_word_result = prev_force
             elif reg_case == "word0_byte1" and reg_a_index is not None and reg_y_index is not None:
-                arg_a = next(a for i, _, _, a in resolved if i == reg_a_index)
+                arg_a = next(a for i, _, _, _, a in resolved if i == reg_a_index)
                 prev_force = self.force_word_result
                 self.force_word_result = True
                 try:
                     self.gen_expr(arg_a)
                 finally:
                     self.force_word_result = prev_force
-                arg_y = next(a for i, _, _, a in resolved if i == reg_y_index)
+                arg_y = next(a for i, _, _, _, a in resolved if i == reg_y_index)
                 _emit_load_y_simple(arg_y)
             elif reg_case in {"byte0", "two_bytes"} and reg_a_index is not None:
                 if reg_case == "two_bytes" and reg_x_index is not None:
-                    arg_x = next(a for i, _, _, a in resolved if i == reg_x_index)
+                    arg_x = next(a for i, _, _, _, a in resolved if i == reg_x_index)
                     prev_suppress: bool = self.suppress_byte_return_x
                     self.suppress_byte_return_x = True
                     try:
@@ -8541,7 +8631,7 @@ class CodeGen:
                     finally:
                         self.suppress_byte_return_x = prev_suppress
                     self.emit("\tTAX")
-                arg_a = next(a for i, _, _, a in resolved if i == reg_a_index)
+                arg_a = next(a for i, _, _, _, a in resolved if i == reg_a_index)
                 prev_suppress = self.suppress_byte_return_x
                 self.suppress_byte_return_x = True
                 try:
@@ -8607,7 +8697,7 @@ class CodeGen:
 
         if isinstance(stmt, CallStmt):
             # Pass arguments to callee parameters (simple ABI via memory)
-            specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(stmt.name)
+            specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(stmt.name)
             if specs is not None:
                 self._emit_call_args(stmt.name, stmt.args, specs)
             self.emit(f"\tJSR {self.asm_symbol_name(stmt.name)}")
@@ -8989,7 +9079,7 @@ class CodeGen:
         self.emit(f"{self.asm_symbol_name(func.ast.name)}:")
 
         # Emit parameter name equates for inline assembly references
-        func_specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(func.ast.name)
+        func_specs: list[tuple[str, int, object, SemType]] | None = self.func_param_specs.get(func.ast.name)
         if func_specs:
             self._emit_param_name_equates(func.ast.name, func_specs)
 
@@ -8998,7 +9088,7 @@ class CodeGen:
             self._emit_param_reg_stores(func.ast.name, func_specs)
 
         # Emit local variable equates for inline assembly references (excluding parameters)
-        param_names = {pname for pname, _, _ in func_specs} if func_specs else set()
+        param_names = {pname for pname, _, _, _ in func_specs} if func_specs else set()
         for sym in func.locals:
             self._emit_local_name_equate(func.ast.name, sym, param_names)
 

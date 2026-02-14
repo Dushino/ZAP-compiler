@@ -1390,6 +1390,21 @@ class Parser:
                 break
             return node
 
+        if self.cur.type == TOK_LCURLY:
+            lit_line: int = self.cur.line
+            lit_col: int = self.cur.col
+            self.advance()
+            values = []
+            if self.cur.type != TOK_RCURLY:
+                values.append(self.parse_init_value())
+                while self.cur.type == TOK_DELIM and self.cur.value == ',':
+                    self.advance()
+                    if self.cur.type == TOK_RCURLY:
+                        break
+                    values.append(self.parse_init_value())
+            self.expect(TOK_RCURLY)
+            return StructLiteral(values, line=lit_line, col=lit_col)
+
         if self.cur.type == TOK_LBRACE:
             self.advance()
             node = self.parse_expr()

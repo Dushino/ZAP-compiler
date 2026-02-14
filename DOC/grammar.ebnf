@@ -175,6 +175,7 @@ primary         ::= NUMBER                      (* decimal, $hex (0x..), binary 
                   | IDENT "." IDENT              (* struct field access *)
                   | IDENT "^"                   (* pointer dereference *)
                   | IDENT "^" "." IDENT        (* deref + field access *)
+                  | "{" [ init_list ] "}"        (* struct literal *)
                   | "(" expression ")" ;
 
 expr_list       ::= expression { "," expression } ;

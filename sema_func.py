@@ -188,7 +188,7 @@ class FuncAnalyzer:
             from ast_nodes import (
                 AssignStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt,
                 SwitchStmt, IntLiteral, Identifier, SubscriptExpr, FieldAccess,
-                UnaryExpr, BinaryExpr, DerefExpr, CallExpr, UnOp
+                UnaryExpr, BinaryExpr, DerefExpr, CallExpr, UnOp, StructLiteral, ListInit
             )
             from constsubst import subst_const
             from constfold import fold_expr
@@ -231,6 +231,16 @@ class FuncAnalyzer:
                         for a in node.args:
                             if a is not None:
                                 walk(a)
+                        return
+                    if isinstance(node, StructLiteral):
+                        def walk_init(val) -> None:
+                            if isinstance(val, ListInit):
+                                for item in val.values:
+                                    walk_init(item)
+                                return
+                            walk(val)
+                        for v in node.values:
+                            walk_init(v)
                         return
                 walk(expr)
 

@@ -1759,8 +1759,17 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         for ap in procs:
             params: list[tuple[str, int, object]] = []
             for prm in ap.ast.params:
-                is_word = prm.type.is_pointer or prm.type.base == "WORD"
-                params.append((prm.name, 2 if is_word else 1, prm.default_value))
+                from symbols import SemType
+                base_name: str = prm.type.base.upper()
+                is_struct = struct_registry.is_defined(base_name) if struct_registry else False
+                struct_info = struct_registry.lookup(base_name) if is_struct else None
+                sem_type = SemType(
+                    base=prm.type.base,
+                    is_pointer=prm.type.is_pointer,
+                    is_struct=is_struct,
+                    struct_info=struct_info
+                )
+                params.append((prm.name, sem_type.width, prm.default_value, sem_type))
             specs[ap.ast.name] = params
         return specs
 
@@ -1770,8 +1779,17 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         for af in funcs:
             params: list[tuple[str, int, object]] = []
             for prm in af.ast.params:
-                is_word = prm.type.is_pointer or prm.type.base == "WORD"
-                params.append((prm.name, 2 if is_word else 1, prm.default_value))
+                from symbols import SemType
+                base_name: str = prm.type.base.upper()
+                is_struct = struct_registry.is_defined(base_name) if struct_registry else False
+                struct_info = struct_registry.lookup(base_name) if is_struct else None
+                sem_type = SemType(
+                    base=prm.type.base,
+                    is_pointer=prm.type.is_pointer,
+                    is_struct=is_struct,
+                    struct_info=struct_info
+                )
+                params.append((prm.name, sem_type.width, prm.default_value, sem_type))
             specs[af.ast.name] = params
         return specs
 

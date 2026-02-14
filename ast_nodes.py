@@ -246,6 +246,19 @@ class StringLiteral(Expr):
 
 
 @dataclass(frozen=True)
+class StructLiteral(Expr):
+    """Struct literal expression: { ... }"""
+    values: List["Expr | InitValue"]
+    line: int = 0
+    col: int = 0
+
+    def __repr__(self) -> str:
+        """Return a readable struct-literal representation."""
+        vals = ", ".join(repr(v) for v in self.values)
+        return f"{{{vals}}}"
+
+
+@dataclass(frozen=True)
 class Identifier(Expr):
     """Identifier reference expression."""
     name: str

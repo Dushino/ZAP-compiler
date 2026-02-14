@@ -1233,6 +1233,30 @@ proc main()
     ; a now {11, 20}
 end
 ```
+
+#### Struct Literals as Call Arguments
+
+You can pass a struct literal directly to a PROC or FUNC parameter that expects a struct value. The literal is copied into the parameter storage before the call.
+
+```zap
+struct MyStruct
+    byte a
+    byte b
+    byte c
+end
+
+func byte mytest(MyStruct arg)
+    return arg.a + arg.b + arg.c
+end
+
+proc main()
+    byte result = mytest({ 1, 2, 3 })
+end
+```
+
+Notes:
+- The literal must match the struct size (byte-for-byte).
+- For in-place updates, pass a pointer (`MyStruct ^`) instead.
 ```
 
 ### Recursive Calls
@@ -1519,6 +1543,8 @@ proc use_structs()
 end
 
 Struct parameters are passed by value (copied). See the deep-copy rules in [Parameter Passing](ZAP_LANGUAGE_REFERENCE.md#parameter-passing).
+
+You can also pass a struct literal directly: `distance({ 10, 20 }, { 30, 40 })`.
 ```
 
 ### Struct Function Return
