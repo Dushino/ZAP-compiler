@@ -9,7 +9,7 @@ from codegen_expr import CodeGen
 from dce import dce_block
 from errors import SemanticError
 from collections import deque
-from typing import Optional, Set, Dict, Tuple, List
+from typing import Optional, Set, Dict, Tuple, List, Any
 
 
 def _walk_expr(expr, ctx, global_symtab):
@@ -947,32 +947,37 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
     local_class: dict[str, tuple] = {}
     routine_locals: dict[str, list[str]] = {}
 
+    def _add_local(sym: Symbol, routine_name: str, ids: list[str]) -> None:
+        if not is_eligible(sym):
+            return
+        key = class_for(sym)
+        if key is None:
+            return
+        local_id = f"{routine_name}::{sym.name}"
+        if local_id in local_info:
+            return
+        local_info[local_id] = sym
+        local_class[local_id] = key
+        ids.append(local_id)
+
     for ap in analyzed_procs:
         ids: list[str] = []
         for sym in ap.locals:
-            if not is_eligible(sym):
-                continue
-            key = class_for(sym)
-            if key is None:
-                continue
-            local_id = f"{ap.ast.name}::{sym.name}"
-            local_info[local_id] = sym
-            local_class[local_id] = key
-            ids.append(local_id)
+            _add_local(sym, ap.ast.name, ids)
+        local_tbl: Any | None = getattr(ap.symtab, "local", None)
+        if local_tbl is not None:
+            for sym in list(local_tbl):
+                _add_local(sym, ap.ast.name, ids)
         routine_locals[ap.ast.name] = ids
 
     for af in analyzed_funcs:
-        ids = []
+        ids: list[str] = []
         for sym in af.locals:
-            if not is_eligible(sym):
-                continue
-            key = class_for(sym)
-            if key is None:
-                continue
-            local_id = f"{af.ast.name}::{sym.name}"
-            local_info[local_id] = sym
-            local_class[local_id] = key
-            ids.append(local_id)
+            _add_local(sym, af.ast.name, ids)
+        local_tbl: Any | None = getattr(af.symtab, "local", None)
+        if local_tbl is not None:
+            for sym in list(local_tbl):
+                _add_local(sym, af.ast.name, ids)
         routine_locals[af.ast.name] = ids
 
     if not local_info:
