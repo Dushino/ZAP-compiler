@@ -86,6 +86,7 @@ statement       ::= assignment
                   | call_stmt
                   | if_stmt
                   | while_stmt
+                  | repeat_stmt
                   | for_stmt
                   | break_stmt
                   | continue_stmt
@@ -104,6 +105,8 @@ if_stmt         ::= "if" expression { statement }
                     "end" ;
 
 while_stmt      ::= "while" expression { statement } "end" ;
+
+repeat_stmt     ::= "repeat" { statement } "until" expression ;
 
 for_stmt        ::= "for" IDENT "=" expression "to" expression
                     [ "step" expression ]

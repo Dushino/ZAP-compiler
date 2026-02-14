@@ -469,6 +469,13 @@ class WhileStmt:
 
 
 @dataclass(frozen=True)
+class RepeatUntilStmt:
+    """Repeat-until loop statement node."""
+    body: list
+    cond: Expr
+
+
+@dataclass(frozen=True)
 class BreakStmt:
     """Loop break statement node."""
     pass

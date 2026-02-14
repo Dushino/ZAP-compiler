@@ -877,6 +877,20 @@ proc while_example()
 end
 ```
 
+### repeat-until Loop
+
+`repeat` always runs the body at least once, then evaluates the condition at the end. The loop stops when the condition is true.
+
+```zap
+proc repeat_example()
+    byte count = 0
+
+    repeat
+        count = count + 1
+    until count == 5
+end
+```
+
 ### for Loop
 
 ```zap

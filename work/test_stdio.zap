@@ -43,5 +43,11 @@ proc main()
     end 
 
     PLAYF4 = COLOR_BLUE1  + 2
+    repeat
+        PLAYF4 = COLOR_BLUE1  + 12
+        ch = getchar()
+    until ch != 27
+
+    PLAYF4 = COLOR_BLUE1  + 2
 
 end

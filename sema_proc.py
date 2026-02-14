@@ -250,7 +250,7 @@ class ProcAnalyzer:
 
             def validate_stmt_exprs(statements: list) -> None:
                 """Type-check expressions within a list of statements."""
-                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, Identifier, SubscriptExpr, FieldAccess, IntLiteral
+                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, Identifier, SubscriptExpr, FieldAccess, IntLiteral
                 from constsubst import subst_const
                 from constfold import fold_expr
                 from sema_types import ExprKind
@@ -400,6 +400,23 @@ class ProcAnalyzer:
                                 raise err
                             raise
                         validate_stmt_exprs(st.body)
+                    elif isinstance(st, RepeatUntilStmt):
+                        try:
+                            tc.check(st.cond)
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
+                                err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
+                                raise err
+                            raise
+                        validate_stmt_exprs(st.body)
                     elif isinstance(st, ForStmt):
                         try:
                             tc.check(st.start)
@@ -499,7 +516,7 @@ class ProcAnalyzer:
         # set current_proc so analyze_call can check visibility
         self.current_proc = proc
         def walk(statements: list) -> None:
-            from ast_nodes import CallStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt
+            from ast_nodes import CallStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt
             for st in statements:
                 if isinstance(st, CallStmt):
                     self.analyze_call(st)
@@ -508,6 +525,8 @@ class ProcAnalyzer:
                     if st.else_body:
                         walk(st.else_body)
                 elif isinstance(st, WhileStmt):
+                    walk(st.body)
+                elif isinstance(st, RepeatUntilStmt):
                     walk(st.body)
                 elif isinstance(st, ForStmt):
                     walk(st.body)

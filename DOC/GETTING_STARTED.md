@@ -442,6 +442,20 @@ proc count_to_ten()
 end
 ```
 
+### The repeat-until Loop
+
+Repeat at least once, stopping when the condition becomes true:
+
+```zap
+byte counter = 0
+
+proc count_to_five()
+    repeat
+        counter = counter + 1
+    until counter == 5
+end
+```
+
 **Infinite Loop:**
 ```zap
 proc main_game_loop()
@@ -859,7 +873,7 @@ Create a simple game or utility:
 ✅ **Procedures** execute code  
 ✅ **Functions** return values  
 ✅ **if/then/else** make decisions  
-✅ **while/for** loops repeat code  
+✅ **while/for/repeat-until** loops repeat code  
 ✅ **Arrays** store multiple values  
 
 ### Your First Real Program Template
@@ -912,6 +926,7 @@ const byte NAME = 10   ; Constant
 if x == 5 then ... endif
 while x < 10 ... end
 for i = 0 to 9 ... end
+repeat ... until x == 10
 break
 return [value]
 ```

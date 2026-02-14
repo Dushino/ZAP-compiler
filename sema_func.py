@@ -174,7 +174,7 @@ class FuncAnalyzer:
         # Validate all expressions in all statements
         def validate_stmt_exprs(statements: list) -> None:
             """Type-check all expressions in a list of statements."""
-            from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, IntLiteral
+            from ast_nodes import AssignStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, IntLiteral
             from constsubst import subst_const
             from constfold import fold_expr
             from sema_types import ExprKind
@@ -239,6 +239,9 @@ class FuncAnalyzer:
                     if st.else_body:
                         validate_stmt_exprs(st.else_body)
                 elif isinstance(st, WhileStmt):
+                    validate_expr(st.cond, st)
+                    validate_stmt_exprs(st.body)
+                elif isinstance(st, RepeatUntilStmt):
                     validate_expr(st.cond, st)
                     validate_stmt_exprs(st.body)
                 elif isinstance(st, ForStmt):

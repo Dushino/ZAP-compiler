@@ -1,5 +1,5 @@
 from ast_nodes import (
-    Expr, Expr, IfStmt, WhileStmt, SwitchStmt, SwitchCase, BreakStmt, ContinueStmt,
+    Expr, Expr, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase, BreakStmt, ContinueStmt,
     ReturnStmt
 )
 from ast_nodes import IntLiteral
@@ -69,6 +69,19 @@ def dce_stmt(stmt):
         body = dce_block(stmt.body)
         new_stmt = WhileStmt(cond, body)
         # Preserve source mapping
+        if id(stmt) in _stmt_src_copy:
+            _stmt_src_copy[id(new_stmt)] = _stmt_src_copy[id(stmt)]
+        return new_stmt
+
+    # REPEAT-UNTIL
+    if isinstance(stmt, RepeatUntilStmt):
+        cond: Expr = stmt.cond
+
+        body = dce_block(stmt.body)
+        if isinstance(cond, IntLiteral) and (cond.value & 0xFFFF) != 0:
+            return body
+
+        new_stmt = RepeatUntilStmt(body, cond)
         if id(stmt) in _stmt_src_copy:
             _stmt_src_copy[id(new_stmt)] = _stmt_src_copy[id(stmt)]
         return new_stmt

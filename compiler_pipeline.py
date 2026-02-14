@@ -63,7 +63,7 @@ def _walk_expr(expr, ctx, global_symtab):
 def _walk_stmt(stmt, ctx, global_symtab):
     """Walk a statement tree and record global usage and calls."""
     from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, BreakStmt,
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, BreakStmt,
         ContinueStmt
     )
 
@@ -95,6 +95,12 @@ def _walk_stmt(stmt, ctx, global_symtab):
         _walk_expr(stmt.cond, ctx, global_symtab)
         for s in stmt.body:
             _walk_stmt(s, ctx, global_symtab)
+        return
+
+    if isinstance(stmt, RepeatUntilStmt):
+        for s in stmt.body:
+            _walk_stmt(s, ctx, global_symtab)
+        _walk_expr(stmt.cond, ctx, global_symtab)
         return
 
     if isinstance(stmt, ForStmt):
@@ -335,7 +341,7 @@ def _walk_expr_locals(expr, used: set[str], local_symtab):
 def _walk_stmt_locals(stmt, used: set[str], local_symtab):
     """Walk a statement and collect referenced local symbols."""
     from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, BreakStmt,
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, BreakStmt,
         ContinueStmt
     )
 
@@ -366,6 +372,12 @@ def _walk_stmt_locals(stmt, used: set[str], local_symtab):
         _walk_expr_locals(stmt.cond, used, local_symtab)
         for s in stmt.body:
             _walk_stmt_locals(s, used, local_symtab)
+        return
+
+    if isinstance(stmt, RepeatUntilStmt):
+        for s in stmt.body:
+            _walk_stmt_locals(s, used, local_symtab)
+        _walk_expr_locals(stmt.cond, used, local_symtab)
         return
 
     if isinstance(stmt, ForStmt):
@@ -580,7 +592,7 @@ def _init_call_names(init) -> set[str]:
 def _stmt_call_names(stmt) -> set[str]:
     """Collect function/procedure call names within a statement tree."""
     from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt,
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt,
         SwitchStmt, BreakStmt, ContinueStmt, SwitchCase
     )
 
@@ -614,6 +626,12 @@ def _stmt_call_names(stmt) -> set[str]:
         calls |= _expr_call_names(stmt.cond)
         for s in stmt.body:
             calls |= _stmt_call_names(s)
+        return calls
+
+    if isinstance(stmt, RepeatUntilStmt):
+        for s in stmt.body:
+            calls |= _stmt_call_names(s)
+        calls |= _expr_call_names(stmt.cond)
         return calls
 
     if isinstance(stmt, ForStmt):
@@ -678,7 +696,7 @@ def _liveness_block(
 ) -> set[str]:
     """Compute live-in set for a statement block and build interference graph."""
     from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt,
+        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
         BreakStmt, ContinueStmt, Identifier, AsmBlock
     )
 
@@ -774,6 +792,36 @@ def _liveness_block(
             continue
 
         if isinstance(st, WhileStmt):
+            loop_live_in = set(live)
+            while True:
+                body_in = _liveness_block(
+                    st.body,
+                    loop_live_in,
+                    name_to_id,
+                    valid_callees,
+                    call_live_across,
+                    caller_name,
+                    graph,
+                    class_key,
+                    for_temp_map=for_temp_map,
+                    break_live=live,
+                    continue_live=loop_live_in,
+                )
+                cond_uses = _expr_used_locals(st.cond, name_to_id)
+                new_live_in = cond_uses | body_in
+                if new_live_in == loop_live_in:
+                    break
+                loop_live_in = new_live_in
+            cond_calls = _expr_call_names(st.cond)
+            cond_live_out = body_in | live
+            for callee in cond_calls:
+                if callee in valid_callees:
+                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out)
+            live = loop_live_in
+            _add_interference(live, graph, class_key)
+            continue
+
+        if isinstance(st, RepeatUntilStmt):
             loop_live_in = set(live)
             while True:
                 body_in = _liveness_block(
@@ -1336,7 +1384,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
     - Combined load/store operations
     """
     from symbols import Symbol
-    from ast_nodes import Identifier, WhileStmt, ForStmt
+    from ast_nodes import Identifier, WhileStmt, RepeatUntilStmt, ForStmt
     
     def count_local_accesses(node, symtab: SymbolTable, proc_name: str) -> dict[str, int]:
         """Count loop-weighted frequency for each local scalar.
@@ -1373,10 +1421,10 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
                         pass
                 
                 # Detect loop constructs and increase depth for their bodies
-                if name in ('WhileStmt', 'ForStmt'):
+                if name in ('WhileStmt', 'RepeatUntilStmt', 'ForStmt'):
                     # Visit condition/init at current depth
-                    if name == 'WhileStmt':
-                        condition = getattr(n, 'condition', None)
+                    if name in ('WhileStmt', 'RepeatUntilStmt'):
+                        condition = getattr(n, 'cond', None)
                         if condition:
                             visit(condition, loop_depth)
                         # Visit body with increased depth

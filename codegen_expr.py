@@ -17,7 +17,7 @@ from ast_nodes import (
     UnOp,
     Expr, ExprInit, ListInit, StringInit, CallExpr,
     CallStmt, AssignStmt,
-    IfStmt, ReturnStmt, WhileStmt, ForStmt, SwitchStmt,
+    IfStmt, ReturnStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
     AsmBlock, FieldAccess
 )
 from sema_expr import ExprTypeChecker
@@ -8827,6 +8827,65 @@ class CodeGen:
                 self.gen_stmt(s)
 
             self.emit(f"\tJMP {lbl_start}")
+            self.emit(f"{lbl_end}:")
+
+            # POP
+            self.loop_stack.pop()
+            self.break_stack.pop()
+            return
+
+        if isinstance(stmt, RepeatUntilStmt):
+            lbl_start: str = self.new_label("repeat")
+            lbl_cond: str = self.new_label("repeat_cond")
+            lbl_end: str = self.new_label("endrepeat")
+
+            # PUSH: continue should jump to condition check
+            self.loop_stack.append((lbl_cond, lbl_end))
+            self.break_stack.append(lbl_end)
+
+            self.emit(f"{lbl_start}:")
+            for s in stmt.body:
+                self.gen_stmt(s)
+
+            self.emit(f"{lbl_cond}:")
+            cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
+            cond: Expr = fold_expr(cond)
+
+            if isinstance(cond, IntLiteral):
+                if (cond.value & 0xFFFF) != 0:
+                    self.emit(f"{lbl_end}:")
+                    self.loop_stack.pop()
+                    self.break_stack.pop()
+                    return
+                self.emit(f"\tJMP {lbl_start}")
+                self.emit(f"{lbl_end}:")
+                self.loop_stack.pop()
+                self.break_stack.pop()
+                return
+
+            from ast_nodes import BinaryExpr
+            if isinstance(cond, BinaryExpr) and cond.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                self._emit_relational_branch(cond, lbl_true=lbl_end, lbl_false=lbl_start)
+            else:
+                cond_t: ExprType = self.tc_check(cond)
+                is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
+                prev_suppress: bool = self.suppress_byte_return_x
+                if not is_word_cond:
+                    self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(cond)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                if is_word_cond:
+                    self.used_temps.add("TMP4")
+                    self.emit("\tSTA TMP4")
+                    self.emit("\tTXA")
+                    self.emit("\tORA TMP4")
+                    self.emit(f"\tBEQ {lbl_start}")
+                else:
+                    self.emit(f"\tBEQ {lbl_start}")
+                self.emit(f"\tJMP {lbl_end}")
+
             self.emit(f"{lbl_end}:")
 
             # POP

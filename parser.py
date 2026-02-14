@@ -31,7 +31,8 @@ from ast_nodes import IfStmt
 from ast_nodes import IfStmt
 from ast_nodes import WhileStmt
 from ast_nodes import ForStmt
-from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, ErrorDirective, WarningDirective, InfoDirective, WhileStmt, SwitchStmt, SwitchCase
+from ast_nodes import RepeatUntilStmt
+from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, ErrorDirective, WarningDirective, InfoDirective, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
@@ -1550,13 +1551,34 @@ class Parser:
         return node
 
 
-    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
+    def parse_repeat_until(self) -> RepeatUntilStmt:
+        """Parse a REPEAT ... UNTIL loop statement."""
+        start_line: int = self.cur.line
+        start_col: int = self.cur.col
+        self.expect(TOK_KEYWORD, "REPEAT")
+
+        body = []
+        while not (self.cur.type == TOK_KEYWORD and self.cur.value == "UNTIL"):
+            if self.cur.type == TOK_EOF:
+                self.error("Expected UNTIL to close REPEAT block")
+            body.append(self.parse_stmt())
+
+        self.expect(TOK_KEYWORD, "UNTIL")
+        cond = self.parse_expr()
+
+        node = RepeatUntilStmt(body, cond)
+        line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+        self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
+        return node
+
+
+    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | RepeatUntilStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
         """Parse a single statement or directive inside a procedure/function."""
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")
 
         # blokové terminátory NESMÍ být parsovány jako statement
-        if self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "ENDIF", "ELSE"):
+        if self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "ENDIF", "ELSE", "UNTIL"):
             self.error(f"Unexpected block terminator {self.cur.value}")
 
         if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".ERROR":
@@ -1634,6 +1656,8 @@ class Parser:
                 return self.parse_while()
             if self.cur.value == "FOR":
                 return self.parse_for()
+            if self.cur.value == "REPEAT":
+                return self.parse_repeat_until()
             if self.cur.value == "SWITCH":
                 return self.parse_switch()
             if self.cur.value == "BREAK":
