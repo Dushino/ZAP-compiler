@@ -15,6 +15,9 @@ def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
     if isinstance(expr, Identifier):
         sym: Symbol = symtab.lookup(expr.name)
         if sym.is_const:
+            # Only substitute scalar consts; const arrays/structs keep their address semantics
+            if sym.is_array or sym.type.is_struct:
+                return expr
             assert sym.const_value is not None
             return IntLiteral(sym.const_value)
         return expr

@@ -1289,6 +1289,13 @@ class Parser:
             
             return IntLiteral(first_val, line=num_line, col=num_col)
 
+        if self.cur.type == TOK_STRING:
+            val: str = self.cur.value
+            str_line: int = self.cur.line
+            str_col: int = self.cur.col
+            self.advance()
+            return StringLiteral(val, line=str_line, col=str_col)
+
         if self.cur.type == TOK_IDENT:
             name: str = self.cur.value
             name_line: int = self.cur.line

@@ -66,14 +66,12 @@ byte ^curptr                    #noexport   ; current position in the screen mem
 
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
-    word dlstart @560      ; system storage for DL address
+    word scrstart @88
     word ^vram
     byte ^data
     byte i
-    
-    vram = dlstart + 4
-    data = vram^
 
+    data = scrstart
     for i = 0 to SCREEN_Y_SIZE
         vlstart[i] = data
         data = data + SCREEN_X_SIZE   
@@ -231,3 +229,16 @@ proc putx(byte value)
     putchar(hex_digits[value & $0F])
 end
 
+
+/*
+    puts - print null-terminated string to the screen
+*/
+proc puts(byte ^str)
+    byte ch
+    ch = str^
+    while ch != 0
+        putchar(ch)
+        str = str + 1
+        ch = str^
+    end
+end

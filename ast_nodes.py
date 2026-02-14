@@ -234,6 +234,18 @@ class IntLiteral(Expr):
 
 
 @dataclass(frozen=True)
+class StringLiteral(Expr):
+    """String literal expression (address of null-terminated data)."""
+    value: str
+    line: int = 0
+    col: int = 0
+
+    def __repr__(self) -> str:
+        """Return the literal as a string for debugging."""
+        return f'"{self.value}"'
+
+
+@dataclass(frozen=True)
 class Identifier(Expr):
     """Identifier reference expression."""
     name: str

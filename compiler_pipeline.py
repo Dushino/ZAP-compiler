@@ -15,11 +15,11 @@ from typing import Optional, Set, Dict, Tuple, List, Any
 def _walk_expr(expr, ctx, global_symtab):
     """Walk an expression and record global usage and calls."""
     from ast_nodes import (
-        IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
+        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
     )
 
-    if isinstance(expr, IntLiteral):
+    if isinstance(expr, (IntLiteral, StringLiteral)):
         return
 
     if isinstance(expr, Identifier):
@@ -298,11 +298,11 @@ def _format_assembly(lines: list[str]) -> list[str]:
 def _walk_expr_locals(expr, used: set[str], local_symtab):
     """Walk an expression and collect referenced local symbols."""
     from ast_nodes import (
-        IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
+        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
     )
 
-    if isinstance(expr, IntLiteral):
+    if isinstance(expr, (IntLiteral, StringLiteral)):
         return
 
     if isinstance(expr, Identifier):
@@ -446,7 +446,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
 def _expr_used_locals(expr, name_to_id: dict[str, str]) -> set[str]:
     """Return IDs of locals referenced by an expression."""
     from ast_nodes import (
-        IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
+        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
     )
 
@@ -455,7 +455,7 @@ def _expr_used_locals(expr, name_to_id: dict[str, str]) -> set[str]:
     if expr is None:
         return used
 
-    if isinstance(expr, IntLiteral):
+    if isinstance(expr, (IntLiteral, StringLiteral)):
         return used
 
     if isinstance(expr, Identifier):
@@ -522,7 +522,7 @@ def _init_used_locals(init, name_to_id: dict[str, str]) -> set[str]:
 def _expr_call_names(expr) -> set[str]:
     """Collect function/procedure call names within an expression."""
     from ast_nodes import (
-        IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
+        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
     )
 
@@ -531,7 +531,7 @@ def _expr_call_names(expr) -> set[str]:
     if expr is None:
         return calls
 
-    if isinstance(expr, (IntLiteral, Identifier)):
+    if isinstance(expr, (IntLiteral, StringLiteral, Identifier)):
         return calls
 
     if isinstance(expr, CallExpr):

@@ -21,33 +21,13 @@ end
 proc main()
 
     byte ch
+    byte msg1[] = "1. Hello World! "        ; BSS segment
+    const byte msg2[] = "2. Hello World!"   ; CODE segment
 
     cls()
-    PLAYF2 = COLOR_GREEN3 + 2
-    putchar('H')
-    putchar('i')    
-    putchar('!')
-    putchar(' ')
-    
-    ch = getchar()
-    while ch != 27
-        switch ch
-
-            default
-                putx(ch)
-                putchar(' ')
-                putchar(' ')
-                break
-        end
-        ch = getchar()
-    end 
-
-    PLAYF4 = COLOR_BLUE1  + 2
-    repeat
-        PLAYF4 = COLOR_BLUE1  + 12
-        ch = getchar()
-    until ch != 27
-
-    PLAYF4 = COLOR_BLUE1  + 2
-
+    PLAYF2 = COLOR_GREEN3 + 4
+    puts(msg1)    
+    puts(msg2)
+    puts("3. Hello World!")
+    PLAYF2 = COLOR_GREEN3 + 12
 end

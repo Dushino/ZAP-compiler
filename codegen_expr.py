@@ -18,7 +18,7 @@ from ast_nodes import (
     Expr, ExprInit, ListInit, StringInit, CallExpr,
     CallStmt, AssignStmt,
     IfStmt, ReturnStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
-    AsmBlock, FieldAccess
+    AsmBlock, FieldAccess, StringLiteral
 )
 from sema_expr import ExprTypeChecker
 from sema_proc import AnalyzedProc
@@ -886,6 +886,8 @@ class CodeGen:
                 return check_node(node.expr)
             elif isinstance(node, (Identifier, IntLiteral)):
                 return True
+            elif isinstance(node, StringLiteral):
+                return False
             elif isinstance(node, (SubscriptExpr, FieldAccess, DerefExpr, CallExpr)):
                 # These aren't yet supported in RPN evaluation
                 return False
@@ -3105,9 +3107,10 @@ class CodeGen:
             self.emit("")
 
         # Shared slots for aliased locals (need to be emitted before individual locals)
-        shared_slots: dict[str, int] = {}  # slot_label -> size (in bytes)
+        shared_slots_zp: dict[str, int] = {}   # slot_label -> size (in bytes)
+        shared_slots_bss: dict[str, int] = {}  # slot_label -> size (in bytes)
         
-        # First, collect slots from system temps
+        # First, collect slots from system temps (always ZP)
         for temp_name, slot_label in self.system_temp_slots.items():
             # Determine size based on temp name
             temp_sizes_map = {
@@ -3122,10 +3125,10 @@ class CodeGen:
                 "TMP5": 2,
             }
             temp_size = temp_sizes_map.get(temp_name, 2)
-            if slot_label in shared_slots:
-                shared_slots[slot_label] = max(shared_slots[slot_label], temp_size)
+            if slot_label in shared_slots_zp:
+                shared_slots_zp[slot_label] = max(shared_slots_zp[slot_label], temp_size)
             else:
-                shared_slots[slot_label] = temp_size
+                shared_slots_zp[slot_label] = temp_size
         
         # Then collect slots from procedure/function locals
         for sym in all_vars:
@@ -3148,15 +3151,24 @@ class CodeGen:
                     # Default to 2 bytes (word)
                     sym_size = 2
                 
+                # Decide segment: arrays/structs -> BSS, pointers -> ZP, scalars -> ZP
+                use_bss = False
+                if sym.is_array and not sym.type.is_pointer:
+                    use_bss = True
+                elif sym.type.is_struct:
+                    use_bss = True
+
+                target = shared_slots_bss if use_bss else shared_slots_zp
+
                 # Keep maximum size for this slot
-                if slot_label in shared_slots:
-                    shared_slots[slot_label] = max(shared_slots[slot_label], sym_size)
+                if slot_label in target:
+                    target[slot_label] = max(target[slot_label], sym_size)
                 else:
-                    shared_slots[slot_label] = sym_size
-        
-        if shared_slots:
+                    target[slot_label] = sym_size
+
+        if shared_slots_zp:
             self.emit("\n; Shared slots (for aliased locals)")
-            for slot_label, size in sorted(shared_slots.items()):
+            for slot_label, size in sorted(shared_slots_zp.items()):
                 self.emit(f"{slot_label}:\t.res {size}")
             self.emit("")
 
@@ -3287,9 +3299,14 @@ class CodeGen:
             if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
         ]
         
-        # Switch to BSS for overflow, struct vars, and arrays
-        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars:
+        # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
+        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or shared_slots_bss:
             self.emit("\n.segment \"BSS\"")
+
+            if shared_slots_bss:
+                self.emit("; Shared slots (BSS)")
+                for slot_label, size in sorted(shared_slots_bss.items()):
+                    self.emit(f"{slot_label}:\t.res {size}")
             
             if bss_byte_vars:
                 self.emit("; Byte variables (BSS)")
@@ -3980,6 +3997,17 @@ class CodeGen:
                             not getattr(self.assign_target_type, 'is_pointer', False))
             if not target_is_byte:
                 self.emit("\tLDX #$00")
+
+    def _gen_string_literal(self, expr: StringLiteral) -> None:
+        """Generate string literal address in A/X.
+        Internal helper used during code generation.
+        """
+        content: str = expr.value
+        if content not in self.string_literals:
+            self.string_id += 1
+            self.string_literals[content] = f"__STR_DATA_{self.string_id}"
+        label: str = self.string_literals[content]
+        self._load_sym_addr(label)
 
 
     def _gen_identifier(self, expr: Identifier) -> None:
@@ -6942,6 +6970,8 @@ class CodeGen:
         
         if isinstance(expr, IntLiteral):
             self._gen_literal(expr)
+        elif isinstance(expr, StringLiteral):
+            self._gen_string_literal(expr)
         elif isinstance(expr, Identifier):
             self._gen_identifier(expr)
         elif isinstance(expr, DerefExpr):
@@ -8312,6 +8342,26 @@ class CodeGen:
                     if len(specs) > 2 and specs[2][1] == 1 and 2 in indices:
                         reg_case = "three_bytes"
                         reg_y_index = 2
+
+            # Fast path: only register args (no memory params to store)
+            if reg_case == "word0" and indices == {0}:
+                arg = next(a for i, _, _, a in resolved if i == 0)
+                prev_force: bool = self.force_word_result
+                self.force_word_result = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.force_word_result = prev_force
+                return
+            if reg_case == "byte0" and indices == {0}:
+                arg = next(a for i, _, _, a in resolved if i == 0)
+                prev_suppress: bool = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                return
 
         restore_ops: list[str] = []
 

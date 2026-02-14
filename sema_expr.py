@@ -3,7 +3,7 @@ from typing import Literal
 from symbols import FuncSymbol, SemType, SemType, Symbol, Symbol, StructInfo, Symbol, SymbolLookup, FuncTable
 from sema import SemanticError
 from sema_types import ExprKind, ExprType
-from ast_nodes import Expr, Expr, IntLiteral, Identifier, DerefExpr, CallExpr
+from ast_nodes import Expr, Expr, IntLiteral, StringLiteral, Identifier, DerefExpr, CallExpr
 from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess
 
 
@@ -30,6 +30,10 @@ class ExprTypeChecker:
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
             else:
                 return ExprType(SemType("WORD", False), ExprKind.VALUE)
+
+        if isinstance(expr, StringLiteral):
+            # String literals evaluate to a pointer to constant byte data
+            return ExprType(SemType("BYTE", True), ExprKind.ADDR)
 
         if isinstance(expr, Identifier):
             try:
