@@ -399,7 +399,7 @@ ___CONSTRUCTOR__ATARI_STDIO_I = __LVSLOT_2
 [x] Check ASM symbols name mangling
 
 [x] Disable color rectangle in VS Code editor where #<number> is. 
-[ ] readme.md in ZAP plugin shall point to github docs.
+[x] readme.md in ZAP plugin shall point to github docs.
 
 [x] Not optimized variables:
 ; Word variables
@@ -408,3 +408,5 @@ _MEMCPY_I:	.res 2
 __MEMCPY_FOR_END_3:	.res 2
 
 [x] Test REPEAT, UNTIL
+[x] Basic test for assignment of uninitialized variable
+[ ] Advanced test for assignment of uninitialized variable

@@ -248,12 +248,92 @@ class ProcAnalyzer:
                     line = orig_map[line - 1]
                 return fname, line, col
 
-            def validate_stmt_exprs(statements: list) -> None:
-                """Type-check expressions within a list of statements."""
-                from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, Identifier, SubscriptExpr, FieldAccess, IntLiteral
+            def _is_considered_initialized(sym: "Symbol") -> bool:
+                if sym.is_const:
+                    return True
+                if sym.address is not None:
+                    return True
+                if sym.init is not None:
+                    return True
+                if sym.type.is_struct:
+                    return True
+                return False
+
+            def validate_stmt_exprs(statements: list, initialized: set[str]) -> set[str]:
+                """Type-check expressions within a list of statements and track init state."""
+                from ast_nodes import (
+                    AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt,
+                    ForStmt, SwitchStmt, CallStmt, Identifier, SubscriptExpr,
+                    FieldAccess, IntLiteral, UnaryExpr, BinaryExpr, DerefExpr,
+                    CallExpr, UnOp
+                )
                 from constsubst import subst_const
                 from constfold import fold_expr
                 from sema_types import ExprKind
+
+                def _local_name(sym: "Symbol") -> str:
+                    return sym.name.upper()
+
+                def _check_uninitialized(expr, st) -> None:
+                    """Raise if a local identifier is read before initialization."""
+                    def walk(node) -> None:
+                        if isinstance(node, Identifier):
+                            try:
+                                sym = tc.symtab.lookup(node.name)
+                            except Exception:
+                                return
+                            if sym.proc_name != proc.name:
+                                return
+                            if _is_considered_initialized(sym):
+                                return
+                            if _local_name(sym) not in initialized:
+                                raise SemanticError(f"Use of uninitialized variable '{sym.name}'", node=node)
+                            return
+                        if isinstance(node, UnaryExpr):
+                            if node.op == UnOp.ADDROF:
+                                return
+                            walk(node.expr)
+                            return
+                        if isinstance(node, BinaryExpr):
+                            walk(node.left)
+                            walk(node.right)
+                            return
+                        if isinstance(node, SubscriptExpr):
+                            # Base address is always valid; check index expression only
+                            walk(node.index)
+                            return
+                        if isinstance(node, FieldAccess):
+                            # Address of struct is always valid; only check object for reads
+                            walk(node.object)
+                            return
+                        if isinstance(node, DerefExpr):
+                            walk(node.pointer)
+                            return
+                        if isinstance(node, CallExpr):
+                            for a in node.args:
+                                if a is not None:
+                                    walk(a)
+                            return
+                    walk(expr)
+
+                def _mark_initialized_from_lhs(lhs) -> None:
+                    def base_ident(node):
+                        if isinstance(node, Identifier):
+                            return node.name
+                        if isinstance(node, SubscriptExpr):
+                            return base_ident(node.array)
+                        if isinstance(node, FieldAccess):
+                            return base_ident(node.object)
+                        return None
+                    name = base_ident(lhs)
+                    if name:
+                        try:
+                            sym = tc.symtab.lookup(name)
+                        except Exception:
+                            return
+                        if sym.proc_name == proc.name:
+                            initialized.add(sym.name.upper())
+
                 for st in statements:
                     if isinstance(st, AssignStmt):
                         # LHS write context: disable read checks (check LHS first so missing LHS is reported instead of RHS)
@@ -275,6 +355,7 @@ class ProcAnalyzer:
                         # RHS is read context
                         try:
                             tc.check(st.rhs)
+                            _check_uninitialized(st.rhs, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -347,10 +428,35 @@ class ProcAnalyzer:
                                             err.source_text = "\n".join(orig_src)
                                     raise err
 
+                        _mark_initialized_from_lhs(st.lhs)
+
+                    elif isinstance(st, CallStmt):
+                        # Validate call arguments for uninitialized reads
+                        for a in st.args:
+                            if a is None:
+                                continue
+                            try:
+                                tc.check(a)
+                                _check_uninitialized(a, st)
+                            except SemanticError as e:
+                                info = _map_stmt_info(st)
+                                if info and getattr(e, "filename", None) is None:
+                                    fname, line, col = info
+                                    err_line = getattr(e, "line", None) or line
+                                    err_col = getattr(e, "col", None) or col
+                                    err = SemanticError(e.message, line=err_line, col=err_col)
+                                    err.filename = fname
+                                    orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                    if orig_src:
+                                        err.source_text = "\n".join(orig_src)
+                                    raise err
+                                raise
+
                     elif isinstance(st, ReturnStmt):
                         if st.expr is not None:
                             try:
                                 tc.check(st.expr)
+                                _check_uninitialized(st.expr, st)
                             except SemanticError as e:
                                 info = _map_stmt_info(st)
                                 if info and getattr(e, "filename", None) is None:
@@ -367,6 +473,7 @@ class ProcAnalyzer:
                     elif isinstance(st, IfStmt):
                         try:
                             tc.check(st.cond)
+                            _check_uninitialized(st.cond, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -380,12 +487,16 @@ class ProcAnalyzer:
                                     err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
-                        validate_stmt_exprs(st.then_body)
+                        then_init = validate_stmt_exprs(st.then_body, set(initialized))
                         if st.else_body:
-                            validate_stmt_exprs(st.else_body)
+                            else_init = validate_stmt_exprs(st.else_body, set(initialized))
+                            initialized = then_init & else_init
+                        else:
+                            initialized = set(initialized)
                     elif isinstance(st, WhileStmt):
                         try:
                             tc.check(st.cond)
+                            _check_uninitialized(st.cond, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -399,10 +510,13 @@ class ProcAnalyzer:
                                     err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
-                        validate_stmt_exprs(st.body)
+                        validate_stmt_exprs(st.body, set(initialized))
                     elif isinstance(st, RepeatUntilStmt):
+                        body_init = validate_stmt_exprs(st.body, set(initialized))
+                        initialized = body_init
                         try:
                             tc.check(st.cond)
+                            _check_uninitialized(st.cond, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -416,10 +530,11 @@ class ProcAnalyzer:
                                     err.source_text = "\n".join(orig_src)
                                 raise err
                             raise
-                        validate_stmt_exprs(st.body)
+                        initialized = body_init
                     elif isinstance(st, ForStmt):
                         try:
                             tc.check(st.start)
+                            _check_uninitialized(st.start, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -435,6 +550,7 @@ class ProcAnalyzer:
                             raise
                         try:
                             tc.check(st.end)
+                            _check_uninitialized(st.end, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -451,6 +567,7 @@ class ProcAnalyzer:
                         if st.step is not None:
                             try:
                                 tc.check(st.step)
+                                _check_uninitialized(st.step, st)
                             except SemanticError as e:
                                 info = _map_stmt_info(st)
                                 if info and getattr(e, "filename", None) is None:
@@ -464,10 +581,18 @@ class ProcAnalyzer:
                                         err.source_text = "\n".join(orig_src)
                                     raise err
                                 raise
-                        validate_stmt_exprs(st.body)
+                        # Mark loop variable as initialized before body
+                        try:
+                            loop_sym = tc.symtab.lookup(st.var.name)
+                            if loop_sym.proc_name == proc.name:
+                                initialized.add(_local_name(loop_sym))
+                        except Exception:
+                            pass
+                        validate_stmt_exprs(st.body, set(initialized))
                     elif isinstance(st, SwitchStmt):
                         try:
                             sw_type = tc.check(st.expr)
+                            _check_uninitialized(st.expr, st)
                         except SemanticError as e:
                             info = _map_stmt_info(st)
                             if info and getattr(e, "filename", None) is None:
@@ -482,6 +607,7 @@ class ProcAnalyzer:
 
                         seen_default = False
                         seen_values: set[int] = set()
+                        case_inits: list[set[str]] = []
 
                         for case in st.cases:
                             if case.is_default:
@@ -492,6 +618,7 @@ class ProcAnalyzer:
                             for label in case.labels:
                                 # Validate label expression and ensure it is constant
                                 tc.check(label)
+                                _check_uninitialized(label, st)
                                 folded = fold_expr(subst_const(label, cast(SymbolTable, tc.symtab)))
                                 if not isinstance(folded, IntLiteral):
                                     raise SemanticError("CASE label must be constant", node=label)
@@ -508,9 +635,29 @@ class ProcAnalyzer:
                                     raise SemanticError("Duplicate CASE label", node=label)
                                 seen_values.add(val)
 
-                            validate_stmt_exprs(case.body)
+                            case_inits.append(validate_stmt_exprs(case.body, set(initialized)))
 
-            validate_stmt_exprs(proc.body)
+                        if case_inits:
+                            merged = set(initialized)
+                            for ci in case_inits:
+                                merged &= ci
+                            initialized = merged
+
+                return initialized
+
+            # Build initial initialized set: parameters and locals with init/@/const
+            init_set: set[str] = set()
+            for param in proc.params:
+                init_set.add(param.name.upper())
+            local_tbl = getattr(scoped, "local", None)
+            if local_tbl is not None:
+                for sym in list(local_tbl):
+                    if sym.proc_name != proc.name:
+                        continue
+                    if _is_considered_initialized(sym):
+                        init_set.add(sym.name.upper())
+
+            validate_stmt_exprs(proc.body, init_set)
 
         # validate procedure calls inside the body (must refer to defined procs)
         # set current_proc so analyze_call can check visibility

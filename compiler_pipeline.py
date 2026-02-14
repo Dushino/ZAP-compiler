@@ -1262,7 +1262,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
                 if sym is not None:
                     sym.shared_slot = slot_label
 
-    # Extract system temp slot mappings to return
+    # Extract system temp slot mappings
     system_temp_slots: dict[str, str] = {}
     for temp_id in routine_locals.get("__SYSTEM__", []):
         # temp_id format: "__SYSTEM__::TEMPNAME"
@@ -1270,7 +1270,49 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
         sym = local_info.get(temp_id)
         if sym and sym.shared_slot:
             system_temp_slots[temp_name] = sym.shared_slot
+
+    # Remap BSS slots to avoid conflicts with ZP slots
+    # Collect which slots are used for ZP vs BSS variables
+    zp_slots: set[str] = set()
+    bss_slots: set[str] = set()
     
+    for local_id, sym in local_info.items():
+        if sym and sym.shared_slot:
+            # Decide if this variable goes to BSS or ZP (same logic as in gen_vars)
+            # System temps always go to ZP
+            use_bss = False
+            if "__SYSTEM__" not in local_id:  # Regular locals, not system temps
+                if sym.is_array and not sym.type.is_pointer:
+                    use_bss = True
+                elif sym.type.is_struct:
+                    use_bss = True
+            
+            if use_bss:
+                bss_slots.add(sym.shared_slot)
+            else:
+                zp_slots.add(sym.shared_slot)
+    
+    # If any slot appears in both ZP and BSS, remap BSS variables to __BSSSLOT_N
+    conflicting_slots = zp_slots & bss_slots
+    if conflicting_slots:
+        bss_slot_remap: dict[str, str] = {}
+        for slot_label in sorted(conflicting_slots):
+            new_label = slot_label.replace("__LVSLOT_", "__BSSSLOT_")
+            bss_slot_remap[slot_label] = new_label
+        
+        # Update all BSS variables to use the new slot names
+        for local_id, sym in local_info.items():
+            if sym and sym.shared_slot and sym.shared_slot in bss_slot_remap:
+                # System temps always stay in ZP, don't remap them
+                use_bss = False
+                if "__SYSTEM__" not in local_id:  # Regular locals, not system temps
+                    if sym.is_array and not sym.type.is_pointer:
+                        use_bss = True
+                    elif sym.type.is_struct:
+                        use_bss = True
+                if use_bss:
+                    sym.shared_slot = bss_slot_remap[sym.shared_slot]
+
     return system_temp_slots
 
 

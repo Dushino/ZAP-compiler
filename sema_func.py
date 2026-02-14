@@ -172,16 +172,91 @@ class FuncAnalyzer:
                 raise
 
         # Validate all expressions in all statements
-        def validate_stmt_exprs(statements: list) -> None:
-            """Type-check all expressions in a list of statements."""
-            from ast_nodes import AssignStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, IntLiteral
+        def _is_considered_initialized(sym: "Symbol") -> bool:
+            if sym.is_const:
+                return True
+            if sym.address is not None:
+                return True
+            if sym.init is not None:
+                return True
+            if sym.type.is_struct:
+                return True
+            return False
+
+        def validate_stmt_exprs(statements: list, initialized: set[str]) -> set[str]:
+            """Type-check all expressions in a list of statements and track init state."""
+            from ast_nodes import (
+                AssignStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt,
+                SwitchStmt, IntLiteral, Identifier, SubscriptExpr, FieldAccess,
+                UnaryExpr, BinaryExpr, DerefExpr, CallExpr, UnOp
+            )
             from constsubst import subst_const
             from constfold import fold_expr
             from sema_types import ExprKind
+
+            def _check_uninitialized(expr, st) -> None:
+                """Raise if a local identifier is read before initialization."""
+                def walk(node) -> None:
+                    if isinstance(node, Identifier):
+                        try:
+                            sym = self.expr_tc.symtab.lookup(node.name)
+                        except Exception:
+                            return
+                        if sym.proc_name != func.name:
+                            return
+                        if _is_considered_initialized(sym):
+                            return
+                        if sym.name.upper() not in initialized:
+                            raise SemanticError(f"Use of uninitialized variable '{sym.name}'", node=node)
+                        return
+                    if isinstance(node, UnaryExpr):
+                        if node.op == UnOp.ADDROF:
+                            return
+                        walk(node.expr)
+                        return
+                    if isinstance(node, BinaryExpr):
+                        walk(node.left)
+                        walk(node.right)
+                        return
+                    if isinstance(node, SubscriptExpr):
+                        walk(node.index)
+                        return
+                    if isinstance(node, FieldAccess):
+                        walk(node.object)
+                        return
+                    if isinstance(node, DerefExpr):
+                        walk(node.pointer)
+                        return
+                    if isinstance(node, CallExpr):
+                        for a in node.args:
+                            if a is not None:
+                                walk(a)
+                        return
+                walk(expr)
+
+            def _mark_initialized_from_lhs(lhs) -> None:
+                def base_ident(node):
+                    if isinstance(node, Identifier):
+                        return node.name
+                    if isinstance(node, SubscriptExpr):
+                        return base_ident(node.array)
+                    if isinstance(node, FieldAccess):
+                        return base_ident(node.object)
+                    return None
+                name = base_ident(lhs)
+                if name:
+                    try:
+                        sym = self.expr_tc.symtab.lookup(name)
+                    except Exception:
+                        return
+                    if sym.proc_name == func.name:
+                        initialized.add(sym.name.upper())
+
             for st in statements:
                 if isinstance(st, AssignStmt):
                     # Validate RHS (reads are checked)
                     validate_expr(st.rhs, st)
+                    _check_uninitialized(st.rhs, st)
                     # Validate LHS but disable read-checking (this is a write context)
                     validate_expr(st.lhs, st, read_check_enabled=False)
 
@@ -233,30 +308,52 @@ class FuncAnalyzer:
                         except KeyError:
                             pass
 
+                    _mark_initialized_from_lhs(st.lhs)
+
                 elif isinstance(st, IfStmt):
                     validate_expr(st.cond, st)
-                    validate_stmt_exprs(st.then_body)
+                    _check_uninitialized(st.cond, st)
+                    then_init = validate_stmt_exprs(st.then_body, set(initialized))
                     if st.else_body:
-                        validate_stmt_exprs(st.else_body)
+                        else_init = validate_stmt_exprs(st.else_body, set(initialized))
+                        initialized = then_init & else_init
+                    else:
+                        initialized = set(initialized)
                 elif isinstance(st, WhileStmt):
                     validate_expr(st.cond, st)
-                    validate_stmt_exprs(st.body)
+                    _check_uninitialized(st.cond, st)
+                    validate_stmt_exprs(st.body, set(initialized))
                 elif isinstance(st, RepeatUntilStmt):
+                    body_init = validate_stmt_exprs(st.body, set(initialized))
+                    initialized = body_init
                     validate_expr(st.cond, st)
-                    validate_stmt_exprs(st.body)
+                    _check_uninitialized(st.cond, st)
+                    initialized = body_init
                 elif isinstance(st, ForStmt):
                     validate_expr(st.start, st)
+                    _check_uninitialized(st.start, st)
                     validate_expr(st.end, st)
+                    _check_uninitialized(st.end, st)
                     if st.step is not None:
                         validate_expr(st.step, st)
-                    validate_stmt_exprs(st.body)
+                        _check_uninitialized(st.step, st)
+                    # Mark loop variable as initialized before body
+                    try:
+                        loop_sym = self.expr_tc.symtab.lookup(st.var.name)
+                        if loop_sym.proc_name == func.name:
+                            initialized.add(loop_sym.name.upper())
+                    except Exception:
+                        pass
+                    validate_stmt_exprs(st.body, set(initialized))
                 elif isinstance(st, SwitchStmt):
                     sw_type = validate_expr(st.expr, st)
+                    _check_uninitialized(st.expr, st)
                     if sw_type.kind != ExprKind.VALUE:
                         raise SemanticError("SWITCH expression must be a value", node=st.expr)
 
                     seen_default = False
                     seen_values: set[int] = set()
+                    case_inits: list[set[str]] = []
 
                     for case in st.cases:
                         if case.is_default:
@@ -266,6 +363,7 @@ class FuncAnalyzer:
 
                         for label in case.labels:
                             validate_expr(label, st)
+                            _check_uninitialized(label, st)
                             folded = fold_expr(subst_const(label, cast(SymbolTable, self.expr_tc.symtab)))
                             if not isinstance(folded, IntLiteral):
                                 raise SemanticError("CASE label must be constant", node=label)
@@ -282,9 +380,29 @@ class FuncAnalyzer:
                                 raise SemanticError("Duplicate CASE label", node=label)
                             seen_values.add(val)
 
-                        validate_stmt_exprs(case.body)
+                        case_inits.append(validate_stmt_exprs(case.body, set(initialized)))
 
-        validate_stmt_exprs(func.body)
+                    if case_inits:
+                        merged = set(initialized)
+                        for ci in case_inits:
+                            merged &= ci
+                        initialized = merged
+
+            return initialized
+
+        # Build initial initialized set: parameters and locals with init/@/const
+        init_set: set[str] = set()
+        for param in func.params:
+            init_set.add(param.name.upper())
+        local_tbl = getattr(scoped, "local", None)
+        if local_tbl is not None:
+            for sym in list(local_tbl):
+                if sym.proc_name != func.name:
+                    continue
+                if _is_considered_initialized(sym):
+                    init_set.add(sym.name.upper())
+
+        validate_stmt_exprs(func.body, init_set)
 
         has_return = False
         from constfold import fold_expr
