@@ -409,4 +409,4 @@ __MEMCPY_FOR_END_3:	.res 2
 
 [x] Test REPEAT, UNTIL
 [x] Basic test for assignment of uninitialized variable
-[ ] Advanced test for assignment of uninitialized variable
+[ ] Allow direct call with const struct like ch = myfn({0, 3, 6})

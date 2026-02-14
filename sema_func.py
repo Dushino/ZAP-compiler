@@ -204,6 +204,8 @@ class FuncAnalyzer:
                             return
                         if sym.proc_name != func.name:
                             return
+                        if sym.is_array:
+                            return
                         if _is_considered_initialized(sym):
                             return
                         if sym.name.upper() not in initialized:

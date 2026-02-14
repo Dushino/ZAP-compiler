@@ -284,6 +284,8 @@ class ProcAnalyzer:
                                 return
                             if sym.proc_name != proc.name:
                                 return
+                            if sym.is_array:
+                                return
                             if _is_considered_initialized(sym):
                                 return
                             if _local_name(sym) not in initialized:

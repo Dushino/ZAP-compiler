@@ -117,7 +117,7 @@ end
 
 
 /*
-    Copy memory from source to destination
+    Copy memory from source to destination    
 */
 proc memcpy(word dest, word src, word count)
     word i
@@ -165,6 +165,16 @@ func byte getchar()
     return ch
 end
 
+/*
+    putx - print HEX BYTE value as two characters
+*/
+proc putx(byte value)
+    const byte hex_digits[] = "0123456789ABCDEF"
+    putchar(hex_digits[value >> 4])
+    putchar(hex_digits[value & $0F])
+end
+
+
 
 /*
     crlf - move cursor to the beginning of the next line, scroll screen if needed
@@ -188,6 +198,17 @@ end
 */
 proc putchar(byte ch)
 
+    switch ch
+        case 10
+            PLAYF2 = 0 + 4
+            crlf()
+            return
+            break
+
+        default
+            break
+    end
+
     ; convert ATASCII to screen code, handle inverse bit
     asm
                     lda _PUTCHAR_CH
@@ -201,6 +222,7 @@ putchar_codeok:     lsr a               ; undo the shift
 putchar_sputc:
                     sta _PUTCHAR_CH
     end
+
 
     curptr^ = ch
     curptr = curptr + 1
@@ -220,16 +242,6 @@ end
 
 
 /*
-    putx - print HEX BYTE value as two characters
-*/
-proc putx(byte value)
-    const byte hex_digits[] = "0123456789ABCDEF"
-    putchar(hex_digits[value >> 4])
-    putchar(hex_digits[value & $0F])
-end
-
-
-/*
     puts - print null-terminated string to the screen
 */
 proc puts(byte ^str)
@@ -240,4 +252,24 @@ proc puts(byte ^str)
         str = str + 1
         ch = str^
     end
+end
+
+/*
+    gets - read characters from keyboard until newline, store them in buffer as null-terminated string
+*/
+func byte gets(byte ^buffer, byte max_len)
+    byte ch
+    byte count = 0
+
+    ch = getchar()
+    while ch != 155 && count < max_len - 1
+        putchar(ch)   ; echo the character back to the screen
+        buffer^ = ch
+        buffer = buffer + 1
+        count = count + 1
+        ch = getchar()
+    end
+    buffer^ = 0   ; null-terminate the string
+
+    return count
 end
