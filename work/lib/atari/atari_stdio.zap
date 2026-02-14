@@ -199,7 +199,7 @@ end
 proc putchar(byte ch)
 
     switch ch
-        case 10     ; newline
+        case 10:    ; newline
             crlf()
             return
 

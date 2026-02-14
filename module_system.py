@@ -189,8 +189,8 @@ class ModuleSystem:
         # Parse the cleaned source
         cleaned_source: str = '\n'.join(cleaned_lines)
         
-        parser = Parser(cleaned_source, filename=filepath)
         try:
+            parser = Parser(cleaned_source, filename=filepath)
             program: Program = parser.parse_program()
         except Exception as e:
             # If parsing failed, prefer to report the location in the original file
