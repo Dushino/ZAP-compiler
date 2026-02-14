@@ -65,8 +65,8 @@ function activate(context) {
                 let currentStart = null;
                 let inBlockComment = false;
 
-                const startRegex = /^(proc|func|if|else|elseif|switch|while|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/;
-                const endRegex = /^(return|end|else|\.endif|\.else)\b/;
+                const startRegex = /^(proc|func|if|else|elseif|switch|while|for|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/;
+                const endRegex = /^(return|end|else|elseif|\.endif|\.else)\b/;
 
                 for (let line = 0; line < document.lineCount; line++) {
                     let text = document.lineAt(line).text;
