@@ -603,6 +603,8 @@ proc main()
 end
 ```
 
+**Deep copy note:** Parameters are passed by value. Scalars are copied, structs are copied byte-for-byte, and pointers copy only the address (not the data). To modify caller data, pass a pointer.
+
 ### Functions (Return Values)
 
 ```zap

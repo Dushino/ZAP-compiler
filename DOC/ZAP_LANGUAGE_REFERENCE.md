@@ -1199,6 +1199,40 @@ proc main()
     modify(value)
     ; value still 42 - not affected by modify
 end
+
+#### Deep Copy Semantics
+
+ZAP passes parameters **by value**. This means the callee receives its **own copy** of the argument.
+
+- **Scalars (byte/word)**: copied by value.
+- **Structs**: the entire struct is copied (byte-for-byte). Changes inside the callee do not affect the caller.
+- **Pointers**: the pointer value (address) is copied, **not** the data it points to. Dereferencing the pointer can modify the original data.
+- **Arrays/strings**: there is no automatic deep copy. To work on array data, pass a pointer (and size if needed).
+
+Example: struct copy vs pointer access
+
+```zap
+struct Point
+    byte x
+    byte y
+end
+
+proc move_local(Point p)
+    p.x = p.x + 1      ; Modifies local copy only
+end
+
+proc move_in_place(Point ^p)
+    p^.x = p^.x + 1    ; Modifies caller's struct via pointer
+end
+
+proc main()
+    Point a = { 10, 20 }
+    move_local(a)
+    ; a still {10, 20}
+    move_in_place(@a)
+    ; a now {11, 20}
+end
+```
 ```
 
 ### Recursive Calls
@@ -1483,6 +1517,8 @@ proc use_structs()
     
     byte dist = distance(a, b)
 end
+
+Struct parameters are passed by value (copied). See the deep-copy rules in [Parameter Passing](ZAP_LANGUAGE_REFERENCE.md#parameter-passing).
 ```
 
 ### Struct Function Return
