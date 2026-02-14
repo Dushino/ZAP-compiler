@@ -46,6 +46,14 @@
                 }
             }
         ],
+        "configurationDefaults": {
+            "[zap]": {
+                "editor.colorDecorators": false
+            },
+            "[asm]": {
+                "editor.colorDecorators": false
+            }
+        },
         "grammars": [
             {
                 "language": "zap",

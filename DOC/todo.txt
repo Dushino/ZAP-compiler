@@ -394,11 +394,11 @@ ___CONSTRUCTOR__ATARI_STDIO_I = __LVSLOT_2
 
 [ ] Start Ctrl-Shift Build ZAP code on .zap extensions only
 
-[ ] Document sources *.py and *.zap
+[x] Document sources *.py and *.zap
 
 [x] Check ASM symbols name mangling
 
-[ ] Disable color rectangle in VS Code editor where #<number> is. 
+[x] Disable color rectangle in VS Code editor where #<number> is. 
 [ ] readme.md in ZAP plugin shall point to github docs.
 
 [x] Not optimized variables:
@@ -407,4 +407,4 @@ __MEMSET_FOR_END_2:	.res 2
 _MEMCPY_I:	.res 2
 __MEMCPY_FOR_END_3:	.res 2
 
-[ ] Test REPEAT, UNTIL
+[x] Test REPEAT, UNTIL
