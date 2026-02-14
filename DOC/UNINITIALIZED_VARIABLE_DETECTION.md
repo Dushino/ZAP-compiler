@@ -15,6 +15,17 @@ The ZAP! compiler performs **definite-assignment analysis** to detect when local
 
 The compiler tracks the initialization state of all local variables (including procedure and function parameters) and reports an error if a variable is read before it has been assigned a value.
 
+**Reads that are checked** include:
+- Variable use in expressions, returns, and conditions
+- Index expressions (e.g., `arr[i]`, where `i` must be initialized)
+- Pointer dereference expressions (the pointer variable must be initialized)
+- Any arithmetic or logical use on the right-hand side
+
+**Scope of analysis**:
+- This analysis applies to **local variables** in procedures and functions
+- Parameters are treated as initialized at entry
+- Globals are not tracked with definite-assignment; they follow normal declaration and initialization rules
+
 ### Example
 
 ```zap
@@ -162,6 +173,26 @@ proc test(byte n)
     
     result = x         ; OK: x initialized in all cases
 end
+
+### Nested Control Flow
+
+Initialization tracking works across nested conditionals and loops. A variable is considered initialized after a nested block only if **all possible paths** within that block assign it.
+
+```zap
+proc test(byte a, byte b)
+    byte x
+    
+    if a
+        if b
+            x = 1
+        else
+            x = 2
+        end
+    end
+    
+    result = x         ; ERROR: outer if might skip initialization entirely
+end
+```
 ```
 
 ---
@@ -208,6 +239,8 @@ end
 ```
 
 The array `arr` itself doesn't trigger an error because we're computing its address, not reading its value. But the index `i` must be initialized.
+
+Field access on structs is treated similarly: the base struct variable is considered initialized (see below), while any index or expression inside the access is fully checked.
 
 ### Const Variables
 
@@ -262,6 +295,18 @@ Procedure and function parameters are always considered initialized (they receiv
 proc test(byte x)
     result = x         ; OK: parameters are always initialized
 end
+
+---
+
+## What Is Not Detected (Current Limitations)
+
+The current analysis is intentionally simple and does **not** attempt to prove every safe case. It errs on the side of caution and may report false positives in these scenarios:
+
+- **Inter-procedural initialization**: If a procedure initializes a variable via pointer, the caller will still see it as uninitialized unless it was already initialized.
+- **Pointer aliasing**: The compiler does not track that `ptr^ = 42` initializes the pointed-to variable.
+- **Partial struct initialization**: The analysis does not track per-field initialization.
+- **Conditional pointer writes**: Pointer-based assignments are not recognized as definite initialization.
+- **Globals**: Local definite-assignment tracking does not extend to globals.
 ```
 
 ---
