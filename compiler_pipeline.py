@@ -790,13 +790,34 @@ def _liveness_block(
             loop_uses |= _expr_used_locals(st.end, name_to_id)
             if st.step is not None:
                 loop_uses |= _expr_used_locals(st.step, name_to_id)
+            
+            # Model implicit assignment: for_end_temp = end_expr
+            # This allows for_end_temp to share slots with end_expr locals after they're consumed
+            for_end_defs: set[str] = set()
             if for_temp_map is not None:
                 temp_names = for_temp_map.get(id(st))
                 if temp_names:
                     for temp_name in temp_names:
-                        key = temp_name.upper() if isinstance(temp_name, str) else temp_name
-                        if key in name_to_id:
-                            loop_uses.add(name_to_id[key])
+                        # FOR_END_* temps are implicitly assigned from end expression
+                        if "END" in temp_name.upper():
+                            key = temp_name.upper() if isinstance(temp_name, str) else temp_name
+                            if key in name_to_id:
+                                for_end_defs.add(name_to_id[key])
+                        else:
+                            # FOR_STEP_* temps are used in loop body
+                            key = temp_name.upper() if isinstance(temp_name, str) else temp_name
+                            if key in name_to_id:
+                                loop_uses.add(name_to_id[key])
+            
+            # Add edges from for_end_temp defs to live-out before assignment
+            end_uses = _expr_used_locals(st.end, name_to_id)
+            for d in for_end_defs:
+                for l in live:
+                    _add_edge(d, l, graph, class_key)
+            # The for_end_temp is defined, but end_expr locals are used (don't remove them)
+            # They may still be needed if referenced in loop body
+            loop_uses = loop_uses | for_end_defs
+            
             # Be conservative: treat loop var as used by control logic
             key = st.var.name.upper() if isinstance(st.var.name, str) else st.var.name
             if key in name_to_id:
@@ -912,7 +933,11 @@ def _liveness_inits(
     return live
 
 
-def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int, set[str]] | None = None) -> None:
+def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int, set[str]] | None = None) -> dict[str, str]:
+    """
+    Perform liveness-based variable slot sharing.
+    Returns a dict mapping system temp names to their assigned shared slots.
+    """
     from symbols import Symbol
 
     def is_eligible(sym: Symbol) -> bool:
@@ -993,8 +1018,47 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
                 _add_local(sym, af.ast.name, ids)
         routine_locals[af.ast.name] = ids
 
+    # Add system temporaries as shareable "locals"
+    # These are compiler-generated temps used during expression evaluation
+    from symbols import Symbol, SemType
+    system_temps: list[tuple[str, int]] = [
+        ("MATH_STACK", 8),
+        ("MATH0", 4),
+        ("MATH1", 2),
+        ("TMP0", 2),
+        ("TMP2", 2),
+        ("TMP3", 2),
+        ("TMP4", 2),
+    ]
+    
+    system_ids: list[str] = []
+    for temp_name, temp_size in system_temps:
+        # Create a symbol for the system temp
+        # Treat it as a byte array to get the correct size
+        temp_sym = Symbol(
+            name=temp_name,
+            type=SemType(base="BYTE", is_pointer=False),
+            is_const=False,
+            const_value=None,
+            is_array=True,
+            array_len=temp_size,
+            array_dims=[temp_size],
+            init=None,
+            address=None,
+            is_volatile=False,
+            proc_name="__SYSTEM__",
+            is_generated=True,
+        )
+        temp_id = f"__SYSTEM__::{temp_name}"
+        temp_key = ("array", temp_size)  # Treat as byte array with specific size
+        local_info[temp_id] = temp_sym
+        local_class[temp_id] = temp_key
+        system_ids.append(temp_id)
+    
+    routine_locals["__SYSTEM__"] = system_ids
+
     if not local_info:
-        return
+        return {}
 
     # Liveness + interference
     graph: dict[str, set[str]] = {}
@@ -1063,6 +1127,37 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
             for callee_id in callee_ids:
                 _add_edge(caller_id, callee_id, graph, local_class)
 
+    # Parameter-to-parameter interference: all parameters of a function/procedure are simultaneously
+    # live at function entry and must not share slots
+    for ap in analyzed_procs:
+        param_ids: list[str] = []
+        for param in ap.ast.params:
+            param_id = f"{ap.ast.name}::{param.name}"
+            if param_id in local_info:
+                param_ids.append(param_id)
+        # Add mutual interference between all parameters
+        for i, p1 in enumerate(param_ids):
+            for p2 in param_ids[i + 1:]:
+                _add_edge(p1, p2, graph, local_class)
+
+    for af in analyzed_funcs:
+        param_ids: list[str] = []
+        for param in af.ast.params:
+            param_id = f"{af.ast.name}::{param.name}"
+            if param_id in local_info:
+                param_ids.append(param_id)
+        # Add mutual interference between all parameters
+        for i, p1 in enumerate(param_ids):
+            for p2 in param_ids[i + 1:]:
+                _add_edge(p1, p2, graph, local_class)
+
+    # System temps MUST have mutual interference because they can be used
+    # simultaneously during expression evaluation (e.g., __ARRCPY uses __TMP0, __TMP2, __TMP3 together)
+    system_ids = routine_locals.get("__SYSTEM__", [])
+    for i, t1 in enumerate(system_ids):
+        for t2 in system_ids[i + 1:]:
+            _add_edge(t1, t2, graph, local_class)
+
     # Color per class
     by_class: dict[tuple, list[str]] = {}
     for local_id, key in local_class.items():
@@ -1086,14 +1181,25 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
             color_groups.setdefault(color, []).append(local_id)
 
         for _, group in sorted(color_groups.items()):
-            if len(group) <= 1:
-                continue
+            # Assign shared slot to ALL locals in this color (even single-variable groups)
+            # This provides consistent naming and better readability
             slot_counter += 1
             slot_label = f"__LVSLOT_{slot_counter}"
             for local_id in group:
                 sym = local_info.get(local_id)
                 if sym is not None:
                     sym.shared_slot = slot_label
+
+    # Extract system temp slot mappings to return
+    system_temp_slots: dict[str, str] = {}
+    for temp_id in routine_locals.get("__SYSTEM__", []):
+        # temp_id format: "__SYSTEM__::TEMPNAME"
+        temp_name = temp_id.split("::", 1)[1]
+        sym = local_info.get(temp_id)
+        if sym and sym.shared_slot:
+            system_temp_slots[temp_name] = sym.shared_slot
+    
+    return system_temp_slots
 
 
 def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry) -> dict[int, set[str]]:
@@ -1559,6 +1665,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         func_param_specs=func_param_specs,
         pruned_procs=removed_procs,
         struct_registry=struct_registry,
+        system_temp_slots={},  # Will be updated after liveness analysis
     )
     # Recompute exports to reflect pruned (removed) procs/funcs and globals
     original_exports = set(getattr(program, 'exports', set()) or set())
@@ -1655,7 +1762,10 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     for_temp_map = _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry)
 
     # Liveness-based local sharing (after DCE updates)
-    share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map=for_temp_map)
+    system_temp_slots = share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map=for_temp_map)
+    
+    # Update CodeGen with system temp slot assignments
+    cg.system_temp_slots = system_temp_slots
     
     # ZP prioritization (analyze frequency for optimal ZP allocation)
     prioritize_locals_to_zp(analyzed_procs, analyzed_funcs)

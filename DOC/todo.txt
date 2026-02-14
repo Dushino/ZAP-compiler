@@ -401,7 +401,7 @@ ___CONSTRUCTOR__ATARI_STDIO_I = __LVSLOT_2
 [ ] Disable color rectangle in VS Code editor where #<number> is. 
 [ ] readme.md in ZAP plugin shall point to github docs.
 
-[ ] Not optimized variables:
+[x] Not optimized variables:
 ; Word variables
 __MEMSET_FOR_END_2:	.res 2
 _MEMCPY_I:	.res 2

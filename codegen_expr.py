@@ -32,7 +32,7 @@ class CodeGen:
     loop_stack = []
     internal_label_prefix = "__ZAP_"
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None) -> None:
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
         # global symbol table (globals)
         self.global_symtab: SymbolTable = symtab
         # currently active table (can be scoped for PROC/FUNC)
@@ -53,6 +53,7 @@ class CodeGen:
         self.used_temps: set[str] = set()
         self.command_line: str | None = command_line
         self.math_stack_depth: int = 0
+        self.system_temp_slots: dict[str, str] = system_temp_slots or {}  # Maps temp name to shared slot
         
         # RPN Code Generation (Phase 1+)
         self.rpn_enabled: bool = True  # [PHASE 4 VALIDATED] RPN enabled by default - 20-25% code size savings
@@ -2835,15 +2836,31 @@ class CodeGen:
         temps_in_use: set[str] = self._detect_temp_usage(code)
 
         self.emit(".segment \"ZEROPAGE\"")
-        self.emit("; System variables")
-        self.emit("MATH_STACK:\t.res 8")
-        self.emit("MATH0:\t.res 4")
-        self.emit("MATH1:\t.res 2")
+        self.emit("\n; System variables")
+        
+        # Emit system temps: use shared slots if assigned, otherwise dedicated slots
+        sys_temp_names = [("MATH_STACK", 8), ("MATH0", 4), ("MATH1", 2)]
+        for temp_name, temp_size in sys_temp_names:
+            internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if temp_name in self.system_temp_slots:
+                # This temp uses a shared slot - emit as alias
+                slot_name = self.system_temp_slots[temp_name]
+                self.emit(f"{internal_name} = {slot_name}")
+            else:
+                # No shared slot - emit dedicated allocation
+                self.emit(f"{internal_name}:\t.res {temp_size}")
+        
         for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
             name = self._internal_name_map.get(raw_name, raw_name)
             if name in temps_in_use:
-                size: int = temp_sizes[name]
-                self.emit(f"{name}:\t.res {size}")
+                if raw_name in self.system_temp_slots:
+                    # This temp uses a shared slot - emit as alias
+                    slot_name = self.system_temp_slots[raw_name]
+                    self.emit(f"{name} = {slot_name}")
+                else:
+                    # No shared slot - emit dedicated allocation
+                    size: int = temp_sizes[name]
+                    self.emit(f"{name}:\t.res {size}")
         self.emit("")
 
         # Collect all variables (globals + locals from procs and funcs)
@@ -2868,7 +2885,7 @@ class CodeGen:
 
         fixed: list[Symbol] = [s for s in all_vars if getattr(s, "address", None) is not None]
         if fixed:
-            self.emit("; Fixed-address variables")
+            self.emit("\n; Fixed-address variables")
             for sym in fixed:
                 self.emit(f"{sym.asm_name()} = ${sym.address:04X}")
                 # Track fixed-address labels to prevent peephole optimization
@@ -2884,7 +2901,7 @@ class CodeGen:
             if s.is_const and not s.is_array and not s.type.is_struct and getattr(s, 'address', None) is None
         ]
         if const_scalars:
-            self.emit("; Constants")
+            self.emit("\n; Constants")
             for sym in const_scalars:
                 if sym.const_value is None:
                     # should not happen for scalar const
@@ -2897,27 +2914,56 @@ class CodeGen:
 
         # Shared slots for aliased locals (need to be emitted before individual locals)
         shared_slots: dict[str, int] = {}  # slot_label -> size (in bytes)
+        
+        # First, collect slots from system temps
+        for temp_name, slot_label in self.system_temp_slots.items():
+            # Determine size based on temp name
+            temp_sizes_map = {
+                "MATH_STACK": 8,
+                "MATH0": 4,
+                "MATH1": 2,
+                "TMP0": 2,
+                "TMP1": 2,
+                "TMP2": 2,
+                "TMP3": 2,
+                "TMP4": 2,
+                "TMP5": 2,
+            }
+            temp_size = temp_sizes_map.get(temp_name, 2)
+            if slot_label in shared_slots:
+                shared_slots[slot_label] = max(shared_slots[slot_label], temp_size)
+            else:
+                shared_slots[slot_label] = temp_size
+        
+        # Then collect slots from procedure/function locals
         for sym in all_vars:
             slot_label = getattr(sym, 'shared_slot', None)
             if slot_label:
                 # Determine size: WORD = 2, BYTE = 1, struct/array = struct_size or array total_size
-                if slot_label not in shared_slots:
-                    if sym.type.base == "WORD" or sym.type.is_pointer:
-                        shared_slots[slot_label] = 2
-                    elif sym.type.base == "BYTE":
-                        shared_slots[slot_label] = 1
-                    elif sym.is_array and sym.type.base == "BYTE":
-                        shared_slots[slot_label] = sym.get_total_array_size()
-                    elif sym.is_array and sym.type.base == "WORD":
-                        shared_slots[slot_label] = sym.get_total_array_size()
-                    elif sym.type.is_struct and sym.type.struct_info:
-                        shared_slots[slot_label] = sym.type.struct_info.size
-                    else:
-                        # Default to 2 bytes (word)
-                        shared_slots[slot_label] = 2
+                # Take MAXIMUM size across all variables sharing this slot
+                sym_size = 0
+                if sym.is_array:
+                    sym_size = sym.get_total_array_size()
+                elif sym.type.is_struct and sym.type.struct_info:
+                    sym_size = sym.type.struct_info.size
+                elif sym.type.is_pointer:
+                    sym_size = 2
+                elif sym.type.base == "WORD":
+                    sym_size = 2
+                elif sym.type.base == "BYTE":
+                    sym_size = 1
+                else:
+                    # Default to 2 bytes (word)
+                    sym_size = 2
+                
+                # Keep maximum size for this slot
+                if slot_label in shared_slots:
+                    shared_slots[slot_label] = max(shared_slots[slot_label], sym_size)
+                else:
+                    shared_slots[slot_label] = sym_size
         
         if shared_slots:
-            self.emit("; Shared slots (for aliased locals)")
+            self.emit("\n; Shared slots (for aliased locals)")
             for slot_label, size in sorted(shared_slots.items()):
                 self.emit(f"{slot_label}:\t.res {size}")
             self.emit("")
@@ -2936,7 +2982,7 @@ class CodeGen:
             if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
         ]
         if pointer_scalars or pointer_arrays:
-            self.emit("; Pointer variables")
+            self.emit("\n; Pointer variables")
             for sym in pointer_scalars:
                 # Skip if already in shared slots
                 if not getattr(sym, 'shared_slot', None):
@@ -2989,7 +3035,7 @@ class CodeGen:
                 bss_byte_vars.append(sym)
         
         if zp_byte_vars:
-            self.emit("; Byte variables")
+            self.emit("\n; Byte variables")
             for sym in zp_byte_vars:
                 # Skip if already in shared slots
                 if not getattr(sym, 'shared_slot', None):
@@ -3028,7 +3074,7 @@ class CodeGen:
                 bss_word_vars.append(sym)
         
         if zp_word_vars:
-            self.emit("; Word variables")
+            self.emit("\n; Word variables")
             for sym in zp_word_vars:
                 # Skip if already in shared slots
                 if not getattr(sym, 'shared_slot', None):
@@ -3102,7 +3148,7 @@ class CodeGen:
 
     def gen_globals_header(self) -> None:
         self.emit("\n.segment \"CODE\"")
-        self.emit("; Globals initialization")
+        self.emit("\n; Globals initialization")
         self.emit("; ------------------------------") 
                
 
