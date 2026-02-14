@@ -1240,8 +1240,6 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             zp_used += size
         else:
             sym.zp_priority = -1  # Mark as "not allocated to ZP"
-    
-    return total_freq  # Will be used by codegen for ZP allocation
 
 
 def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False) -> str:
@@ -1495,7 +1493,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     
     # Emit module constructor calls (after all global/static inits), in dependency order
     for ctor in getattr(program, 'constructors', []) or []:
-        cg.emit(f"\tJSR {ctor}")
+        cg.emit(f"\tJSR {cg.asm_symbol_name(ctor)}")
 
     cg.gen_globals_footer()
 
@@ -1544,7 +1542,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     share_locals_liveness(analyzed_procs, analyzed_funcs)
     
     # ZP prioritization (analyze frequency for optimal ZP allocation)
-    local_freq = prioritize_locals_to_zp(analyzed_procs, analyzed_funcs)
+    prioritize_locals_to_zp(analyzed_procs, analyzed_funcs)
     
     # Now generate code with updated stmt_src
     for p in program.procs:

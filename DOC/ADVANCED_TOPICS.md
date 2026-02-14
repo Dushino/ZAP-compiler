@@ -441,20 +441,269 @@ asm
 end
 ```
 
-### System Temporaries
+### Assembly Label Naming Convention
 
-System uses TMP0-TMP4:
+The ZAP compiler uses a systematic naming convention to prevent collisions between your source code identifiers and compiler-generated labels. Understanding this convention is essential when writing inline assembly and referencing symbols.
+
+#### The Rules
+
+1. **Source Identifiers** (variables, procedures, functions) are prefixed with a **single underscore** (`_`)
+2. **Compiler-Generated Identifiers** (internal labels, temps, runtime helpers) are prefixed with **double underscore** (`__`)
+
+This guarantees no naming collisions since ZAP forbids identifiers starting with `_` in source code.
+
+#### Source Identifiers: Single Underscore Prefix
+
+All symbols declared in your ZAP code receive a single `_` prefix in assembly:
 
 ```zap
-asm
-    LDA #100
-    STA TMP0        ; OK: Can use TMP0-TMP4
+byte counter = 0
+word address = $2000
+byte data[] = {1, 2, 3}
+
+proc initialize()
+    counter = 0
 end
+
+func calculate() byte
+    return counter + 10
+end
+
+proc main()
+    asm
+        ; Access variables with _ prefix
+        LDA _COUNTER
+        STA _ADDRESS
+        
+        ; Call procedures/functions with _ prefix
+        JSR _INITIALIZE
+        JSR _CALCULATE
+        
+        ; Access array with _ prefix
+        LDA _DATA
+        LDX _DATA+1
+    end
+end
+```
+
+**Key Points:**
+- Variables: `my_var` → `_MY_VAR`
+- Procedures: `setup()` → `_SETUP`
+- Functions: `get_value()` → `_GET_VALUE`
+- Arrays: `buffer[]` → `_BUFFER`
+- Struct instances: `player` → `_PLAYER`
+
+#### Compiler-Generated Identifiers: Double Underscore Prefix
+
+The compiler generates many internal labels and helpers that use `__` prefix. You generally **should not reference** these directly, but knowing them helps avoid conflicts and assists debugging.
+
+##### System Temporaries
+
+Core 6502 working registers in zero page:
+
+```
+__TMP0, __TMP1, __TMP2, __TMP3, __TMP4, __TMP5  ; Multi-byte temporaries
+__MATH_STACK    ; Math expression evaluation stack (8 bytes)
+__MATH0         ; Math operand 0 (4 bytes)
+__MATH1         ; Math operand 1 (2 bytes)
+```
+
+**Example** (advanced usage only):
+```zap
+asm
+    ; Compiler uses these internally - avoid in most cases
+    LDA __TMP0
+    STA __TMP1
+end
+```
+
+##### Runtime Helper Routines
+
+The compiler generates helper routines for complex operations:
+
+**Arithmetic (16-bit):**
+```
+__ADD16         ; 16-bit addition
+__SUB16         ; 16-bit subtraction
+__MUL8          ; 8-bit multiplication
+__MUL16         ; 16-bit multiplication
+__DIV8          ; 8-bit division
+__DIV16         ; 16-bit division
+__MOD8          ; 8-bit modulo
+__MOD16         ; 16-bit modulo
+```
+
+**Array/Memory Operations:**
+```
+__COPY_BYTES    ; Block memory copy
+__ARRCPY        ; Array copy with size checking
+```
+
+**Comparison Helpers:**
+```
+__CMP16_EQ      ; 16-bit equality
+__CMP16_LT      ; 16-bit less-than
+__CMP16_GT      ; 16-bit greater-than
+```
+
+##### Control Flow Labels
+
+Control structures generate labels with `__ZAP_` prefix:
+
+```zap
+proc example()
+    byte i = 0
+    while i < 10
+        i = i + 1
+    end
+    
+    if i == 10
+        ; Do something
+    end
+end
+```
+
+Generates assembly labels like:
+```
+__ZAP_while_1:
+__ZAP_while_end_1:
+__ZAP_if_2:
+__ZAP_then_2:
+__ZAP_else_2:
+__ZAP_if_end_2:
+```
+
+Other control flow prefixes:
+- `__ZAP_for_*` - FOR loops
+- `__ZAP_switch_*` - SWITCH statements
+- `__ZAP_case_*` - CASE labels
+- `__ZAP_REL_TRUE_*` - Boolean short-circuit evaluation
+
+##### Loop Temporary Variables
+
+FOR loops create temporary variables:
+
+```zap
+proc count()
+    byte i
+    for i = 0 to 10
+        ; Loop body
+    end
+end
+```
+
+Generates:
+```
+__COUNT_FOR_END_1    ; End value
+__COUNT_FOR_STEP_1   ; Step value
+```
+
+##### String and Array Data Labels
+
+Literal strings and array initializers in ROM:
+
+```zap
+byte msg[] = "Hello"
+byte data[] = {1, 2, 3, 4, 5}
+```
+
+Generates:
+```
+__STR_DATA_1:    .byte "Hello", 0
+__ARRAY_DATA_2:  .byte 1, 2, 3, 4, 5
+```
+
+##### Shared Local Variable Slots
+
+When the compiler optimizes locals by sharing memory slots:
+
+```
+__LVSLOT_1:  .res 2
+__LVSLOT_2:  .res 1
+```
+
+#### Practical Examples
+
+**Calling a procedure from assembly:**
+```zap
+proc clear_screen()
+    ; Clear screen code
+end
+
+proc main()
+    asm
+        JSR _CLEAR_SCREEN    ; Note: single _ prefix
+    end
+end
+```
+
+**Accessing local variables:**
+```zap
+proc compute()
+    byte result = 0
+    word total = 0
+    
+    asm
+        LDA #42
+        STA _RESULT          ; Local variable
+        
+        LDA #$00
+        STA _TOTAL
+        LDA #$10
+        STA _TOTAL+1
+    end
+end
+```
+
+**Passing through a compiler temp (advanced):**
+```zap
+proc unsafe_temp_access()
+    asm
+        ; Store something in compiler temp
+        LDA #$FF
+        STA __TMP0
+        
+        ; WARNING: Compiler may overwrite __TMP0 after ASM block!
+    end
+    
+    byte x = ^some_pointer  ; This operation may use __TMP0
+end
+```
+
+**Referencing array data:**
+```zap
+byte lookup[] = {10, 20, 30, 40, 50}
+
+proc use_lookup(byte index)
+    asm
+        LDX _INDEX
+        LDA _LOOKUP,X    ; Access array with _ prefix
+    end
+end
+```
+
+#### Best Practices
+
+1. **Always use `_` prefix** when referencing your ZAP variables, procedures, and functions
+2. **Avoid referencing `__` prefixed symbols** unless you're doing advanced optimization
+3. **Never create labels** in ASM blocks that start with `_` or `__` to avoid collisions
+4. **Use descriptive local labels** in ASM blocks (e.g., `LOOP`, `SKIP`, `DONE`)
+5. **Be aware of temp usage** - compiler may reuse `__TMP0-5` between statements
+
+#### Debugging Assembly Output
+
+To see the exact mangled names, compile with the `-S` flag and inspect the `.s` output:
+
+```bash
+python compiler.py myprogram.zap -o myprogram.s
+cat myprogram.s | grep "^_"     # See all source symbols
+cat myprogram.s | grep "^__"    # See all compiler-generated symbols
 ```
 
 ### Calling Procedures from Assembly
 
-Procedures become labels:
+All procedures and functions are prefixed with `_` in assembly. See [Assembly Label Naming Convention](#assembly-label-naming-convention) for complete details. 
+Please note that parameters passing is optimized to maximize register ussage - see particular procedure call from other ZAP code. Note that this can change between ZAP compilations, so general suggestion si to avoid calling procedures with more than 3 bytes in parameters at all.
 
 ```zap
 proc setup()
@@ -463,7 +712,7 @@ end
 
 proc main()
     asm
-        JSR SETUP   ; Call setup procedure
+        JSR _SETUP   ; Call setup procedure (note the _ prefix)
     end
 end
 ```
@@ -1058,28 +1307,28 @@ end
 ```asm
 ; C:\path\to\program.zap 4: proc main()
 ; -- Procedure MAIN --
-MAIN:
+_MAIN:
     ; Actual assembly instructions
-    JSR FUNCTION    ; Call function
-    RTS             ; Return
+    JSR _FUNCTION    ; Call function (note _ prefix for source symbols)
+    RTS              ; Return
 ```
 
 ### Following Execution
 
 ```asm
 LDA #10         ; Load 10 into accumulator
-STA _VAR        ; Store into variable
+STA _VAR        ; Store into variable (note _ prefix)
 ; At this point, _VAR = 10
 ```
 
 ### Analyzing Procedure Calls
 
 ```asm
-JSR SETUP       ; Jump to subroutine (saves return address)
-                ; ... SETUP executes ...
-                ; RTS (return to here)
+JSR _SETUP       ; Jump to subroutine (saves return address)
+                 ; ... _SETUP executes ...
+                 ; RTS (return to here)
 
-JMP LOOP        ; Jump (no return)
+JMP _LOOP        ; Jump (no return)
 ```
 
 ### Checking Variable Addresses

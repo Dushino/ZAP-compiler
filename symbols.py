@@ -134,14 +134,17 @@ class Symbol:
     shared_slot: str | None = None
     # ZP prioritization: frequency score for allocation ordering (higher = more important for ZP)
     zp_priority: int = 0            # Loop-weighted frequency score for ZP allocation
+    # True for compiler-generated symbols (temps, shared slots, etc.)
+    is_generated: bool = False
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""
         if self.shared_slot:
             return self.shared_slot
+        prefix = "__" if self.is_generated else "_"
         if self.proc_name:
-            return f"_{self.proc_name}_{self.name}"
-        return f"_{self.name}"
+            return f"{prefix}{self.proc_name}_{self.name}"
+        return f"{prefix}{self.name}"
     
     def get_total_array_size(self) -> int:
         """Calculate total size in bytes for array (including element type width)"""

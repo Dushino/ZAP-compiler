@@ -38,6 +38,7 @@ Start here if you're just beginning:
    - Deep pointer operations
    - Memory management and zero-page allocation
    - Inline assembly integration
+   - **Assembly label naming convention** (`_` for source, `__` for compiler-generated)
    - Hardware register access
    - Optimization techniques
    - Module system deep dive
@@ -56,7 +57,15 @@ Start here if you're just beginning:
 5. **[PORT Modifier Implementation](PORT_MODIFIER_IMPLEMENTATION.md)** - Details about `#PORT`, `#RD`, and `#WR` modifiers for hardware ports
    - Syntax, semantics, restrictions, and examples
 
-6. **[Project State & Implementation](project_state.md)** - Compiler Details
+6. **[Symbol Naming Quick Reference](SYMBOL_NAMING_QUICK_REFERENCE.md)** ⚡ **CHEAT SHEET**
+   - Assembly label name mangling rules
+   - `_` prefix for source identifiers (variables, procedures, functions)
+   - `__` prefix for compiler-generated symbols
+   - Quick lookup tables for all symbol types
+   - Common usage patterns and examples
+   - Debugging tips
+
+7. **[Project State & Implementation](project_state.md)** - Compiler Details
    - Architecture overview
    - Compilation pipeline
    - Implementation status
@@ -64,14 +73,14 @@ Start here if you're just beginning:
    - Testing framework
    - Known limitations
 
-6. **[Advanced Notes & Internals](advanced_notes.md)** - Implementation Deep Dive
+8. **[Advanced Notes & Internals](advanced_notes.md)** - Implementation Deep Dive
    - Internal identifier naming
    - Memory layout strategies
    - Variable scope rules
    - Static local variables
    - Assembler considerations
 
-7. **[Quick Reference](QUICK_REFERENCE.md)** - At-a-Glance Syntax
+9. **[Quick Reference](QUICK_REFERENCE.md)** - At-a-Glance Syntax
    - Concise syntax summary
    - Common patterns
    - Quick lookup
@@ -132,9 +141,10 @@ Start here if you're just beginning:
 1. Read: [Advanced Topics - Pointer Operations](ADVANCED_TOPICS.md#pointer-operations)
 2. Read: [Advanced Topics - Memory Management](ADVANCED_TOPICS.md#memory-management)
 3. Read: [Advanced Topics - Inline Assembly](ADVANCED_TOPICS.md#inline-assembly)
-4. Read: [Advanced Topics - Hardware Access](ADVANCED_TOPICS.md#hardware-access)
-5. **Practice**: Write hardware-aware programs
-6. Read: [Project State - Optimization Details](project_state.md#current-implementation-status)
+4. **Important**: [Symbol Naming Quick Reference](SYMBOL_NAMING_QUICK_REFERENCE.md) - Essential for inline assembly!
+5. Read: [Advanced Topics - Hardware Access](ADVANCED_TOPICS.md#hardware-access)
+6. **Practice**: Write hardware-aware programs
+7. Read: [Project State - Optimization Details](project_state.md#current-implementation-status)
 
 **Time**: 6-8 hours
 
@@ -264,7 +274,7 @@ Start here if you're just beginning:
 **A:** See [Pointers](ZAP_LANGUAGE_REFERENCE.md#pointers) for basics, or [Advanced Pointer Operations](ADVANCED_TOPICS.md#pointer-operations) for details.
 
 ### Q: Can I use assembly code?
-**A:** Yes! Use `asm ... end` blocks. See [Inline Assembly](ADVANCED_TOPICS.md#inline-assembly).
+**A:** Yes! Use `asm ... end` blocks. See [Inline Assembly](ADVANCED_TOPICS.md#inline-assembly) and [Symbol Naming Quick Reference](SYMBOL_NAMING_QUICK_REFERENCE.md) for name mangling rules.
 
 ### Q: How do I optimize my code?
 **A:** Read [Optimization Techniques](ADVANCED_TOPICS.md#optimization-techniques) and [Performance Profiling](ADVANCED_TOPICS.md#performance-profiling).

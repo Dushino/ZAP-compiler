@@ -31,6 +31,7 @@ from errors import SemanticError
 class CodeGen:
     label_id = 0
     loop_stack = []
+    internal_label_prefix = "__ZAP_"
 
     def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None) -> None:
         # global symbol table (globals)
@@ -96,6 +97,9 @@ class CodeGen:
         # Control-flow stacks
         self.loop_stack: list[tuple[str, str]] = []
         self.break_stack: list[str] = []
+        # Internal name mapping for compiler-generated symbols
+        self._internal_name_map: dict[str, str] = self._build_internal_name_map()
+        self._internal_name_re = self._build_internal_name_regex(self._internal_name_map)
         
         # ZP Prioritization: Track load/store frequency for each local scalar
         # Format: {"ROUTINE::LOCAL_NAME": frequency_count, ...}
@@ -878,11 +882,69 @@ class CodeGen:
 
     def new_label(self, prefix: str) -> str:
         self.label_id += 1
-        return f"{prefix}_{self.label_id}"
+        return self._internal_label(f"{prefix}_{self.label_id}")
+
+    def _internal_label(self, name: str) -> str:
+        return f"{self.internal_label_prefix}{name}"
 
     def new_for_var(self, base: str) -> str:
         self.for_id += 1
-        return f"__FOR_{base}_{self.for_id}"
+        return f"FOR_{base}_{self.for_id}"
+
+    def asm_symbol_name(self, name: str) -> str:
+        if name.startswith("__"):
+            return name
+        return f"_{name}"
+
+    def _build_internal_name_map(self) -> dict[str, str]:
+        sys_names = {"MATH_STACK", "MATH0", "MATH1", "TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
+        runtime_names = {
+            "COPY_BYTES",
+            "ARRCPY",
+            "SET_MATH0",
+            "SET_MATH1",
+            "GET_MATH0",
+            "ADD16",
+            "SUB16",
+            "ADD16_AX",
+            "SUB16_AX",
+            "MUL8_A",
+            "MUL8",
+            "MUL16_8_A",
+            "MUL16_8",
+            "MUL16_AX",
+            "MUL16",
+            "DIV8_A",
+            "DIV8",
+            "DIV16_8_A",
+            "DIV16_8",
+            "DIV8_16_AX",
+            "DIV8_16",
+            "DIV16_AX",
+            "DIV16",
+            "MOD8_A",
+            "MOD8",
+            "MOD16_8_A",
+            "MOD16_8",
+            "MOD8_16_AX",
+            "MOD8_16",
+            "MOD16_AX",
+            "MOD16",
+        }
+        internal_names = sys_names | runtime_names
+        return {name: f"__{name}" for name in sorted(internal_names)}
+
+    def _build_internal_name_regex(self, name_map: dict[str, str]):
+        if not name_map:
+            return None
+        import re
+        pattern = "|".join(re.escape(name) for name in sorted(name_map.keys(), key=len, reverse=True))
+        return re.compile(rf"(?<![A-Za-z0-9_])({pattern})(?![A-Za-z0-9_])")
+
+    def _rewrite_internal_names(self, line: str) -> str:
+        if not self._internal_name_re:
+            return line
+        return self._internal_name_re.sub(lambda m: self._internal_name_map[m.group(1)], line)
 
     def _stz(self, operand: str) -> None:
         if self.is_65c02:
@@ -1975,8 +2037,8 @@ class CodeGen:
                 if len(parts) == 2 and parts[1] == "X":
                     op: str = parts[0]
                     if op in {"ORA", "AND", "EOR", "ADC", "SBC", "CMP"}:
-                        legalized.append("\tSTX TMP4")
-                        legalized.append(f"\t{op} TMP4")
+                        legalized.append(self._rewrite_internal_names("\tSTX TMP4"))
+                        legalized.append(self._rewrite_internal_names(f"\t{op} TMP4"))
                         i += 1
                         continue
             legalized.append(self.code[i])
@@ -2003,7 +2065,8 @@ class CodeGen:
             init=None,
             address=None,
             is_volatile=False,
-            proc_name=""
+            proc_name="",
+            is_generated=True
         )
         # vložení do aktuální tabulky (lokální, jinak globální)
         target: SymbolTable | None = getattr(self.current_symtab, "local", None)
@@ -2032,7 +2095,7 @@ class CodeGen:
         # meaningful here). Downstream `label_cleanup` recognizes this comment.
         exports: Any | None = getattr(self, 'exports', None)
         if exports:
-            exports_list: str = ", ".join(sorted(exports))
+            exports_list: str = ", ".join(sorted(self.asm_symbol_name(name) for name in exports))
             # Comment format: ; ZAP_EXPORTS name, name
             self.emit(f"; ZAP_EXPORTS {exports_list}")
             self.emit("")
@@ -2230,7 +2293,7 @@ class CodeGen:
         data_key = (tuple(values), False)
         if data_key not in self.array_literals:
             self.array_id += 1
-            self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+            self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
         arr_label = self.array_literals[data_key]
         
         # Generate code to copy struct bytes using COPY_BYTES routine
@@ -2740,26 +2803,33 @@ class CodeGen:
 
     def _detect_temp_usage(self, code: list[str] | None = None) -> set[str]:
         """Scan generated code for temp usage and combine with flagged temps."""
-        temp_names: set[str] = {"TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
-        temps: set[str] = set(self.used_temps)
+        temp_names: set[str] = {self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5")}
+        temps: set[str] = {self._internal_name_map.get(n, n) for n in self.used_temps}
         code = self.code if code is None else code
 
         if self.copy_bytes_needed or self.arrcpy_needed:
-            temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
+            temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3")})
 
         if self.math_routines_needed:
-            temps.update({"TMP0", "TMP1", "TMP2", "TMP3", "TMP4"})
+            temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4")})
 
         for line in code:
             for name in temp_names:
                 if name in line:
                     temps.add(name)
-        if code and not temps.intersection({"TMP0", "TMP1"}):
-            temps.update({"TMP0", "TMP1"})
+        if code and not temps.intersection({self._internal_name_map.get("TMP0", "TMP0"), self._internal_name_map.get("TMP1", "TMP1")}):
+            temps.update({self._internal_name_map.get("TMP0", "TMP0"), self._internal_name_map.get("TMP1", "TMP1")})
         return temps
 
     def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None) -> None:
-        temp_sizes: dict[str, int] = {"TMP0": 2, "TMP1": 2, "TMP2": 2, "TMP3": 2, "TMP4": 2, "TMP5": 2}
+        temp_sizes: dict[str, int] = {
+            self._internal_name_map.get("TMP0", "TMP0"): 2,
+            self._internal_name_map.get("TMP1", "TMP1"): 2,
+            self._internal_name_map.get("TMP2", "TMP2"): 2,
+            self._internal_name_map.get("TMP3", "TMP3"): 2,
+            self._internal_name_map.get("TMP4", "TMP4"): 2,
+            self._internal_name_map.get("TMP5", "TMP5"): 2,
+        }
         temps_in_use: set[str] = self._detect_temp_usage(code)
 
         self.emit(".segment \"ZEROPAGE\"")
@@ -2767,7 +2837,8 @@ class CodeGen:
         self.emit("MATH_STACK:\t.res 8")
         self.emit("MATH0:\t.res 4")
         self.emit("MATH1:\t.res 2")
-        for name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
+        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
+            name = self._internal_name_map.get(raw_name, raw_name)
             if name in temps_in_use:
                 size: int = temp_sizes[name]
                 self.emit(f"{name}:\t.res {size}")
@@ -2825,8 +2896,8 @@ class CodeGen:
         # Shared slots for aliased locals (need to be emitted before individual locals)
         shared_slots: dict[str, int] = {}  # slot_label -> size (in bytes)
         for sym in all_vars:
-            if getattr(sym, 'shared_slot', None):
-                slot_label = sym.shared_slot
+            slot_label = getattr(sym, 'shared_slot', None)
+            if slot_label:
                 # Determine size: WORD = 2, BYTE = 1, struct/array = struct_size or array total_size
                 if slot_label not in shared_slots:
                     if sym.type.base == "WORD" or sym.type.is_pointer:
@@ -3036,7 +3107,7 @@ class CodeGen:
     def gen_globals_footer(self) -> None:
         self.emit("\n; Call MAIN")
         self.emit("; ------------------------------")        
-        self.emit("\tJSR MAIN")       
+        self.emit(f"\tJSR {self.asm_symbol_name('MAIN')}")       
         self.emit("\tJMP *\n")       
 
     def gen_init(self, sym: Symbol, is_global_init: bool = False) -> None:
@@ -3240,7 +3311,7 @@ class CodeGen:
                 # Use ARRCPY routine for larger strings (fits in one page)
                 if content not in self.string_literals:
                     self.string_id += 1
-                    self.string_literals[content] = f"STR_DATA_{self.string_id}"
+                    self.string_literals[content] = f"__STR_DATA_{self.string_id}"
                 str_label = self.string_literals[content]
                 
                 # BYTE arrays: use ARRCPY for all sizes > COPY_THRESHOLD
@@ -3361,7 +3432,7 @@ class CodeGen:
                     data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                     if data_key not in self.array_literals:
                         self.array_id += 1
-                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                     
                     arr_label = self.array_literals[data_key]
                     elem_size: int = 2 if is_word else 1
@@ -3435,7 +3506,7 @@ class CodeGen:
                 data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                 if data_key not in self.array_literals:
                     self.array_id += 1
-                    self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                    self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                 
                 arr_label = self.array_literals[data_key]
                 elem_size: int = 2 if is_word else 1
@@ -3480,6 +3551,7 @@ class CodeGen:
 
 
     def emit(self, line: str) -> None:
+        line = self._rewrite_internal_names(line)
         self.code.append(line)
         # Track frequency for ZP prioritization
         self._track_local_access_frequency(line)
@@ -3499,9 +3571,10 @@ class CodeGen:
             return
         
         operand = match.group(2)
-        # Skip system temps, equation labels (with equals sign in previous line context)
-        if operand in ('MATH_STACK', 'MATH0', 'MATH1', 'TMP0', 'TMP1', 'TMP2', 'TMP3', 'TMP4',
-                       'A', 'X', 'Y'):  # Avoid register references
+        # Skip system temps and registers
+        sys_names = ("MATH_STACK", "MATH0", "MATH1", "TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5")
+        sys_prefixed = {self._internal_name_map.get(name, name) for name in sys_names}
+        if operand in (sys_prefixed | {"A", "X", "Y"}):
             return
         
         # Extract _PROCNAME_LOCALNAME from operand (strip +1, etc.)
@@ -3509,8 +3582,9 @@ class CodeGen:
         if not base_operand.startswith('_') or base_operand.count('_') < 2:
             return
         
-        # Parse _PROCNAME_LOCALNAME → (PROCNAME, LOCALNAME)
-        parts = base_operand[1:].split('_', 1)  # Skip leading underscore
+        # Parse _PROCNAME_LOCALNAME or __PROCNAME_LOCALNAME → (PROCNAME, LOCALNAME)
+        trimmed = base_operand.lstrip('_')
+        parts = trimmed.split('_', 1)
         if len(parts) < 2:
             return
         
@@ -3646,7 +3720,7 @@ class CodeGen:
                     data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                     if data_key not in self.array_literals:
                         self.array_id += 1
-                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
                     self._load_sym_addr(arr_label)
                     return
@@ -3657,7 +3731,7 @@ class CodeGen:
                     data_key = (tuple(values), False)
                     if data_key not in self.array_literals:
                         self.array_id += 1
-                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
                     self._load_sym_addr(arr_label)
                     return
@@ -3671,7 +3745,7 @@ class CodeGen:
                     data_key = (tuple(values), False)
                     if data_key not in self.array_literals:
                         self.array_id += 1
-                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
                     self._load_sym_addr(arr_label)
                     return
@@ -4130,7 +4204,7 @@ class CodeGen:
                     data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
                     if data_key not in self.array_literals:
                         self.array_id += 1
-                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
                 elif sym.init and isinstance(sym.init, StringInit):
                     if sym.type.base != "BYTE":
@@ -4139,7 +4213,7 @@ class CodeGen:
                     data_key = (tuple(values), False)
                     if data_key not in self.array_literals:
                         self.array_id += 1
-                        self.array_literals[data_key] = f"ARRAY_DATA_{self.array_id}"
+                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
                     arr_label = self.array_literals[data_key]
                 else:
                     self._raise_error(f"Const array '{sym.name}' has no initialization")
@@ -4396,9 +4470,10 @@ class CodeGen:
                     # Add offset to pointer
                     self.emit(f"\tCLC")
                     self.emit(f"\tADC #${field_offset:02X}")
-                    self.emit(f"\tBCC NOCARRY_ARRFIELD_DEREF_{id(expr)}")
+                    carry_lbl = self._internal_label(f"NOCARRY_ARRFIELD_DEREF_{id(expr)}")
+                    self.emit(f"\tBCC {carry_lbl}")
                     self.emit(f"\tINC A+1")
-                    self.emit(f"NOCARRY_ARRFIELD_DEREF_{id(expr)}:")
+                    self.emit(f"{carry_lbl}:")
             else:
                 # obj.field where field is array - get address of array within struct
                 if isinstance(expr.object, Identifier):
@@ -4425,9 +4500,10 @@ class CodeGen:
                         self.emit(f"\tLDA TMP0")
                         self.emit(f"\tADC #${field_offset:02X}")
                         self.emit(f"\tSTA TMP0")
-                        self.emit(f"\tBCC NOCARRY_ARRFIELD_SUBSCR_{id(expr)}")
+                        carry_lbl = self._internal_label(f"NOCARRY_ARRFIELD_SUBSCR_{id(expr)}")
+                        self.emit(f"\tBCC {carry_lbl}")
                         self.emit(f"\tINC TMP0+1")
-                        self.emit(f"NOCARRY_ARRFIELD_SUBSCR_{id(expr)}:")
+                        self.emit(f"{carry_lbl}:")
                     
                     # Return address in A/X
                     self.emit(f"\tLDA TMP0")
@@ -4471,9 +4547,10 @@ class CodeGen:
                 self.emit("\tCLC")
                 self.emit("\tADC TMP0")
                 self.emit("\tSTA TMP0")
-                self.emit(f"\tBCC NOCARRY_FIELD_DEREF_{id(expr)}")
+                carry_lbl = self._internal_label(f"NOCARRY_FIELD_DEREF_{id(expr)}")
+                self.emit(f"\tBCC {carry_lbl}")
                 self.emit("\tINC TMP0+1")
-                self.emit(f"NOCARRY_FIELD_DEREF_{id(expr)}:")
+                self.emit(f"{carry_lbl}:")
             
             # If only loading field value, load it now
             if load_only:
@@ -4539,9 +4616,10 @@ class CodeGen:
                     self.emit(f"\tLDA TMP0")
                     self.emit(f"\tADC #${field_offset:02X}")
                     self.emit(f"\tSTA TMP0")
-                    self.emit(f"\tBCC NOCARRY_ARRFIELD_{id(expr)}")
+                    carry_lbl = self._internal_label(f"NOCARRY_ARRFIELD_{id(expr)}")
+                    self.emit(f"\tBCC {carry_lbl}")
                     self.emit(f"\tINC TMP0+1")
-                    self.emit(f"NOCARRY_ARRFIELD_{id(expr)}:")
+                    self.emit(f"{carry_lbl}:")
                 
                 # 3) Load field value via indirect addressing
                 if field_width == 2:
@@ -4604,9 +4682,10 @@ class CodeGen:
                         self.emit(f"\tLDA TMP0")
                         self.emit(f"\tADC #{total_offset}")
                         self.emit(f"\tSTA TMP0")
-                        self.emit(f"\tBCC NOCARRY_NESTEDFIELD_{id(expr)}")
+                        carry_lbl = self._internal_label(f"NOCARRY_NESTEDFIELD_{id(expr)}")
+                        self.emit(f"\tBCC {carry_lbl}")
                         self.emit(f"\tINC TMP0+1")
-                        self.emit(f"NOCARRY_NESTEDFIELD_{id(expr)}:")
+                        self.emit(f"{carry_lbl}:")
                     
                     # Load field value via indirect addressing
                     self.emit("\tLDY #0")
@@ -4703,9 +4782,10 @@ class CodeGen:
                         self.emit(f"\tLDA TMP0")
                         self.emit(f"\tADC #${total_offset:02X}")
                         self.emit(f"\tSTA TMP0")
-                        self.emit(f"\tBCC NOCARRY_NESTEDFIELD_STORE_{id(expr)}")
+                        carry_lbl = self._internal_label(f"NOCARRY_NESTEDFIELD_STORE_{id(expr)}")
+                        self.emit(f"\tBCC {carry_lbl}")
                         self.emit(f"\tINC TMP0+1")
-                        self.emit(f"NOCARRY_NESTEDFIELD_STORE_{id(expr)}:")
+                        self.emit(f"{carry_lbl}:")
                     
                     # Store field value via indirect addressing
                     self.emit("\tLDY #0")
@@ -6571,7 +6651,7 @@ class CodeGen:
             specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(expr.name)
             if specs is not None:
                 self._emit_call_args(expr.name, expr.args, specs)
-            self.emit(f"\tJSR {expr.name}")
+            self.emit(f"\tJSR {self.asm_symbol_name(expr.name)}")
             # Caller-side widening: only clear X when a byte result is used in word context
             ret_t: ExprType = self.tc_check(expr)
             if ret_t.sem_type.base == "BYTE" and not ret_t.sem_type.is_pointer and self.force_word_result:
@@ -7743,7 +7823,7 @@ class CodeGen:
                 fname, line, _col, text = pinfo
             self.emit(f"; {fname} {line}: {text}")
         self.emit("; -- Procedure " + proc.ast.name + " --")
-        self.emit(f"{proc.ast.name}:")
+        self.emit(f"{self.asm_symbol_name(proc.ast.name)}:")
 
         # Emit parameter name equates for inline assembly references
         proc_specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(proc.ast.name)
@@ -8108,7 +8188,7 @@ class CodeGen:
             specs: list[tuple[str, int, object]] | None = self.proc_param_specs.get(stmt.name)
             if specs is not None:
                 self._emit_call_args(stmt.name, stmt.args, specs)
-            self.emit(f"\tJSR {stmt.name}")
+            self.emit(f"\tJSR {self.asm_symbol_name(stmt.name)}")
             return
 
 
@@ -8422,7 +8502,7 @@ class CodeGen:
         self.current_func_return_is_pointer = func.ast.ret_type.is_pointer
 
         self.emit("; -- Function " + func.ast.name + " --")
-        self.emit(f"{func.ast.name}:")
+        self.emit(f"{self.asm_symbol_name(func.ast.name)}:")
 
         # Emit parameter name equates for inline assembly references
         func_specs: list[tuple[str, int, object]] | None = self.func_param_specs.get(func.ast.name)
@@ -8533,27 +8613,30 @@ class CodeGen:
                 self.emit(f"\tBCC {lbl_true}")
             elif expr.op == BinOp.GE:       # >=    
                 self.emit("\tCPX TMP0+1")
-                self.emit(f"\tBEQ @GE_CHECK_LOW") # High equal, check low
+                lbl_ge_check_low = self.new_label("GE_CHECK_LOW")
+                self.emit(f"\tBEQ {lbl_ge_check_low}") # High equal, check low
                 self.emit(f"\tBCS {lbl_true}")    
                 self.emit(f"\tJMP {lbl_end}")     
-                self.emit("@GE_CHECK_LOW:")
+                self.emit(f"{lbl_ge_check_low}:")
                 self.emit("\tCMP TMP0")
                 self.emit(f"\tBCS {lbl_true}")
             elif expr.op == BinOp.GT:       # > 
+                lbl_gt_check_low = self.new_label("GT_CHECK_LOW")
                 self.emit("\tCPX TMP0+1")
                 self.emit(f"\tBCC {lbl_end}")     
-                self.emit(f"\tBEQ @GT_CHECK_LOW") # High equal, check low
+                self.emit(f"\tBEQ {lbl_gt_check_low}") # High equal, check low
                 self.emit(f"\tJMP {lbl_true}")    
-                self.emit("@GT_CHECK_LOW:")
+                self.emit(f"{lbl_gt_check_low}:")
                 self.emit("\tCMP TMP0")
                 self.emit(f"\tBEQ {lbl_end}")    
                 self.emit(f"\tBCS {lbl_true}")    
             elif expr.op == BinOp.LE:       # <=
+                lbl_le_check_low = self.new_label("LE_CHECK_LOW")
                 self.emit("\tCPX TMP0+1")
                 self.emit(f"\tBCC {lbl_true}")    
-                self.emit(f"\tBEQ @LE_CHECK_LOW") 
+                self.emit(f"\tBEQ {lbl_le_check_low}") 
                 self.emit(f"\tJMP {lbl_end}")     
-                self.emit("@LE_CHECK_LOW:")
+                self.emit(f"{lbl_le_check_low}:")
                 self.emit("\tCMP TMP0")
                 self.emit(f"\tBCC {lbl_true}")
                 self.emit(f"\tBEQ {lbl_true}")
@@ -8767,12 +8850,13 @@ class CodeGen:
                             return
                         if cond.op == BinOp.GT:
                             lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
                             load_left_high()
                             self.emit(f"\tCPX {cmp_hi}")
                             self.emit(f"\tBCC {lbl_else_tmp}")
-                            self.emit(f"\tBEQ @GT_CHECK_LOW")
+                            self.emit(f"\tBEQ {lbl_gt_check_low}")
                             self.emit(f"\tJMP {lbl_true}")
-                            self.emit("@GT_CHECK_LOW:")
+                            self.emit(f"{lbl_gt_check_low}:")
                             load_left_low()
                             self.emit(f"\tCMP {cmp_lo}")
                             self.emit(f"\tBEQ {lbl_else_tmp}")
@@ -8782,12 +8866,13 @@ class CodeGen:
                             return
                         if cond.op == BinOp.GE:
                             lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
                             load_left_high()
                             self.emit(f"\tCPX {cmp_hi}")
                             self.emit(f"\tBCC {lbl_else_tmp}")
-                            self.emit(f"\tBEQ @GE_CHECK_LOW")
+                            self.emit(f"\tBEQ {lbl_ge_check_low}")
                             self.emit(f"\tJMP {lbl_true}")
-                            self.emit("@GE_CHECK_LOW:")
+                            self.emit(f"{lbl_ge_check_low}:")
                             load_left_low()
                             self.emit(f"\tCMP {cmp_lo}")
                             self.emit(f"\tBCS {lbl_true}")
@@ -8842,11 +8927,12 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_else_tmp}")
-                    self.emit(f"\tBEQ @GT_CHECK_LOW")
+                    self.emit(f"\tBEQ {lbl_gt_check_low}")
                     self.emit(f"\tJMP {lbl_true}")
-                    self.emit("@GT_CHECK_LOW:")
+                    self.emit(f"{lbl_gt_check_low}:")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBEQ {lbl_else_tmp}")
                     self.emit(f"\tBCS {lbl_true}")
@@ -8855,11 +8941,12 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GE:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_else_tmp}")
-                    self.emit(f"\tBEQ @GE_CHECK_LOW")
+                    self.emit(f"\tBEQ {lbl_ge_check_low}")
                     self.emit(f"\tJMP {lbl_true}")
-                    self.emit("@GE_CHECK_LOW:")
+                    self.emit(f"{lbl_ge_check_low}:")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCS {lbl_true}")
                     self.emit(f"{lbl_else_tmp}:")
@@ -8933,12 +9020,13 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
                     # Compare high byte first
                     self.emit(f"\tCPX TMP0+1")
                     self.emit(f"\tBCC {lbl_else_tmp}")
-                    self.emit(f"\tBEQ @GT_CHECK_LOW")
+                    self.emit(f"\tBEQ {lbl_gt_check_low}")
                     self.emit(f"\tJMP {lbl_true}")
-                    self.emit("@GT_CHECK_LOW:")
+                    self.emit(f"{lbl_gt_check_low}:")
                     # High bytes equal, compare low byte
                     self.emit(f"\tCMP TMP0")
                     self.emit(f"\tBEQ {lbl_else_tmp}")
@@ -8948,12 +9036,13 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GE:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
                     # Compare high byte first
                     self.emit(f"\tCPX TMP0+1")
                     self.emit(f"\tBCC {lbl_else_tmp}")
-                    self.emit(f"\tBEQ @GE_CHECK_LOW")
+                    self.emit(f"\tBEQ {lbl_ge_check_low}")
                     self.emit(f"\tJMP {lbl_true}")
-                    self.emit("@GE_CHECK_LOW:")
+                    self.emit(f"{lbl_ge_check_low}:")
                     # High bytes equal, compare low byte
                     self.emit(f"\tCMP TMP0")
                     self.emit(f"\tBCS {lbl_true}")
@@ -9068,11 +9157,12 @@ class CodeGen:
                             return
                         if cond.op == BinOp.GT:
                             lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
                             self.emit(f"\tCPX {cmp_hi}")
                             self.emit(f"\tBCC {lbl_else_tmp}")
-                            self.emit(f"\tBEQ @GT_CHECK_LOW")
+                            self.emit(f"\tBEQ {lbl_gt_check_low}")
                             self.emit(f"\tJMP {lbl_true}")
-                            self.emit("@GT_CHECK_LOW:")
+                            self.emit(f"{lbl_gt_check_low}:")
                             self.emit(f"\tCMP {cmp_lo}")
                             self.emit(f"\tBEQ {lbl_else_tmp}")
                             self.emit(f"\tBCS {lbl_true}")
@@ -9081,11 +9171,12 @@ class CodeGen:
                             return
                         if cond.op == BinOp.GE:
                             lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
                             self.emit(f"\tCPX {cmp_hi}")
                             self.emit(f"\tBCC {lbl_else_tmp}")
-                            self.emit(f"\tBEQ @GE_CHECK_LOW")
+                            self.emit(f"\tBEQ {lbl_ge_check_low}")
                             self.emit(f"\tJMP {lbl_true}")
-                            self.emit("@GE_CHECK_LOW:")
+                            self.emit(f"{lbl_ge_check_low}:")
                             self.emit(f"\tCMP {cmp_lo}")
                             self.emit(f"\tBCS {lbl_true}")
                             self.emit(f"{lbl_else_tmp}:")

@@ -396,3 +396,4 @@ ___CONSTRUCTOR__ATARI_STDIO_I = __LVSLOT_2
 
 [ ] Document sources *.py and *.zap
 
+[x] Check ASM symbols name mangling
