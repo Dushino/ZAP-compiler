@@ -12,24 +12,29 @@ This extension provides syntax highlighting for the Zap programming language.
 ## Supported Syntax
 
 ### Keywords
-- Control flow: `IF`, `ELSE`, `ELSEIF`, `ENDIF`, `WHILE`, `FOR`, `TO`, `STEP`, `RETURN`, `EXIT`
-- Declarations: `PROC`, `FUNC`, `END`
-- Inline assembler: `ASM`, `END` supporting ca65 syntax highlighting
-- Embedded ca65 assembler syntax highlighting between ASM / END
+- Control flow: `IF`, `ELSE`, `ELSEIF`, `WHILE`, `FOR`, `TO`, `STEP`, `REPEAT`, `UNTIL`, `SWITCH`, `CASE`, `DEFAULT`, `RETURN`, `BREAK`, `CONTINUE`, `STOP`, `END`
+- Declarations: `PROC`, `FUNC`, `STRUCT`, `ENUM`, `END`
+- Inline assembler: `ASM`, `END` (embedded ca65 highlighting between ASM / END)
 
 
 ### Data Types
-- `BYTE`, `WORD`, `STRUCT`
-- `CONST`, `STATIC` modifiers
+- `BYTE`, `WORD`
+- `CONST`, `STATIC` type modifiers
 
 ### Preprocessor Directives
-- `.ifdef`, `.ifndef`, `.else`, `.endif`
-- `.define`, `.undef`
 - `.module`, `.include`
+- `.define`, `.undef`
+- `.ifdef`, `.ifndef`, `.else`, `.endif`
+- `.error`, `.warning`, `.info`
 
 ### Operators
-- Arithmetic: `+`, `-`, `*`, `/`, `%`, `&`, `|`, `^`, `<<`, `>>`
-- Comparison: `=`, `!=`, `<`, `>`, `<=`, `>=`, `<>`
+- Assignment: `=`
+- Arithmetic/bitwise: `+`, `-`, `*`, `/`, `%`, `&`, `|`, `^`, `~`, `<<`, `>>`
+- Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- Logical: `&&`, `||`, `!`
+- Address-of: `@`
+- Member access: `.`
+- Indexing: `[`, `]`
 
 ### Literals
 - Decimal numbers: `123`, `0`
@@ -41,7 +46,7 @@ This extension provides syntax highlighting for the Zap programming language.
 
 ## Installation
 
-See the main tutorial in the repository for installation instructions.
+See the main tutorial in the repository for installation instructions: https://github.com/Dushino/ZAP-compiler
 
 ## Example
 
@@ -71,7 +76,7 @@ END
 
 ## Contributing
 
-This extension is part of the Zap Compiler project. Contributions welcome!
+This extension is part of the Zap Compiler project. Contributions welcome! Repo: https://github.com/Dushino/ZAP-compiler
 
 ## License
 

@@ -25,7 +25,7 @@
 [x] implement module constructors? No. 
 [x] fix wrong code generation as ORA X is wrong
 [x] compiler defines in command line - tested also with conflicting defines and PROC name
-[ ] Describe how to share identifiers declard in ZAP! in ASM blocks
+[x] Describe how to share identifiers declard in ZAP! in ASM blocks
 [ ] Introduce ZAP! to github:
 [ ] Add to GitHub Linguist
 You could submit your ZAP! language definition to the GitHub Linguist project. This would get ZAP1 officially recognized and syntax-highlighted on GitHub. You already have a good start with the zap.tmLanguage.json file in your repo.

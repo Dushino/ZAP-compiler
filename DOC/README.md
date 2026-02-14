@@ -4,6 +4,11 @@
 
 ZAP! compiles ZAP! source code into optimized 6502 assembly for Atari 8-bit computers and other 6502-based systems.
 
+## Project Links
+
+- Repository: https://github.com/Dushino/ZAP-compiler
+- Issue Tracker: https://github.com/Dushino/ZAP-compiler/issues
+
 ## Features
 
 ### Advanced Optimizations

@@ -1,7 +1,7 @@
 {
 	"files": [
 		{
-			"path": "IDE_Integration/VSCode/dushino42.zap-language/syntaxes/zap.tmLanguage.json",
+			"path": "IDE_Integration/dushino.zap-language/syntaxes/zap.tmLanguage.json",
 			"bookmarks": [
 				{
 					"line": 65,

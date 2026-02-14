@@ -4,7 +4,7 @@
     "description": "Syntax highlighting and icons for the Zap programming language",
     "icon": "icons/icon.png",
     "version": "1.0.0",
-    "publisher": "dushino42",
+    "publisher": "dushino",
     "repository": {
         "type": "git",
         "url": "https://github.com/Dushino/ZAP-compiler"
