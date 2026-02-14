@@ -221,6 +221,28 @@ x = x + 1               ; x = 11
 y = y - 5               ; y = 15
 ```
 
+### ⚠️ Initialize Before Use
+
+**Important**: The ZAP! compiler requires that all variables are initialized before they are used. This prevents bugs from uninitialized memory:
+
+```zap
+proc safe_example()
+    byte x = 0          ; Initialize first
+    byte y = x + 10     ; OK: x has a value
+end
+```
+
+This will **fail to compile**:
+
+```zap
+proc unsafe_example()
+    byte x              ; Not initialized!
+    byte y = x + 10     ; ERROR: Use of uninitialized variable 'X'
+end
+```
+
+The compiler checks all code paths to ensure variables are initialized before use. This is like Rust's safety features, but for 6502 assembly! See [Uninitialized Variable Detection](UNINITIALIZED_VARIABLE_DETECTION.md) for full details.
+
 ### Global vs Local Variables
 
 **Global** (available everywhere):

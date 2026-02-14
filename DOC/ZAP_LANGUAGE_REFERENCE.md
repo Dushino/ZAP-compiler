@@ -512,6 +512,47 @@ byte arr[] = {1, 2, 3, 4, 5}
 byte text[] = "Hello"
 ```
 
+### Uninitialized Variable Detection
+
+The ZAP! compiler performs **definite-assignment analysis** to detect when variables are read before initialization. This catches bugs at compile time:
+
+```zap
+proc safe()
+    byte x = 0          ; Must initialize
+    byte y = x + 10     ; OK: x is initialized
+end
+
+proc unsafe()
+    byte x              ; Not initialized
+    byte y = x + 10     ; ERROR: Use of uninitialized variable 'X'
+end
+```
+
+The compiler tracks initialization through control flow:
+
+```zap
+proc example(byte flag)
+    byte x
+    
+    if flag
+        x = 10
+    else
+        x = 20
+    end
+    
+    result = x          ; OK: x initialized in all paths
+end
+```
+
+**Key points:**
+- Local variables must be initialized before use
+- `const` variables, fixed-address variables, and parameters are always considered initialized
+- FOR loop variables are initialized by the loop
+- Struct variables are always considered initialized (limitation)
+- Taking the address (`@`) of a variable doesn't require it to be initialized
+
+For complete details on the analysis rules, control flow handling, and limitations, see [Uninitialized Variable Detection](UNINITIALIZED_VARIABLE_DETECTION.md).
+
 ### Static Local Variables
 
 Local variables maintain their values between procedure calls:

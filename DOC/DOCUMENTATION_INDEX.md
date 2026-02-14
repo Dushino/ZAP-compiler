@@ -65,7 +65,14 @@ Start here if you're just beginning:
    - Common usage patterns and examples
    - Debugging tips
 
-7. **[Project State & Implementation](project_state.md)** - Compiler Details
+7. **[Uninitialized Variable Detection](UNINITIALIZED_VARIABLE_DETECTION.md)** - Compile-Time Safety
+   - Definite-assignment analysis
+   - Control flow handling (IF, WHILE, REPEAT, SWITCH)
+   - Special cases (const, structs, parameters, address-of)
+   - Error messages and best practices
+   - Limitations and workarounds
+
+8. **[Project State & Implementation](project_state.md)** - Compiler Details
    - Architecture overview
    - Compilation pipeline
    - Implementation status
@@ -73,14 +80,14 @@ Start here if you're just beginning:
    - Testing framework
    - Known limitations
 
-8. **[Advanced Notes & Internals](advanced_notes.md)** - Implementation Deep Dive
+9. **[Advanced Notes & Internals](advanced_notes.md)** - Implementation Deep Dive
    - Internal identifier naming
    - Memory layout strategies
    - Variable scope rules
    - Static local variables
    - Assembler considerations
 
-9. **[Quick Reference](QUICK_REFERENCE.md)** - At-a-Glance Syntax
+10. **[Quick Reference](QUICK_REFERENCE.md)** - At-a-Glance Syntax
    - Concise syntax summary
    - Common patterns
    - Quick lookup
