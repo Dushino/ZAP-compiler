@@ -67,7 +67,6 @@ byte ^curptr                    #noexport   ; current position in the screen mem
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
     word scrstart @88
-    word ^vram
     byte ^data
     byte i
 

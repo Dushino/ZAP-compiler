@@ -21,9 +21,10 @@ end
 proc main()
 
     byte ch
+    byte ^ptr
     byte msg1[] = "1. Hello World! "        ; BSS segment
     const byte msg2[] = "2. Hello World!"   ; CODE segment
-
+    
     cls()
     PLAYF2 = COLOR_GREEN3 + 4
     puts(msg1)    
