@@ -2054,6 +2054,13 @@ class CodeGen:
         return vars_block
 
     def _declare_temp(self, name: str, base: str = "WORD") -> Symbol:
+        # vložení do aktuální tabulky (lokální, jinak globální)
+        target: SymbolTable | None = getattr(self.current_symtab, "local", None)
+        if target is None:
+            target = self.current_symtab
+        existing = target._symbols.get(target._key(name))
+        if existing is not None:
+            return existing
         sym = Symbol(
             name=name,
             type=SemType(base, False),
@@ -2067,10 +2074,6 @@ class CodeGen:
             proc_name="",
             is_generated=True
         )
-        # vložení do aktuální tabulky (lokální, jinak globální)
-        target: SymbolTable | None = getattr(self.current_symtab, "local", None)
-        if target is None:
-            target = self.current_symtab
         # attach procedure name if available for proper ASM naming
         proc_name: str = getattr(target, "_proc_name", "")
         if proc_name:

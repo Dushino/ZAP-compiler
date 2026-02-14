@@ -654,6 +654,7 @@ def _liveness_block(
     caller_name: str,
     graph: dict[str, set[str]],
     class_key: dict[str, tuple],
+    for_temp_map: dict[int, set[str]] | None = None,
     break_live: set[str] | None = None,
     continue_live: set[str] | None = None,
 ) -> set[str]:
@@ -724,6 +725,7 @@ def _liveness_block(
                 caller_name,
                 graph,
                 class_key,
+                for_temp_map=for_temp_map,
                 break_live=break_live,
                 continue_live=continue_live,
             )
@@ -738,6 +740,7 @@ def _liveness_block(
                     caller_name,
                     graph,
                     class_key,
+                    for_temp_map=for_temp_map,
                     break_live=break_live,
                     continue_live=continue_live,
                 )
@@ -763,6 +766,7 @@ def _liveness_block(
                     caller_name,
                     graph,
                     class_key,
+                    for_temp_map=for_temp_map,
                     break_live=live,
                     continue_live=loop_live_in,
                 )
@@ -786,6 +790,13 @@ def _liveness_block(
             loop_uses |= _expr_used_locals(st.end, name_to_id)
             if st.step is not None:
                 loop_uses |= _expr_used_locals(st.step, name_to_id)
+            if for_temp_map is not None:
+                temp_names = for_temp_map.get(id(st))
+                if temp_names:
+                    for temp_name in temp_names:
+                        key = temp_name.upper() if isinstance(temp_name, str) else temp_name
+                        if key in name_to_id:
+                            loop_uses.add(name_to_id[key])
             # Be conservative: treat loop var as used by control logic
             key = st.var.name.upper() if isinstance(st.var.name, str) else st.var.name
             if key in name_to_id:
@@ -805,6 +816,7 @@ def _liveness_block(
                     caller_name,
                     graph,
                     class_key,
+                    for_temp_map=for_temp_map,
                     break_live=live,
                     continue_live=loop_live_in,
                 )
@@ -833,6 +845,7 @@ def _liveness_block(
                     caller_name,
                     graph,
                     class_key,
+                    for_temp_map=for_temp_map,
                     break_live=break_live,
                     continue_live=continue_live,
                 )
@@ -899,7 +912,7 @@ def _liveness_inits(
     return live
 
 
-def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
+def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int, set[str]] | None = None) -> None:
     from symbols import Symbol
 
     def is_eligible(sym: Symbol) -> bool:
@@ -1001,6 +1014,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
             ap.ast.name,
             graph,
             local_class,
+            for_temp_map=for_temp_map,
         )
         _liveness_inits(
             ap.locals,
@@ -1027,6 +1041,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
             af.ast.name,
             graph,
             local_class,
+            for_temp_map=for_temp_map,
         )
         _liveness_inits(
             af.locals,
@@ -1079,6 +1094,99 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs) -> None:
                 sym = local_info.get(local_id)
                 if sym is not None:
                     sym.shared_slot = slot_label
+
+
+def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry) -> dict[int, set[str]]:
+    from ast_nodes import ForStmt, IfStmt, WhileStmt, SwitchStmt, IntLiteral
+    from symbols import SemType, Symbol
+
+    for_temp_map: dict[int, set[str]] = {}
+    for_id = 0
+
+    def next_for_name(base: str) -> str:
+        nonlocal for_id
+        for_id += 1
+        return f"FOR_{base}_{for_id}"
+
+    def declare_temp(local_tbl: SymbolTable, proc_name: str, name: str, is_word: bool) -> None:
+        key = local_tbl._key(name)
+        if key in local_tbl._symbols:
+            return
+        sym = Symbol(
+            name=name,
+            type=SemType("WORD" if is_word else "BYTE", False),
+            is_const=False,
+            const_value=None,
+            is_array=False,
+            array_len=None,
+            init=None,
+            address=None,
+            is_volatile=False,
+            proc_name=proc_name,
+            array_dims=None,
+        )
+        local_tbl.define(sym)
+
+    def scan_stmts(stmts: list, tc: ExprTypeChecker, local_tbl: SymbolTable, proc_name: str) -> None:
+        for st in stmts:
+            if isinstance(st, ForStmt):
+                step_expr = st.step if st.step is not None else IntLiteral(1)
+
+                end_t = tc.check(st.end)
+                var_t = tc.check(st.var)
+                end_is_word = (
+                    var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+                    end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
+                )
+                end_name = next_for_name("END")
+                declare_temp(local_tbl, proc_name, end_name, end_is_word)
+
+                temp_names: set[str] = {end_name}
+
+                if not isinstance(step_expr, IntLiteral):
+                    step_t = tc.check(step_expr)
+                    step_is_word = (
+                        var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+                        step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
+                    )
+                    step_name = next_for_name("STEP")
+                    declare_temp(local_tbl, proc_name, step_name, step_is_word)
+                    temp_names.add(step_name)
+
+                for_temp_map[id(st)] = temp_names
+                scan_stmts(st.body, tc, local_tbl, proc_name)
+                continue
+
+            if isinstance(st, IfStmt):
+                scan_stmts(st.then_body, tc, local_tbl, proc_name)
+                if st.else_body:
+                    scan_stmts(st.else_body, tc, local_tbl, proc_name)
+                continue
+
+            if isinstance(st, WhileStmt):
+                scan_stmts(st.body, tc, local_tbl, proc_name)
+                continue
+
+            if isinstance(st, SwitchStmt):
+                for case in st.cases:
+                    scan_stmts(case.body, tc, local_tbl, proc_name)
+                continue
+
+    for ap in analyzed_procs:
+        local_tbl: Any | None = getattr(ap.symtab, "local", None)
+        if local_tbl is None:
+            continue
+        tc = ExprTypeChecker(ap.symtab, func_table, struct_registry)
+        scan_stmts(ap.ast.body, tc, local_tbl, ap.ast.name)
+
+    for af in analyzed_funcs:
+        local_tbl = getattr(af.symtab, "local", None)
+        if local_tbl is None:
+            continue
+        tc = ExprTypeChecker(af.symtab, func_table, struct_registry)
+        scan_stmts(af.ast.body, tc, local_tbl, af.ast.name)
+
+    return for_temp_map
 
 
 def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
@@ -1543,8 +1651,11 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         original_debug["stmt_src"].clear()
         original_debug["stmt_src"].update(updated_stmt_src)
 
+    # Predeclare for-loop temps so liveness can track them safely
+    for_temp_map = _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry)
+
     # Liveness-based local sharing (after DCE updates)
-    share_locals_liveness(analyzed_procs, analyzed_funcs)
+    share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map=for_temp_map)
     
     # ZP prioritization (analyze frequency for optimal ZP allocation)
     prioritize_locals_to_zp(analyzed_procs, analyzed_funcs)
