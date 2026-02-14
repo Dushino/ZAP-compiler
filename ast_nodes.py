@@ -7,26 +7,31 @@ from symbols import SemType
 
 
 class ASTNode:
+    """Base class for all AST nodes."""
     pass
 
 
 @dataclass(frozen=True)
 class AsmBlock(ASTNode):
+    """Inline assembly block node."""
     text: str
 
 
 @dataclass(frozen=True)
 class SegmentDirective(ASTNode):
+    """Assembler segment directive node."""
     name: str
 
 
 @dataclass(frozen=True)
 class IncbinDirective(ASTNode):
+    """Binary include directive node (.incbin)."""
     filename: str
 
 
 @dataclass(frozen=True)
 class ErrorDirective(ASTNode):
+    """Compile-time error directive emitted by the parser."""
     message: str
     line: int = 0
     col: int = 0
@@ -34,6 +39,7 @@ class ErrorDirective(ASTNode):
 
 @dataclass(frozen=True)
 class WarningDirective(ASTNode):
+    """Compile-time warning directive emitted by the parser."""
     message: str
     line: int = 0
     col: int = 0
@@ -41,6 +47,7 @@ class WarningDirective(ASTNode):
 
 @dataclass(frozen=True)
 class InfoDirective(ASTNode):
+    """Compile-time info directive emitted by the parser."""
     message: str
     line: int = 0
     col: int = 0
@@ -48,47 +55,57 @@ class InfoDirective(ASTNode):
 
 @dataclass(frozen=True)
 class TypeNode(ASTNode):
+    """Type specifier with base name and pointer flag."""
     base: str            # "byte", "word"
     is_pointer: bool     # True pokud ^
 
     def __repr__(self) -> str:
+        """Return a concise type representation for debugging."""
         p = "^" if self.is_pointer else ""
         return f"Type({self.base}{p})"
 
 
 class InitValue(ASTNode):
+    """Base class for initializer expressions."""
     pass
 
 
 @dataclass(frozen=True)
 class ExprInit(InitValue):
+    """Initializer that wraps a single expression."""
     expr: "Expr"
 
     def __repr__(self) -> str:
+        """Return a readable initializer representation."""
         return f"InitExpr({self.expr})"
 
 
 @dataclass(frozen=True)
 class ListInit(InitValue):
+    """Initializer with a list of expressions or nested initializers."""
     values: List["Expr | InitValue"]  # Can contain expressions or nested initializers
 
     def __repr__(self) -> str:
+        """Return a readable list-initializer representation."""
         vals = ", ".join(repr(v) for v in self.values)
         return f"InitList([{vals}])"
 
 
 @dataclass(frozen=True)
 class StringInit(InitValue):
+    """Initializer for string literals."""
     value: str
     line: int = 0
     col: int = 0
 
     def __repr__(self) -> str:
+        """Return a readable string-initializer representation."""
         return f'InitString("{self.value}")'
 
 
 @dataclass(frozen=True)
 class Declarator(ASTNode):
+    """Declarator for a single variable instance."""
     name: str
     array_size: Optional["Expr"] = None      # DEPRECATED: use array_sizes
     address: Optional["Expr"] = None         # None = bez @
@@ -99,6 +116,7 @@ class Declarator(ASTNode):
     is_static: bool = False  # True for STATIC variables
 
     def __repr__(self) -> str:
+        """Return a readable declarator representation."""
         parts = [self.name]
 
         # Show array dimensions
@@ -119,6 +137,7 @@ class Declarator(ASTNode):
 
 @dataclass(frozen=True)
 class Declaration(ASTNode):
+    """Variable declaration with type and one or more declarators."""
     is_const: bool
     type: TypeNode
     declarators: List[Declarator]
@@ -132,6 +151,7 @@ class Declaration(ASTNode):
     export: bool = False    # #EXPORT forces export even in non-module files
 
     def __repr__(self) -> str:
+        """Return a readable declaration representation."""
         c = "const " if self.is_const else ""
         s = "static " if self.is_static else ""
         p = "port " if self.is_port else ""
@@ -154,6 +174,7 @@ class StructField(ASTNode):
     port_wr: Optional[bool] = None
 
     def __repr__(self) -> str:
+        """Return a readable struct-field representation."""
         addr_str = f" @{self.address}" if self.address else ""
         array_str = ""
         if self.array_sizes:
@@ -182,6 +203,7 @@ class StructDef(ASTNode):
     col: int = 0
 
     def __repr__(self) -> str:
+        """Return a readable struct definition representation."""
         mods = []
         if self.is_port:
             mods.append("#PORT")
@@ -195,35 +217,42 @@ class StructDef(ASTNode):
 
 
 class Expr(ASTNode):
+    """Base class for expressions."""
     pass
 
 
 @dataclass(frozen=True)
 class IntLiteral(Expr):
+    """Integer literal expression."""
     value: int
     line: int = 0
     col: int = 0
 
     def __repr__(self) -> str:
+        """Return the literal as a string for debugging."""
         return str(self.value)
 
 
 @dataclass(frozen=True)
 class Identifier(Expr):
+    """Identifier reference expression."""
     name: str
     line: int = 0
     col: int = 0
 
     def __repr__(self) -> str:
+        """Return the identifier name for debugging."""
         return self.name
 
 @dataclass(frozen=True)
 class DerefExpr(Expr):
+    """Pointer dereference expression."""
     pointer: Expr
     line: int = 0
     col: int = 0
 
     def __repr__(self):
+        """Return a readable dereference representation."""
         return f"{self.pointer}^"
 
 
@@ -240,6 +269,7 @@ class SubscriptExpr(Expr):
     col: int = 0
 
     def __repr__(self):
+        """Return a readable subscript representation."""
         return f"{self.array}[{self.index}]"
 
 
@@ -253,10 +283,12 @@ class FieldAccess(Expr):
     col: int = 0
 
     def __repr__(self):
+        """Return a readable field-access representation."""
         op = "^." if self.is_deref else "."
         return f"{self.object}{op}{self.field}"
 
 class BinOp(Enum):
+    """Binary operator enumeration."""
     ADD = "+"
     SUB = "-"
     MUL = "*"
@@ -281,6 +313,7 @@ class BinOp(Enum):
 
 @dataclass(frozen=True)
 class BinaryExpr(Expr):
+    """Binary operator expression node."""
     left: Expr
     op: BinOp
     right: Expr
@@ -288,10 +321,12 @@ class BinaryExpr(Expr):
     col: int = 0
 
     def __repr__(self):
+        """Return a readable binary expression representation."""
         return f"({self.left} {self.op.value} {self.right})"
 
 
 class UnOp(Enum):
+    """Unary operator enumeration."""
     NOT = "!"
     BNOT = "~"  # Bitwise NOT
     ADDROF = "@"  # Address-of operator
@@ -299,17 +334,20 @@ class UnOp(Enum):
 
 @dataclass(frozen=True)
 class UnaryExpr(Expr):
+    """Unary operator expression node."""
     op: UnOp
     expr: Expr
     line: int = 0
     col: int = 0
 
     def __repr__(self):
+        """Return a readable unary expression representation."""
         return f"({self.op.value}{self.expr})"
 
 
 @dataclass(frozen=True)
 class CallExpr(Expr):
+    """Function call expression node."""
     name: str
     args: list
     line: int = 0
@@ -318,6 +356,7 @@ class CallExpr(Expr):
 
 @dataclass(frozen=True)
 class FuncDecl:
+    """Function declaration node."""
     name: str
     ret_type: TypeNode        # byte / word
     params: list[Parameter]
@@ -331,6 +370,7 @@ class FuncDecl:
 
 @dataclass(frozen=True)
 class Parameter:
+    """Function/procedure parameter definition."""
     type: TypeNode
     name: str
     is_array: bool  # True if []
@@ -340,6 +380,7 @@ class Parameter:
 
 @dataclass(frozen=True)
 class ProcDecl:
+    """Procedure declaration node."""
     name: str
     params: list[Parameter]
     locals: list[Declaration]
@@ -352,12 +393,14 @@ class ProcDecl:
 
 @dataclass(frozen=True)
 class CallStmt:
+    """Procedure call statement node."""
     name: str
     args: list
 
 
 @dataclass(frozen=True)
 class AssignStmt:
+    """Assignment statement node."""
     lhs: Expr
     rhs: Expr
 
@@ -366,18 +409,21 @@ class AssignStmt:
 
 @dataclass(frozen=True)
 class ReturnStmt:
+    """Return statement node."""
     expr: Optional[Expr]
 
 
 
 @dataclass
 class FuncSymbol:
+    """Lightweight function symbol for type checking."""
     name: str
     ret_type: SemType
 
 
 @dataclass(frozen=False)
 class Program:
+    """Top-level program container for declarations and procedures."""
     decls: list
     procs: list
     # funcs: list
@@ -390,6 +436,7 @@ class Program:
 
 @dataclass(frozen=True)
 class EnumItem(ASTNode):
+    """Single enum item entry."""
     name: str
     value: "Expr | None" = None
     line: int = 0
@@ -398,6 +445,7 @@ class EnumItem(ASTNode):
 
 @dataclass(frozen=True)
 class EnumDecl(ASTNode):
+    """Enum declaration node."""
     name: str
     base: str  # "byte" or "word"
     items: list[EnumItem]
@@ -407,6 +455,7 @@ class EnumDecl(ASTNode):
 
 @dataclass()
 class IfStmt:
+    """If/else statement node."""
     cond: Expr
     then_body: list
     else_body: list | None
@@ -414,20 +463,24 @@ class IfStmt:
 
 @dataclass(frozen=True)
 class WhileStmt:
+    """While loop statement node."""
     cond: Expr
     body: list
 
 
 @dataclass(frozen=True)
 class BreakStmt:
+    """Loop break statement node."""
     pass
 
 @dataclass(frozen=True)
 class ContinueStmt:
+    """Loop continue statement node."""
     pass
 
 @dataclass
 class ForStmt:
+    """For loop statement node."""
     var: Identifier
     start: Expr
     end: Expr
@@ -437,6 +490,7 @@ class ForStmt:
 
 @dataclass(frozen=True)
 class SwitchCase:
+    """Single switch-case clause node."""
     labels: list[Expr]
     body: list
     is_default: bool = False
@@ -444,5 +498,6 @@ class SwitchCase:
 
 @dataclass(frozen=True)
 class SwitchStmt:
+    """Switch statement node with case list."""
     expr: Expr
     cases: list[SwitchCase]

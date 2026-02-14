@@ -12,6 +12,7 @@ from sema_expr import ExprTypeChecker
 
 @dataclass
 class AnalyzedFunc:
+    """Result of semantic analysis for a function."""
     ast: FuncDecl
     locals: list[Symbol]
     symtab: SymbolLookup
@@ -19,13 +20,16 @@ class AnalyzedFunc:
 
 
 class FuncAnalyzer:
+    """Performs semantic analysis for functions and their bodies."""
     def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None, struct_registry=None) -> None:
+        """Initialize with function table, expression type checker, and debug info."""
         self.func_table: FuncTable = func_table
         self.expr_tc: ExprTypeChecker = expr_tc
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
 
     def _map_debug_line(self, fname: str | None, line: int | None) -> int | None:
+        """Map cleaned-source line numbers back to original file lines."""
         if fname and isinstance(line, int):
             orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
             if orig_map and 1 <= line <= len(orig_map):
@@ -33,6 +37,7 @@ class FuncAnalyzer:
         return line
 
     def _attach_source_text(self, err: SemanticError, fname: str | None) -> None:
+        """Attach original source text to an error when available."""
         if not fname:
             return
         orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
@@ -40,6 +45,7 @@ class FuncAnalyzer:
             err.source_text = "\n".join(orig_src)
 
     def analyze_decl(self, func: FuncDecl) -> None:
+        """Register a function signature and enforce declaration rules."""
         ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
         # Count required parameters (those without defaults)
         required_params: int = sum(1 for p in func.params if p.default_value is None)
@@ -64,6 +70,7 @@ class FuncAnalyzer:
             raise
 
     def analyze_func(self, func: FuncDecl, global_symtab: SymbolTable) -> AnalyzedFunc:
+        """Analyze a function body and build a scoped symbol table."""
         # lokály (stejně jako u PROC)
         local_symtab = SymbolTable()
         # Be defensive: func.name should be a string, but coerce to empty string if None to satisfy static typing
@@ -128,6 +135,7 @@ class FuncAnalyzer:
 
         # Helper to validate expressions with error reporting
         def _map_stmt_info(stmt):
+            """Lookup source info for a statement using debug maps."""
             stmt_src = self.debug.get("stmt_src") or {}
             info = stmt_src.get(id(stmt))
             if not info:
@@ -143,6 +151,7 @@ class FuncAnalyzer:
             return fname, line, col
 
         def validate_expr(expr, context_stmt=None, read_check_enabled: bool = True) -> ExprType:
+            """Type-check an expression with contextual error reporting."""
             try:
                 return self.expr_tc.check(expr, read_check_enabled)
             except SemanticError as e:
@@ -164,6 +173,7 @@ class FuncAnalyzer:
 
         # Validate all expressions in all statements
         def validate_stmt_exprs(statements: list) -> None:
+            """Type-check all expressions in a list of statements."""
             from ast_nodes import AssignStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, IntLiteral
             from constsubst import subst_const
             from constfold import fold_expr
@@ -177,6 +187,7 @@ class FuncAnalyzer:
 
                     # Now ensure write permission for port variables
                     def _get_base_ident(node):
+                        """Extract base identifier name from an LHS expression."""
                         from ast_nodes import Identifier, SubscriptExpr, FieldAccess, DerefExpr
                         if isinstance(node, Identifier):
                             return node.name

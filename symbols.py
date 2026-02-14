@@ -63,6 +63,7 @@ class StructInfo:
 class StructRegistry:
     """Registry for struct definitions"""
     def __init__(self) -> None:
+        """Initialize an empty struct registry."""
         self._structs: dict[str, StructInfo] = {}
 
     def define(self, struct_info: StructInfo, node=None) -> None:
@@ -85,6 +86,7 @@ class StructRegistry:
 
 @dataclass(frozen=True)
 class SemType:
+    """Semantic type descriptor for variables and expressions."""
     base: str            # "byte", "word", or struct name
     is_pointer: bool     # ^ (pointer)
     is_struct: bool = False  # True if base is a struct name
@@ -92,6 +94,7 @@ class SemType:
 
     @property
     def width(self) -> int:
+        """Compute width in bytes for this semantic type."""
         if self.is_pointer:
             return 2
         if self.is_struct and self.struct_info:
@@ -111,6 +114,7 @@ class SemType:
 
 @dataclass
 class Symbol:
+    """Symbol table entry describing a variable or constant."""
     name: str
     type: SemType
     is_const: bool
@@ -172,6 +176,7 @@ class Symbol:
 
 class SymbolTable:
     def __init__(self) -> None:
+        """Create a new symbol table with no entries."""
         self._symbols: dict[str, Symbol] = {}
         # Registry for enum definitions: enum_name -> {'base': 'BYTE'|'WORD', 'members': {NAME: value}}
         self._enums: dict[str, dict] = {}
@@ -180,9 +185,11 @@ class SymbolTable:
 
     @staticmethod
     def _key(name: str) -> str:
+        """Normalize symbol names for case-insensitive lookup."""
         return name.upper() if isinstance(name, str) else name
 
     def define(self, sym: Symbol, node=None) -> None:
+        """Register a symbol and enforce definition constraints."""
         key = self._key(sym.name)
         if key in self._symbols:
             raise SemanticError(f"Variable '{sym.name}' already defined", node=node)
@@ -200,18 +207,22 @@ class SymbolTable:
         self._symbols[key] = sym
 
     def lookup(self, name: str) -> Symbol:
+        """Look up a symbol by name, raising on missing entries."""
         return self._symbols[self._key(name)]
 
     def __iter__(self) -> Iterator[Symbol]:
+        """Iterate over symbols stored in this table."""
         return iter(self._symbols.values())
 
 
 class SymbolLookup(Protocol):
+    """Protocol for symbol lookup providers used by the type checker."""
     def lookup(self, name: str) -> Symbol: ...
 
 
 @dataclass
 class ProcSymbol:
+    """Procedure signature and visibility metadata."""
     name: str
     param_count: int = 0
     required_params: int = 0  # params without defaults
@@ -221,10 +232,12 @@ class ProcSymbol:
 
 class ProcTable:
     def __init__(self) -> None:
+        """Initialize an empty procedure table."""
         # Map name -> list of ProcSymbol (allow same name in different modules if not exported)
         self._procs: dict[str, list[ProcSymbol]] = {}
 
     def define(self, p: ProcSymbol, node=None) -> None:
+        """Register a procedure symbol with duplicate-definition checks."""
         # Ensure no duplicate definitions within same owner
         lst: List[ProcSymbol] = self._procs.setdefault(p.name, [])
         for existing in lst:
@@ -260,10 +273,12 @@ class ProcTable:
 
 class ScopedSymbolTable:
     def __init__(self, parent: SymbolTable) -> None:
+        """Create a scoped lookup that falls back to a parent table."""
         self.parent: SymbolTable = parent
         self.local = SymbolTable()
 
     def lookup(self, name: str) -> Symbol:
+        """Lookup a symbol, preferring locals then globals."""
         try:
             return self.local.lookup(name)
         except KeyError:
@@ -271,6 +286,7 @@ class ScopedSymbolTable:
 
 @dataclass
 class FuncSymbol:
+    """Function signature metadata used during semantic checks."""
     name: str
     ret_type: SemType
     param_count: int = 0
@@ -279,14 +295,17 @@ class FuncSymbol:
 
 class FuncTable:
     def __init__(self) -> None:
+        """Initialize an empty function table."""
         self._funcs: dict[str, FuncSymbol] = {}
 
     def define(self, f: FuncSymbol, node=None) -> None:
+        """Register a function symbol with duplicate-definition checks."""
         if f.name in self._funcs:
             raise SemanticError(f"Function '{f.name}' already defined", node=node)
         self._funcs[f.name] = f
 
     def lookup(self, name: str, node=None) -> FuncSymbol:
+        """Look up a function symbol by name."""
         try:
             return self._funcs[name]
         except KeyError:

@@ -8,6 +8,7 @@ import sys
 from typing import Optional, Set, List
 
 def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False) -> str:
+    """Compile ZAP source text to assembly output."""
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
         src = src[1:]
@@ -39,7 +40,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
 
 
 def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False) -> str:
-    """Compile a file with module support"""
+    """Compile a source file with module resolution enabled."""
     try:
         # Get base directory for resolving includes
         base_dir = os.path.dirname(os.path.abspath(filepath))

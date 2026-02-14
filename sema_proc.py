@@ -8,13 +8,16 @@ from sema import DeclarationAnalyzer
 
 @dataclass
 class AnalyzedProc:
+    """Result of semantic analysis for a procedure."""
     ast: ProcDecl
     locals: list[Symbol]
     symtab: SymbolLookup   # ← změna tady
 
 
 class ProcAnalyzer:
+    """Performs semantic analysis for procedures and their bodies."""
     def __init__(self, procs: ProcTable, debug_info: dict | None = None, struct_registry=None, func_table=None) -> None:
+        """Initialize with procedure table and optional debug/struct info."""
         self.procs: ProcTable = procs
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
@@ -23,6 +26,7 @@ class ProcAnalyzer:
         self.current_proc: ProcDecl | None = None
 
     def _map_debug_line(self, fname: str | None, line: int | None) -> int | None:
+        """Map cleaned-source line numbers back to original file lines."""
         if fname and isinstance(line, int):
             orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
             if orig_map and 1 <= line <= len(orig_map):
@@ -30,6 +34,7 @@ class ProcAnalyzer:
         return line
 
     def _attach_source_text(self, err: SemanticError, fname: str | None) -> None:
+        """Attach original source text to an error when available."""
         if not fname:
             return
         orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
@@ -37,6 +42,7 @@ class ProcAnalyzer:
             err.source_text = "\n".join(orig_src)
 
     def analyze_decl(self, proc: ProcDecl) -> None:
+        """Register a procedure signature and enforce declaration rules."""
         # Count required parameters (those without defaults)
         required_params: int = sum(1 for p in proc.params if p.default_value is None)
         # Determine owner file and exported flag (set by module system via debug maps)
@@ -74,6 +80,7 @@ class ProcAnalyzer:
             raise
 
     def analyze_call(self, call: CallStmt) -> None:
+        """Validate a procedure call against the procedure table."""
         # Determine caller file if available to support module visibility checks
         caller_file = None
         if self.current_proc is not None:
@@ -146,6 +153,7 @@ class ProcAnalyzer:
         proc: ProcDecl,
         global_symtab: SymbolTable
         ) -> AnalyzedProc:
+        """Analyze a procedure body and build a scoped symbol table."""
 
         local_symtab = SymbolTable()
         # Be defensive: proc.name should be a string, but coerce to empty string if None to satisfy static typing
@@ -224,6 +232,7 @@ class ProcAnalyzer:
             tc = ExprTypeChecker(scoped, self.func_table, self.struct_registry)
 
             def _map_stmt_info(stmt):
+                """Lookup source info for a statement using debug maps."""
                 stmt_src = self.debug.get("stmt_src") or {}
                 info = stmt_src.get(id(stmt))
                 if not info:
@@ -240,6 +249,7 @@ class ProcAnalyzer:
                 return fname, line, col
 
             def validate_stmt_exprs(statements: list) -> None:
+                """Type-check expressions within a list of statements."""
                 from ast_nodes import AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, Identifier, SubscriptExpr, FieldAccess, IntLiteral
                 from constsubst import subst_const
                 from constfold import fold_expr
@@ -281,6 +291,7 @@ class ProcAnalyzer:
 
                         # Check write permission for ports
                         def _get_base_ident(node):
+                            """Extract base identifier name from an LHS expression."""
                             from ast_nodes import Identifier, SubscriptExpr, FieldAccess
                             if isinstance(node, Identifier):
                                 return node.name

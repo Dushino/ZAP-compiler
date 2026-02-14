@@ -9,6 +9,7 @@ IMM_HI_RE: re.Pattern[str] = re.compile(r'#>\s*(\w+)')
 ZAP_EXPORT_RE: re.Pattern[str] = re.compile(r';\s*ZAP_EXPORTS\s+(.+)', re.IGNORECASE)
 
 def cleanup_labels(lines: list[str]) -> list[str]:
+    """Strip unused labels while preserving exported/data and runtime labels."""
     # Runtime math routines should always be kept even if not referenced
     keep_always: set[str] = {
         "MUL8", "MUL16_8", "MUL16",

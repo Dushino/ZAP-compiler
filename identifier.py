@@ -26,6 +26,7 @@ from typing import NoReturn
 
 @dataclass
 class Identifier:
+    """Metadata record for a declared identifier in the compiler."""
     name:       str     = ''        # name in UPPERCASE
     bytes:      int     = 0         # bytes to reserve for variable
     isPtr:      bool    = False     # true if is pointer
@@ -49,10 +50,12 @@ class Identifier:
     declCol:    int     = 0         # column where has been declared
 
     def __post_init__(self) -> None:
+        """Normalize identifier name to uppercase after initialization."""
         # automaticky převést jméno na UPPERCASE
         self.name       = self.name.upper()  
 
     def _reset(self) -> None:
+        """Reset all fields to their default state for reuse."""
         self.name       = ''        # name in UPPERCASE
         self.bytes      = 0         # bytes to reserve for variable
         self.isPtr      = False     # true if is pointer
@@ -82,19 +85,20 @@ class Identifiers:
     pos: int
 
     def __init__(self) -> None:
+        """Create an empty identifier registry."""
         self._identifiers = []
         self.pos = 0
 
     def _error(self, errtxt: str) -> NoReturn:
+        """Report a fatal identifier error and exit."""
         print(f'IDENTIFIER ERROR: {errtxt}.', file=sys.stderr)
         exit(1)
 
 
     def add(self, ide: Identifier) -> Identifier:
         """
-        Uloží kopii identifikátoru (aby následné resetování originálu nesmazalo uloženou položku)
-        Normalizuje název na UPPERCASE.
-        Vrátí uložený objekt.
+        Deep copy the provided identifier, normalize its name to uppercase, and add it to the registry.        
+        Returns the stored identifier object.
         """
         if not isinstance(ide, Identifier):
             raise TypeError("add expects Identifier")
@@ -105,30 +109,35 @@ class Identifiers:
         return ide_copy
        
     def findByName(self, nm: str) -> Identifier | None:
+        """Find a non-proc/function identifier by its name."""
         if nm is None:
             return None
         target: str = nm.upper()
         return next((i for i in self._identifiers if (i.localName == target and i.isProc == False and i.isFunc == False)), None) # Fixme: filter search for PROC and FUNC names only
 
     def findAllByName(self, nm: str) -> list[Identifier]:
+        """Find all non-proc/function identifiers by name."""
         if nm is None:
             return None
         target: str = nm.upper()
         return [i for i in self._identifiers if (i.localName == target and i.isProc == False and i.isFunc == False)]                   
         
     def findByPROCName(self, nm: str) -> Identifier | None:
+        """Find a procedure identifier by name."""
         if nm is None:
             return None
         target: str = nm.upper()
         return next((i for i in self._identifiers if (i.name == target and i.isProc == True)), None) # Fixme: filter search for PROC and FUNC names only
 
     def findAllByPROCName(self, nm:str) -> list[Identifier]:
+        """Find all procedure identifiers by name."""
         if nm is None:
             return None
         mn: str = nm.upper()        
         return [i for i in self._identifiers if (i.name == mn and i.isProc == True)]           
     
     def _peek(self, offset:int) -> Identifier | None:        
+        """Peek an identifier by position offset without advancing."""
         i: int = self.pos + offset
         if i < len(self._identifiers):
             return self._identifiers[i]

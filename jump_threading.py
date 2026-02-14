@@ -4,6 +4,7 @@ JMP_RE: re.Pattern[str] = re.compile(r'^\s*JMP\s+(\w+)', re.IGNORECASE)
 LABEL_RE: re.Pattern[str] = re.compile(r'^(\w+):')
 
 def jump_threading(lines: list[str]) -> list[str]:
+    """Simplify jump chains and trivial branches in assembly output."""
 
     # mapování label -> index
     label_pos = {}
@@ -18,7 +19,7 @@ def jump_threading(lines: list[str]) -> list[str]:
         line: str = lines[i]
 
         # ORA X ; JMP L  -> JMP L
-        if line.strip() == "ORA X":
+        if line.strip() == "ORA X":     # Fixme: Propabaly not needed anymore, but keep for now as it was a common pattern in the past
             if i + 1 < len(lines):
                 next_line: str = lines[i + 1].strip()
                 if next_line.startswith("JMP "):
@@ -66,6 +67,7 @@ def jump_threading(lines: list[str]) -> list[str]:
     return out
 
 def cleanup_labels(lines: list[str]) -> list[str]:
+    """Remove unreferenced labels and collapse redundant label runs."""
     # najdi všechny cíle skoků
     used = set()
     for l in lines:

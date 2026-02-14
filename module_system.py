@@ -32,6 +32,7 @@ class ModuleSystem:
     """
     
     def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None, include_dirs: Optional[List[str]] = None) -> None:
+        """Initialize module resolution with base path and include dirs."""
         self.base_path: str = os.path.abspath(base_path)
         self.loaded_modules: Dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection
@@ -557,6 +558,7 @@ class ModuleSystem:
         all_exports: set[str] = set()
 
         def collect_from_module(module_path: str) -> None:
+            """Merge declarations and top-level items from a module into the program."""
             if module_path in processed:
                 return
             processed.add(module_path)
@@ -571,6 +573,7 @@ class ModuleSystem:
             source_text: str | None = "\n".join(source_lines) if source_lines else None
 
             def raise_dup(msg: str, name: str, info) -> NoReturn:
+                """Raise a duplicate-definition error with best-effort source context."""
                 line = None
                 col = None
                 if info:

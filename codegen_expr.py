@@ -28,11 +28,17 @@ from errors import SemanticError
 
 
 class CodeGen:
+    """Code generation engine for ZAP programs.
+    Emits assembly for expressions, statements, and routines.
+    """
     label_id = 0
     loop_stack = []
     internal_label_prefix = "__ZAP_"
 
     def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
+        """Initialize code generation state.
+        Stores symbol tables, options, and debug maps.
+        """
         # global symbol table (globals)
         self.global_symtab: SymbolTable = symtab
         # currently active table (can be scoped for PROC/FUNC)
@@ -106,6 +112,9 @@ class CodeGen:
         self.local_access_frequency: dict[str, int] = {}
 
     def tc_check(self, expr, read_check_enabled: bool = True) -> ExprType:
+        """Type-check an expression with codegen context.
+        Attaches source info to semantic errors.
+        """
         # Wrapper to attach source location to type-checker errors
         try:
             return self.tc.check(expr, read_check_enabled=read_check_enabled)
@@ -132,11 +141,17 @@ class CodeGen:
     class RPNNode:
         """Represents a node in RPN evaluation (operand or operator)."""
         def __init__(self, node_type: str, value: object = None, is_16bit: bool = False):
+            """Initialize code generation state.
+            Stores symbol tables, options, and debug maps.
+            """
             self.node_type = node_type  # 'OPERAND', 'OPERATOR', 'CONST', 'VAR', 'CALL', etc.
             self.value = value  # Operator name, variable name, constant value, etc.
             self.is_16bit = is_16bit  # Whether this produces a 16-bit result
         
         def __repr__(self):
+            """Return a readable debug representation.
+            Used for logging and diagnostics.
+            """
             return f"RPNNode({self.node_type}, {self.value}, 16bit={self.is_16bit})"
     
     def ast_to_rpn(self, expr: BinaryExpr | UnaryExpr | Expr) -> list['CodeGen.RPNNode']:
@@ -881,22 +896,37 @@ class CodeGen:
         return check_node(expr)
 
     def new_label(self, prefix: str) -> str:
+        """Helper for new label.
+        Internal helper used during code generation.
+        """
         self.label_id += 1
         return self._internal_label(f"{prefix}_{self.label_id}")
 
     def _internal_label(self, name: str) -> str:
+        """Helper for internal label.
+        Internal helper used during code generation.
+        """
         return f"{self.internal_label_prefix}{name}"
 
     def new_for_var(self, base: str) -> str:
+        """Helper for new for var.
+        Internal helper used during code generation.
+        """
         self.for_id += 1
         return f"FOR_{base}_{self.for_id}"
 
     def asm_symbol_name(self, name: str) -> str:
+        """Helper for asm symbol name.
+        Internal helper used during code generation.
+        """
         if name.startswith("__"):
             return name
         return f"_{name}"
 
     def _build_internal_name_map(self) -> dict[str, str]:
+        """Build internal name map.
+        Internal helper used during code generation.
+        """
         sys_names = {"MATH_STACK", "MATH0", "MATH1", "TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
         runtime_names = {
             "COPY_BYTES",
@@ -935,6 +965,9 @@ class CodeGen:
         return {name: f"__{name}" for name in sorted(internal_names)}
 
     def _build_internal_name_regex(self, name_map: dict[str, str]):
+        """Build internal name regex.
+        Internal helper used during code generation.
+        """
         if not name_map:
             return None
         import re
@@ -942,11 +975,17 @@ class CodeGen:
         return re.compile(rf"(?<![A-Za-z0-9_])({pattern})(?![A-Za-z0-9_])")
 
     def _rewrite_internal_names(self, line: str) -> str:
+        """Helper for rewrite internal names.
+        Internal helper used during code generation.
+        """
         if not self._internal_name_re:
             return line
         return self._internal_name_re.sub(lambda m: self._internal_name_map[m.group(1)], line)
 
     def _stz(self, operand: str) -> None:
+        """Helper for stz.
+        Internal helper used during code generation.
+        """
         if self.is_65c02:
             self.emit(f"\tSTZ {operand}")
         else:
@@ -967,6 +1006,9 @@ class CodeGen:
                 self.emit(f"\tSTA {op}")
 
     def _emit_indirect_store_zero(self, ptr: str) -> None:
+        """Emit indirect store zero.
+        Internal helper used during code generation.
+        """
         if self.is_65c02:
             self.emit(f"\tSTA ({ptr})")
         else:
@@ -974,6 +1016,9 @@ class CodeGen:
             self.emit(f"\tSTA ({ptr}),Y")
 
     def _math_stack_push(self, is_16bit: bool) -> None:
+        """Helper for math stack push.
+        Internal helper used during code generation.
+        """
         if self.math_stack_depth >= 4:
             self._raise_error("Math stack overflow: requires more than 4 word slots. Simplify the expression.")
         slot: int = self.math_stack_depth
@@ -987,6 +1032,9 @@ class CodeGen:
             self.emit(f"\tSTA MATH_STACK+{offset + 1}")
 
     def _math_stack_pop_to_op0(self) -> None:
+        """Helper for math stack pop to op0.
+        Internal helper used during code generation.
+        """
         if self.math_stack_depth <= 0:
             self._raise_error("Math stack underflow during expression evaluation.")
         self.math_stack_depth -= 1
@@ -998,6 +1046,9 @@ class CodeGen:
         self.emit("\tSTA MATH0+1")
 
     def _emit_store_byte_const(self, sym: Symbol, value: int) -> None:
+        """Emit store byte const.
+        Internal helper used during code generation.
+        """
         value &= 0xFF
         asm: str = sym.asm_name()
         if value == 0:
@@ -1032,6 +1083,9 @@ class CodeGen:
         return True
 
     def _emit_store_word_const(self, sym: Symbol, value: int) -> None:
+        """Emit store word const.
+        Internal helper used during code generation.
+        """
         value &= 0xFFFF
         lo: int = value & 0xFF
         hi: int = (value >> 8) & 0xFF
@@ -1048,6 +1102,9 @@ class CodeGen:
             self.emit(f"\tSTA {asm}+1")
 
     def _emit_inc_word(self, asm: str) -> None:
+        """Emit inc word.
+        Internal helper used during code generation.
+        """
         lbl: str = self.new_label("INC_WORD")
         self.emit(f"\tINC {asm}")
         self.emit(f"\tBNE {lbl}")
@@ -1055,6 +1112,9 @@ class CodeGen:
         self.emit(f"{lbl}:")
 
     def _emit_dec_word(self, asm: str) -> None:
+        """Emit dec word.
+        Internal helper used during code generation.
+        """
         lbl: str = self.new_label("DEC_WORD")
         self.emit(f"\tLDA {asm}")
         self.emit(f"\tBNE {lbl}")
@@ -1076,15 +1136,24 @@ class CodeGen:
             return None
 
     def _is_sta(self, line: str) -> bool:
+        """Return whether sta.
+        Internal helper used during code generation.
+        """
         return line.strip().upper().startswith("STA ")
 
     def _inc_operand(self, line: str) -> str | None:
+        """Helper for inc operand.
+        Internal helper used during code generation.
+        """
         stripped: str = line.strip().upper()
         if stripped.startswith("INC "):
             return stripped[4:].strip()
         return None
 
     def _dec_operand(self, line: str) -> str | None:
+        """Helper for dec operand.
+        Internal helper used during code generation.
+        """
         stripped: str = line.strip().upper()
         if stripped.startswith("DEC "):
             return stripped[4:].strip()
@@ -1221,9 +1290,15 @@ class CodeGen:
         in_asm_block = False
 
         def _operand_is_port(operand: str) -> bool:
+            """Helper for operand is port.
+            Internal helper used during code generation.
+            """
             return self._is_port_variable(operand)
 
         def _parse_imm(operand: str) -> int | None:
+            """Helper for parse imm.
+            Internal helper used during code generation.
+            """
             operand = operand.strip().upper()
             if not operand.startswith("#"):
                 return None
@@ -1236,10 +1311,16 @@ class CodeGen:
                 return None
 
         def _clobbers_x(line: str) -> bool:
+            """Helper for clobbers x.
+            Internal helper used during code generation.
+            """
             op = line.split(maxsplit=1)[0].upper() if line else ""
             return op in {"LDX", "INX", "DEX", "TAX", "TXA", "TSX", "PLX"}
 
         def _clobbers_y(line: str) -> bool:
+            """Helper for clobbers y.
+            Internal helper used during code generation.
+            """
             op = line.split(maxsplit=1)[0].upper() if line else ""
             return op in {"LDY", "INY", "DEY", "TAY", "TYA", "PLY"}
 
@@ -1308,9 +1389,15 @@ class CodeGen:
                 l3_u = l3.split(';')[0].strip().upper()
 
                 def _is_load(op: str, instr: str) -> bool:
+                    """Return whether load.
+                    Internal helper used during code generation.
+                    """
                     return instr.startswith(f"{op} #")
 
                 def _is_store(op: str, instr: str) -> bool:
+                    """Return whether store.
+                    Internal helper used during code generation.
+                    """
                     return instr.startswith(f"{op} ")
 
                 if _is_load("LDA", l1_u) and _is_store("STA", l2_u) and _is_load("LDA", l3_u):
@@ -1951,6 +2038,9 @@ class CodeGen:
 
             # Replace 16-bit add temp shuffle with direct stores when safe
             def _parse_inst(src_line: str) -> tuple[str, str]:
+                """Helper for parse inst.
+                Internal helper used during code generation.
+                """
                 inst = src_line.split(";", 1)[0].strip()
                 if not inst:
                     return "", ""
@@ -2055,6 +2145,9 @@ class CodeGen:
         return vars_block
 
     def _declare_temp(self, name: str, base: str = "WORD") -> Symbol:
+        """Helper for declare temp.
+        Internal helper used during code generation.
+        """
         # vložení do aktuální tabulky (lokální, jinak globální)
         target: SymbolTable | None = getattr(self.current_symtab, "local", None)
         if target is None:
@@ -2084,6 +2177,9 @@ class CodeGen:
 
 
     def gen_file_header(self) -> None:
+        """Generate file header.
+        Internal helper used during code generation.
+        """
         self.emit("; Generated by Zap Compiler")
         cmd: str = self.command_line if self.command_line else "(command line not provided)"
         self.emit(f"; Command: {cmd}")
@@ -2108,6 +2204,9 @@ class CodeGen:
         #self.emit(".include \"variables.inc\"\n")
 
     def gen_file_footer(self) -> None:
+        """Generate file footer.
+        Internal helper used during code generation.
+        """
         # Ensure runtime helpers and data live in CODE segment
         self.emit("\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
@@ -2335,6 +2434,9 @@ class CodeGen:
             needed.add("MUL8")
 
         def emit_mul8() -> None:
+            """Emit mul8.
+            Internal helper used during code generation.
+            """
             self.emit("; MUL8: 8x8=16 multiply")
             self.emit("; Input: MATH0 (multiplicand), MATH1 (multiplier)")
             self.emit("; Output: MATH0=product (low word), MATH0+2/+3 cleared")
@@ -2364,6 +2466,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mul16_8() -> None:
+            """Emit mul16 8.
+            Internal helper used during code generation.
+            """
             self.emit("; MUL16_8: 16x8=24 multiply")
             self.emit("; Input: MATH0 low word (multiplicand), MATH1 low byte (multiplier)")
             self.emit("; Output: MATH0=product (32-bit)")
@@ -2400,6 +2505,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mul16() -> None:
+            """Emit mul16.
+            Internal helper used during code generation.
+            """
             self.emit("; MUL16: 16x16=32 multiply (shift-add implementation)")
             self.emit("; Input: MATH0 low word (multiplicand), MATH1 low word (multiplier)")
             self.emit("; Output: MATH0=product (32-bit)")
@@ -2449,6 +2557,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_div8() -> None:
+            """Emit div8.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV8: 8/8=8 divide")
             self.emit("; Input: MATH0 (dividend), MATH1 (divisor)")
             self.emit("; Output: MATH0=quotient (low byte)")
@@ -2470,6 +2581,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_div16_8() -> None:
+            """Emit div16 8.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV16_8: 16/8=16 divide")
             self.emit("; Input: MATH0 low word (dividend), MATH1 low byte (divisor)")
             self.emit("; Output: MATH0=quotient (low word)")
@@ -2495,6 +2609,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_div8_16() -> None:
+            """Emit div8 16.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV8_16: 8/16 divide (promote and call DIV16)")
             self.emit("; Input: MATH0 (dividend), MATH1 low word (divisor)")
             self.emit("; Output: MATH0=quotient (low word)")
@@ -2505,6 +2622,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_div16() -> None:
+            """Emit div16.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV16: 16/16=16 divide")
             self.emit("; Input: MATH0 low word (dividend), MATH1 low word (divisor)")
             self.emit("; Output: MATH0=quotient (low word)")
@@ -2538,6 +2658,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mod8() -> None:
+            """Emit mod8.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD8: 8%8=8 modulo")
             self.emit("; Input: MATH0 (dividend), MATH1 (divisor)")
             self.emit("; Output: MATH0=remainder (low byte)")
@@ -2559,6 +2682,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mod16_8() -> None:
+            """Emit mod16 8.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD16_8: 16%8=8 modulo")
             self.emit("; Input: MATH0 low word (dividend), MATH1 low byte (divisor)")
             self.emit("; Output: MATH0=remainder (low byte)")
@@ -2584,6 +2710,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mod8_16() -> None:
+            """Emit mod8 16.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD8_16: 8%16 modulo (promote and call MOD16)")
             self.emit("; Input: MATH0 (dividend), MATH1 low word (divisor)")
             self.emit("; Output: MATH0=remainder (low word)")
@@ -2594,6 +2723,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mod16() -> None:
+            """Emit mod16.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD16: 16%16=16 modulo")
             self.emit("; Input: MATH0 low word (dividend), MATH1 low word (divisor)")
             self.emit("; Output: MATH0=remainder (low word)")
@@ -2629,6 +2761,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_set_math0() -> None:
+            """Emit set math0.
+            Internal helper used during code generation.
+            """
             self.emit("; SET_MATH0: A/X -> MATH0/MATH0+1 (for RPN code generation)")
             self.emit("; Input: A (low byte), X (high byte)")
             self.emit("; Output: MATH0=A, MATH0+1=X")
@@ -2638,6 +2773,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_set_math1() -> None:
+            """Emit set math1.
+            Internal helper used during code generation.
+            """
             self.emit("; SET_MATH1: A/X -> MATH1/MATH1+1 (for RPN code generation)")
             self.emit("; Input: A (low byte), X (high byte)")
             self.emit("; Output: MATH1=A, MATH1+1=X")
@@ -2647,66 +2785,102 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_mul8_a() -> None:
+            """Emit mul8 a.
+            Internal helper used during code generation.
+            """
             self.emit("; MUL8_A: right operand in A")
             self.emit("MUL8_A:")
             self.emit("\tSTA MATH1")
 
         def emit_mul16_8_a() -> None:
+            """Emit mul16 8 a.
+            Internal helper used during code generation.
+            """
             self.emit("; MUL16_8_A: right operand (byte) in A")
             self.emit("MUL16_8_A:")
             self.emit("\tSTA MATH1")
 
         def emit_mul16_ax() -> None:
+            """Emit mul16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; MUL16_AX: right operand (word) in A/X")
             self.emit("MUL16_AX:")
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
         def emit_div8_a() -> None:
+            """Emit div8 a.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV8_A: right operand in A")
             self.emit("DIV8_A:")
             self.emit("\tSTA MATH1")
 
         def emit_div16_8_a() -> None:
+            """Emit div16 8 a.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV16_8_A: right operand (byte) in A")
             self.emit("DIV16_8_A:")
             self.emit("\tSTA MATH1")
 
         def emit_div8_16_ax() -> None:
+            """Emit div8 16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV8_16_AX: right operand (word) in A/X")
             self.emit("DIV8_16_AX:")
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
         def emit_div16_ax() -> None:
+            """Emit div16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; DIV16_AX: right operand (word) in A/X")
             self.emit("DIV16_AX:")
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
         def emit_mod8_a() -> None:
+            """Emit mod8 a.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD8_A: right operand in A")
             self.emit("MOD8_A:")
             self.emit("\tSTA MATH1")
 
         def emit_mod16_8_a() -> None:
+            """Emit mod16 8 a.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD16_8_A: right operand (byte) in A")
             self.emit("MOD16_8_A:")
             self.emit("\tSTA MATH1")
 
         def emit_mod8_16_ax() -> None:
+            """Emit mod8 16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD8_16_AX: right operand (word) in A/X")
             self.emit("MOD8_16_AX:")
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
         def emit_mod16_ax() -> None:
+            """Emit mod16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; MOD16_AX: right operand (word) in A/X")
             self.emit("MOD16_AX:")
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
         def emit_get_math0() -> None:
+            """Emit get math0.
+            Internal helper used during code generation.
+            """
             self.emit("; GET_MATH0: MATH0/MATH0+1 -> A/X (for RPN code generation)")
             self.emit("; Input: MATH0 (low word)")
             self.emit("; Output: A (low byte), X (high byte)")
@@ -2716,6 +2890,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_add16() -> None:
+            """Emit add16.
+            Internal helper used during code generation.
+            """
             self.emit("; ADD16: 16-bit addition (accumulator style)")
             self.emit("; Input: MATH0 low word (left operand), MATH1 low word (right operand)")
             self.emit("; Output: MATH0=sum (32-bit, high word cleared)")
@@ -2731,6 +2908,9 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_sub16() -> None:
+            """Emit sub16.
+            Internal helper used during code generation.
+            """
             self.emit("; SUB16: 16-bit subtraction (accumulator style)")
             self.emit("; Input: MATH0 low word (left operand), MATH1 low word (right operand)")
             self.emit("; Output: MATH0=difference (32-bit, high word cleared)")
@@ -2746,12 +2926,18 @@ class CodeGen:
             self.emit("\tRTS")
 
         def emit_add16_ax() -> None:
+            """Emit add16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; ADD16_AX: right operand (word) in A/X")
             self.emit("ADD16_AX:")
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
         def emit_sub16_ax() -> None:
+            """Emit sub16 ax.
+            Internal helper used during code generation.
+            """
             self.emit("; SUB16_AX: right operand (word) in A/X")
             self.emit("SUB16_AX:")
             self.emit("\tSTA MATH1")
@@ -2801,6 +2987,9 @@ class CodeGen:
 
 
     def gen_var_header(self) -> None:
+        """Generate var header.
+        Internal helper used during code generation.
+        """
         self.emit("; Variables")
         self.emit("; ------------------------------")   
 
@@ -2825,6 +3014,9 @@ class CodeGen:
         return temps
 
     def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None) -> None:
+        """Generate vars.
+        Internal helper used during code generation.
+        """
         temp_sizes: dict[str, int] = {
             self._internal_name_map.get("TMP0", "TMP0"): 2,
             self._internal_name_map.get("TMP1", "TMP1"): 2,
@@ -3147,18 +3339,27 @@ class CodeGen:
 
 
     def gen_globals_header(self) -> None:
+        """Generate globals header.
+        Internal helper used during code generation.
+        """
         self.emit("\n.segment \"CODE\"")
         self.emit("\n; Globals initialization")
         self.emit("; ------------------------------") 
                
 
     def gen_globals_footer(self) -> None:
+        """Generate globals footer.
+        Internal helper used during code generation.
+        """
         self.emit("\n; Call MAIN")
         self.emit("; ------------------------------")        
         self.emit(f"\tJSR {self.asm_symbol_name('MAIN')}")       
         self.emit("\tJMP *\n")       
 
     def gen_init(self, sym: Symbol, is_global_init: bool = False) -> None:
+        """Generate init.
+        Internal helper used during code generation.
+        """
         # Skip const values - they don't need runtime initialization
         # Const arrays are stored in ROM (ARRAY_DATA_*) and accessed directly
         # Const scalars are baked into code at usage points
@@ -3599,6 +3800,9 @@ class CodeGen:
 
 
     def emit(self, line: str) -> None:
+        """Append an assembly line to the output buffer.
+        Rewrites internal names and tracks usage.
+        """
         line = self._rewrite_internal_names(line)
         self.code.append(line)
         # Track frequency for ZP prioritization
@@ -3649,6 +3853,9 @@ class CodeGen:
             pass  # Symbol not found or lookup failed
 
     def emit_src_comment_for_stmt(self, stmt) -> None:
+        """Emit src comment for stmt.
+        Internal helper used during code generation.
+        """
         info = self.stmt_src.get(id(stmt))
         if info:
             # Support both 3-tuple and 4-tuple forms
@@ -3663,6 +3870,9 @@ class CodeGen:
             self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
 
     def emit_src_comment_for_local(self, proc_name: str, var_name: str) -> None:
+        """Emit src comment for local.
+        Internal helper used during code generation.
+        """
         info = self.local_decl_src.get((proc_name, var_name))
         if info:
             fname, line, col, text = info
@@ -3672,6 +3882,9 @@ class CodeGen:
             self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
 
     def emit_src_comment_for_global(self, var_name: str) -> None:
+        """Emit src comment for global.
+        Internal helper used during code generation.
+        """
         info = self.global_decl_src.get(var_name)
         if info:
             fname, line, col, text = info
@@ -3681,6 +3894,9 @@ class CodeGen:
             self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
 
     def _map_clean_line_to_orig(self, fname: str, line: int | None) -> int | None:
+        """Map clean line to orig.
+        Internal helper used during code generation.
+        """
         if fname and isinstance(line, int):
             orig_map = self.orig_line_map_per_file.get(fname)
             if orig_map and 1 <= line <= len(orig_map):
@@ -3688,6 +3904,9 @@ class CodeGen:
         return line
 
     def _get_source_lines_for_file(self, fname: str | None) -> list[str] | None:
+        """Return source lines for file.
+        Internal helper used during code generation.
+        """
         if not fname:
             return self.source_lines if self.source_lines else None
         orig_src = self.orig_source_lines_per_file.get(fname)
@@ -3699,6 +3918,9 @@ class CodeGen:
         return self.source_lines if self.source_lines else None
 
     def _raise_error(self, msg: str) -> NoReturn:
+        """Helper for raise error.
+        Internal helper used during code generation.
+        """
         # Attach line/col and source text for better error output
         from errors import SemanticError
         if self.current_stmt_info:
@@ -3716,6 +3938,9 @@ class CodeGen:
             raise SemanticError(msg, node=getattr(self, 'current_expr', None))
 
     def _load_sym_addr(self, sym_name: str) -> None:
+        """Load sym addr.
+        Internal helper used during code generation.
+        """
         self.emit(f"\tLDA #<{sym_name}")
         self.emit(f"\tLDX #>{sym_name}")
 
@@ -3738,6 +3963,9 @@ class CodeGen:
             return f"{sym.asm_name()}" + ("" if low_byte else "+1")
 
     def _gen_literal(self, expr: IntLiteral) -> None:
+        """Generate literal.
+        Internal helper used during code generation.
+        """
         t: ExprType = self.tc_check(expr)
         val: int = expr.value
         self.emit(f"\tLDA #${val & 0xFF:02X}")
@@ -3755,6 +3983,9 @@ class CodeGen:
 
 
     def _gen_identifier(self, expr: Identifier) -> None:
+        """Generate identifier.
+        Internal helper used during code generation.
+        """
         t: ExprType = self.tc_check(expr)
         sym: Symbol = self.current_symtab.lookup(expr.name)
 
@@ -3891,6 +4122,9 @@ class CodeGen:
         self.emit(f"\tLDA ({arr_base},X)")
     
     def _gen_deref(self, expr: DerefExpr) -> None:
+        """Generate deref.
+        Internal helper used during code generation.
+        """
         t: ExprType = self.tc_check(expr)
 
         # OPTIMIZATION: Check for ZEROPAGE pointer array subscript (BYTE-only)
@@ -4203,6 +4437,9 @@ class CodeGen:
                 self._emit_indirect_store_zero("TMP0")
 
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False) -> None:
+        """Generate subscript.
+        Internal helper used during code generation.
+        """
         # Check if this is a multi-dimensional subscript
         indices, base = self._collect_subscript_indices(expr)
         
@@ -5084,6 +5321,9 @@ class CodeGen:
 
     
     def _gen_binary(self, expr: BinaryExpr, force_left_tmp=None) -> None:
+        """Generate binary.
+        Internal helper used during code generation.
+        """
         t: ExprType = self.tc_check(expr)
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
@@ -5313,6 +5553,9 @@ class CodeGen:
                 not left_is_ptr and not right_is_ptr and
                 not left_is_promoted_byte_arith and not right_is_promoted_byte_arith):
             def _collect_same_id_add(node: Expr) -> tuple[str | None, int]:
+                """Collect same id add.
+                Internal helper used during code generation.
+                """
                 if isinstance(node, Identifier):
                     return node.name, 1
                 if isinstance(node, BinaryExpr) and node.op == BinOp.ADD:
@@ -5449,6 +5692,9 @@ class CodeGen:
 
         # Detect if right operand contains a function call (needs special care)
         def _contains_call_or_math(e):
+            """Helper for contains call or math.
+            Internal helper used during code generation.
+            """
             from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, FieldAccess
             # Detect explicit calls
             if isinstance(e, CallExpr):
@@ -5929,9 +6175,15 @@ class CodeGen:
     def _gen_math_binop(self, expr: BinaryExpr, left_16: bool, right_16: bool) -> None:
         """Generate MUL/DIV/MOD using math stack and dedicated operands."""
         def _is_simple_operand(op: Expr) -> bool:
+            """Return whether simple operand.
+            Internal helper used during code generation.
+            """
             return isinstance(op, (Identifier, IntLiteral))
 
         def _emit_op0(op: Expr, is_16: bool) -> None:
+            """Emit op0.
+            Internal helper used during code generation.
+            """
             if isinstance(op, IntLiteral):
                 val = op.value & 0xFFFF
                 self.emit(f"\tLDA #${val & 0xFF:02X}")
@@ -5954,6 +6206,9 @@ class CodeGen:
                 return
 
         def _emit_op1(op: Expr, is_16: bool) -> None:
+            """Emit op1.
+            Internal helper used during code generation.
+            """
             if isinstance(op, IntLiteral):
                 val = op.value & 0xFFFF
                 self.emit(f"\tLDA #${val & 0xFF:02X}")
@@ -6507,6 +6762,9 @@ class CodeGen:
         raise SemanticError(f"Field '{field_name}' not found in struct", node=getattr(self, 'current_expr', None))
 
     def _expr_mentions_identifier(self, expr: Expr, name: str) -> bool:
+        """Helper for expr mentions identifier.
+        Internal helper used during code generation.
+        """
         if isinstance(expr, Identifier):
             return expr.name == name
         if isinstance(expr, IntLiteral):
@@ -6528,12 +6786,21 @@ class CodeGen:
         return False
 
     def _gen_logical(self, expr: BinaryExpr) -> None:
+        """Generate logical.
+        Internal helper used during code generation.
+        """
         # Use TMP4 only when we must test a word value via A/X
         def _is_word_value(e: Expr) -> bool:
+            """Return whether word value.
+            Internal helper used during code generation.
+            """
             t: ExprType = self.tc_check(e)
             return t.sem_type.base == "WORD" or t.sem_type.is_pointer
 
         def _branch_if_zero(is_word_val: bool, label: str) -> None:
+            """Helper for branch if zero.
+            Internal helper used during code generation.
+            """
             if is_word_val:
                 self.used_temps.add("TMP4")
                 self.emit("\tSTA TMP4")
@@ -6544,6 +6811,9 @@ class CodeGen:
                 self.emit(f"\tBEQ {label}")
 
         def _branch_if_nonzero(is_word_val: bool, label: str) -> None:
+            """Helper for branch if nonzero.
+            Internal helper used during code generation.
+            """
             if is_word_val:
                 self.used_temps.add("TMP4")
                 self.emit("\tSTA TMP4")
@@ -6578,6 +6848,9 @@ class CodeGen:
             return
 
     def _sizeof_struct_arg(self, arg: Expr) -> int:
+        """Helper for sizeof struct arg.
+        Internal helper used during code generation.
+        """
         if not isinstance(arg, Identifier):
             self._raise_error("SIZEOF expects a struct name")
 
@@ -6599,6 +6872,9 @@ class CodeGen:
         return 0
 
     def _gen_builtin_call(self, expr: CallExpr) -> bool:
+        """Generate builtin call.
+        Internal helper used during code generation.
+        """
         name_upper = expr.name.upper()
         if name_upper not in {"LOW", "HIGH", "SIZEOF"}:
             return False
@@ -6656,6 +6932,9 @@ class CodeGen:
 
 
     def gen_expr(self, expr, force_left_tmp=None) -> None:
+        """Generate assembly for an expression node.
+        Applies folding and chooses codegen path.
+        """
         # Apply constant substitution and folding
         from typing import cast
         expr = subst_const(cast(Expr, expr), cast(SymbolTable, self.current_symtab))
@@ -6809,6 +7088,9 @@ class CodeGen:
             self._gen_unary(expr)
 
     def gen_assign(self, lhs: Expr, rhs: Expr) -> None:
+        """Generate assignment code for an lvalue and rhs.
+        Handles arrays, structs, and scalar stores.
+        """
         # Apply constant substitution and folding to RHS
         from constsubst import subst_const
         from typing import cast
@@ -7044,9 +7326,15 @@ class CodeGen:
                 is_word: bool = lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer
 
                 def is_self(opnd) -> bool:
+                    """Return whether self.
+                    Internal helper used during code generation.
+                    """
                     return isinstance(opnd, Identifier) and opnd.name == lhs.name
 
                 def small_const(opnd) -> int | None:
+                    """Helper for small const.
+                    Internal helper used during code generation.
+                    """
                     if isinstance(opnd, IntLiteral) and opnd.value in {1, 2, 3}:
                         return opnd.value
                     return None
@@ -7129,6 +7417,9 @@ class CodeGen:
                     return
 
                 def _self_const_fold(expr: Expr) -> tuple[int, int] | None:
+                    """Helper for self const fold.
+                    Internal helper used during code generation.
+                    """
                     if isinstance(expr, IntLiteral):
                         return (0, expr.value)
                     if isinstance(expr, Identifier):
@@ -7762,6 +8053,9 @@ class CodeGen:
         self._raise_error(f"Assignment target type not supported: {type(lhs).__name__}")
 
     def _gen_for_const_step(self, stmt, step_expr) -> None:
+        """Generate for const step.
+        Internal helper used during code generation.
+        """
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
@@ -7797,6 +8091,9 @@ class CodeGen:
         self.gen_stmt(while_stmt)
 
     def _gen_for_general(self, stmt) -> None:
+        """Generate for general.
+        Internal helper used during code generation.
+        """
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
@@ -7856,6 +8153,9 @@ class CodeGen:
 
 
     def gen_proc(self, proc: AnalyzedProc) -> None:
+        """Generate assembly for a procedure body.
+        Emits prologue, body, and epilogue code.
+        """
         # přepni na lokální tabulku + typechecker
         prev_symtab: SymbolTable = self.current_symtab
         prev_tc_symtab: Any | None = getattr(self.tc, "symtab", None)
@@ -7904,6 +8204,9 @@ class CodeGen:
             self.tc.symtab = prev_tc_symtab
 
     def _resolve_call_args(self, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> list[tuple[int, str, int, Expr]]:
+        """Resolve call args.
+        Internal helper used during code generation.
+        """
         resolved: list[tuple[int, str, int, Expr]] = []
         for i, spec in enumerate(specs):
             pname, width, default_value = spec
@@ -7945,6 +8248,9 @@ class CodeGen:
             self.emit(f"{local_label} = {asm_loc}")
 
     def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object]]) -> None:
+        """Emit param reg stores.
+        Internal helper used during code generation.
+        """
         if not specs:
             return
         width0 = specs[0][1]
@@ -7974,6 +8280,9 @@ class CodeGen:
                     self.emit(f"\tSTY {asm2}")
 
     def _emit_call_args(self, callee_name: str, args: list[Expr | None], specs: list[tuple[str, int, object]]) -> None:
+        """Emit call args.
+        Internal helper used during code generation.
+        """
         resolved = self._resolve_call_args(args, specs)
         if not resolved:
             return
@@ -8007,11 +8316,17 @@ class CodeGen:
         restore_ops: list[str] = []
 
         def _simple_arg(e: Expr) -> bool:
+            """Helper for simple arg.
+            Internal helper used during code generation.
+            """
             return isinstance(e, (IntLiteral, Identifier, SubscriptExpr, FieldAccess)) or (
                 isinstance(e, UnaryExpr) and e.op == UnOp.ADDROF
             )
 
         def _y_simple_loadable(e: Expr) -> bool:
+            """Helper for y simple loadable.
+            Internal helper used during code generation.
+            """
             if isinstance(e, IntLiteral):
                 return True
             if isinstance(e, Identifier):
@@ -8021,6 +8336,9 @@ class CodeGen:
             return False
 
         def _emit_load_y_simple(e: Expr) -> None:
+            """Emit load y simple.
+            Internal helper used during code generation.
+            """
             if isinstance(e, IntLiteral):
                 self.emit(f"\tLDY #${e.value & 0xFF:02X}")
                 return
@@ -8030,6 +8348,9 @@ class CodeGen:
                 return
 
         def _can_reorder_regs() -> bool:
+            """Helper for can reorder regs.
+            Internal helper used during code generation.
+            """
             if reg_case == "word0_byte1":
                 if reg_a_index is None or reg_y_index is None:
                     return False
@@ -8188,6 +8509,9 @@ class CodeGen:
 
 
     def gen_stmt(self, stmt):
+        """Generate assembly for a statement node.
+        Dispatches to statement-specific emitters.
+        """
         from ast_nodes import SegmentDirective, IncbinDirective
         # Emit source comment for this statement
         self.emit_src_comment_for_stmt(stmt)
@@ -8539,6 +8863,9 @@ class CodeGen:
         self._raise_error(f"Unhandled statement type: {type(stmt).__name__}")
 
     def gen_func(self, func: AnalyzedFunc) -> None:
+        """Generate assembly for a function body.
+        Emits prologue, body, and return handling.
+        """
         prev_symtab: SymbolTable = self.current_symtab
         prev_tc_symtab: Any | None = getattr(self.tc, "symtab", None)
         prev_func_return_type: str | None = self.current_func_return_type
@@ -8585,6 +8912,9 @@ class CodeGen:
         self.current_func_return_is_pointer = prev_func_return_is_pointer
 
     def _gen_relational(self, expr: BinaryExpr) -> None:
+        """Generate relational.
+        Internal helper used during code generation.
+        """
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
         is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
@@ -8802,12 +9132,18 @@ class CodeGen:
                             left_hi_immediate = True
 
                         def load_left_high() -> None:
+                            """Load left high.
+                            Internal helper used during code generation.
+                            """
                             if left_hi_immediate:
                                 self.emit("\tLDX #0     ; note 7054")
                             else:
                                 self.emit(f"\tLDX {left_hi}")
 
                         def load_left_low() -> None:
+                            """Load left low.
+                            Internal helper used during code generation.
+                            """
                             self.emit(f"\tLDA {left_lo}")
 
                         # If right high byte is zero, we can simplify LT/LE/GT/GE.

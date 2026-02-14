@@ -8,18 +8,22 @@ from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAc
 
 
 def promote(a: SemType, b: SemType) -> SemType:
+    """Promote two scalar types to a common arithmetic type."""
     if a.base == "WORD" or b.base == "WORD":
         return SemType("WORD", False)
     return SemType("BYTE", False)
 
 
 class ExprTypeChecker:
+    """Type-checks expressions and computes value categories."""
     def __init__(self, symtab: SymbolLookup, func_table: FuncTable, struct_registry=None) -> None:
+        """Initialize with symbol lookup, function table, and struct registry."""
         self.symtab: SymbolLookup = symtab
         self.func_table: FuncTable = func_table
         self.struct_registry = struct_registry
 
     def check(self, expr, read_check_enabled: bool = True) -> ExprType:
+        """Type-check an expression and return its semantic type info."""
         if isinstance(expr, IntLiteral):
             # Small literals (0-255) are BYTE, larger are WORD
             if 0 <= expr.value <= 255:

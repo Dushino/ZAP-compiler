@@ -10,17 +10,18 @@ _stmt_src_copy: dict = {}
 
 
 def init_stmt_src_tracking(original_stmt_src: dict) -> None:
-    """Initialize the stmt_src copy dict with original mappings."""
+    """Initialize the statement source map copy for DCE tracking."""
     global _stmt_src_copy
     _stmt_src_copy = original_stmt_src.copy()
 
 
 def get_updated_stmt_src() -> dict:
-    """Get the updated stmt_src dict after DCE."""
+    """Return the updated statement source map after DCE rewrites."""
     return _stmt_src_copy.copy()
 
 
 def dce_block(stmts: list) -> list:
+    """Apply dead-code elimination to a list of statements."""
     out = []
     for stmt in stmts:
         out_stmt = dce_stmt(stmt)
@@ -38,6 +39,7 @@ def dce_block(stmts: list) -> list:
     return out
 
 def dce_stmt(stmt):
+    """Rewrite a single statement, dropping code proven unreachable."""
     # IF
     if isinstance(stmt, IfStmt):
         cond: Expr = stmt.cond

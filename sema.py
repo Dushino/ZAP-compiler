@@ -34,6 +34,7 @@ from ast_nodes import Declaration, Declarator, StructDef, EnumDecl
 
 
 def eval_const_expr(expr, symtab=None, struct_registry=None):
+    """Evaluate a constant expression using optional symbol and struct context."""
     if isinstance(expr, IntLiteral):
         return expr.value
     
@@ -114,12 +115,9 @@ def eval_const_expr(expr, symtab=None, struct_registry=None):
 
 
 def eval_array_dimensions(array_sizes, symtab, d_obj=None, struct_registry=None):
-    """Extract and evaluate array dimensions from Declarator
-    
-    Returns: (is_array, array_dims, array_len)
-      - is_array: True if this is an array
-      - array_dims: List[int] for multi-dimensional arrays ([3, 4, 5])
-      - array_len: int for backward compat with 1D arrays
+    """Evaluate array dimensions and compute metadata for declarations.
+
+    Returns (is_array, array_dims, array_len) where array_len is 1D legacy.
     """
     is_array = False
     array_dims = []
@@ -157,6 +155,7 @@ def eval_array_dimensions(array_sizes, symtab, d_obj=None, struct_registry=None)
 class StructAnalyzer:
     """Analyzes and registers struct definitions"""
     def __init__(self, struct_registry: StructRegistry) -> None:
+        """Initialize with a struct registry to populate."""
         self.registry: StructRegistry = struct_registry
 
     def analyze(self, struct_def: StructDef) -> None:
@@ -257,7 +256,9 @@ class StructAnalyzer:
 
 
 class DeclarationAnalyzer:
+    """Analyzes variable declarations and populates symbol tables."""
     def __init__(self, symtab: SymbolTable, struct_registry=None, func_table=None, global_symtab=None, debug_info: dict | None = None) -> None:
+        """Initialize declaration analyzer with symbol context and debug info."""
         self.symtab: SymbolTable = symtab
         self.struct_registry = struct_registry
         self.func_table = func_table
@@ -265,6 +266,7 @@ class DeclarationAnalyzer:
         self.debug = debug_info or {}
 
     def analyze(self, decl: Declaration) -> None:
+        """Analyze a declaration and add its symbols to the table."""
         # Check if this is a struct type or a built-in type
         base_name: str = decl.type.base.upper()
         is_struct = False
@@ -290,6 +292,7 @@ class DeclarationAnalyzer:
                 raise
 
     def _attach_decl_error_context(self, err: SemanticError, d: Declarator) -> None:
+        """Attach filename/line/col to errors based on debug maps."""
         debug = self.debug or {}
         proc_name: str = getattr(self.symtab, "_proc_name", "")
         info = None
@@ -349,6 +352,7 @@ class DeclarationAnalyzer:
         d: Declarator,
         sem_type: SemType
         ) -> None:
+        """Validate a single declarator and define its symbol."""
 
         # Validate STATIC modifier
         if decl.is_static or d.is_static:
@@ -790,12 +794,14 @@ class DeclarationAnalyzer:
 class EnumAnalyzer:
     """Analyze enum declarations and expand members into const symbols"""
     def __init__(self, symtab: SymbolTable) -> None:
+        """Initialize enum analyzer with a target symbol table."""
         self.symtab: SymbolTable = symtab
         # Registry: enum_name -> { 'base': 'BYTE'|'WORD', 'members': { member_name: value, ... } }
         if not hasattr(self.symtab, '_enums'):
             self.symtab._enums = {}
 
     def analyze(self, enum_decl: EnumDecl) -> None:
+        """Register an enum and its members as const symbols."""
         base: str = enum_decl.base.upper() if enum_decl.base else 'BYTE'
         if base not in ("BYTE", "WORD"):
             raise SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)

@@ -10,6 +10,7 @@ from ast_nodes import (
 from symbols import Symbol, SymbolTable
 
 def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
+    """Replace const identifiers in an expression with literal values."""
     # IDENTIFIER
     if isinstance(expr, Identifier):
         sym: Symbol = symtab.lookup(expr.name)

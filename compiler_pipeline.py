@@ -13,6 +13,7 @@ from typing import Optional, Set, Dict, Tuple, List, Any
 
 
 def _walk_expr(expr, ctx, global_symtab):
+    """Walk an expression and record global usage and calls."""
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
@@ -60,6 +61,7 @@ def _walk_expr(expr, ctx, global_symtab):
 
 
 def _walk_stmt(stmt, ctx, global_symtab):
+    """Walk a statement tree and record global usage and calls."""
     from ast_nodes import (
         CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, BreakStmt,
         ContinueStmt
@@ -120,6 +122,7 @@ def _walk_stmt(stmt, ctx, global_symtab):
 
 
 def _walk_initializer(init, ctx, global_symtab):
+    """Walk an initializer expression for global usage and calls."""
     from ast_nodes import ExprInit, ListInit, StringInit
     if isinstance(init, ExprInit):
         _walk_expr(init.expr, ctx, global_symtab)
@@ -131,6 +134,7 @@ def _walk_initializer(init, ctx, global_symtab):
 
 
 def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
+    """Prune unreachable procedures/functions and unused globals."""
     # Defensive checks: ensure analyzers returned valid results
     none_proc_indices = [i for i, p in enumerate(analyzed_procs) if p is None]
     if none_proc_indices:
@@ -256,6 +260,7 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
 
 
 def _format_assembly(lines: list[str]) -> list[str]:
+    """Compact and reformat assembly output for readability."""
     flat: list[str] = []
     for line in lines:
         parts = line.splitlines()
@@ -267,6 +272,7 @@ def _format_assembly(lines: list[str]) -> list[str]:
     compact = [ln for ln in flat if ln.strip() != ""]
 
     def is_block_start(ln: str) -> bool:
+        """Check whether a line starts a new assembly block."""
         return (
             ln.startswith("; -- Procedure ") or
             ln.startswith("; -- Function ") or
@@ -284,6 +290,7 @@ def _format_assembly(lines: list[str]) -> list[str]:
 
 
 def _walk_expr_locals(expr, used: set[str], local_symtab):
+    """Walk an expression and collect referenced local symbols."""
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
@@ -326,6 +333,7 @@ def _walk_expr_locals(expr, used: set[str], local_symtab):
 
 
 def _walk_stmt_locals(stmt, used: set[str], local_symtab):
+    """Walk a statement and collect referenced local symbols."""
     from ast_nodes import (
         CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt, BreakStmt,
         ContinueStmt
@@ -384,6 +392,7 @@ def _walk_stmt_locals(stmt, used: set[str], local_symtab):
 
 
 def _walk_initializer_locals(init, used: set[str], local_symtab):
+    """Walk an initializer to collect referenced local symbols."""
     from ast_nodes import ExprInit, ListInit, StringInit
     if isinstance(init, ExprInit):
         _walk_expr_locals(init.expr, used, local_symtab)
@@ -395,7 +404,9 @@ def _walk_initializer_locals(init, used: set[str], local_symtab):
 
 
 def prune_unused_locals(analyzed_procs, analyzed_funcs):
+    """Remove unused local symbols from analyzed procs and funcs."""
     def prune_one(body, locals_list, local_symtab, params):
+        """Prune a single routine's locals based on usage in its body."""
         used: set[str] = set(p.name for p in params)  # always keep params
 
         for sym in locals_list:
@@ -421,6 +432,7 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
 
 
 def _expr_used_locals(expr, name_to_id: dict[str, str]) -> set[str]:
+    """Return IDs of locals referenced by an expression."""
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
@@ -472,6 +484,7 @@ def _expr_used_locals(expr, name_to_id: dict[str, str]) -> set[str]:
 
 
 def _init_used_locals(init, name_to_id: dict[str, str]) -> set[str]:
+    """Return IDs of locals referenced by an initializer."""
     from ast_nodes import ExprInit, ListInit, StringInit
     used: set[str] = set()
     if init is None:
@@ -495,6 +508,7 @@ def _init_used_locals(init, name_to_id: dict[str, str]) -> set[str]:
 
 
 def _expr_call_names(expr) -> set[str]:
+    """Collect function/procedure call names within an expression."""
     from ast_nodes import (
         IntLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
         SubscriptExpr, CallExpr, FieldAccess
@@ -540,6 +554,7 @@ def _expr_call_names(expr) -> set[str]:
 
 
 def _init_call_names(init) -> set[str]:
+    """Collect function/procedure call names within an initializer."""
     from ast_nodes import ExprInit, ListInit, StringInit
     calls: set[str] = set()
     if init is None:
@@ -563,6 +578,7 @@ def _init_call_names(init) -> set[str]:
 
 
 def _stmt_call_names(stmt) -> set[str]:
+    """Collect function/procedure call names within a statement tree."""
     from ast_nodes import (
         CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt,
         SwitchStmt, BreakStmt, ContinueStmt, SwitchCase
@@ -625,6 +641,7 @@ def _stmt_call_names(stmt) -> set[str]:
 
 
 def _add_interference(live_set: set[str], graph: dict[str, set[str]], class_key: dict[str, tuple]) -> None:
+    """Add pairwise interference edges for a live set."""
     live_list = list(live_set)
     for i in range(len(live_list)):
         a = live_list[i]
@@ -637,6 +654,7 @@ def _add_interference(live_set: set[str], graph: dict[str, set[str]], class_key:
 
 
 def _add_edge(a: str, b: str, graph: dict[str, set[str]], class_key: dict[str, tuple]) -> None:
+    """Add an interference edge between two compatible locals."""
     if a == b:
         return
     if class_key.get(a) != class_key.get(b):
@@ -658,6 +676,7 @@ def _liveness_block(
     break_live: set[str] | None = None,
     continue_live: set[str] | None = None,
 ) -> set[str]:
+    """Compute live-in set for a statement block and build interference graph."""
     from ast_nodes import (
         CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, SwitchStmt,
         BreakStmt, ContinueStmt, Identifier, AsmBlock
@@ -906,6 +925,7 @@ def _liveness_inits(
     graph: dict[str, set[str]],
     class_key: dict[str, tuple],
 ) -> set[str]:
+    """Compute live-in set contributed by initializers in reverse order."""
     live = set(live_out)
     for sym in reversed(locals_list):
         init = getattr(sym, "init", None)
@@ -941,6 +961,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
     from symbols import Symbol
 
     def is_eligible(sym: Symbol) -> bool:
+        """Check whether a symbol can participate in slot sharing."""
         if sym.is_const:
             return False
         if sym.address is not None:
@@ -954,6 +975,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
         return True
 
     def sym_size(sym: Symbol) -> int:
+        """Return the storage size in bytes for a symbol."""
         if sym.is_array:
             return sym.get_total_array_size()
         if sym.type.is_struct and sym.type.struct_info:
@@ -961,6 +983,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
         return sym.type.width
 
     def class_for(sym: Symbol) -> tuple | None:
+        """Classify a symbol for compatibility in slot sharing."""
         size = sym_size(sym)
         if size <= 0:
             return None
@@ -986,6 +1009,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
     routine_locals: dict[str, list[str]] = {}
 
     def _add_local(sym: Symbol, routine_name: str, ids: list[str]) -> None:
+        """Register an eligible local symbol for liveness analysis."""
         if not is_eligible(sym):
             return
         key = class_for(sym)
@@ -1203,6 +1227,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
 
 
 def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry) -> dict[int, set[str]]:
+    """Create stable temp names for FOR loop end/step values."""
     from ast_nodes import ForStmt, IfStmt, WhileStmt, SwitchStmt, IntLiteral
     from symbols import SemType, Symbol
 
@@ -1210,11 +1235,13 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
     for_id = 0
 
     def next_for_name(base: str) -> str:
+        """Generate a unique FOR temp name with a stable counter."""
         nonlocal for_id
         for_id += 1
         return f"FOR_{base}_{for_id}"
 
     def declare_temp(local_tbl: SymbolTable, proc_name: str, name: str, is_word: bool) -> None:
+        """Declare a temp symbol in the local table if absent."""
         key = local_tbl._key(name)
         if key in local_tbl._symbols:
             return
@@ -1234,6 +1261,7 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
         local_tbl.define(sym)
 
     def scan_stmts(stmts: list, tc: ExprTypeChecker, local_tbl: SymbolTable, proc_name: str) -> None:
+        """Scan statements to predeclare FOR-loop temporaries."""
         for st in stmts:
             if isinstance(st, ForStmt):
                 step_expr = st.step if st.step is not None else IntLiteral(1)
@@ -1322,6 +1350,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
         freq = {}
         
         def visit(n, loop_depth=0):
+            """Walk the AST and accumulate loop-weighted access counts."""
             nonlocal freq
             if n is None:
                 return
@@ -1462,6 +1491,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
 
 
 def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False) -> str:
+    """Run the full compile pipeline from AST to assembly output."""
     # --- symbol tables ---
     global_symtab = SymbolTable()
     proc_table = ProcTable()
@@ -1501,6 +1531,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     debug = getattr(program, "debug", None) or {}
 
     def _map_debug_line(fname: str | None, line: int | None) -> int | None:
+        """Map cleaned-source line numbers back to original file lines."""
         if fname and isinstance(line, int):
             orig_map = (debug.get("orig_line_map_per_file") or {}).get(fname)
             if orig_map and 1 <= line <= len(orig_map):
@@ -1508,6 +1539,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         return line
 
     def _attach_source_text(err, fname: str | None) -> None:
+        """Attach original source text to an error when available."""
         if not fname:
             return
         orig_src = (debug.get("orig_source_lines_per_file") or {}).get(fname)
@@ -1632,6 +1664,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # Build parameter specs for procedures and functions (name -> [(param, width, default_value)])
     def _build_param_specs_procs(procs):
+        """Build procedure parameter specs for code generation."""
         specs: dict[str, list[tuple[str, int, object]]] = {}
         for ap in procs:
             params: list[tuple[str, int, object]] = []
@@ -1642,6 +1675,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         return specs
 
     def _build_param_specs_funcs(funcs):
+        """Build function parameter specs for code generation."""
         specs: dict[str, list[tuple[str, int, object]]] = {}
         for af in funcs:
             params: list[tuple[str, int, object]] = []

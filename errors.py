@@ -1,7 +1,12 @@
 import sys
 
 class CompileError(Exception):
+    """Base class for compiler errors with optional source context.
+
+    Stores line/column and optional filename/source snippet for diagnostics.
+    """
     def __init__(self, message, line=None, col=None, node=None):
+        """Initialize an error and normalize source position fields."""
         super().__init__(message)
         self.message = message
         # If a node with position info was provided, prefer that
@@ -17,21 +22,22 @@ class CompileError(Exception):
 
 
 class SyntaxError(CompileError):
+    """Raised for parse-time errors in the source program."""
     pass
 
 
 class SemanticError(CompileError):
+    """Raised for semantic/type errors after parsing."""
     pass
 
 
 class TokenizerError(CompileError):
+    """Raised for lexical/tokenization errors in the input."""
     pass
 
 def print_error(src, line, col, msg, filename: str | None = None, severity: str = "error"):
-    """Print a single-line error suitable for editor parsing:
-
-    Format: filename:line:column: severity: message
-    """
+    """Emit a single-line diagnostic formatted for editor parsing."""
+    """Print a single-line error suitable for editor parsing."""
     # Ensure filename and numeric line/col for one-line format
     fname = filename or "<input>"
     line_num = line if isinstance(line, int) and line >= 1 else 1
@@ -45,11 +51,8 @@ def print_error(src, line, col, msg, filename: str | None = None, severity: str 
 
 
 def print_exception(e: Exception, filename: str | None = None):
-    """Print an exception using the unified single-line format.
-
-    Handles CompileError (with line/col) specially; falls back to a generic
-    one-line message for other exceptions.
-    """
+    """Format and print an exception using the compiler's error style."""
+    """Print an exception using the unified single-line format."""
     if isinstance(e, CompileError) and e.line is not None:
         src = getattr(e, "source_text", None) or ""
         fname = getattr(e, "filename", None) or filename or "<input>"

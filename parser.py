@@ -38,7 +38,9 @@ from ast_nodes import *
 from errors import SyntaxError
 
 class Parser:
+    """Parse ZAP source text into an AST program."""
     def __init__(self, source: str, filename: str | None = None) -> None:
+        """Initialize parser state and tokenize the input source."""
         self.filename: str = filename or "<input.act>"
         # Remove BOM if present (can be \ufeff or UTF-8 BOM misinterpreted as 'ï»¿')
         if source.startswith('\ufeff'):
@@ -105,6 +107,7 @@ class Parser:
         return cast(Callable[[Optional[str]], str], val)(tvalue)
 
     def advance(self) -> None:
+        """Advance to the next token in the stream."""
         self.pos += 1
         if self.pos < len(self.tokens):
             self.cur: Token = self.tokens[self.pos]
@@ -119,6 +122,7 @@ class Parser:
         return None
 
     def expect(self, kind, value=None) -> None:
+        """Consume the expected token or raise a syntax error."""
         if self.cur.type != kind:
             expected = self._readable_token(kind, value)
             got = self._readable_token(self.cur.type, self.cur.value)
@@ -136,6 +140,7 @@ class Parser:
         self.advance()
 
     def error(self, msg) -> NoReturn:
+        """Raise a syntax error at the current token position."""
         raise SyntaxError(
             msg,
             line=self.cur.line,
@@ -144,6 +149,7 @@ class Parser:
 
 
     def parse_program(self) -> Program:
+        """Parse the entire token stream into a Program AST."""
         decls = []
         procs = []
 
@@ -419,6 +425,7 @@ class Parser:
 
 
     def parse_proc(self) -> ProcDecl:
+        """Parse a procedure declaration and its body."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "PROC")
@@ -508,6 +515,7 @@ class Parser:
         return ProcDecl(name, params, locals, body, keep=keep, noexport=noexport, export=export)
 
     def parse_func(self) -> FuncDecl:
+        """Parse a function declaration and its body."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "FUNC")
@@ -590,6 +598,7 @@ class Parser:
         return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body, keep=keep, noexport=noexport, export=export)
 
     def parse_parameter(self) -> Parameter:
+        """Parse a single parameter with optional default value."""
         # Note: the 'type' token can be TOK_TYPE (byte/word) or a STRUCT_NAME, optionally const
         is_const = False
         if self.cur.type == TOK_TYPEMOD and self.cur.value.upper() == "CONST":
@@ -652,6 +661,7 @@ class Parser:
             return self.parse_expr()
 
     def parse_declaration(self) -> Declaration:
+        """Parse a variable declaration with modifiers and declarators."""
         is_const = False
         is_static = False
         is_port = False
@@ -695,6 +705,7 @@ class Parser:
             self.advance()
 
         def _is_sqb(val=None):
+            """Check for a square bracket token, optionally matching a value."""
             # Accept either dedicated square-bracket tokens or OP tokens carrying '[' or ']'
             if self.cur.type == TOK_SQB:
                 return val is None or self.cur.value == val
@@ -703,11 +714,13 @@ class Parser:
             return False
 
         def _expect_sqb(val) -> None:
+            """Consume an expected square bracket token."""
             if not _is_sqb(val):
                 self.error(f"Expected '{val}'")
             self.advance()
 
         def parse_declarator() -> Declarator:
+            """Parse a single declarator including arrays, init, and address."""
             # ident
             name: str = self.cur.value
             if name.startswith('_'):
@@ -860,6 +873,7 @@ class Parser:
             self.advance()
 
         def _is_sqb(val=None):
+            """Check for a square bracket token, optionally matching a value."""
             # Accept either dedicated square-bracket tokens or OP tokens carrying '[' or ']'
             if self.cur.type == TOK_SQB:
                 return val is None or self.cur.value == val
@@ -868,11 +882,13 @@ class Parser:
             return False
 
         def _expect_sqb(val):
+            """Consume an expected square bracket token."""
             if not _is_sqb(val):
                 self.error(f"Expected '{val}'")
             self.advance()
 
         def parse_declarator():
+            """Parse a declarator with optional arrays, init, and address."""
             # ident
             name = self.cur.value
             if name.startswith('_'):
@@ -992,6 +1008,7 @@ class Parser:
 
 
     def parse_lvalue(self) -> Identifier | SubscriptExpr | FieldAccess | DerefExpr:
+        """Parse an assignable expression (identifier, subscript, field, deref)."""
         if self.cur.type != TOK_IDENT:
             self.error("Expected identifier")
 
@@ -1064,6 +1081,7 @@ class Parser:
         return node
 
     def parse_assign(self) -> CallStmt | AssignStmt:
+        """Parse an assignment or call statement starting with an lvalue."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         lhs: Identifier | SubscriptExpr | FieldAccess | DerefExpr = self.parse_lvalue()
@@ -1100,6 +1118,7 @@ class Parser:
         return node
 
     def parse_term(self):
+        """Parse multiplicative expressions (*, /, %)."""
         node = self.parse_factor()
         while self.cur.type == TOK_OP and self.cur.value in ("*", "/", "%"):
             op = BinOp(self.cur.value)
@@ -1112,6 +1131,7 @@ class Parser:
 
 
     def parse_shift(self):
+        """Parse shift expressions (<<, >>)."""
         node = self.parse_add()
         while self.cur.type == TOK_OP and self.cur.value in ("<<", ">>"):
             op = BinOp(self.cur.value)
@@ -1124,6 +1144,7 @@ class Parser:
 
 
     def parse_add(self):
+        """Parse additive expressions (+, -)."""
         node = self.parse_term()
         while self.cur.type == TOK_OP and self.cur.value in ("+", "-"):
             op = BinOp(self.cur.value)
@@ -1136,6 +1157,7 @@ class Parser:
 
 
     def parse_rel(self):
+        """Parse relational expressions (==, !=, <, <=, >, >=)."""
         node = self.parse_shift()
         while self.cur.type == TOK_OP and self.cur.value in (
             "==", "!=", "<", "<=", ">", ">="
@@ -1150,6 +1172,7 @@ class Parser:
 
 
     def parse_bitwise_and(self):
+        """Parse bitwise AND expressions."""
         node = self.parse_rel()
         while self.cur.type == TOK_OP and self.cur.value == "&":
             op: BinOp = BinOp.BAND
@@ -1162,6 +1185,7 @@ class Parser:
 
 
     def parse_bitwise_xor(self):
+        """Parse bitwise XOR expressions."""
         node = self.parse_bitwise_and()
         while self.cur.type == TOK_OP and self.cur.value == "^":
             op: BinOp = BinOp.BXOR
@@ -1174,6 +1198,7 @@ class Parser:
 
 
     def parse_bitwise_or(self):
+        """Parse bitwise OR expressions."""
         node = self.parse_bitwise_xor()
         while self.cur.type == TOK_OP and self.cur.value == "|":
             op: BinOp = BinOp.BOR
@@ -1186,6 +1211,7 @@ class Parser:
 
 
     def parse_logic_and(self):
+        """Parse logical AND expressions."""
         node = self.parse_bitwise_or()
         while self.cur.type == TOK_OP and self.cur.value == "&&":
             op: BinOp = BinOp.LAND
@@ -1198,6 +1224,7 @@ class Parser:
 
 
     def parse_logic_or(self):
+        """Parse logical OR expressions."""
         node = self.parse_logic_and()
         while self.cur.type == TOK_OP and self.cur.value == "||":
             op: BinOp = BinOp.LOR
@@ -1209,9 +1236,11 @@ class Parser:
         return node
 
     def parse_expr(self):
+        """Parse a full expression using precedence climbing."""
         return self.parse_logic_or()
 
     def parse_factor(self):
+        """Parse a primary expression and unary operators."""
         # Handle unary operators (prefix)
         if self.cur.type == TOK_AT:
             # Address-of operator @expr
@@ -1363,6 +1392,7 @@ class Parser:
 
             
     def parse_if(self) -> IfStmt:
+        """Parse an IF/ELSEIF/ELSE statement chain."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "IF")
@@ -1415,6 +1445,7 @@ class Parser:
         return node
 
     def parse_switch(self) -> SwitchStmt:
+        """Parse a SWITCH statement with CASE/DEFAULT blocks."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "SWITCH")
@@ -1427,6 +1458,7 @@ class Parser:
         seen_label: bool = False
 
         def flush_case() -> None:
+            """Finalize the current case and reset accumulators."""
             nonlocal current_labels, current_body, current_is_default
             if current_labels or current_body or current_is_default:
                 cases.append(SwitchCase(current_labels, current_body, current_is_default))
@@ -1470,6 +1502,7 @@ class Parser:
 
 
     def parse_while(self) -> WhileStmt:
+        """Parse a WHILE loop statement."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "WHILE")
@@ -1486,6 +1519,7 @@ class Parser:
         return node
 
     def parse_for(self) -> ForStmt:
+        """Parse a FOR loop statement."""
         start_line: int = self.cur.line
         start_col: int = self.cur.col
         self.expect(TOK_KEYWORD, "FOR")
@@ -1517,6 +1551,7 @@ class Parser:
 
 
     def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
+        """Parse a single statement or directive inside a procedure/function."""
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")
 

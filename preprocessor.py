@@ -7,15 +7,20 @@ from errors import CompileError
 
 class PreprocessorError(CompileError):
     def __init__(self, message: str, line: int = 0, col: int = 1):
+        """Create a preprocessor-specific error with line/column info."""
         super().__init__(message, line=line, col=col)
 
 
 class Preprocessor:
     def __init__(self, predefined_symbols: Optional[Set[str]] = None):
+        """Initialize the preprocessor with optional predefined symbols."""
         self.defined_symbols: Set[str] = predefined_symbols.copy() if predefined_symbols else set()
     
     def process(self, source: str) -> tuple[str, Set[str]]:
-        """Process conditional compilation directives and return filtered source and defined symbols."""
+        """Process conditional directives and return filtered source and symbols.
+
+        Preserves a mapping of kept line numbers for later diagnostics.
+        """
         lines = source.split('\n')
         output_lines = []
         kept_line_numbers: list[int] = []

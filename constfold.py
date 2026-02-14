@@ -10,6 +10,7 @@ from errors import SemanticError
 
 
 def fold_expr(expr: Expr, node: Expr | None = None) -> Expr:
+    """Fold constant subexpressions and apply simple algebraic simplifications."""
     if isinstance(expr, IntLiteral):
         return expr
 
@@ -65,6 +66,7 @@ def fold_expr(expr: Expr, node: Expr | None = None) -> Expr:
 
 
 def _eval_unary(op: UnOp, v: int, node: Expr | None = None) -> IntLiteral:
+    """Evaluate a unary operator on a constant value."""
     if op == UnOp.NOT:
         return IntLiteral(0 if v else 1)
     if op == UnOp.BNOT:
@@ -75,6 +77,7 @@ def _eval_unary(op: UnOp, v: int, node: Expr | None = None) -> IntLiteral:
 
 
 def _eval_binary(op: BinOp, a: int, b: int, node: Expr | None = None) -> IntLiteral:
+    """Evaluate a binary operator on two constant values."""
     if op == BinOp.ADD:
         return IntLiteral(a + b)
     if op == BinOp.SUB:

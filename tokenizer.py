@@ -25,16 +25,19 @@ SQB: set[str]             = {"[","]"}
 
 @dataclass
 class Token:
+    """Simple token container with source position."""
     type: str = ""
     value: str = ""
     line: int = 0
     col: int = 0
     def __repr__(self) -> str:
+        """Return a concise debug representation of the token."""
         return f"Token({self.type!r}, {self.value!r}, {self.line}:{self.col})"
 
 
 class Tokenizer:
     def __init__(self, src: str) -> None:
+        """Initialize tokenizer state for the given source text."""
         self.src: str = src
         self.pos = 0
         self.line = 1
@@ -47,15 +50,18 @@ class Tokenizer:
         self.tokenList: list[Token] = []
 
     def _getTokens(self) -> list[Token]:
+        """Return the collected tokens after tokenization."""
         return self.tokenList
 
     def _peek(self, offset=0) -> Optional[str]:
+        """Peek ahead in the source without consuming characters."""
         i: int = self.pos + offset
         if i < self.length:
             return self.src[i]
         return None
 
     def _advance(self, n=1) -> Optional[str]:
+        """Advance the cursor by n characters while tracking line/column."""
         ch: str | None = None
         for _ in range(n):
             self.pline: int = self.line
@@ -152,6 +158,7 @@ class Tokenizer:
         raise TokenizerError(f"Unknown escape sequence: \\{esc}", line=self.line, col=self.col)
 
     def _emit(self, ttype: str, start_line: int, start_col: int, value: Optional[str] = None) -> None:
+        """Create and append a token with normalized casing rules."""
         if value is None:
             value = ""
         # Keep strings case-sensitive, but uppercase identifiers, keywords and types
@@ -162,6 +169,7 @@ class Tokenizer:
         self.tokenList.append(t1)
 
     def _consume_asm_block(self) -> None:
+        """Read an inline ASM block until the matching END line."""
         start_line: int = self.line
         start_col: int = self.col
         block_parts: list[str] = []
@@ -184,6 +192,7 @@ class Tokenizer:
         self._emit(TOK_ASM_BLOCK, start_line, start_col, "".join(block_parts))
 
     def tokenize(self) -> None:
+        """Tokenize the entire source into a list of tokens."""
         self.pos = 0
         self.line = 1
         self.col = 1
