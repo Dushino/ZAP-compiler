@@ -66,8 +66,8 @@
     ],
     "folding": {
         "markers": {
-            "start": "(?i)^\\s*(PROC|FUNC|IF|ELSE|ELSEIF|SWITCH|CASE|WHILE|ASM|STRUCT|ENUM|\\.ifdef|\\.ifndef|\\.else)",
-            "end": "(?i)^\\s*(RETURN|END|BREAK|\\.endif|\\.else)"
+            "start": "^\\s*(?:[Pp][Rr][Oo][Cc]|[Ff][Uu][Nn][Cc]|[Ii][Ff]|[Ee][Ll][Ss][Ee]|[Ee][Ll][Ss][Ee][Ii][Ff]|[Ss][Ww][Ii][Tt][Cc][Hh]|[Cc][Aa][Ss][Ee]|[Ww][Hh][Ii][Ll][Ee]|[Ff][Oo][Rr]|[Aa][Ss][Mm]|[Ss][Tt][Rr][Uu][Cc][Tt]|[Ee][Nn][Uu][Mm]|\\.(?:[Ii][Ff][Dd][Ee][Ff]|[Ii][Ff][Nn][Dd][Ee][Ff]|[Ee][Ll][Ss][Ee]))\\b",
+            "end": "^\\s*(?:[Rr][Ee][Tt][Uu][Rr][Nn]|[Ee][Nn][Dd]|[Bb][Rr][Ee][Aa][Kk]|\\.(?:[Ee][Nn][Dd][Ii][Ff]|[Ee][Ll][Ss][Ee]))\\b"
         },
         "offSide": false
     }

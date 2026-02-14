@@ -5,8 +5,8 @@
   "patterns": [
     {
       "name": "meta.embedded.asm.ca65.zap",
-      "begin": "(?i)^\\s*asm\\b",
-      "end": "(?i)^\\s*end\\b",
+      "begin": "^\\s*[Aa][Ss][Mm]\\b",
+      "end": "^\\s*[Ee][Nn][Dd]\\b",
       "patterns": [
         {
           "include": "source.ca65"

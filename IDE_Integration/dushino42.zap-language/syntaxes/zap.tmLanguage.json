@@ -45,7 +45,7 @@
             "patterns": [
                 {
                     "name": "constant.other.zap",
-                    "match": "#(?i)(PORT|RD|WR|KEEP|EXPORT|NOEXPORT)"
+                    "match": "#(?:[Pp][Oo][Rr][Tt]|[Rr][Dd]|[Ww][Rr]|[Kk][Ee][Ee][Pp]|[Ee][Xx][Pp][Oo][Rr][Tt]|[Nn][Oo][Ee][Xx][Pp][Oo][Rr][Tt])"
                 },
                 {
                     "name": "keyword.operator.address.zap",
@@ -76,7 +76,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.preprocessor.zap",
-                    "match": "(?i)\\.(ifdef|ifndef|else|endif|define|undef|module|include|error|warning|info)\\b"
+                    "match": "\\.(?:[Ii][Ff][Dd][Ee][Ff]|[Ii][Ff][Nn][Dd][Ee][Ff]|[Ee][Ll][Ss][Ee]|[Ee][Nn][Dd][Ii][Ff]|[Dd][Ee][Ff][Ii][Nn][Ee]|[Uu][Nn][Dd][Ee][Ff]|[Mm][Oo][Dd][Uu][Ll][Ee]|[Ii][Nn][Cc][Ll][Uu][Dd][Ee]|[Ee][Rr][Rr][Oo][Rr]|[Ww][Aa][Rr][Nn][Ii][Nn][Gg]|[Ii][Nn][Ff][Oo])\\b"
                 }
             ]
         },
@@ -84,11 +84,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.zap",
-                    "match": "(?i)\\b(LOW|HIGH|SIZEOF|IF|ELSE|ELSEIF|SWITCH|CASE|DEFAULT|BREAK|WHILE|FOR|TO|STEP|WHILE|PROC|FUNC|END|ASM|RETURN|EXIT|STRUCT|ENUM)\\b"
+                    "match": "\\b(?:[Ll][Oo][Ww]|[Hh][Ii][Gg][Hh]|[Ss][Ii][Zz][Ee][Oo][Ff]|[Ii][Ff]|[Ee][Ll][Ss][Ee]|[Ee][Ll][Ss][Ee][Ii][Ff]|[Ss][Ww][Ii][Tt][Cc][Hh]|[Cc][Aa][Ss][Ee]|[Dd][Ee][Ff][Aa][Uu][Ll][Tt]|[Bb][Rr][Ee][Aa][Kk]|[Ww][Hh][Ii][Ll][Ee]|[Ff][Oo][Rr]|[Tt][Oo]|[Ss][Tt][Ee][Pp]|[Pp][Rr][Oo][Cc]|[Ff][Uu][Nn][Cc]|[Ee][Nn][Dd]|[Aa][Ss][Mm]|[Rr][Ee][Tt][Uu][Rr][Nn]|[Ee][Xx][Ii][Tt]|[Ss][Tt][Rr][Uu][Cc][Tt]|[Ee][Nn][Uu][Mm])\\b"
                 },
                 {
                     "name": "keyword.other.zap",
-                    "match": "(?i)\\b(PROCx|FUNCx)\\b"
+                    "match": "\\b(?:[Pp][Rr][Oo][Cc][Xx]|[Ff][Uu][Nn][Cc][Xx])\\b"
                 }
             ]
         },
@@ -96,11 +96,11 @@
             "patterns": [
                 {
                     "name": "storage.type.zap",
-                    "match": "(?i)\\b(BYTE|WORD)\\b"
+                    "match": "\\b(?:[Bb][Yy][Tt][Ee]|[Ww][Oo][Rr][Dd])\\b"
                 },
                 {
                     "name": "storage.modifier.zap",
-                    "match": "(?i)\\b(CONST|STATIC)\\b"
+                    "match": "\\b(?:[Cc][Oo][Nn][Ss][Tt]|[Ss][Tt][Aa][Tt][Ii][Cc])\\b"
                 }
             ]
         },
@@ -139,11 +139,11 @@
             "patterns": [
                 {
                     "name": "keyword.operator.arithmetic.zap",
-                    "match": "(?i)\\+|-|\\*|/|%|&|\\||\\^|<<|>>"
+                    "match": "\\+|-|\\*|/|%|&|\\||\\^|<<|>>"
                 },
                 {
                     "name": "keyword.operator.comparison.zap",
-                    "match": "(?i)=|<|>|<=|>=|<>"
+                    "match": "=|<|>|<=|>=|<>"
                 },
                 {
                     "name": "keyword.operator.assignment.zap",
@@ -160,11 +160,11 @@
             ]
         },
         "enum-block": {
-            "begin": "(?i)^\\s*enum\\b.*$",
+            "begin": "^\\s*[Ee][Nn][Uu][Mm]\\b.*$",
             "beginCaptures": {
                 "0": { "name": "keyword.control.enum.zap" }
             },
-            "end": "(?i)^\\s*END\\b",
+            "end": "^\\s*[Ee][Nn][Dd]\\b",
             "endCaptures": {
                 "0": { "name": "keyword.control.end.zap" }
             },
