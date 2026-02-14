@@ -6,8 +6,8 @@ This extension provides syntax highlighting for the Zap programming language.
 
 - **Syntax Highlighting** for Zap source files (.zap)
 - **Comment Support** - Semicolon-based line comments, multiline C-style comments
-- **Bracket Matching** - Auto-closing and matching for (), [], /* */
-- **Code Folding** - Fold PROC/FUNC and multiline comment blocks
+- **Bracket Matching** - Auto-closing and matching for (), [], {}, /* */
+- **Code Folding** - Fold PROC/FUNC, Control flow commands, ASM, STRUCT and multiline comment blocks
 
 ## Supported Syntax
 
