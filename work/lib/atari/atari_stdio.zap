@@ -199,14 +199,15 @@ end
 proc putchar(byte ch)
 
     switch ch
-        case 10
-            PLAYF2 = 0 + 4
+        case 10     ; newline
             crlf()
             return
-            break
 
-        default
-            break
+        case '\t'    ; tab
+            repeat
+                putchar(' ')
+            until (cur_xpos & $03) == 0
+            return
     end
 
     ; convert ATASCII to screen code, handle inverse bit

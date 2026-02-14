@@ -42,7 +42,7 @@ proc main()
     puts("3. Hello World!\n")    
     ch = gets(inbuf, 15)
     putx(ch)
-    putchar('\n')
+    puts("\n\t1\t123\t1234\n")
     puts(inbuf)
 
     PLAYF2 = COLOR_GREEN3 + 0
