@@ -2,8 +2,8 @@
 from typing import Any, Callable, Literal, NoReturn, cast
 from constfold import fold_expr
 from constsubst import subst_const
-from symbols import StructInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructInfo, StructFieldInfo, StructFieldInfo, StructFieldInfo, Symbol, SymbolTable, SemType, StructRegistry
-from sema_types import ExprKind
+from symbols import StructInfo, StructFieldInfo, Symbol, SymbolTable, SemType, StructRegistry
+from sema_types import ExprKind, ExprType
 from ast_nodes import (
     BinOp,
     BreakStmt,
@@ -21,7 +21,6 @@ from ast_nodes import (
     AsmBlock, FieldAccess
 )
 from sema_expr import ExprTypeChecker
-from sema_types import ExprKind, ExprType
 from sema_proc import AnalyzedProc
 from sema_func import AnalyzedFunc
 
