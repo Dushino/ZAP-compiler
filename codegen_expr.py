@@ -3222,6 +3222,61 @@ class CodeGen:
                     self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
             self.emit("")
 
+        # Zero page offset tracking (starts after emitted system variables)
+        zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
+        ZEROPAGE_SIZE = 256
+
+        # Reset per-symbol ZP placement hints
+        for sym in all_vars:
+            sym.in_zeropage = False
+
+        # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
+        pointer_scalars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
+        ]
+        pointer_arrays: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
+        ]
+
+        # Pointer scalars are mandatory in ZP
+        for sym in pointer_scalars:
+            if not getattr(sym, 'shared_slot', None):
+                if zp_offset + 2 > ZEROPAGE_SIZE:
+                    self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
+                zp_offset += 2
+            sym.in_zeropage = True
+
+        # Pointer arrays: allocate to ZP only if they fit; otherwise place in BSS
+        pointer_array_slots: dict[str, list[Symbol]] = {}
+        pointer_array_slot_sizes: dict[str, int] = {}
+        pointer_array_slot_order: list[str] = []
+        for sym in pointer_arrays:
+            slot_label = sym.shared_slot or sym.asm_name()
+            if slot_label not in pointer_array_slots:
+                pointer_array_slots[slot_label] = []
+                pointer_array_slot_sizes[slot_label] = 0
+                pointer_array_slot_order.append(slot_label)
+            pointer_array_slots[slot_label].append(sym)
+            total_size = sym.get_total_array_size()
+            if total_size == 0:
+                self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+            if total_size > pointer_array_slot_sizes[slot_label]:
+                pointer_array_slot_sizes[slot_label] = total_size
+
+        for slot_label in pointer_array_slot_order:
+            total_size = pointer_array_slot_sizes[slot_label]
+            if total_size == 0:
+                continue
+            if zp_offset + total_size <= ZEROPAGE_SIZE:
+                zp_offset += total_size
+                for sym in pointer_array_slots[slot_label]:
+                    sym.in_zeropage = True
+            else:
+                for sym in pointer_array_slots[slot_label]:
+                    sym.in_zeropage = False
+
         # Shared slots for aliased locals (need to be emitted before individual locals)
         shared_slots_zp: dict[str, int] = {}   # slot_label -> size (in bytes)
         shared_slots_bss: dict[str, int] = {}  # slot_label -> size (in bytes)
@@ -3267,12 +3322,14 @@ class CodeGen:
                     # Default to 2 bytes (word)
                     sym_size = 2
                 
-                # Decide segment: arrays/structs -> BSS, pointers -> ZP, scalars -> ZP
+                # Decide segment: arrays/structs -> BSS, pointers -> ZP (arrays only if they fit), scalars -> ZP
                 use_bss = False
                 if sym.is_array and not sym.type.is_pointer:
                     use_bss = True
                 elif sym.type.is_struct:
                     use_bss = True
+                elif sym.is_array and sym.type.is_pointer:
+                    use_bss = not sym.in_zeropage
 
                 target = shared_slots_bss if use_bss else shared_slots_zp
 
@@ -3288,39 +3345,21 @@ class CodeGen:
                 self.emit(f"{slot_label}:\t.res {size}")
             self.emit("")
 
-        # Zero page offset tracking (starts after emitted system variables)
-        zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
-        ZEROPAGE_SIZE = 256
-        
-        # Step 1: ALL POINTER VARIABLES (including arrays of pointers) MUST fit in zero page
-        pointer_scalars: list[Symbol] = [
-            s for s in all_vars
-            if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
-        ]
-        pointer_arrays: list[Symbol] = [
-            s for s in all_vars
-            if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
-        ]
+        # Step 1: POINTER SCALARS must fit in zero page; pointer arrays use ZP only if they fit
         if pointer_scalars or pointer_arrays:
             self.emit("\n; Pointer variables")
             for sym in pointer_scalars:
                 # Skip if already in shared slots
                 if not getattr(sym, 'shared_slot', None):
-                    if zp_offset + 2 > ZEROPAGE_SIZE:
-                        self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
                     self.emit(f"{sym.asm_name()}:\t.res 2")
-                    zp_offset += 2
+                    sym.in_zeropage = True
 
             for sym in pointer_arrays:
                 # Skip if already in shared slots
                 if not getattr(sym, 'shared_slot', None):
-                    total_size: int = sym.get_total_array_size()
-                    if total_size == 0:
-                        self._raise_error(f"Array pointer '{sym.name}' has unknown size")
-                    if zp_offset + total_size > ZEROPAGE_SIZE:
-                        self._raise_error(f"Zero page exhausted: pointer array '{sym.name}' cannot fit (need {zp_offset + total_size} bytes)")
-                    self.emit(f"{sym.asm_name()}:\t.res {total_size}")
-                    zp_offset += total_size
+                    if sym.in_zeropage:
+                        total_size = sym.get_total_array_size()
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
         
         # Step 2: Try to put BYTE variables in zero page, overflow to BSS
         byte_vars: list[Symbol] = [s for s in all_vars 
@@ -3414,9 +3453,14 @@ class CodeGen:
             s for s in all_vars
             if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
         ]
+
+        pointer_array_bss: list[Symbol] = [
+            s for s in all_vars
+            if (not s.is_const and s.address is None and s.is_array and s.type.is_pointer and not s.in_zeropage)
+        ]
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
-        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or shared_slots_bss:
+        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or pointer_array_bss or shared_slots_bss:
             self.emit("\n.segment \"BSS\"")
 
             if shared_slots_bss:
@@ -3449,6 +3493,16 @@ class CodeGen:
                         else:
                             # Fallback (shouldn't happen if is_struct is correct)
                             self.emit(f"{sym.asm_name()}:\t.res 1")
+
+            if pointer_array_bss:
+                self.emit("; Pointer arrays (BSS)")
+                for sym in pointer_array_bss:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        total_size: int = sym.get_total_array_size()
+                        if total_size == 0:
+                            self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
             
             if array_vars:
                 self.emit("; Array variables (BSS)")
@@ -4231,7 +4285,7 @@ class CodeGen:
         sym: Symbol | None = self.current_symtab.lookup(expr.array.name)
         
         # Check: is it a pointer array in ZEROPAGE?
-        if not (sym.is_array and sym.type.is_pointer and sym.address is None):
+        if not (sym.is_array and sym.type.is_pointer and sym.address is None and not sym.is_const and sym.in_zeropage):
             return False, None, -1
         
         # Check: is the index a constant or simple expression that we can evaluate?
@@ -7427,7 +7481,7 @@ class CodeGen:
                     arr_addr: str = arr_sym.asm_name()
                     element_width: int = self._calculate_element_width(arr_sym)
 
-                    # Pointer arrays are always in ZEROPAGE; use direct ZP indexed stores
+                    # Pointer arrays can be in ZP or BSS; direct indexed stores work for both
                     if arr_sym.type.is_pointer:
                         # Constant index path uses direct store below
                         if not isinstance(lhs.index, IntLiteral):
@@ -8156,7 +8210,8 @@ class CodeGen:
                     zp_sym = self.current_symtab.lookup(sub_expr.array.name)
                 except KeyError:
                     zp_sym = None
-                if zp_sym and zp_sym.is_array and zp_sym.type.is_pointer and zp_sym.address is None:
+                if (zp_sym and zp_sym.is_array and zp_sym.type.is_pointer and zp_sym.address is None
+                    and not zp_sym.is_const and zp_sym.in_zeropage):
                     is_zp_ptr_array = True
 
             if is_zp_ptr_array and zp_sym:
