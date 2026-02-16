@@ -57,8 +57,8 @@ proc main()
     const MyStruct s2 = {1, 2, 1234, 40000, MyEnum.B}
     word rv
 
-    ;puts(msg1)    
-    ;puts(msg2)
+    puts(msg1)    
+    puts(msg2)
     
     s1 = {1, 2, 1234, 40000, MyEnum.B}
     rv = test1(s1)
