@@ -1,5 +1,5 @@
 
-from typing import Any, Callable, Literal, NoReturn, cast
+from typing import Any, Callable, Literal, NoReturn, Sequence, cast
 from constfold import fold_expr
 from constsubst import subst_const
 from symbols import StructInfo, StructFieldInfo, Symbol, SymbolTable, SemType, StructRegistry
@@ -15,7 +15,7 @@ from ast_nodes import (
     BinaryExpr,
     UnaryExpr,
     UnOp,
-    Expr, ExprInit, ListInit, StringInit, CallExpr, StructLiteral,
+    Expr, ExprInit, ListInit, StringInit, CallExpr, StructLiteral, InitValue,
     CallStmt, AssignStmt,
     IfStmt, ReturnStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
     AsmBlock, FieldAccess, StringLiteral
@@ -2308,7 +2308,14 @@ class CodeGen:
                 self.emit(f"\t.word " + ", ".join(f"${val:04X}" for val in data_tuple))
             else:
                 # BYTE array - emit as .byte directives
-                self.emit(f"\t.byte " + ", ".join(f"${val:02X}" for val in data_tuple))
+                byte_values: list[int] = []
+                for val in data_tuple:
+                    if val > 0xFF:
+                        byte_values.append(val & 0xFF)
+                        byte_values.append((val >> 8) & 0xFF)
+                    else:
+                        byte_values.append(val & 0xFF)
+                self.emit(f"\t.byte " + ", ".join(f"${val:02X}" for val in byte_values))
         
         self.emit("")
     
@@ -4210,7 +4217,7 @@ class CodeGen:
         For struct_var.array_field[i][j], returns ([j, i], FieldAccess(...))
         (indices are collected in reverse order as we traverse the nesting)
         """
-        indices: list[Expr] = [expr.index]
+        indices = [expr.index]
         current: Expr = expr.array
         
         # Traverse nested subscripts
@@ -7128,7 +7135,6 @@ class CodeGen:
         rhs = fold_expr(rhs)
 
         lhs_t: ExprType = self.tc_check(lhs, read_check_enabled=False)
-        rhs_t: ExprType = self.tc_check(rhs)
 
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr, FieldAccess)):
@@ -7287,6 +7293,22 @@ class CodeGen:
                 sym: Symbol = self.current_symtab.lookup(lhs.object.name)
                 if sym.is_const:
                     self._raise_error(f"Cannot assign to field of const struct '{lhs.object.name}'")
+
+        if isinstance(rhs, StructLiteral):
+            if not lhs_t.sem_type.is_struct or lhs_t.sem_type.is_pointer:
+                self._raise_error("Struct literal requires struct lvalue")
+            if not isinstance(lhs, Identifier):
+                self._raise_error("Struct literal assignment requires a struct variable")
+            sym = self.current_symtab.lookup(lhs.name)
+            struct_info = sym.type.struct_info or (
+                self.struct_registry.lookup(sym.type.base.upper()) if self.struct_registry else None
+            )
+            if struct_info is None:
+                self._raise_error(f"Cannot determine struct type for '{lhs.name}'")
+            self._emit_struct_literal_store(sym.asm_name(), struct_info, rhs.values, ctx_name=sym.name)
+            return
+
+        rhs_t: ExprType = self.tc_check(rhs)
 
         # Special case: array-to-array assignment (string copy)
         # str3 = str2 -> copy str2 content into str3 until NUL or max length
@@ -8438,40 +8460,16 @@ class CodeGen:
 
             if sem_type.is_struct and not sem_type.is_pointer:
                 struct_info = sem_type.struct_info
-                struct_size = struct_info.size if struct_info is not None else sem_type.width
+                if struct_info is None:
+                    self._raise_error(f"Cannot determine size of struct parameter '{pname}'")
+                struct_size = struct_info.size
                 if struct_size <= 0:
                     self._raise_error(f"Cannot determine size of struct parameter '{pname}'")
                 if struct_size > 255:
                     self._raise_error(f"Struct parameter '{pname}' is too large ({struct_size} bytes)")
 
                 if isinstance(arg, StructLiteral):
-                    # Flatten nested list initializers into a byte sequence
-                    flattened: list[Expr] = []
-
-                    def flatten_values(val) -> None:
-                        if isinstance(val, ListInit):
-                            for item in val.values:
-                                flatten_values(item)
-                            return
-                        flattened.append(val)
-
-                    for v in arg.values:
-                        flatten_values(v)
-
-                    if len(flattened) != struct_size:
-                        self._raise_error(
-                            f"Struct literal for '{pname}' has {len(flattened)} byte(s), "
-                            f"expected {struct_size}"
-                        )
-
-                    for offset, ex in enumerate(flattened):
-                        prev_suppress = self.suppress_byte_return_x
-                        self.suppress_byte_return_x = True
-                        try:
-                            self.gen_expr(ex)
-                        finally:
-                            self.suppress_byte_return_x = prev_suppress
-                        self.emit(f"\tSTA {asm}+{offset}")
+                    self._emit_struct_literal_store(asm, struct_info, arg.values, ctx_name=pname)
                     continue
 
                 if isinstance(arg, Identifier):
@@ -8516,7 +8514,6 @@ class CodeGen:
                     continue
 
                 self._raise_error(f"Struct parameter '{pname}' requires a struct value or literal")
-
 
             if reg_case in {"word0", "word0_byte1"} and index == reg_a_index:
                 if reorder_regs:
@@ -8646,6 +8643,109 @@ class CodeGen:
                     self.emit("\tTAX")
                 elif op == "Y":
                     self.emit("\tTAY")
+
+    def _emit_struct_literal_store(
+        self,
+        base_asm: str,
+        struct_info: StructInfo,
+        values: Sequence[Expr | InitValue],
+        *,
+        base_offset: int = 0,
+        ctx_name: str | None = None,
+    ) -> None:
+        """Store a struct literal into memory at base_asm + base_offset."""
+        if len(values) != len(struct_info.fields):
+            ctx = f"'{ctx_name}'" if ctx_name else "struct"
+            self._raise_error(
+                f"Struct literal for {ctx} has {len(values)} field(s), "
+                f"expected {len(struct_info.fields)}"
+            )
+
+        def emit_scalar(field: StructFieldInfo, val: Expr | InitValue, offset: int) -> int:
+            if isinstance(val, ExprInit):
+                val = val.expr
+            if not isinstance(val, Expr):
+                self._raise_error("Struct literal field requires expression")
+            if field.is_pointer or field.base_type == "WORD":
+                prev_force = self.force_word_result
+                prev_suppress = self.suppress_byte_return_x
+                self.force_word_result = True
+                self.suppress_byte_return_x = False
+                try:
+                    self.gen_expr(val)
+                finally:
+                    self.force_word_result = prev_force
+                    self.suppress_byte_return_x = prev_suppress
+                self.emit(f"\tSTA {base_asm}+{offset}")
+                self.emit(f"\tSTX {base_asm}+{offset+1}")
+                return 2
+
+            prev_suppress = self.suppress_byte_return_x
+            self.suppress_byte_return_x = True
+            try:
+                self.gen_expr(val)
+            finally:
+                self.suppress_byte_return_x = prev_suppress
+            self.emit(f"\tSTA {base_asm}+{offset}")
+            return 1
+
+        def is_struct_type(field: StructFieldInfo) -> bool:
+            if field.is_pointer:
+                return False
+            if not self.struct_registry:
+                return False
+            return self.struct_registry.is_defined(field.base_type)
+
+        offset = base_offset
+        for field, val in zip(struct_info.fields, values):
+            if field.array_sizes:
+                if not isinstance(val, ListInit):
+                    self._raise_error("Struct literal array field requires list initializer")
+                total = 1
+                for dim in field.array_sizes:
+                    if dim is None:
+                        self._raise_error("Struct literal array field has unknown size")
+                    total *= dim
+                if len(val.values) != total:
+                    self._raise_error(
+                        f"Struct literal array field has {len(val.values)} value(s), expected {total}"
+                    )
+                for elem in val.values:
+                    if is_struct_type(field):
+                        if not isinstance(elem, ListInit):
+                            self._raise_error("Struct array element requires list initializer")
+                        nested = self.struct_registry.lookup(field.base_type) if self.struct_registry else None
+                        if nested is None:
+                            self._raise_error("Struct array element type is undefined")
+                        self._emit_struct_literal_store(
+                            base_asm,
+                            nested,
+                            elem.values,
+                            base_offset=offset,
+                            ctx_name=ctx_name,
+                        )
+                        offset += nested.size
+                    else:
+                        offset += emit_scalar(field, elem, offset)
+                continue
+
+            if is_struct_type(field):
+                if not isinstance(val, ListInit):
+                    self._raise_error("Nested struct field requires list initializer")
+                nested = self.struct_registry.lookup(field.base_type) if self.struct_registry else None
+                if nested is None:
+                    self._raise_error("Nested struct type is undefined")
+                self._emit_struct_literal_store(
+                    base_asm,
+                    nested,
+                    val.values,
+                    base_offset=offset,
+                    ctx_name=ctx_name,
+                )
+                offset += nested.size
+                continue
+
+            offset += emit_scalar(field, val, offset)
 
 
     def gen_stmt(self, stmt):
