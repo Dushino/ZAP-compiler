@@ -392,7 +392,7 @@ ___CONSTRUCTOR__ATARI_STDIO_DATA = __LVSLOT_1
 ___CONSTRUCTOR__ATARI_STDIO_I = __LVSLOT_2
 ; /home/dusan/src/ZAP-compiler/work/lib/atari/a
 
-[ ] Start Ctrl-Shift Build ZAP code on .zap extensions only
+[x] Start Ctrl-Shift Build ZAP code on .zap extensions only
 
 [x] Document sources *.py and *.zap
 
@@ -409,5 +409,5 @@ __MEMCPY_FOR_END_3:	.res 2
 
 [x] Test REPEAT, UNTIL
 [x] Basic test for assignment of uninitialized variable
-[ ] Allow direct call with const struct like ch = myfn({0, 3, 6})
-[ ] wrong file and position when eror is in included module
+[x] Allow direct call with const struct like ch = myfn({0, 3, 6})
+[x] wrong file and position when eror is in included module
