@@ -78,4 +78,6 @@ proc main()
     putchar(low(rv))    ; should be 41239 / 256 = $17
     putchar(high(rv))    ; should be 41239 % 256 = $A1
     
+    test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
+    
 end

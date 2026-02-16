@@ -72,7 +72,13 @@ Start here if you're just beginning:
    - Error messages and best practices
    - Limitations and workarounds
 
-8. **[Project State & Implementation](project_state.md)** - Compiler Details
+8. **[Function Calls as Statements](FUNCTION_CALLS_AS_STATEMENTS.md)** - Language Feature
+   - Call functions without capturing return values
+   - Syntax, semantics, and code generation
+   - Use cases and design patterns
+   - Comparison with procedures
+
+9. **[Project State & Implementation](project_state.md)** - Compiler Details
    - Architecture overview
    - Compilation pipeline
    - Implementation status
@@ -80,14 +86,14 @@ Start here if you're just beginning:
    - Testing framework
    - Known limitations
 
-9. **[Advanced Notes & Internals](advanced_notes.md)** - Implementation Deep Dive
+10. **[Advanced Notes & Internals](advanced_notes.md)** - Implementation Deep Dive
    - Internal identifier naming
    - Memory layout strategies
    - Variable scope rules
    - Static local variables
    - Assembler considerations
 
-10. **[Quick Reference](QUICK_REFERENCE.md)** - At-a-Glance Syntax
+11. **[Quick Reference](QUICK_REFERENCE.md)** - At-a-Glance Syntax
    - Concise syntax summary
    - Common patterns
    - Quick lookup
@@ -193,6 +199,7 @@ Start here if you're just beginning:
 - [Parameters](ZAP_LANGUAGE_REFERENCE.md#parameters)
 - [Local Variables](ZAP_LANGUAGE_REFERENCE.md#local-variables)
 - [Return Statements](ZAP_LANGUAGE_REFERENCE.md#return-statement)
+- [Function Calls as Statements](FUNCTION_CALLS_AS_STATEMENTS.md) - Call functions without capturing return value
 
 ### Operators
 - [Arithmetic](ZAP_LANGUAGE_REFERENCE.md#arithmetic-operators)
