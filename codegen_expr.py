@@ -7176,7 +7176,10 @@ class CodeGen:
             # For LOW(), only load the low byte - directly load without X
             if isinstance(arg, Identifier):
                 sym = self.current_symtab.lookup(arg.name)
-                self.emit(f"\tLDA {sym.asm_name()}")
+                if sym.is_const:
+                    self.emit(f"\tLDA #<{sym.asm_name()}")
+                else:
+                    self.emit(f"\tLDA {sym.asm_name()}")
             elif isinstance(arg, IntLiteral):
                 self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
             else:
@@ -7196,7 +7199,10 @@ class CodeGen:
                 # This requires special handling for different expression types
                 if isinstance(arg, Identifier):
                     sym = self.current_symtab.lookup(arg.name)
-                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                    if sym.is_const:
+                        self.emit(f"\tLDA #>{sym.asm_name()}")
+                    else:
+                        self.emit(f"\tLDA {sym.asm_name()}+1")
                 elif isinstance(arg, IntLiteral):
                     self.emit(f"\tLDA #${(arg.value >> 8) & 0xFF:02X}")
                 elif isinstance(arg, SubscriptExpr):
