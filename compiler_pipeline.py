@@ -1588,12 +1588,6 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     func_table = FuncTable()
     struct_registry = StructRegistry()
 
-    # --- struct definitions (must be first) ---
-    struct_an = StructAnalyzer(struct_registry)
-    for item in program.procs:
-        if isinstance(item, StructDef):
-            struct_an.analyze(item)
-
     # --- enums (compile-time constants) ---
     enum_an = EnumAnalyzer(global_symtab)
     # Run enum analyzer first so their members are available as consts for later declarations
@@ -1601,6 +1595,12 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         from ast_nodes import EnumDecl
         if isinstance(d, EnumDecl):
             enum_an.analyze(d)
+
+    # --- struct definitions ---
+    struct_an = StructAnalyzer(struct_registry, enum_symtab=global_symtab)
+    for item in program.procs:
+        if isinstance(item, StructDef):
+            struct_an.analyze(item)
 
     # --- declarations ---    
     decl_an = DeclarationAnalyzer(
