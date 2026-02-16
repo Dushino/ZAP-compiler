@@ -2450,7 +2450,6 @@ class CodeGen:
         
         # Set copy length in X (number of bytes = struct size)
         self.emit(f"\tLDX #${struct_size:02X}")
-        self.emit("\tLDY #$00")
         self.emit("\tJSR COPY_BYTES")
 
     
@@ -3648,7 +3647,6 @@ class CodeGen:
                     # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
                     copy_len: int = str_len * (2 if is_word else 1)
                     self.emit(f"\tLDX #{copy_len}") # Fixme: assumes length fits in one byte
-                    self.emit("\tLDY #0")
                     self.emit("\tJSR COPY_BYTES")
             return
 
@@ -3775,7 +3773,6 @@ class CodeGen:
                         self.emit("\tSTA TMP2")
                         self.emit("\tSTX TMP2+1")
                         self.emit(f"\tLDX #{total_bytes}")
-                        self.emit("\tLDY #0")
                         self.emit("\tJSR COPY_BYTES")
                     else:
                         self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
@@ -3851,9 +3848,8 @@ class CodeGen:
                     self.emit(f"\tLDX #>{dest_var}")
                     self.emit("\tSTA TMP2")
                     self.emit("\tSTX TMP2+1")
-                    # Length in X (<=255), Y = 0
+                    # Length in X (<=255)
                     self.emit(f"\tLDX #{total_bytes}")
-                    self.emit("\tLDY #0")
                     self.emit("\tJSR COPY_BYTES")
                 else:
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
@@ -8595,7 +8591,6 @@ class CodeGen:
                     self.emit(f"\tLDA #>{asm}")
                     self.emit("\tSTA TMP2+1")
                     self.emit(f"\tLDX #${struct_size:02X}")
-                    self.emit("\tLDY #$00")
                     self.emit("\tJSR COPY_BYTES")
                     continue
 
