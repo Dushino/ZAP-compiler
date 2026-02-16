@@ -5401,6 +5401,130 @@ class CodeGen:
         offset: int = expr.index.value * self._calculate_element_width(arr_sym)
         return (arr_sym.asm_name(), offset)
 
+    def _collect_add_sub_chain(self, expr: BinaryExpr) -> list[tuple[BinOp, Expr]] | None:
+        """Collect a chain of ADD/SUB operations for RPN evaluation.
+        
+        For expression (((a + b) + c) + d), returns:
+        [(ADD, a), (ADD, b), (ADD, c), (ADD, d)]
+        
+        Returns None if not a valid chain (e.g., mixed with other operations).
+        """
+        chain: list[tuple[BinOp, Expr]] = []
+        current: Expr = expr
+        
+        while isinstance(current, BinaryExpr) and current.op in {BinOp.ADD, BinOp.SUB}:
+            chain.append((current.op, current.right))
+            current = current.left
+        
+        # Add the final left operand
+        chain.append((BinOp.ADD, current))
+        chain.reverse()
+        
+        # Only use chain optimization if we have 3+ operands and all are simple (not nested binop)
+        if len(chain) >= 3:
+            for op, operand in chain:
+                if isinstance(operand, BinaryExpr):
+                    return None  # Too complex, fall back to regular handling
+            return chain
+        
+        return None
+    
+    def _gen_add_sub_chain_rpn(self, chain: list[tuple[BinOp, Expr]]) -> None:
+        """Generate RPN-style ADD/SUB chain using __MATH0 as accumulator.
+        
+        For chain [(+, a), (+, b), (+, c)], generates:
+        - Load a → __MATH0
+        - Load b → __MATH1
+        - ADD16 → __MATH0
+        - Load c → __MATH1  
+        - ADD16 → __MATH0
+        
+        Result is left in __MATH0 (A/X).
+        """
+        if not chain or len(chain) < 2:
+            return
+        
+        self.math_routines_needed.add("ADD16")
+        self.math_routines_needed.add("SUB16")
+        
+        # Load first operand into __MATH0
+        first_op, first_expr = chain[0]
+        first_type = self.tc_check(first_expr)
+        is_first_16bit = first_type.sem_type.base == "WORD" or first_type.sem_type.is_pointer
+        
+        # Load first operand
+        if isinstance(first_expr, Identifier):
+            sym = self.current_symtab.lookup(first_expr.name)
+            self.emit(f"\tLDA {sym.asm_name()}")
+            self.emit(f"\tSTA __MATH0")
+            if is_first_16bit:
+                self.emit(f"\tLDA {sym.asm_name()}+1")
+                self.emit(f"\tSTA __MATH0+1")
+            else:
+                self.emit(f"\tLDX #0")
+                self.emit(f"\tSTX __MATH0+1")
+        elif isinstance(first_expr, IntLiteral):
+            val = first_expr.value & 0xFF
+            self.emit(f"\tLDA #${val:02X}")
+            self.emit(f"\tSTA __MATH0")
+            if is_first_16bit:
+                val_hi = (first_expr.value >> 8) & 0xFF
+                self.emit(f"\tLDA #${val_hi:02X}")
+                self.emit(f"\tSTA __MATH0+1")
+            else:
+                self.emit(f"\tLDX #0")
+                self.emit(f"\tSTX __MATH0+1")
+        else:
+            # Complex expression (including FieldAccess) - generate and store
+            # gen_expr will put result in A/X with proper widening already applied
+            self.gen_expr(first_expr)
+            self.emit(f"\tSTA __MATH0")
+            self.emit(f"\tSTX __MATH0+1")
+        
+        # Process remaining operands
+        for i in range(1, len(chain)):
+            op, operand = chain[i]
+            operand_type = self.tc_check(operand)
+            is_operand_16bit = operand_type.sem_type.base == "WORD" or operand_type.sem_type.is_pointer
+            
+            # Load operand into __MATH1
+            if isinstance(operand, Identifier):
+                sym = self.current_symtab.lookup(operand.name)
+                self.emit(f"\tLDA {sym.asm_name()}")
+                self.emit(f"\tSTA __MATH1")
+                if is_operand_16bit:
+                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                    self.emit(f"\tSTA __MATH1+1")
+                else:
+                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tSTX __MATH1+1")
+            elif isinstance(operand, IntLiteral):
+                val = operand.value & 0xFF
+                self.emit(f"\tLDA #${val:02X}")
+                self.emit(f"\tSTA __MATH1")
+                if is_operand_16bit:
+                    val_hi = (operand.value >> 8) & 0xFF
+                    self.emit(f"\tLDA #${val_hi:02X}")
+                    self.emit(f"\tSTA __MATH1+1")
+                else:
+                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tSTX __MATH1+1")
+            else:
+                # Complex expression (including FieldAccess) - generate and store
+                # gen_expr will put result in A/X with proper widening already applied
+                self.gen_expr(operand)
+                self.emit(f"\tSTA __MATH1")
+                self.emit(f"\tSTX __MATH1+1")
+            
+            # Perform operation
+            if op == BinOp.ADD:
+                self.emit("\tJSR __ADD16")
+            else:  # SUB
+                self.emit("\tJSR __SUB16")
+        
+        # Result is in __MATH0, move to A/X for caller
+        self.emit("\tLDA __MATH0")
+        self.emit("\tLDX __MATH0+1")
     
     def _gen_binary(self, expr: BinaryExpr, force_left_tmp=None) -> None:
         """Generate binary.
@@ -5409,6 +5533,16 @@ class CodeGen:
         t: ExprType = self.tc_check(expr)
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
+        
+        # OPTIMIZATION: Detect chained ADD/SUB operations and generate RPN-style with accumulator
+        # Pattern: ((a + b) + c) + d --> Load a → MATH0, b → MATH1, ADD, c → MATH1, ADD, d → MATH1, ADD
+        # This avoids intermediate temporaries and uses __MATH0 as running accumulator
+        if expr.op in {BinOp.ADD, BinOp.SUB}:
+            chain = self._collect_add_sub_chain(expr)
+            if chain and (t.sem_type.base == "WORD" or t.sem_type.is_pointer):
+                # Only use chain optimization for 16-bit results
+                self._gen_add_sub_chain_rpn(chain)
+                return
         
         # OPTIMIZATION: Detect ADD/SUB with immediate array subscripts
         # Pattern: arr[0] + value --> LDA arr[0]; CLC; ADC value
