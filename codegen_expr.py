@@ -3240,13 +3240,24 @@ class CodeGen:
             if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
         ]
 
-        # Pointer scalars are mandatory in ZP
+        # Pointer scalars: allocate to ZP only if they fit; otherwise place in BSS
+        pointer_scalar_slots: dict[str, list[Symbol]] = {}
+        pointer_scalar_slot_order: list[str] = []
         for sym in pointer_scalars:
-            if not getattr(sym, 'shared_slot', None):
-                if zp_offset + 2 > ZEROPAGE_SIZE:
-                    self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
+            slot_label = sym.shared_slot or sym.asm_name()
+            if slot_label not in pointer_scalar_slots:
+                pointer_scalar_slots[slot_label] = []
+                pointer_scalar_slot_order.append(slot_label)
+            pointer_scalar_slots[slot_label].append(sym)
+
+        for slot_label in pointer_scalar_slot_order:
+            if zp_offset + 2 <= ZEROPAGE_SIZE:
                 zp_offset += 2
-            sym.in_zeropage = True
+                for sym in pointer_scalar_slots[slot_label]:
+                    sym.in_zeropage = True
+            else:
+                for sym in pointer_scalar_slots[slot_label]:
+                    sym.in_zeropage = False
 
         # Pointer arrays: allocate to ZP only if they fit; otherwise place in BSS
         pointer_array_slots: dict[str, list[Symbol]] = {}
@@ -3330,6 +3341,8 @@ class CodeGen:
                     use_bss = True
                 elif sym.is_array and sym.type.is_pointer:
                     use_bss = not sym.in_zeropage
+                elif sym.type.is_pointer and not sym.is_array:
+                    use_bss = not sym.in_zeropage
 
                 target = shared_slots_bss if use_bss else shared_slots_zp
 
@@ -3345,14 +3358,13 @@ class CodeGen:
                 self.emit(f"{slot_label}:\t.res {size}")
             self.emit("")
 
-        # Step 1: POINTER SCALARS must fit in zero page; pointer arrays use ZP only if they fit
+        # Step 1: POINTER SCALARS/ARRAYS use ZP if they fit; otherwise they fall back to BSS
         if pointer_scalars or pointer_arrays:
             self.emit("\n; Pointer variables")
             for sym in pointer_scalars:
                 # Skip if already in shared slots
-                if not getattr(sym, 'shared_slot', None):
+                if not getattr(sym, 'shared_slot', None) and sym.in_zeropage:
                     self.emit(f"{sym.asm_name()}:\t.res 2")
-                    sym.in_zeropage = True
 
             for sym in pointer_arrays:
                 # Skip if already in shared slots
@@ -3458,9 +3470,14 @@ class CodeGen:
             s for s in all_vars
             if (not s.is_const and s.address is None and s.is_array and s.type.is_pointer and not s.in_zeropage)
         ]
+
+        pointer_scalar_bss: list[Symbol] = [
+            s for s in all_vars
+            if (not s.is_const and s.address is None and not s.is_array and s.type.is_pointer and not s.in_zeropage)
+        ]
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
-        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or pointer_array_bss or shared_slots_bss:
+        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
             self.emit("\n.segment \"BSS\"")
 
             if shared_slots_bss:
@@ -3493,6 +3510,13 @@ class CodeGen:
                         else:
                             # Fallback (shouldn't happen if is_struct is correct)
                             self.emit(f"{sym.asm_name()}:\t.res 1")
+
+            if pointer_scalar_bss:
+                self.emit("; Pointer variables (BSS)")
+                for sym in pointer_scalar_bss:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 2")
 
             if pointer_array_bss:
                 self.emit("; Pointer arrays (BSS)")
@@ -4333,7 +4357,8 @@ class CodeGen:
         # If pointer is a simple ZP identifier, use direct addressing without TMP0
         if isinstance(expr.pointer, Identifier):
             ptr_sym: Symbol = self.current_symtab.lookup(expr.pointer.name)
-            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+            if (ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array
+                and ptr_sym.in_zeropage):
                 ptr_asm: str = ptr_sym.asm_name()
                 if t.sem_type.base == "WORD":
                     # Load high byte first, then low (saves stack ops)
@@ -8117,7 +8142,8 @@ class CodeGen:
         # Pattern: ptr^ = value where ptr is a simple identifier in zero page
         if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
             ptr_sym: Symbol = self.current_symtab.lookup(lhs.pointer.name)
-            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+            if (ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array
+                and ptr_sym.in_zeropage):
                 # Pointer is in zero page, can use direct indirect addressing
                 ptr_addr: str = ptr_sym.asm_name()
                 
