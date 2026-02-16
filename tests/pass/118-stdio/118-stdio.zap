@@ -60,17 +60,17 @@ proc main()
     ;puts(msg1)    
     ;puts(msg2)
     
-    ; s1 = {1, 2, 1234, 40000, MyEnum.B}
-    rv = test1(s2)
+    s1 = {1, 2, 1234, 40000, MyEnum.B}
+    rv = test1(s1)
     putchar(low(rv))    ; should be 41239 / 256 = $17
     putchar(high(rv))    ; should be 41239 % 256 = $A1
 
-    ;rv = test1(s2)
-    ;putchar(low(rv))    ; should be 41238 / 256 = $17
-    ;putchar(high(rv))    ; should be 41238 % 256 = $A1
+    rv = test1(s2)
+    putchar(low(rv))    ; should be 41238 / 256 = $17
+    putchar(high(rv))    ; should be 41238 % 256 = $A1
 
-    ;rv = test1({1, 2, 1234, 40000, MyEnum.B})
-    ;putchar(low(rv))    ; should be 41239 / 256 = $17
-    ;putchar(high(rv))    ; should be 41239 % 256 = $A1
+    rv = test1({1, 2, 1234, 40000, MyEnum.B})
+    putchar(low(rv))    ; should be 41239 / 256 = $17
+    putchar(high(rv))    ; should be 41239 % 256 = $A1
     
 end

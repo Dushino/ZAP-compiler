@@ -1,10 +1,11 @@
 from typing import Literal
-from typing import Literal
-from symbols import FuncSymbol, SemType, SemType, Symbol, Symbol, StructInfo, Symbol, SymbolLookup, FuncTable
+from symbols import FuncSymbol, SemType, Symbol, StructInfo, SymbolLookup, FuncTable
 from sema import SemanticError
 from sema_types import ExprKind, ExprType
-from ast_nodes import Expr, Expr, IntLiteral, StringLiteral, Identifier, DerefExpr, CallExpr
-from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess, StructLiteral
+from ast_nodes import (
+    Expr, IntLiteral, StringLiteral, Identifier, DerefExpr, CallExpr,
+    BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess, StructLiteral
+)
 
 
 def promote(a: SemType, b: SemType) -> SemType:

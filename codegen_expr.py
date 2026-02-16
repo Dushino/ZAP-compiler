@@ -6981,43 +6981,51 @@ class CodeGen:
         if arg_t.sem_type.is_struct and not arg_t.sem_type.is_pointer:
             self._raise_error("LOW/HIGH not supported for struct values")
 
-        # Evaluate the expression to preserve side effects.
-        self.gen_expr(arg)
-        if name_upper == "HIGH":
+        if name_upper == "LOW":
+            # For LOW(), only load the low byte - directly load without X
+            if isinstance(arg, Identifier):
+                sym = self.current_symtab.lookup(arg.name)
+                self.emit(f"\tLDA {sym.asm_name()}")
+            elif isinstance(arg, IntLiteral):
+                self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
+            else:
+                # For complex expressions, evaluate normally (result is in A with X cleared for byte results)
+                # Just take the low byte that's in A after evaluation
+                self.gen_expr(arg)
+            # If result is used in 16-bit context, set high byte to 0
+            if self.force_word_result:
+                self.emit("\tLDX #0     ; widen byte builtin")
+        elif name_upper == "HIGH":
+            # For HIGH(), directly load the high byte
             if arg_t.sem_type.base == "BYTE" and not arg_t.sem_type.is_pointer:
+                # Byte value has no high byte, return 0
                 self.emit("\tLDA #0")
             else:
-                self.emit("\tTXA")
-
-        if self.force_word_result:
-            self.emit("\tLDX #0     ; widen byte builtin")
-        return True
-        
-        if expr.op == BinOp.LOR:
-            lbl_true: str = self.new_label("LOR_TRUE")
-            lbl_end: str  = self.new_label("LOR_END")
-
-            # lhs
-            self.gen_expr(expr.left)
-            _branch_if_nonzero(_is_word_value(expr.left), lbl_true)  # lhs != 0 → true
-
-            # rhs
-            self.gen_expr(expr.right)
-            _branch_if_nonzero(_is_word_value(expr.right), lbl_true)  # rhs != 0 → true
-
-            # false
-            self.emit("\tLDA #0")
-            self.emit(f"\tJMP {lbl_end}")
-
-            # true
-            self.emit(f"{lbl_true}:")
-            self.emit("\tLDA #1")
-
-            self.emit(f"{lbl_end}:")
+                # Load the high byte directly without loading the low byte first
+                # This requires special handling for different expression types
+                if isinstance(arg, Identifier):
+                    sym = self.current_symtab.lookup(arg.name)
+                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                elif isinstance(arg, IntLiteral):
+                    self.emit(f"\tLDA #${(arg.value >> 8) & 0xFF:02X}")
+                elif isinstance(arg, SubscriptExpr):
+                    # For array subscripts, we need the address first
+                    self._gen_subscript(arg, load_only=True, calc_addr_only=True)
+                    self.emit(f"\tLDY #1")
+                    self.emit(f"\tLDA (TMP0),Y")
+                elif isinstance(arg, FieldAccess):
+                    # Generate field access, then extract high byte from result
+                    self._gen_field_access(arg, load_only=True)
+                    self.emit(f"\tTXA")
+                else:
+                    # For other expressions, evaluate and use high byte from X
+                    self.gen_expr(arg)
+                    self.emit("\tTXA")
+            # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
-                self.emit("\tLDX #0     ; note 5074")   # X = result high byte
-            return
+                self.emit("\tLDX #0     ; widen byte builtin")
 
+        return True
 
     def gen_expr(self, expr, force_left_tmp=None) -> None:
         """Generate assembly for an expression node.
