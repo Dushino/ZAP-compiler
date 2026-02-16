@@ -47,13 +47,13 @@ proc puts(byte ^str)
     end
 end
 
-func word test1(MyStruct s)
+func word test1(MyStruct s) 
     
     return s.a + s.b + s.c + s.ptr + s.e + s.p.x + s.p.y
 end
 
 
-proc main()
+proc main() 
 
     byte ch
     byte msg1[] = "ABCDEF"          ; BSS segment

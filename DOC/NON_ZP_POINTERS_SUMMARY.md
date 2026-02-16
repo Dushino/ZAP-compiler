@@ -8,12 +8,7 @@ byte ^DLIST @560        ; Pointer at fixed address 560 (outside zero page)
 byte ^ptr25 = DLIST     ; Trying to assign this pointer value
 ```
 
-The ZAP! compiler currently **requires all pointers to be in zero page** because:
-- The 6502 indirect addressing mode `(ptr),Y` only works with zero-page pointers
-- The compiler hard-codes this assumption in three key places:
-  1. **Memory allocation** forces all pointers to ZP (or fails with exhaustion error)
-  2. **Dereferencing code** assumes pointer is in ZP (`TMP0` is a ZP temp)
-  3. **Semantic checking** doesn't distinguish pointer location types
+The ZAP! compiler now **prefers zero page for pointers** (fastest addressing), but will place them in BSS when ZP is full. Non-ZP pointers are dereferenced via TMP0, so ZP-only optimizations do not apply.
 
 ## Why This Matters
 
@@ -43,17 +38,11 @@ The ZAP! compiler currently **requires all pointers to be in zero page** because
 
 ### Where It Fails
 
-**1. Memory Allocation (`gen_vars()` lines 1360-1365)**
+**1. Memory Allocation (`gen_vars()`)**
 ```python
-pointers = [s for s in all_vars if s.type.is_pointer and s.address is None]
-if pointers:
-    for sym in pointers:
-        if zp_offset + 2 > ZEROPAGE_SIZE:
-            raise SemanticError(f"Zero page exhausted: pointer cannot fit")
-        # Force into ZP
-        self.emit(f"{sym.asm_name()}:\t.res 2")
+# Pointers are placed in ZP if they fit; otherwise in BSS
 ```
-→ All pointers without fixed address MUST fit in ZP or compilation fails.
+→ Pointers without fixed address no longer fail on ZP exhaustion.
 
 **2. Fixed-Address Pointers**
 ```python
@@ -66,15 +55,15 @@ fixed = [s for s in all_vars if s.address is not None]
 ```asm
 LDA (TMP0),Y    ; Requires TMP0 to be in zero page
 ```
-→ Assumes pointer is always accessible as a ZP location.
+→ For non-ZP pointers, the compiler first copies the pointer value to TMP0, then dereferences.
 
 ### What Needs to Happen
 
 | Operation | ZP Pointer | Fixed Non-ZP Pointer |
 |-----------|-----------|----------------------|
-| **Store** | `STA ptr` in ZP | Can't store multiple-byte value at fixed address (needs helper) |
+| **Store** | `STA ptr` in ZP | Can store, but not via ZP-only modes |
 | **Load address** | Works directly | Must build address or copy from label |
-| **Dereference** | `(ptr),Y` works | Must copy to ZP temp first |
+| **Dereference** | `(ptr),Y` works | Copies to TMP0, then dereferences |
 | **Pointer math** | Can do in-place | Must load, compute, store |
 
 ## The Solution in 3 Phases
@@ -83,11 +72,11 @@ LDA (TMP0),Y    ; Requires TMP0 to be in zero page
 ```python
 # In symbols.py
 class Symbol:
-    pointer_in_zp: bool  # Can be dereferenced with indirect addressing?
+   in_zeropage: bool  # Can use ZP-only indirect addressing?
     
 # In gen_vars()
 for sym in pointers_with_fixed_address:
-    sym.pointer_in_zp = False  # Mark that it can't be dereferenced directly
+   sym.in_zeropage = False  # Mark that ZP-only optimizations do not apply
 ```
 
 **Code generated:**
@@ -105,7 +94,7 @@ STX _ptr25+1
 **Restrictions:** 
 - ✅ Can assign non-ZP pointer to ZP pointer
 - ✅ Can read non-ZP pointer value (as constant)
-- ❌ Cannot dereference non-ZP pointer directly (error: "pointer must be in ZP to dereference")
+- ✅ Non-ZP pointers are dereferenced via TMP0 (slower)
 
 ### Phase 2: Support Non-ZP Pointer Dereferencing (Via Temp)
 ```python
@@ -113,7 +102,7 @@ def _gen_deref(self, expr: DerefExpr):
     # Determine if pointer is in ZP
     if isinstance(expr.pointer, Identifier):
         sym = self.current_symtab.lookup(expr.pointer.name)
-        if not getattr(sym, 'pointer_in_zp', True):
+      if not getattr(sym, 'in_zeropage', True):
             # Non-ZP pointer: must copy to temp first
             self.gen_expr(expr.pointer)
             self.emit("\tSTA TMP0")
@@ -146,11 +135,11 @@ LDA (TMP0),Y      ; Now dereference works
 ## Files to Modify
 
 1. **symbols.py** (~5 lines added)
-   - Add `pointer_in_zp: bool = True` field to Symbol
+   - Add `in_zeropage: bool = True` field to Symbol
 
 2. **codegen_expr.py** (~50 lines changed/added)
    - `gen_vars()`: Mark non-ZP pointers
-   - `_gen_deref()`: Check pointer_in_zp, copy to temp if needed
+   - `_gen_deref()`: Check in_zeropage, copy to temp if needed
    - `gen_assign()`: Handle non-ZP pointer assignments
 
 3. **sema_expr.py** (~20 lines added)

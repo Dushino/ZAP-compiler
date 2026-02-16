@@ -129,7 +129,7 @@ byte char1 = ptrs[0]^   ; 'F' from data1
 byte char2 = ptrs[1]^   ; 'S' from data2
 ```
 
-**Note:** Pointer arrays are stored in zero page, just like scalar pointers.
+**Note:** Pointer arrays are stored in zero page if they fit; otherwise they are placed in BSS. ZP-only optimizations apply only when the array is in zero page.
 
 ### Pointer to Pointer (Limited)
 
@@ -152,7 +152,7 @@ byte y = ^x    ; ERROR: y is byte, not pointer!
 **Non-ZP Pointers:**
 ```zap
 byte ^ptr @$2000   ; Fixed address, not in zero-page
-ptr^                ; ERROR: Can't dereference non-ZP pointer!
+byte v = ptr^      ; Works via TMP0 (slower), no ZP-only optimizations
 ```
 
 ### Pointer Optimization
@@ -215,10 +215,10 @@ byte arr[256]       ; Too big - goes to BSS (high RAM)
 
 Compiler allocates in this order:
 
-1. **Pointers** - Must be in ZP (address storage)
+1. **Pointers** - ZP if they fit; otherwise BSS
 2. **Byte variables** - ZP first, then BSS
 3. **Word variables** - ZP first, then BSS
-4. **Arrays** - Always BSS (except pointer arrays, which must be in ZP)
+4. **Arrays** - Always BSS (pointer arrays go to ZP only if they fit)
 5. **Temporaries** - TMP0-TMP4 in ZP
 
 Example layout:

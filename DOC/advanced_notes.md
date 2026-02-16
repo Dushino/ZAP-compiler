@@ -10,18 +10,18 @@
 
 ### Identifier naming rules
 
-- Identifier name can not start with _
-- Rest of identifier name can be alphanumeric characters and underscores
+- Identifier name can not start with _ or digit
+- Rest of identifier name can be alphanumeric characters, digits and underscores
 
 
 ## Variables
 
 ### How variables use memory
 
-There is an order in which ZAP! compiler places variables into memory. No variables are placed in CPU stack. It means that every variable (global or local) have its fixed RAM address. Addressed are reserved in this order:
+There is an order in which ZAP! compiler places variables into memory. No variables are placed in CPU stack. It means that every variable (global or local) have its fixed RAM address. Addresses are reserved in this order:
 
 1. Pointers
-Pointers must fit into zero page. If not, error is issued and compilation is terminated. This includes arrays of pointers.
+Pointers (including arrays of pointers) are placed in zero page if they fit; otherwise they are placed in BSS. Non-ZP pointers are still dereferenced via TMP0, but the fast ZP indirect mode is not used.
 
 2. BYTE variables
 Byte sized variables goes after pointers into zero page. If does not fit, they are placed in BSS segment (uninitialized RAM, address span is specified by ld65 linker configuration file).
@@ -30,7 +30,7 @@ Byte sized variables goes after pointers into zero page. If does not fit, they a
 Byte sized variables goes after pointers into zero page. If does not fit, they are placed in BSS segment.
 
 4. Arrays and strings
-All arrays and strings are allways placed into BSS segment, except pointer arrays which must be in zero page.
+All arrays and strings are always placed into BSS segment, except pointer arrays which go to ZP only if they fit (otherwise BSS).
 
 
 ### How variable declarations affect memory placement
@@ -55,9 +55,9 @@ word ^ptr7 @560 = MyDLIST       ; 12th line
 - 2st line - variable consumes 1 byte, its address is automatically assigned from variables memory pool and is initialized before use. If it is global variable, initialization is done before reaching main procedure. If it is local variable, initialization id done before executing code from procedure or function.
 - 3rd line - variable is placed at memory address specified. It does not consume any byte from variables pool.
 - 4th line - during initialization time (see comment for 2nd line) value is written to the address
-- 5th line - declaration means pointer to BYTE. It means it consumes two bytes for address from variables pool in 0. page
+- 5th line - declaration means pointer to BYTE. It consumes two bytes from the variables pool in zero page if space is available, otherwise in BSS.
 - 6th line - pointer is initialized po point to address specified.
-- 7th line - pointer does not consume space from variables pool and is placed in address specified. It is not possible to dereference such pointer. Only assignment to WORD or regular (from zero page pointers) is possible.
+- 7th line - pointer does not consume space from variables pool and is placed at the specified address. Dereferencing such pointer uses TMP0 (slower), and ZP-only optimizations do not apply.
 - 8th line - pointer at given address is initialized to a value.
 - 9th line - pointer to word consumes two bytes from pointer variables pool to keep address it points to and points to word data type. As one unit pointer is pointing to is two bytes long, this:
 ```
@@ -69,7 +69,7 @@ increments address pointer is pointing to by 2 bytes (WORD data type size).
 - 12th line - the same as 8th line, but working with WORD instead of BYTE.
 
 *Warnings*
-- If you specify address to place variable at, you might collide with other variable from memory pool. Main motivation for declaration with address is to allow direct access to hardware ports.
+- If you specify address to place variable at by @, you might collide with other variable from memory pool. Main motivation for declaration with address is to allow direct access to hardware ports. However, variables declared with @ are still subject of optimization which can lead to unwanted side effect when used for hardware ports. If you mark variable with #PORT hashmark, nor writes nor reads to/from such variable is optimized. See #PORT, #RD and #WR for details.
 
 
 
@@ -168,7 +168,7 @@ before you leave ASM block.
 
 For example:
 ```
-proc pgm_init()
+proc font_init()
     ASM
         .segment "FONT"         ; properly aligned in ld65 configuration file
         .incbin "my_font.fnt"
@@ -180,6 +180,32 @@ end
 ```
 
 *Warning!*
-Do not forget to call pgm_init from other procedure. Otherwise it will be optimized and not included. In fact, there is no code inside the procedure, just RTS generated in "CODE" segment in the example above.
+Do not forget to call font_init from other procedure. Otherwise it will be optimized and not included. In fact, there is no code inside the procedure, just RTS generated in "CODE" segment in the example above. Or use #keep:
+
+```
+/*
+    COMHEADER and AUTOSTRT data area
+    needed by linker for proper atari .com file generation
+*/
+proc atari_file_data_area() #keep #noexport
+    asm
+        .segment "COMHEADER"
+        .import __RAM_START__, __RAM_LAST__
+        .word $FFFF     		; second block marker
+        .word __RAM_START__		; RUN address
+        .word __RAM_LAST__    	; last byte  
+
+        .segment "AUTOSTRT"
+        .import __RAM_START__, __RAM_LAST__
+        .word $FFFF     		; second block marker
+        .word __RAM_START__		; RUN address
+        .word __RAM_LAST__    	; last byte
+
+        .segment "CODE"        
+    end
+end
+
+```
+
 
 
