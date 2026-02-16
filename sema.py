@@ -1,36 +1,13 @@
 ﻿# 
 
 from errors import SemanticError
-from typing import Any
-from typing import Any
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from errors import SemanticError
-from errors import SemanticError
-from typing import List
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from errors import SemanticError
+from typing import Any, List
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
-from errors import *
-from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr
-from ast_nodes import ListInit, StringInit, ExprInit
-from ast_nodes import Declaration, Declarator, StructDef, EnumDecl
+from ast_nodes import (
+    Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr,
+    ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl
+)
+
 
 
 def eval_const_expr(expr, symtab=None, struct_registry=None):

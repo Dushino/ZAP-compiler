@@ -9,6 +9,10 @@ enum MyEnum
     C = 3
 end
 
+struct Point
+    byte x
+    word y
+end
 
 struct MyStruct
     byte a
@@ -16,6 +20,7 @@ struct MyStruct
     word c
     byte ^ptr
     MyEnum e
+    Point p
 end
 
 
@@ -43,7 +48,7 @@ end
 
 func word test1(MyStruct s)
     
-    return s.a + s.b + s.c + s.ptr + s.e
+    return s.a + s.b + s.c + s.ptr + s.e + s.p.x + s.p.y
 end
 
 
@@ -54,13 +59,13 @@ proc main()
     const byte msg2[] = "123456"    ; CODE segment
     
     MyStruct s1
-    const MyStruct s2 = {1, 2, 1234, 40000, MyEnum.B}
+    const MyStruct s2 = {1, 2, 1204, 40000, MyEnum.B, {10, 20}}
     word rv
 
     puts(msg1)    
     puts(msg2)
     
-    s1 = {1, 2, 1234, 40000, MyEnum.B}
+    s1 = {1, 2, 1204, 40000, MyEnum.B, {10, 20}}
     rv = test1(s1)
     putchar(low(rv))    ; should be 41239 / 256 = $17
     putchar(high(rv))    ; should be 41239 % 256 = $A1
@@ -69,7 +74,7 @@ proc main()
     putchar(low(rv))    ; should be 41238 / 256 = $17
     putchar(high(rv))    ; should be 41238 % 256 = $A1
 
-    rv = test1({1, 2, 1234, 40000, MyEnum.B})
+    rv = test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
     putchar(low(rv))    ; should be 41239 / 256 = $17
     putchar(high(rv))    ; should be 41239 % 256 = $A1
     

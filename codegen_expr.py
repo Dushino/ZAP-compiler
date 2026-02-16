@@ -2380,6 +2380,105 @@ class CodeGen:
         # Call ARRCPY routine
         self.emit("\tJSR ARRCPY")
 
+    def _extract_const_values_from_listinit(self, init_list, flat_values: list[int]) -> None:
+        """Extract const values from a ListInit, handling nested struct literals.
+        
+        Recursively flattens nested ListInit structures and extracts integer values.
+        Handles: IntLiteral, Identifier (const refs), FieldAccess (enum members), ListInit (nested structs)
+        """
+        for ex in init_list.values:
+            if isinstance(ex, IntLiteral):
+                flat_values.append(ex.value)
+            elif isinstance(ex, Identifier):
+                # Look up identifier in symbol table to get const value
+                sym_val = self.global_symtab.lookup(ex.name)
+                if sym_val and sym_val.const_value is not None:
+                    flat_values.append(sym_val.const_value)
+                else:
+                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                # Handle enum member: MyEnum.B
+                enum_name = ex.object.name.upper()
+                member_name = ex.field.upper()
+                enums = getattr(self.global_symtab, '_enums', None)
+                if enums and enum_name in enums:
+                    enum_def = enums[enum_name]
+                    if member_name in enum_def['members']:
+                        flat_values.append(enum_def['members'][member_name])
+                    else:
+                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                else:
+                    self._raise_error(f"Enum '{enum_name}' is not defined")
+            elif isinstance(ex, ListInit):
+                # Recursive: nested struct literal like {10, 20}
+                self._extract_const_values_from_listinit(ex, flat_values)
+            else:
+                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+
+    def _extract_const_struct_bytes(self, init_list: 'ListInit', struct_def: 'StructInfo') -> tuple[tuple[int, ...], bool]:
+        """Extract const struct bytes according to field types.
+        
+        Returns (byte_tuple, is_word) where:
+        - byte_tuple: flattened bytes with proper field sizing
+        - is_word: False (always, since it's mixed-size struct data emitted as BYTE array)
+        
+        This correctly handles WORD fields in nested structs by expanding them to low/high bytes.
+        """
+        byte_values: list[int] = []
+        field_index = 0
+        fields = struct_def.fields
+        
+        for ex in init_list.values:
+            if field_index >= len(fields):
+                self._raise_error(f"Too many initializers for struct (has {len(fields)} fields)")
+            
+            field_info = fields[field_index]
+            field_index += 1
+            
+            # Extract the value
+            if isinstance(ex, IntLiteral):
+                val = ex.value
+            elif isinstance(ex, Identifier):
+                sym_val = self.global_symtab.lookup(ex.name)
+                if sym_val and sym_val.const_value is not None:
+                    val = sym_val.const_value
+                else:
+                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                # Handle enum member: MyEnum.B
+                enum_name = ex.object.name.upper()
+                member_name = ex.field.upper()
+                enums = getattr(self.global_symtab, '_enums', None)
+                if enums and enum_name in enums:
+                    enum_def = enums[enum_name]
+                    if member_name in enum_def['members']:
+                        val = enum_def['members'][member_name]
+                    else:
+                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                else:
+                    self._raise_error(f"Enum '{enum_name}' is not defined")
+            elif isinstance(ex, ListInit):
+                # Nested struct - recursively extract bytes using nested struct definition
+                nested_struct_info = self.struct_registry.lookup(field_info.base_type)
+                if nested_struct_info is None:
+                    self._raise_error(f"Cannot determine nested struct definition for field '{field_info.name}'")
+                nested_bytes, _ = self._extract_const_struct_bytes(ex, nested_struct_info)
+                byte_values.extend(nested_bytes)
+                continue
+            else:
+                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+            
+            # Append bytes according to field type
+            if field_info.is_pointer or field_info.base_type.upper() == "WORD":
+                # WORD or pointer - emit as 2 bytes (little-endian)
+                byte_values.append(val & 0xFF)
+                byte_values.append((val >> 8) & 0xFF)
+            else:
+                # BYTE or enum - emit as 1 byte
+                byte_values.append(val & 0xFF)
+        
+        return (tuple(byte_values), False)
+
     def _gen_const_struct_copy(self, dst_sym, src_const_sym) -> None:
         """Generate code to copy const struct data from ROM to destination.
         
@@ -2397,33 +2496,9 @@ class CodeGen:
         if struct_size == 0:
             self._raise_error(f"Cannot determine size of struct '{src_const_sym.name}'")
         
-        # Extract values from const struct initialization
+        # Extract values from const struct initialization (handles nested structs)
         values: list[int] = []
-        for ex in src_const_sym.init.values:
-            if isinstance(ex, IntLiteral):
-                values.append(ex.value)
-            elif isinstance(ex, Identifier):
-                # Look up identifier in symbol table to get const value
-                sym_val = self.global_symtab.lookup(ex.name)
-                if sym_val and sym_val.const_value is not None:
-                    values.append(sym_val.const_value)
-                else:
-                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
-            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
-                # Handle enum member: MyEnum.B
-                enum_name = ex.object.name.upper()
-                member_name = ex.field.upper()
-                enums = getattr(self.global_symtab, '_enums', None)
-                if enums and enum_name in enums:
-                    enum_def = enums[enum_name]
-                    if member_name in enum_def['members']:
-                        values.append(enum_def['members'][member_name])
-                    else:
-                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
-                else:
-                    self._raise_error(f"Enum '{enum_name}' is not defined")
-            else:
-                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+        self._extract_const_values_from_listinit(src_const_sym.init, values)
         
         # Generate ROM data label for this struct
         data_key = (tuple(values), False)
@@ -3057,6 +3132,16 @@ class CodeGen:
             self._internal_name_map.get("TMP3", "TMP3"): 2,
             self._internal_name_map.get("TMP4", "TMP4"): 2,
             self._internal_name_map.get("TMP5", "TMP5"): 2,
+            self._internal_name_map.get("TMP6", "TMP6"): 2,
+            self._internal_name_map.get("TMP7", "TMP7"): 2,
+            self._internal_name_map.get("TMP8", "TMP8"): 2,
+            self._internal_name_map.get("TMP9", "TMP9"): 2,
+            self._internal_name_map.get("TMP10", "TMP10"): 2,
+            self._internal_name_map.get("TMP11", "TMP11"): 2,
+            self._internal_name_map.get("TMP12", "TMP12"): 2,
+            self._internal_name_map.get("TMP13", "TMP13"): 2,
+            self._internal_name_map.get("TMP14", "TMP14"): 2,
+            self._internal_name_map.get("TMP15", "TMP15"): 2,
         }
         temps_in_use: set[str] = self._detect_temp_usage(code)
 
@@ -3075,7 +3160,7 @@ class CodeGen:
                 # No shared slot - emit dedicated allocation
                 self.emit(f"{internal_name}:\t.res {temp_size}")
         
-        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
+        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11", "TMP12", "TMP13", "TMP14", "TMP15"]:
             name = self._internal_name_map.get(raw_name, raw_name)
             if name in temps_in_use:
                 if raw_name in self.system_temp_slots:
@@ -3708,31 +3793,7 @@ class CodeGen:
                 
                 # Constant struct array - optimize with loop copy
                 values: list[int] = []
-                for ex in flattened_values:
-                    if isinstance(ex, IntLiteral):
-                        values.append(ex.value)
-                    elif isinstance(ex, Identifier):
-                        # Look up identifier in symbol table to get const value
-                        sym_val = self.global_symtab.lookup(ex.name)
-                        if sym_val and sym_val.const_value is not None:
-                            values.append(sym_val.const_value)
-                        else:
-                            self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
-                    elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
-                        # Handle enum member: MyEnum.B
-                        enum_name = ex.object.name.upper()
-                        member_name = ex.field.upper()
-                        enums = getattr(self.global_symtab, '_enums', None)
-                        if enums and enum_name in enums:
-                            enum_def = enums[enum_name]
-                            if member_name in enum_def['members']:
-                                values.append(enum_def['members'][member_name])
-                            else:
-                                self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
-                        else:
-                            self._raise_error(f"Enum '{enum_name}' is not defined")
-                    else:
-                        self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+                self._extract_const_values_from_listinit(sym.init, values)
                 
                 array_len: int = len(values)
                 is_word: bool = sym.type.base == "WORD"
@@ -7215,9 +7276,9 @@ class CodeGen:
         elif isinstance(expr, BinaryExpr):
             # Conservative TMP usage check before generating potentially large expressions
             needed: int = self._estimate_temp_slots(expr)
-            max_temps: int = 6  # TMP0..TMP5 available
+            max_temps: int = 16  # Hard limit: TMP0..TMP15 available (can dynamically allocate up to 16)
             if needed > max_temps:
-                self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but only {max_temps} available. Simplify the expression.")
+                self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but hard limit is {max_temps}. Simplify the expression.")
 
             # FAST PATH: Optimize simple byte operations (a op b) to avoid RPN overhead
             # For expressions like: a < b, a + b, a & b where both are identifiers/literals
@@ -8678,33 +8739,8 @@ class CodeGen:
                     if src_sym.is_const:
                         if not src_sym.init or not isinstance(src_sym.init, ListInit):
                             self._raise_error(f"Const struct '{src_sym.name}' has no initialization")
-                        values: list[int] = []
-                        for ex in src_sym.init.values:
-                            if isinstance(ex, IntLiteral):
-                                values.append(ex.value)
-                            elif isinstance(ex, Identifier):
-                                # Look up identifier in symbol table to get const value
-                                sym_val = self.global_symtab.lookup(ex.name)
-                                if sym_val and sym_val.const_value is not None:
-                                    values.append(sym_val.const_value)
-                                else:
-                                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
-                            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
-                                # Handle enum member: MyEnum.B
-                                enum_name = ex.object.name.upper()
-                                member_name = ex.field.upper()
-                                enums = getattr(self.global_symtab, '_enums', None)
-                                if enums and enum_name in enums:
-                                    enum_def = enums[enum_name]
-                                    if member_name in enum_def['members']:
-                                        values.append(enum_def['members'][member_name])
-                                    else:
-                                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
-                                else:
-                                    self._raise_error(f"Enum '{enum_name}' is not defined")
-                            else:
-                                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
-                        data_key = (tuple(values), False)
+                        # Extract bytes with proper field type handling
+                        data_key = self._extract_const_struct_bytes(src_sym.init, struct_info)
                         if data_key not in self.array_literals:
                             self.array_id += 1
                             self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
