@@ -276,26 +276,6 @@ byte var2 @$2000   ; ERROR: Collision!
 
 ZAP! doesn't support malloc/free. All memory is static.
 
-**Workaround:** Pre-allocate pools:
-
-```zap
-; Object pool
-const byte MAX_OBJECTS = 20
-byte object_x[MAX_OBJECTS]
-byte object_y[MAX_OBJECTS]
-byte object_active[MAX_OBJECTS]
-byte object_count = 0
-
-proc allocate_object()
-    if object_count < MAX_OBJECTS
-        object_count = object_count + 1
-        byte idx = object_count - 1
-        object_x[idx] = 0
-        object_y[idx] = 0
-        object_active[idx] = 1
-    end
-end
-```
 
 ### Static Local Variables (Persistent State)
 
@@ -322,8 +302,9 @@ end
 1. Program starts
 2. Global variables are initialized
 3. Static local variables are initialized (in order of procedures)
-4. MAIN is called
-5. During execution, static variables persist across procedure calls
+4. CONSTRUCTORs are called in the same order as as .include includes modules
+5. MAIN is called
+6. After MAIN ends, endless loop is performed
 
 **Rules:**
 
@@ -365,6 +346,8 @@ proc game_state()
     end
 end
 ```
+See also ENUM and SWITCH for state machines implementation.
+
 
 3. **Resource pools:**
 ```zap
@@ -372,9 +355,10 @@ const byte MAX_SPRITES = 10
 
 proc allocate_sprite()
     static byte sprite_count = 0
-    
+    byte id
+
     if sprite_count < MAX_SPRITES
-        byte id = sprite_count
+        id = sprite_count
         sprite_count = sprite_count + 1
         return id
     else
@@ -420,7 +404,7 @@ proc loop_example()
     asm
     LOOP:
         INC $D000
-        DEC _I          ; Decrement local i (internal name: _I)
+        DEC _LOOP_EXAMPLE_I          ; Decrement local i (internal name: _LOOP_EXAMPLE_I)
         BNE LOOP
     end
 end
@@ -487,11 +471,9 @@ end
 ```
 
 **Key Points:**
-- Variables: `my_var` → `_MY_VAR`
+- Variables: `my_var` → `<_(PROC | FUNC)NAME_>MY_VAR`
 - Procedures: `setup()` → `_SETUP`
 - Functions: `get_value()` → `_GET_VALUE`
-- Arrays: `buffer[]` → `_BUFFER`
-- Struct instances: `player` → `_PLAYER`
 
 #### Compiler-Generated Identifiers: Double Underscore Prefix
 
