@@ -2398,7 +2398,32 @@ class CodeGen:
             self._raise_error(f"Cannot determine size of struct '{src_const_sym.name}'")
         
         # Extract values from const struct initialization
-        values: list[int] = [ex.value for ex in src_const_sym.init.values if isinstance(ex, IntLiteral)]
+        values: list[int] = []
+        for ex in src_const_sym.init.values:
+            if isinstance(ex, IntLiteral):
+                values.append(ex.value)
+            elif isinstance(ex, Identifier):
+                # Look up identifier in symbol table to get const value
+                sym_val = self.global_symtab.lookup(ex.name)
+                if sym_val and sym_val.const_value is not None:
+                    values.append(sym_val.const_value)
+                else:
+                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                # Handle enum member: MyEnum.B
+                enum_name = ex.object.name.upper()
+                member_name = ex.field.upper()
+                enums = getattr(self.global_symtab, '_enums', None)
+                if enums and enum_name in enums:
+                    enum_def = enums[enum_name]
+                    if member_name in enum_def['members']:
+                        values.append(enum_def['members'][member_name])
+                    else:
+                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                else:
+                    self._raise_error(f"Enum '{enum_name}' is not defined")
+            else:
+                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
         
         # Generate ROM data label for this struct
         data_key = (tuple(values), False)
@@ -3684,7 +3709,33 @@ class CodeGen:
                     return
                 
                 # Constant struct array - optimize with loop copy
-                values: list[int] = [ex.value for ex in flattened_values if isinstance(ex, IntLiteral)]
+                values: list[int] = []
+                for ex in flattened_values:
+                    if isinstance(ex, IntLiteral):
+                        values.append(ex.value)
+                    elif isinstance(ex, Identifier):
+                        # Look up identifier in symbol table to get const value
+                        sym_val = self.global_symtab.lookup(ex.name)
+                        if sym_val and sym_val.const_value is not None:
+                            values.append(sym_val.const_value)
+                        else:
+                            self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+                    elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                        # Handle enum member: MyEnum.B
+                        enum_name = ex.object.name.upper()
+                        member_name = ex.field.upper()
+                        enums = getattr(self.global_symtab, '_enums', None)
+                        if enums and enum_name in enums:
+                            enum_def = enums[enum_name]
+                            if member_name in enum_def['members']:
+                                values.append(enum_def['members'][member_name])
+                            else:
+                                self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                        else:
+                            self._raise_error(f"Enum '{enum_name}' is not defined")
+                    else:
+                        self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+                
                 array_len: int = len(values)
                 is_word: bool = sym.type.base == "WORD"
                 dest_var: str = sym.asm_name()
@@ -4834,7 +4885,7 @@ class CodeGen:
             return
         
         field_offset: int = field_info.offset
-        field_width: int = 2 if field_info.base_type == "WORD" else 1
+        field_width: int = 2 if field_info.is_pointer or field_info.base_type == "WORD" else 1
         
         if expr.is_deref:
             # ptr^.field - expr.object should be a DerefExpr(pointer)
@@ -5454,7 +5505,8 @@ class CodeGen:
         # OPTIMIZATION: Detect and optimize array subscript chains
         # Pattern: arr[0] + arr[1] - arr[2]
         # Determine result type: use assignment target type if available, else expression result type
-        result_16_temp: bool = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
+        # Note: Pointers are 16-bit regardless of whether they're VALUE or ADDR kind
+        result_16_temp: bool = t.sem_type.base == "WORD" or t.sem_type.is_pointer
 
         # Force word-sized evaluation when required by caller context
         if self.force_word_result:
@@ -5487,8 +5539,9 @@ class CodeGen:
         
         # Determine operand sizes
         # IMPORTANT: Pointers are always 16-bit, even if pointing to BYTE
-        left_16: bool = left_t.sem_type.base == "WORD" or (left_t.kind == ExprKind.ADDR and left_t.sem_type.is_pointer)
-        right_16: bool = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
+        # Note: Pointers can be VALUE (from fields) or ADDR (array/@ operator)
+        left_16: bool = left_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer
+        right_16: bool = right_t.sem_type.base == "WORD" or right_t.sem_type.is_pointer
         result_16: bool = result_16_temp
         
         # Check if left operand is a BYTE arithmetic expression that can overflow
@@ -8487,7 +8540,32 @@ class CodeGen:
                     if src_sym.is_const:
                         if not src_sym.init or not isinstance(src_sym.init, ListInit):
                             self._raise_error(f"Const struct '{src_sym.name}' has no initialization")
-                        values = [ex.value for ex in src_sym.init.values if isinstance(ex, IntLiteral)]
+                        values: list[int] = []
+                        for ex in src_sym.init.values:
+                            if isinstance(ex, IntLiteral):
+                                values.append(ex.value)
+                            elif isinstance(ex, Identifier):
+                                # Look up identifier in symbol table to get const value
+                                sym_val = self.global_symtab.lookup(ex.name)
+                                if sym_val and sym_val.const_value is not None:
+                                    values.append(sym_val.const_value)
+                                else:
+                                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+                            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                                # Handle enum member: MyEnum.B
+                                enum_name = ex.object.name.upper()
+                                member_name = ex.field.upper()
+                                enums = getattr(self.global_symtab, '_enums', None)
+                                if enums and enum_name in enums:
+                                    enum_def = enums[enum_name]
+                                    if member_name in enum_def['members']:
+                                        values.append(enum_def['members'][member_name])
+                                    else:
+                                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                                else:
+                                    self._raise_error(f"Enum '{enum_name}' is not defined")
+                            else:
+                                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
                         data_key = (tuple(values), False)
                         if data_key not in self.array_literals:
                             self.array_id += 1

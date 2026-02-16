@@ -9,6 +9,8 @@ from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAc
 
 def promote(a: SemType, b: SemType) -> SemType:
     """Promote two scalar types to a common arithmetic type."""
+    if a.is_pointer or b.is_pointer:
+        return SemType("WORD", False)
     if a.base == "WORD" or b.base == "WORD":
         return SemType("WORD", False)
     return SemType("BYTE", False)
