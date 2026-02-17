@@ -19,6 +19,8 @@
 8. [Advanced Patterns](#advanced-patterns)
 9. [Debugging Assembly Output](#debugging-assembly-output)
 10. [Compiler Internals](#compiler-internals)
+11. [Memory Allocation Details](#memory-allocation-details)
+12. [Safety Features](#safety-features)
 
 ---
 
@@ -1501,6 +1503,635 @@ python compiler.py -o program.s program.zap
 # - Inefficient loops
 # - Unnecessary multiplications
 ```
+
+---
+
+## Memory Allocation Details
+
+### Overview
+
+The ZAP compiler uses sophisticated variable allocation strategies to optimize memory usage on 6502/65C02 systems. This document explains how local variables are allocated, how slot sharing works, and how variables are prioritized for Zero Page allocation.
+
+### Memory Segments
+
+Variables are stored in different segments based on their properties and type:
+
+#### ZEROPAGE Segment (256 bytes, $0000-$00FF)
+
+**Highest priority**: Contains frequently-accessed variables for fast access.
+
+**System variables** (reserved):
+- `MATH_STACK`: 8 bytes - Stack for mathematical operations
+- `MATH0`: 4 bytes - Math temporary storage
+- `MATH1`: 2 bytes - Math temporary storage
+- Temporary registers: `TMP0`-`TMP5` - 2-12 bytes (allocated as needed)
+
+**User variables** (allocated after system variables):
+- **Shared slots**: Local variables that share storage through aliasing
+- **Pointer variables**: ALL pointers must be in zero page (mandatory for fast indexing)
+- **Byte variables** (high priority): Short-lived or frequently-used byte locals
+- **Word variables** (high priority): Short-lived or frequently-used word locals
+
+#### BSS Segment (RAM, typically $0300+)
+
+**Lower priority**: Overflow variables and large structures.
+
+**Contains**:
+- Word variables that don't fit in zero page
+- Byte variables that don't fit in zero page
+- Struct variables (all structs go to BSS by default)
+- Array variables (all arrays go to BSS, except pointer arrays which go to ZP if they fit)
+
+#### CODE Segment
+
+Not typically used for data, but may contain:
+- Runtime constant data
+- String literals (with null terminators)
+- Array initialization data (const arrays)
+
+### Variable Types and Storage
+
+#### Fixed-Address Variables
+
+Variables declared with `@address` syntax:
+```zap
+word port_a @$FF00
+```
+
+These are emitted in the ZEROPAGE segment:
+```asm
+byte result = $FF
+```
+
+**Characteristics**:
+- Cannot be modified by ZP allocation algorithm
+- Used for hardware ports and memory-mapped I/O
+- Protected from peephole optimization
+
+#### Pointers and Pointer Arrays
+
+**Requirement**: ALL pointers MUST be in zero page.
+
+**Rationale**: 
+- 6502 indirect addressing `(addr),Y` requires the address to be in zero page
+- Without specific addressing modes, pointers would require 3-4 byte sequences instead of optimal 1-2 byte sequences
+
+**Example**:
+```zap
+proc print(byte *str)
+    ; str pointer is in zero page for efficient `(str),Y` addressing
+end
+```
+
+#### Scalar Variables (BYTE and WORD)
+
+Local variables that can potentially share storage:
+
+```zap
+proc calculate()
+    byte x = 10
+    byte y = 20
+    word total = 0
+end
+```
+
+If `x` and `y` don't overlap in their liveness (x is dead before y is used), they can share the same zero page slot.
+
+#### Arrays
+
+All non-pointer arrays are allocated in BSS:
+
+```zap
+proc process()
+    byte buffer[256]  ; Goes to BSS, too large for ZP
+    byte temp[4]      ; Still goes to BSS (arrays don't fit in ZP)
+end
+```
+
+#### Structs
+
+All struct variables are allocated in BSS:
+
+```zap
+struct point
+    byte x
+    byte y
+end
+
+proc main()
+    point p              ; Goes to BSS
+    point *ptr_p = @p    ; ptr_p goes to ZP if fits, points to p in BSS
+end
+```
+
+### Slot Sharing Strategy
+
+#### What is Slot Sharing?
+
+Slot sharing (or variable aliasing) is when multiple local variables use the same storage location because their liveness ranges don't overlap.
+
+#### Liveness Analysis
+
+The compiler performs **liveness analysis** on each procedure to determine:
+- **Live-in**: Variables that are live at procedure entry
+- **Live-out**: Variables that are live at procedure exit
+- **Live-gen**: Variables used in this statement
+- **Live-kill**: Variables that are dead after this statement
+
+#### Example of Slot Sharing
+
+```zap
+proc example()
+    word x = 100
+    word y = 200
+    word z = x + y
+end
+```
+
+All three variables (`x`, `y`, `z`) might share a single 2-byte slot because:
+1. `x` is live during `x + y` computation
+2. `y` is live during `x + y` computation
+3. After assignment to `z`, both `x` and `y` are dead
+4. If `z` is not used later, it's also dead
+
+This results in a single `__LVSLOT_1` being used for all three.
+
+#### Graph Coloring Algorithm
+
+The compiler uses **greedy graph coloring** to assign slots:
+
+```
+Input: Interference graph with nodes (variables) and edges (conflicts)
+1. Sort nodes by degree (number of conflicts) - descending
+2. For each node:
+   a. Collect colors used by neighbors
+   b. Assign the lowest available color
+3. Group by color
+4. For each color group with > 1 variable:
+   a. Create a shared slot (`__LVSLOT_n`)
+   b. Assign it to all variables in that group
+```
+
+#### Shared Slot Naming
+
+Shared slots are named sequentially: `__LVSLOT_1`, `__LVSLOT_2`, etc.
+
+In assembly output:
+```asm
+; Shared slots (for aliased locals)
+__LVSLOT_1:     .res 2      ; 2 bytes for word-type variables
+__LVSLOT_2:     .res 4      ; 4 bytes for array-type variables
+```
+
+In procedure code, individual locals are aliased:
+```asm
+MAIN:
+_MAIN_X = __LVSLOT_1
+_MAIN_Y = __LVSLOT_1
+_MAIN_Z = __LVSLOT_1
+```
+
+This means:
+- `_MAIN_X`, `_MAIN_Y`, `_MAIN_Z` all reference the same location
+- Assembler replaces all references with `__LVSLOT_1`
+- No separate storage is allocated for each variable
+
+### Zero Page Prioritization
+
+#### Priority Levels
+
+Variables are prioritized for zero page allocation using a **frequency score** (`zp_priority`):
+
+**Score = loop_depth_weight × access_count**
+
+Where `loop_depth_weight` is exponential:
+- **Outside loops**: weight = 1
+- **Loop depth 1**: weight = 10
+- **Loop depth 2**: weight = 100
+- **Loop depth 3+**: weight = 1000+
+
+#### Example Priority Calculation
+
+```zap
+proc loop_demo()
+    byte counter = 0           ; zp_priority = 10 (accessed 1x in loop depth 1)
+    byte total = 0             ; zp_priority = 30 (accessed 3x in loop depth 1)
+    
+    while counter < 10
+        total = total + counter
+        counter = counter + 1
+    end
+end
+```
+
+Priorities:
+- `counter`: Loaded and stored twice per iteration (depth 1) → 2 × 10 = 20
+- `total`: Loaded twice and stored once per iteration (depth 1) → 3 × 10 = 30
+
+If space permits, `total` gets priority because it has higher access frequency.
+
+#### Allocation Order
+
+1. **Fixed-address variables** - Cannot be moved
+2. **All pointers** - Mandatory in zero page
+3. **High-frequency scalars** - Sorted by priority, descending
+4. **Regular scalars** - Fill remaining space
+5. **Overflow** - Spill to BSS
+
+### Allocation Algorithm
+
+#### Phase 1: Liveness Analysis
+
+For each procedure:
+```
+1. Compute control flow graph (CFG)
+2. For each block in reverse order:
+   a. Live-out = union of Live-in of successors
+   b. Live-gen = variables used before being defined
+   c. Live-kill = variables defined in this block
+   d. Live-in = Live-gen ∪ (Live-out - Live-kill)
+3. Mark variables as live/dead at each instruction
+```
+
+#### Phase 2: Interference Graph
+
+Build a graph where:
+- **Nodes** = local variables (per procedure)
+- **Edges** = conflict (two variables are live simultaneously)
+
+```
+if (x and y are both alive at any point)
+    add edge(x, y)
+```
+
+Also add **call-live-across** constraints:
+- Variables live across procedure calls interfere with callee locals
+
+#### Phase 3: Greedy Coloring
+
+```python
+# Sort by degree (conflicts) descending
+variables = sorted(vars, key=lambda v: -len(conflicts[v]))
+
+colors = {}
+for var in variables:
+    # Find colors used by neighbors
+    neighbor_colors = {colors[n] for n in neighbors(var) if n in colors}
+    
+    # Assign lowest available color
+    color = 0
+    while color in neighbor_colors:
+        color += 1
+    colors[var] = color
+```
+
+#### Phase 4: Slot Assignment
+
+```python
+# Group variables by color
+color_groups = {}
+for var, color in colors.items():
+    color_groups.setdefault(color, []).append(var)
+
+# For each color group with multiple variables
+slot_counter = 0
+for color, group in color_groups.items():
+    if len(group) > 1:
+        slot_counter += 1
+        slot_label = f"__LVSLOT_{slot_counter}"
+        for var in group:
+            var.shared_slot = slot_label
+```
+
+## Safety Features
+
+### Uninitialized Variable Detection
+
+The ZAP! compiler performs **definite-assignment analysis** to detect when local variables are read before being initialized. This catches a common class of bugs at compile time, preventing runtime errors and undefined behavior. Please note that this detection does NOT catch all possible uninitialized variable bugs, but it does catch the most common ones.
+
+#### What is Detected
+
+The compiler tracks the initialization state of all local variables (including procedure and function parameters) and reports an error if a variable is read before it has been assigned a value.
+
+**Reads that are checked** include:
+- Variable use in expressions, returns, and conditions
+- Index expressions (e.g., `arr[i]`, where `i` must be initialized)
+- Pointer dereference expressions (the pointer variable must be initialized)
+- Any arithmetic or logical use on the right-hand side
+
+**Scope of analysis**:
+- This analysis applies to **local variables** in procedures and functions
+- Parameters are treated as initialized at entry
+- Globals are not tracked with definite-assignment; they follow normal declaration and initialization rules
+
+#### Example
+
+```zap
+proc example()
+    byte x
+    byte y = x + 10    ; ERROR: Use of uninitialized variable 'X'
+end
+```
+
+This code will fail to compile with the error message:
+```
+example.zap:3:14: error: Use of uninitialized variable 'X'
+```
+
+### Initialization Methods
+
+The compiler recognizes several ways a variable can be initialized:
+
+#### 1. Explicit Initializer
+
+Variables with explicit initialization expressions are considered initialized:
+
+```zap
+proc test()
+    byte x = 42        ; x is initialized
+    byte y = x + 10    ; OK: x is initialized, y becomes initialized
+end
+```
+
+#### 2. Assignment Statement
+
+Variables become initialized after assignment:
+
+```zap
+proc test()
+    byte x
+    x = 42             ; x becomes initialized here
+    byte y = x + 10    ; OK: x is initialized
+end
+```
+
+#### 3. FOR Loop Variables
+
+The loop variable in a FOR loop is considered initialized before the loop body:
+
+```zap
+proc test()
+    byte i
+    for i = 0 to 10    ; i is initialized by the FOR loop
+        result = i     ; OK: i is initialized
+    end
+end
+```
+
+### Control Flow Handling
+
+The compiler tracks initialization state through control flow constructs:
+
+#### IF Statements
+
+Variables initialized in one branch are not considered initialized after the IF unless both branches initialize them:
+
+```zap
+proc test(byte flag)
+    byte x
+    
+    if flag
+        x = 10
+    end
+    
+    result = x         ; ERROR: x not initialized in else branch
+end
+```
+
+To fix this, initialize in both branches:
+
+```zap
+proc test(byte flag)
+    byte x
+    
+    if flag
+        x = 10
+    else
+        x = 20
+    end
+    
+    result = x         ; OK: x initialized in all paths
+end
+```
+
+#### WHILE Loops
+
+The loop body may execute zero times, so the compiler assumes variables initialized only inside the loop are not initialized after:
+
+```zap
+proc test()
+    byte x
+    byte i = 0
+    
+    while i < 10
+        x = i          ; x initialized in loop
+        i = i + 1
+    end
+    
+    result = x         ; ERROR: x might not be initialized (loop might not run)
+end
+```
+
+#### REPEAT-UNTIL Loops
+
+The loop body always executes at least once, so variables initialized in the body are considered initialized after:
+
+```zap
+proc test()
+    byte x
+    
+    repeat
+        x = 42
+    until x > 100
+    
+    result = x         ; OK: x is initialized (loop runs at least once)
+end
+```
+
+#### SWITCH Statements
+
+Variables must be initialized in all cases (including DEFAULT) to be considered initialized after the SWITCH:
+
+```zap
+proc test(byte n)
+    byte x
+    
+    switch n
+        case 0
+            x = 10
+            break
+
+        case 1
+            x = 20
+            break
+            
+        default
+            x = 30
+            break
+    end
+    
+    result = x         ; OK: x initialized in all cases
+end
+```
+
+#### Nested Control Flow
+
+Initialization tracking works across nested conditionals and loops. A variable is considered initialized after a nested block only if **all possible paths** within that block assign it.
+
+### Special Cases
+
+#### Address-of Operator
+
+Taking the address of a variable does **not** initialize it. The address-of operator (`@`) is not considered a read operation:
+
+```zap
+proc set_ptr(byte ^ptr)
+    ptr^ = 99
+end
+
+proc test()
+    byte x
+    set_ptr(@x)        ; OK: taking address doesn't require initialization
+    result = x         ; ERROR: x not initialized (taking address doesn't count)
+end
+```
+
+However, if you initialize the variable before passing its address, it's valid:
+
+```zap
+proc test()
+    byte x = 0         ; Initialize first
+    set_ptr(@x)        ; OK
+    result = x         ; OK: x was initialized
+end
+```
+
+#### Subscript and Field Access
+
+Array subscripts and struct field accesses are considered reads only of the base variable (for the address), not the contents. The index expression is fully checked:
+
+```zap
+proc test()
+    byte arr[10]
+    byte i
+    
+    arr[i] = 42        ; ERROR: i is uninitialized
+end
+```
+
+The array `arr` itself doesn't trigger an error because we're computing its address, not reading its value. But the index `i` must be initialized.
+
+Field access on structs is treated similarly: the base struct variable is considered initialized (see below), while any index or expression inside the access is fully checked.
+
+#### Const Variables
+
+Const variables are always considered initialized since their values are known at compile time:
+
+```zap
+proc test()
+    const byte x = 42
+    result = x         ; OK: const variables are always initialized
+end
+```
+
+#### Fixed-Address Variables
+
+Variables declared with fixed addresses (hardware ports) are considered always initialized:
+
+```zap
+byte PORT_A @$D000
+
+proc test()
+    result = PORT_A    ; OK: fixed-address variables are always initialized
+end
+```
+
+#### Struct Variables
+
+Struct variables are always considered initialized because:
+1. They can be partially initialized through field-by-field assignments
+2. They can be initialized through pointers (alias analysis is complex)
+3. Tracking individual field initialization would require sophisticated analysis
+
+```zap
+struct Point
+    byte x
+    byte y
+end
+
+proc test()
+    Point p
+    Point ^pp = @p
+    pp^.x = 3
+    pp^.y = 4
+    result = p.x       ; OK: structs are considered initialized
+end
+```
+
+#### Parameters
+
+Procedure and function parameters are always considered initialized (they receive values from the caller):
+
+```zap
+proc test(byte x)
+    result = x         ; OK: parameters are always initialized
+end
+```
+
+### What Is Not Detected
+
+The current analysis is intentionally simple and does **not** attempt to prove every safe case. It errs on the side of caution and may report false positives in these scenarios:
+
+- **Inter-procedural initialization**: If a procedure initializes a variable via pointer, the caller will still see it as uninitialized unless it was already initialized.
+- **Pointer aliasing**: The compiler does not track that `ptr^ = 42` initializes the pointed-to variable.
+- **Partial struct initialization**: The analysis does not track per-field initialization.
+- **Conditional pointer writes**: Pointer-based assignments are not recognized as definite initialization.
+- **Globals**: Local definite-assignment tracking does not extend to globals.
+
+### Comparison with Other Languages
+
+#### C/C++
+
+Most C/C++ compilers warn about uninitialized variables but don't enforce it:
+
+```c
+// C code - compiles with warning
+void example() {
+    int x;
+    int y = x + 10;    // Warning: 'x' is used uninitialized
+}
+```
+
+ZAP! makes this a **compile-time error**, preventing the code from compiling.
+
+#### Rust
+
+Rust enforces definite-initialization strictly:
+
+```rust
+// Rust code - does not compile
+fn example() {
+    let x: i32;
+    let y = x + 10;    // Error: borrow of possibly-uninitialized variable
+}
+```
+
+ZAP!'s approach is similar to Rust's, catching errors at compile time.
+
+#### Java/C#
+
+These languages initialize all variables to zero/null by default, avoiding the problem but with a runtime cost. ZAP! requires explicit initialization for better performance and cleaner semantics.
+
+### Summary
+
+- ZAP! detects uninitialized variable reads at **compile time**
+- Variables must be initialized through **explicit initializers**, **assignments**, or **FOR loops**
+- Control flow is tracked: initialization must occur in **all paths**
+- Special cases: **const**, **fixed-address**, **structs**, and **parameters** are always considered initialized
+- **Address-of** operator doesn't require initialization
+- Errors are reported with precise **file**, **line**, and **column** information
+
+This feature prevents a common source of bugs and makes ZAP! programs more reliable.
 
 ---
 

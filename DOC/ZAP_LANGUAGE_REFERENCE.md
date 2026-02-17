@@ -552,7 +552,7 @@ end
 - Struct variables are always considered initialized (limitation)
 - Taking the address (`@`) of a variable doesn't require it to be initialized
 
-For complete details on the analysis rules, control flow handling, and limitations, see [Uninitialized Variable Detection](UNINITIALIZED_VARIABLE_DETECTION.md).
+For complete details on the analysis rules, control flow handling, and limitations, see [Safety Features](ADVANCED_TOPICS.md#safety-features).
 
 ### Static Local Variables
 
@@ -1447,16 +1447,45 @@ word sprite_data[32] @$6000        ; Fixed address for word array
 
 ### Multidimensional Arrays
 
-Not directly supported; simulate with calculation:
+### Multidimensional Arrays
+
+ZAP! supports multidimensional arrays of any depth. They are stored in row-major order (C-style).
+
+#### Declaration
 
 ```zap
-byte grid[16]   ; 4x4 grid in linear array
+byte grid[3][4]              ; 3 rows, 4 columns (12 bytes)
+word matrix[2][3]            ; 2x3 array of words
+struct Point map[5][10]      ; 2D array of structs
+```
 
+#### Accessing Elements
+
+```zap
 proc access_grid()
-    byte x = 2, y = 3
-    byte value = grid[y * 4 + x]    ; Row-major order
-    grid[y * 4 + x] = 42
+    byte val
+    val = grid[1][2]         ; Read element at row 1, col 2
+    grid[0][0] = 42          ; Write element
 end
+```
+
+#### Initialization
+
+Nested initializer lists are supported:
+
+```zap
+byte weights[2][3] = {
+    {1, 2, 3},
+    {4, 5, 6}
+}
+```
+
+#### Partial Subscripting
+
+Providing fewer indices than dimensions results in a pointer to the sub-array (e.g., a row):
+
+```zap
+byte ^row_ptr = grid[1]      ; Points to start of row 1
 ```
 
 ---
@@ -2304,7 +2333,7 @@ end
 
 - [ZAP Language Grammar (EBNF)](grammar.ebnf)
 - [Project State and Implementation Details](project_state.md)
-- [Advanced Implementation Notes](advanced_notes.md)
+
 - [Quick Reference Guide](QUICK_REFERENCE.md)
 
 ---
