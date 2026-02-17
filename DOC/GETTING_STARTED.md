@@ -90,6 +90,23 @@ brew install cc65
 **Windows:**
 Download from: https://cc65.github.io/
 
+### Installing VS Code Extension (Optional)
+
+Syntax highlighting and snippets are available for VS Code / Antigravity.
+
+**Windows:**
+```batch
+IDE_Integration\install_vscode_extension.bat
+```
+
+**Linux/macOS:**
+```bash
+./IDE_Integration/install_vscode_extension.sh
+```
+
+**Note:** After installation, you must reload the editor for the changes to take effect.
+
+
 ---
 
 ## Your First Program
