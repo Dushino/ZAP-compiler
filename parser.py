@@ -313,13 +313,13 @@ class Parser:
         
         # Parse field list until END
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
-            # Parse: [^] type IDENT [dimensions] [ address_spec ] [decl_modifiers]
-            # Check for pointer prefix first
+            # Parse: [^] type [^] IDENT [dimensions] [ address_spec ] [decl_modifiers]
+            # Check for pointer prefix first (structs historically allowed only this).
             is_pointer = False
             if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
                 is_pointer = True
                 self.advance()
-            
+
             # type (either built-in like byte/word, or a struct name)
             if self.cur.type == TOK_TYPE:
                 type_name: str = self.cur.value
@@ -331,7 +331,12 @@ class Parser:
                 self.advance()
             else:
                 self.error(f"Expected type in struct field, got {self._readable_token(self.cur.type, self.cur.value)}")
-            
+
+            # Allow pointer suffix after type (type ^name), matching normal declarations.
+            if not is_pointer and (self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^")):
+                is_pointer = True
+                self.advance()
+
             field_type = TypeNode(type_name, is_pointer)
             
             # field name

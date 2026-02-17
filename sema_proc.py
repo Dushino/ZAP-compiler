@@ -80,7 +80,7 @@ class ProcAnalyzer:
             raise
 
     def analyze_call(self, call: CallStmt) -> None:
-        """Validate a procedure call against the procedure table."""
+        """Validate a procedure or function call against the procedure/function table."""
         # Determine caller file if available to support module visibility checks
         caller_file = None
         if self.current_proc is not None:
@@ -90,11 +90,13 @@ class ProcAnalyzer:
                 caller_file = cur_info[0]
         try:
             proc_sym: ProcSymbol = self.procs.lookup(call.name, caller_file=caller_file)
-        except SemanticError as e:
-            # If a function exists with this name, report parameter issues at arg position
+        except SemanticError as proc_error:
+            # If not a procedure, try to find it as a function (functions can be called without using return value)
+            found_function = False
             if self.func_table is not None:
                 try:
                     fs = self.func_table.lookup(call.name, node=call)
+                    found_function = True
                     if len(call.args) > fs.param_count:
                         extra_arg = call.args[fs.param_count]
                         raise SemanticError(
@@ -106,12 +108,15 @@ class ProcAnalyzer:
                             f"Function '{call.name}' expects {fs.param_count} parameters, but {len(call.args)} were provided",
                             node=call
                         )
+                    # Successfully validated function call - return now
+                    return
                 except SemanticError:
                     raise
                 except KeyError:
                     pass
 
-            # Re-raise with source location attached
+            # If we got here, we didn't find a function or had a validation error
+            # Re-raise the original procedure error with source location attached
             stmt_src_map = self.debug.get("stmt_src") or {}
             info = stmt_src_map.get(id(call))
             if info:
@@ -121,11 +126,11 @@ class ProcAnalyzer:
                 else:
                     fname, line, col, _text = info
                 mapped_line = self._map_debug_line(fname, line)
-                err = SemanticError(e.message, line=mapped_line, col=col)
+                err = SemanticError(proc_error.message, line=mapped_line, col=col)
                 err.filename = fname
                 self._attach_source_text(err, fname)
                 raise err
-            raise
+            raise proc_error
         # Allow arguments from required_params to param_count
         if len(call.args) < proc_sym.required_params or len(call.args) > proc_sym.param_count:
             msg: str = (

@@ -129,7 +129,7 @@ byte char1 = ptrs[0]^   ; 'F' from data1
 byte char2 = ptrs[1]^   ; 'S' from data2
 ```
 
-**Note:** Pointer arrays are stored in zero page, just like scalar pointers.
+**Note:** Pointer arrays are stored in zero page if they fit; otherwise they are placed in BSS. ZP-only optimizations apply only when the array is in zero page.
 
 ### Pointer to Pointer (Limited)
 
@@ -152,7 +152,7 @@ byte y = ^x    ; ERROR: y is byte, not pointer!
 **Non-ZP Pointers:**
 ```zap
 byte ^ptr @$2000   ; Fixed address, not in zero-page
-ptr^                ; ERROR: Can't dereference non-ZP pointer!
+byte v = ptr^      ; Works via TMP0 (slower), no ZP-only optimizations
 ```
 
 ### Pointer Optimization
@@ -215,10 +215,10 @@ byte arr[256]       ; Too big - goes to BSS (high RAM)
 
 Compiler allocates in this order:
 
-1. **Pointers** - Must be in ZP (address storage)
+1. **Pointers** - ZP if they fit; otherwise BSS
 2. **Byte variables** - ZP first, then BSS
 3. **Word variables** - ZP first, then BSS
-4. **Arrays** - Always BSS (except pointer arrays, which must be in ZP)
+4. **Arrays** - Always BSS (pointer arrays go to ZP only if they fit)
 5. **Temporaries** - TMP0-TMP4 in ZP
 
 Example layout:
@@ -276,26 +276,6 @@ byte var2 @$2000   ; ERROR: Collision!
 
 ZAP! doesn't support malloc/free. All memory is static.
 
-**Workaround:** Pre-allocate pools:
-
-```zap
-; Object pool
-const byte MAX_OBJECTS = 20
-byte object_x[MAX_OBJECTS]
-byte object_y[MAX_OBJECTS]
-byte object_active[MAX_OBJECTS]
-byte object_count = 0
-
-proc allocate_object()
-    if object_count < MAX_OBJECTS
-        object_count = object_count + 1
-        byte idx = object_count - 1
-        object_x[idx] = 0
-        object_y[idx] = 0
-        object_active[idx] = 1
-    end
-end
-```
 
 ### Static Local Variables (Persistent State)
 
@@ -322,8 +302,9 @@ end
 1. Program starts
 2. Global variables are initialized
 3. Static local variables are initialized (in order of procedures)
-4. MAIN is called
-5. During execution, static variables persist across procedure calls
+4. CONSTRUCTORs are called in the same order as as .include includes modules
+5. MAIN is called
+6. After MAIN ends, endless loop is performed
 
 **Rules:**
 
@@ -365,6 +346,8 @@ proc game_state()
     end
 end
 ```
+See also ENUM and SWITCH for state machines implementation.
+
 
 3. **Resource pools:**
 ```zap
@@ -372,9 +355,10 @@ const byte MAX_SPRITES = 10
 
 proc allocate_sprite()
     static byte sprite_count = 0
-    
+    byte id
+
     if sprite_count < MAX_SPRITES
-        byte id = sprite_count
+        id = sprite_count
         sprite_count = sprite_count + 1
         return id
     else
@@ -420,7 +404,7 @@ proc loop_example()
     asm
     LOOP:
         INC $D000
-        DEC _I          ; Decrement local i (internal name: _I)
+        DEC _LOOP_EXAMPLE_I          ; Decrement local i (internal name: _LOOP_EXAMPLE_I)
         BNE LOOP
     end
 end
@@ -487,11 +471,9 @@ end
 ```
 
 **Key Points:**
-- Variables: `my_var` → `_MY_VAR`
+- Variables: `my_var` → `<_(PROC | FUNC)NAME_>MY_VAR`
 - Procedures: `setup()` → `_SETUP`
 - Functions: `get_value()` → `_GET_VALUE`
-- Arrays: `buffer[]` → `_BUFFER`
-- Struct instances: `player` → `_PLAYER`
 
 #### Compiler-Generated Identifiers: Double Underscore Prefix
 

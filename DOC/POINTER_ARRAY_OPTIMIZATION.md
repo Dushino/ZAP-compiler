@@ -33,7 +33,7 @@ This resulted in 10+ instructions for a simple array access.
 
 ## Solution
 
-Since pointer arrays are stored in ZEROPAGE (to fit within the 256-byte fast memory region), we can use ZP indexed indirect addressing to dereference the pointer stored at a constant byte offset:
+When a pointer array is stored in ZEROPAGE (the fast 256-byte region), we can use ZP indexed indirect addressing to dereference the pointer stored at a constant byte offset:
 
 ```ca65
 ; vlstart[1]^ = 2
@@ -48,9 +48,8 @@ Since pointer arrays are stored in ZEROPAGE (to fit within the 256-byte fast mem
 
 ## Key Constraints
 
-1. **ZEROPAGE Placement**: Pointer arrays must be allocated in ZEROPAGE (already enforced by the memory allocator)
-2. **Maximum Size**: Pointer arrays are now limited to a maximum of 255 bytes, enforced at declaration time
-3. **Byte Index**: The X register can only hold values 0-255, so the maximum element count is:
+1. **ZEROPAGE Placement**: The optimization applies only when the pointer array is allocated in ZEROPAGE
+2. **Byte Index**: The X register can only hold values 0-255, so the maximum element count is:
    - BYTE-element arrays: 255 elements
    - WORD-element arrays: 127 elements (255 / 2)
    - STRUCT-element arrays: Limited by struct size
@@ -61,7 +60,7 @@ Since pointer arrays are stored in ZEROPAGE (to fit within the 256-byte fast mem
 
 Located in `codegen_expr.py`, this function detects when a subscript expression meets the optimization criteria:
 - Base is an Identifier referring to a pointer array
-- Array is in ZEROPAGE (`address is None`)
+- Array is in ZEROPAGE (allocated in ZP)
 - Index is a constant integer literal
 - Resulting byte offset fits in a single byte (< 256)
 
@@ -94,7 +93,7 @@ The actual improvement depends on 6502 processor variant (6502 vs 65C02) and mem
 ## Validation
 
 ### Semantic Checks
-- Array size validation: Pointer arrays exceeding 255 bytes are rejected at compile time
+- Array placement check: Optimization only when array is in ZP; otherwise fallback to TMP0-based deref
 - Type checking: Ensures only pointer arrays use this optimization
 
 ### Test Coverage
@@ -158,7 +157,7 @@ end
 
 1. **Variable Indices**: Only constant indices are optimized; variable indices fall back to unoptimized path for safety
 2. **WORD Deref**: WORD deref still uses TMP0 + (TMP0),Y due to addressing mode limits
-3. **Array Size Constraint**: Maximum 255 bytes means pointer arrays with very large element counts not supported
+3. **Index Range Constraint**: If the computed byte offset is >= 256, the optimization is skipped and the compiler falls back to TMP0-based deref
 4. **Platform Specific**: Only applies to 6502-family targets; other platforms use original code generation
 
 ## Future Enhancements

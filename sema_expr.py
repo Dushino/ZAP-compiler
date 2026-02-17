@@ -1,14 +1,17 @@
 from typing import Literal
-from typing import Literal
-from symbols import FuncSymbol, SemType, SemType, Symbol, Symbol, StructInfo, Symbol, SymbolLookup, FuncTable
+from symbols import FuncSymbol, SemType, Symbol, StructInfo, SymbolLookup, FuncTable
 from sema import SemanticError
 from sema_types import ExprKind, ExprType
-from ast_nodes import Expr, Expr, IntLiteral, StringLiteral, Identifier, DerefExpr, CallExpr
-from ast_nodes import BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess
+from ast_nodes import (
+    Expr, IntLiteral, StringLiteral, Identifier, DerefExpr, CallExpr,
+    BinaryExpr, UnaryExpr, BinOp, UnOp, SubscriptExpr, FieldAccess, StructLiteral
+)
 
 
 def promote(a: SemType, b: SemType) -> SemType:
     """Promote two scalar types to a common arithmetic type."""
+    if a.is_pointer or b.is_pointer:
+        return SemType("WORD", False)
     if a.base == "WORD" or b.base == "WORD":
         return SemType("WORD", False)
     return SemType("BYTE", False)
@@ -192,10 +195,19 @@ class ExprTypeChecker:
             )
             return ExprType(elem_type, ExprKind.LVALUE)
 
+        if isinstance(expr, StructLiteral):
+            # Struct literals are only valid when the context expects a struct value.
+            return ExprType(SemType("STRUCT_LITERAL", False, is_struct=True), ExprKind.VALUE)
+
         if isinstance(expr, BinaryExpr):
             lt: ExprType = self.check(expr.left)
             rt: ExprType = self.check(expr.right)
             op: BinOp = expr.op
+
+            if (lt.sem_type.is_struct and not lt.sem_type.is_pointer) or (
+                rt.sem_type.is_struct and not rt.sem_type.is_pointer
+            ):
+                raise SemanticError("Struct values cannot be used in binary expressions", node=expr)
 
             # Convert LVALUE to VALUE when used in expression context (reading)
             # LVALUE means "location that can be written to", but when used in

@@ -138,6 +138,8 @@ class Symbol:
     shared_slot: str | None = None
     # ZP prioritization: frequency score for allocation ordering (higher = more important for ZP)
     zp_priority: int = 0            # Loop-weighted frequency score for ZP allocation
+    # Placement hint for zero page allocation (set during code generation)
+    in_zeropage: bool = False
     # True for compiler-generated symbols (temps, shared slots, etc.)
     is_generated: bool = False
 
@@ -193,16 +195,6 @@ class SymbolTable:
         key = self._key(sym.name)
         if key in self._symbols:
             raise SemanticError(f"Variable '{sym.name}' already defined", node=node)
-        
-        # Constraint: Pointer arrays must fit in ZEROPAGE (max 255 bytes) for Y-indexed indirect addressing
-        if sym.is_array and sym.type.is_pointer:
-            total_size = sym.get_total_array_size()
-            if total_size > 255:
-                raise SemanticError(
-                    f"Pointer array '{sym.name}' exceeds maximum size of 255 bytes (got {total_size} bytes). "
-                    f"Pointer arrays must fit in ZEROPAGE for efficient Y-indexed indirect addressing.",
-                    node=node
-                )
         
         self._symbols[key] = sym
 

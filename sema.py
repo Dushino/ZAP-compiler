@@ -1,36 +1,13 @@
 ﻿# 
 
 from errors import SemanticError
-from typing import Any
-from typing import Any
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from errors import SemanticError
-from errors import SemanticError
-from typing import List
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from typing import Any
-from typing import Any
-from errors import SemanticError
-from errors import SemanticError
+from typing import Any, List
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
-from errors import *
-from ast_nodes import Expr, Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr
-from ast_nodes import ListInit, StringInit, ExprInit
-from ast_nodes import Declaration, Declarator, StructDef, EnumDecl
+from ast_nodes import (
+    Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr,
+    ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl
+)
+
 
 
 def eval_const_expr(expr, symtab=None, struct_registry=None):
@@ -154,9 +131,10 @@ def eval_array_dimensions(array_sizes, symtab, d_obj=None, struct_registry=None)
 
 class StructAnalyzer:
     """Analyzes and registers struct definitions"""
-    def __init__(self, struct_registry: StructRegistry) -> None:
+    def __init__(self, struct_registry: StructRegistry, enum_symtab: SymbolTable | None = None) -> None:
         """Initialize with a struct registry to populate."""
         self.registry: StructRegistry = struct_registry
+        self.enum_symtab: SymbolTable | None = enum_symtab
 
     def analyze(self, struct_def: StructDef) -> None:
         """Analyze a struct definition and register it"""
@@ -168,6 +146,7 @@ class StructAnalyzer:
             # Get field type
             field_type: str = field_ast.type.base.upper()
             is_pointer: bool = field_ast.type.is_pointer
+            field_base_type: str = field_type
 
             # Get element width (for a single element, not array)
             if field_type == "BYTE":
@@ -178,6 +157,15 @@ class StructAnalyzer:
                 # Nested struct type
                 nested_struct: StructInfo = self.registry._structs[field_type]
                 elem_width: int = nested_struct.size
+            elif self.enum_symtab is not None and field_type in getattr(self.enum_symtab, "_enums", {}):
+                # Enum field: use enum base type width
+                enum_def = self.enum_symtab._enums[field_type]
+                enum_base = enum_def.get("base", "BYTE")
+                field_base_type = enum_base
+                if enum_base == "BYTE":
+                    elem_width = 1
+                else:
+                    elem_width = 2
             elif is_pointer and field_type == struct_def.name.upper():
                 # Self-referential struct pointer (or forward-referenced struct)
                 # Pointers are always 16-bit (2 bytes)
@@ -224,7 +212,7 @@ class StructAnalyzer:
             # Create field info
             field_info = StructFieldInfo(
                 name=field_ast.name.upper(),
-                base_type=field_type,
+                base_type=field_base_type,
                 is_pointer=is_pointer,
                 offset=current_offset,
                 fixed_address=fixed_addr,

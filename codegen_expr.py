@@ -1,5 +1,5 @@
 
-from typing import Any, Callable, Literal, NoReturn, cast
+from typing import Any, Callable, Literal, NoReturn, Sequence, cast
 from constfold import fold_expr
 from constsubst import subst_const
 from symbols import StructInfo, StructFieldInfo, Symbol, SymbolTable, SemType, StructRegistry
@@ -15,7 +15,7 @@ from ast_nodes import (
     BinaryExpr,
     UnaryExpr,
     UnOp,
-    Expr, ExprInit, ListInit, StringInit, CallExpr, StructLiteral,
+    Expr, ExprInit, ListInit, StringInit, CallExpr, StructLiteral, InitValue,
     CallStmt, AssignStmt,
     IfStmt, ReturnStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
     AsmBlock, FieldAccess, StringLiteral
@@ -2308,7 +2308,14 @@ class CodeGen:
                 self.emit(f"\t.word " + ", ".join(f"${val:04X}" for val in data_tuple))
             else:
                 # BYTE array - emit as .byte directives
-                self.emit(f"\t.byte " + ", ".join(f"${val:02X}" for val in data_tuple))
+                byte_values: list[int] = []
+                for val in data_tuple:
+                    if val > 0xFF:
+                        byte_values.append(val & 0xFF)
+                        byte_values.append((val >> 8) & 0xFF)
+                    else:
+                        byte_values.append(val & 0xFF)
+                self.emit(f"\t.byte " + ", ".join(f"${val:02X}" for val in byte_values))
         
         self.emit("")
     
@@ -2373,6 +2380,105 @@ class CodeGen:
         # Call ARRCPY routine
         self.emit("\tJSR ARRCPY")
 
+    def _extract_const_values_from_listinit(self, init_list, flat_values: list[int]) -> None:
+        """Extract const values from a ListInit, handling nested struct literals.
+        
+        Recursively flattens nested ListInit structures and extracts integer values.
+        Handles: IntLiteral, Identifier (const refs), FieldAccess (enum members), ListInit (nested structs)
+        """
+        for ex in init_list.values:
+            if isinstance(ex, IntLiteral):
+                flat_values.append(ex.value)
+            elif isinstance(ex, Identifier):
+                # Look up identifier in symbol table to get const value
+                sym_val = self.global_symtab.lookup(ex.name)
+                if sym_val and sym_val.const_value is not None:
+                    flat_values.append(sym_val.const_value)
+                else:
+                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                # Handle enum member: MyEnum.B
+                enum_name = ex.object.name.upper()
+                member_name = ex.field.upper()
+                enums = getattr(self.global_symtab, '_enums', None)
+                if enums and enum_name in enums:
+                    enum_def = enums[enum_name]
+                    if member_name in enum_def['members']:
+                        flat_values.append(enum_def['members'][member_name])
+                    else:
+                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                else:
+                    self._raise_error(f"Enum '{enum_name}' is not defined")
+            elif isinstance(ex, ListInit):
+                # Recursive: nested struct literal like {10, 20}
+                self._extract_const_values_from_listinit(ex, flat_values)
+            else:
+                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+
+    def _extract_const_struct_bytes(self, init_list: 'ListInit', struct_def: 'StructInfo') -> tuple[tuple[int, ...], bool]:
+        """Extract const struct bytes according to field types.
+        
+        Returns (byte_tuple, is_word) where:
+        - byte_tuple: flattened bytes with proper field sizing
+        - is_word: False (always, since it's mixed-size struct data emitted as BYTE array)
+        
+        This correctly handles WORD fields in nested structs by expanding them to low/high bytes.
+        """
+        byte_values: list[int] = []
+        field_index = 0
+        fields = struct_def.fields
+        
+        for ex in init_list.values:
+            if field_index >= len(fields):
+                self._raise_error(f"Too many initializers for struct (has {len(fields)} fields)")
+            
+            field_info = fields[field_index]
+            field_index += 1
+            
+            # Extract the value
+            if isinstance(ex, IntLiteral):
+                val = ex.value
+            elif isinstance(ex, Identifier):
+                sym_val = self.global_symtab.lookup(ex.name)
+                if sym_val and sym_val.const_value is not None:
+                    val = sym_val.const_value
+                else:
+                    self._raise_error(f"Cannot evaluate '{ex.name}' as constant in struct initializer")
+            elif isinstance(ex, FieldAccess) and isinstance(ex.object, Identifier):
+                # Handle enum member: MyEnum.B
+                enum_name = ex.object.name.upper()
+                member_name = ex.field.upper()
+                enums = getattr(self.global_symtab, '_enums', None)
+                if enums and enum_name in enums:
+                    enum_def = enums[enum_name]
+                    if member_name in enum_def['members']:
+                        val = enum_def['members'][member_name]
+                    else:
+                        self._raise_error(f"Enum '{enum_name}' has no member '{member_name}'")
+                else:
+                    self._raise_error(f"Enum '{enum_name}' is not defined")
+            elif isinstance(ex, ListInit):
+                # Nested struct - recursively extract bytes using nested struct definition
+                nested_struct_info = self.struct_registry.lookup(field_info.base_type)
+                if nested_struct_info is None:
+                    self._raise_error(f"Cannot determine nested struct definition for field '{field_info.name}'")
+                nested_bytes, _ = self._extract_const_struct_bytes(ex, nested_struct_info)
+                byte_values.extend(nested_bytes)
+                continue
+            else:
+                self._raise_error(f"Non-constant expression in const struct initializer: {type(ex).__name__}")
+            
+            # Append bytes according to field type
+            if field_info.is_pointer or field_info.base_type.upper() == "WORD":
+                # WORD or pointer - emit as 2 bytes (little-endian)
+                byte_values.append(val & 0xFF)
+                byte_values.append((val >> 8) & 0xFF)
+            else:
+                # BYTE or enum - emit as 1 byte
+                byte_values.append(val & 0xFF)
+        
+        return (tuple(byte_values), False)
+
     def _gen_const_struct_copy(self, dst_sym, src_const_sym) -> None:
         """Generate code to copy const struct data from ROM to destination.
         
@@ -2390,8 +2496,9 @@ class CodeGen:
         if struct_size == 0:
             self._raise_error(f"Cannot determine size of struct '{src_const_sym.name}'")
         
-        # Extract values from const struct initialization
-        values: list[int] = [ex.value for ex in src_const_sym.init.values if isinstance(ex, IntLiteral)]
+        # Extract values from const struct initialization (handles nested structs)
+        values: list[int] = []
+        self._extract_const_values_from_listinit(src_const_sym.init, values)
         
         # Generate ROM data label for this struct
         data_key = (tuple(values), False)
@@ -2418,7 +2525,6 @@ class CodeGen:
         
         # Set copy length in X (number of bytes = struct size)
         self.emit(f"\tLDX #${struct_size:02X}")
-        self.emit("\tLDY #$00")
         self.emit("\tJSR COPY_BYTES")
 
     
@@ -3026,6 +3132,16 @@ class CodeGen:
             self._internal_name_map.get("TMP3", "TMP3"): 2,
             self._internal_name_map.get("TMP4", "TMP4"): 2,
             self._internal_name_map.get("TMP5", "TMP5"): 2,
+            self._internal_name_map.get("TMP6", "TMP6"): 2,
+            self._internal_name_map.get("TMP7", "TMP7"): 2,
+            self._internal_name_map.get("TMP8", "TMP8"): 2,
+            self._internal_name_map.get("TMP9", "TMP9"): 2,
+            self._internal_name_map.get("TMP10", "TMP10"): 2,
+            self._internal_name_map.get("TMP11", "TMP11"): 2,
+            self._internal_name_map.get("TMP12", "TMP12"): 2,
+            self._internal_name_map.get("TMP13", "TMP13"): 2,
+            self._internal_name_map.get("TMP14", "TMP14"): 2,
+            self._internal_name_map.get("TMP15", "TMP15"): 2,
         }
         temps_in_use: set[str] = self._detect_temp_usage(code)
 
@@ -3044,7 +3160,7 @@ class CodeGen:
                 # No shared slot - emit dedicated allocation
                 self.emit(f"{internal_name}:\t.res {temp_size}")
         
-        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"]:
+        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11", "TMP12", "TMP13", "TMP14", "TMP15"]:
             name = self._internal_name_map.get(raw_name, raw_name)
             if name in temps_in_use:
                 if raw_name in self.system_temp_slots:
@@ -3106,6 +3222,72 @@ class CodeGen:
                     self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
             self.emit("")
 
+        # Zero page offset tracking (starts after emitted system variables)
+        zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
+        ZEROPAGE_SIZE = 256
+
+        # Reset per-symbol ZP placement hints
+        for sym in all_vars:
+            sym.in_zeropage = False
+
+        # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
+        pointer_scalars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
+        ]
+        pointer_arrays: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
+        ]
+
+        # Pointer scalars: allocate to ZP only if they fit; otherwise place in BSS
+        pointer_scalar_slots: dict[str, list[Symbol]] = {}
+        pointer_scalar_slot_order: list[str] = []
+        for sym in pointer_scalars:
+            slot_label = sym.shared_slot or sym.asm_name()
+            if slot_label not in pointer_scalar_slots:
+                pointer_scalar_slots[slot_label] = []
+                pointer_scalar_slot_order.append(slot_label)
+            pointer_scalar_slots[slot_label].append(sym)
+
+        for slot_label in pointer_scalar_slot_order:
+            if zp_offset + 2 <= ZEROPAGE_SIZE:
+                zp_offset += 2
+                for sym in pointer_scalar_slots[slot_label]:
+                    sym.in_zeropage = True
+            else:
+                for sym in pointer_scalar_slots[slot_label]:
+                    sym.in_zeropage = False
+
+        # Pointer arrays: allocate to ZP only if they fit; otherwise place in BSS
+        pointer_array_slots: dict[str, list[Symbol]] = {}
+        pointer_array_slot_sizes: dict[str, int] = {}
+        pointer_array_slot_order: list[str] = []
+        for sym in pointer_arrays:
+            slot_label = sym.shared_slot or sym.asm_name()
+            if slot_label not in pointer_array_slots:
+                pointer_array_slots[slot_label] = []
+                pointer_array_slot_sizes[slot_label] = 0
+                pointer_array_slot_order.append(slot_label)
+            pointer_array_slots[slot_label].append(sym)
+            total_size = sym.get_total_array_size()
+            if total_size == 0:
+                self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+            if total_size > pointer_array_slot_sizes[slot_label]:
+                pointer_array_slot_sizes[slot_label] = total_size
+
+        for slot_label in pointer_array_slot_order:
+            total_size = pointer_array_slot_sizes[slot_label]
+            if total_size == 0:
+                continue
+            if zp_offset + total_size <= ZEROPAGE_SIZE:
+                zp_offset += total_size
+                for sym in pointer_array_slots[slot_label]:
+                    sym.in_zeropage = True
+            else:
+                for sym in pointer_array_slots[slot_label]:
+                    sym.in_zeropage = False
+
         # Shared slots for aliased locals (need to be emitted before individual locals)
         shared_slots_zp: dict[str, int] = {}   # slot_label -> size (in bytes)
         shared_slots_bss: dict[str, int] = {}  # slot_label -> size (in bytes)
@@ -3151,12 +3333,16 @@ class CodeGen:
                     # Default to 2 bytes (word)
                     sym_size = 2
                 
-                # Decide segment: arrays/structs -> BSS, pointers -> ZP, scalars -> ZP
+                # Decide segment: arrays/structs -> BSS, pointers -> ZP (arrays only if they fit), scalars -> ZP
                 use_bss = False
                 if sym.is_array and not sym.type.is_pointer:
                     use_bss = True
                 elif sym.type.is_struct:
                     use_bss = True
+                elif sym.is_array and sym.type.is_pointer:
+                    use_bss = not sym.in_zeropage
+                elif sym.type.is_pointer and not sym.is_array:
+                    use_bss = not sym.in_zeropage
 
                 target = shared_slots_bss if use_bss else shared_slots_zp
 
@@ -3172,39 +3358,20 @@ class CodeGen:
                 self.emit(f"{slot_label}:\t.res {size}")
             self.emit("")
 
-        # Zero page offset tracking (starts after emitted system variables)
-        zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
-        ZEROPAGE_SIZE = 256
-        
-        # Step 1: ALL POINTER VARIABLES (including arrays of pointers) MUST fit in zero page
-        pointer_scalars: list[Symbol] = [
-            s for s in all_vars
-            if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
-        ]
-        pointer_arrays: list[Symbol] = [
-            s for s in all_vars
-            if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
-        ]
+        # Step 1: POINTER SCALARS/ARRAYS use ZP if they fit; otherwise they fall back to BSS
         if pointer_scalars or pointer_arrays:
             self.emit("\n; Pointer variables")
             for sym in pointer_scalars:
                 # Skip if already in shared slots
-                if not getattr(sym, 'shared_slot', None):
-                    if zp_offset + 2 > ZEROPAGE_SIZE:
-                        self._raise_error(f"Zero page exhausted: pointer '{sym.name}' cannot fit (need {zp_offset + 2} bytes)")
+                if not getattr(sym, 'shared_slot', None) and sym.in_zeropage:
                     self.emit(f"{sym.asm_name()}:\t.res 2")
-                    zp_offset += 2
 
             for sym in pointer_arrays:
                 # Skip if already in shared slots
                 if not getattr(sym, 'shared_slot', None):
-                    total_size: int = sym.get_total_array_size()
-                    if total_size == 0:
-                        self._raise_error(f"Array pointer '{sym.name}' has unknown size")
-                    if zp_offset + total_size > ZEROPAGE_SIZE:
-                        self._raise_error(f"Zero page exhausted: pointer array '{sym.name}' cannot fit (need {zp_offset + total_size} bytes)")
-                    self.emit(f"{sym.asm_name()}:\t.res {total_size}")
-                    zp_offset += total_size
+                    if sym.in_zeropage:
+                        total_size = sym.get_total_array_size()
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
         
         # Step 2: Try to put BYTE variables in zero page, overflow to BSS
         byte_vars: list[Symbol] = [s for s in all_vars 
@@ -3298,9 +3465,19 @@ class CodeGen:
             s for s in all_vars
             if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
         ]
+
+        pointer_array_bss: list[Symbol] = [
+            s for s in all_vars
+            if (not s.is_const and s.address is None and s.is_array and s.type.is_pointer and not s.in_zeropage)
+        ]
+
+        pointer_scalar_bss: list[Symbol] = [
+            s for s in all_vars
+            if (not s.is_const and s.address is None and not s.is_array and s.type.is_pointer and not s.in_zeropage)
+        ]
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
-        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or shared_slots_bss:
+        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
             self.emit("\n.segment \"BSS\"")
 
             if shared_slots_bss:
@@ -3333,6 +3510,23 @@ class CodeGen:
                         else:
                             # Fallback (shouldn't happen if is_struct is correct)
                             self.emit(f"{sym.asm_name()}:\t.res 1")
+
+            if pointer_scalar_bss:
+                self.emit("; Pointer variables (BSS)")
+                for sym in pointer_scalar_bss:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 2")
+
+            if pointer_array_bss:
+                self.emit("; Pointer arrays (BSS)")
+                for sym in pointer_array_bss:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        total_size: int = sym.get_total_array_size()
+                        if total_size == 0:
+                            self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
             
             if array_vars:
                 self.emit("; Array variables (BSS)")
@@ -3616,7 +3810,6 @@ class CodeGen:
                     # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
                     copy_len: int = str_len * (2 if is_word else 1)
                     self.emit(f"\tLDX #{copy_len}") # Fixme: assumes length fits in one byte
-                    self.emit("\tLDY #0")
                     self.emit("\tJSR COPY_BYTES")
             return
 
@@ -3677,7 +3870,9 @@ class CodeGen:
                     return
                 
                 # Constant struct array - optimize with loop copy
-                values: list[int] = [ex.value for ex in flattened_values if isinstance(ex, IntLiteral)]
+                values: list[int] = []
+                self._extract_const_values_from_listinit(sym.init, values)
+                
                 array_len: int = len(values)
                 is_word: bool = sym.type.base == "WORD"
                 dest_var: str = sym.asm_name()
@@ -3717,7 +3912,6 @@ class CodeGen:
                         self.emit("\tSTA TMP2")
                         self.emit("\tSTX TMP2+1")
                         self.emit(f"\tLDX #{total_bytes}")
-                        self.emit("\tLDY #0")
                         self.emit("\tJSR COPY_BYTES")
                     else:
                         self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
@@ -3793,9 +3987,8 @@ class CodeGen:
                     self.emit(f"\tLDX #>{dest_var}")
                     self.emit("\tSTA TMP2")
                     self.emit("\tSTX TMP2+1")
-                    # Length in X (<=255), Y = 0
+                    # Length in X (<=255)
                     self.emit(f"\tLDX #{total_bytes}")
-                    self.emit("\tLDY #0")
                     self.emit("\tJSR COPY_BYTES")
                 else:
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
@@ -4116,7 +4309,7 @@ class CodeGen:
         sym: Symbol | None = self.current_symtab.lookup(expr.array.name)
         
         # Check: is it a pointer array in ZEROPAGE?
-        if not (sym.is_array and sym.type.is_pointer and sym.address is None):
+        if not (sym.is_array and sym.type.is_pointer and sym.address is None and not sym.is_const and sym.in_zeropage):
             return False, None, -1
         
         # Check: is the index a constant or simple expression that we can evaluate?
@@ -4164,7 +4357,8 @@ class CodeGen:
         # If pointer is a simple ZP identifier, use direct addressing without TMP0
         if isinstance(expr.pointer, Identifier):
             ptr_sym: Symbol = self.current_symtab.lookup(expr.pointer.name)
-            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+            if (ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array
+                and ptr_sym.in_zeropage):
                 ptr_asm: str = ptr_sym.asm_name()
                 if t.sem_type.base == "WORD":
                     # Load high byte first, then low (saves stack ops)
@@ -4210,7 +4404,7 @@ class CodeGen:
         For struct_var.array_field[i][j], returns ([j, i], FieldAccess(...))
         (indices are collected in reverse order as we traverse the nesting)
         """
-        indices: list[Expr] = [expr.index]
+        indices = [expr.index]
         current: Expr = expr.array
         
         # Traverse nested subscripts
@@ -4827,7 +5021,7 @@ class CodeGen:
             return
         
         field_offset: int = field_info.offset
-        field_width: int = 2 if field_info.base_type == "WORD" else 1
+        field_width: int = 2 if field_info.is_pointer or field_info.base_type == "WORD" else 1
         
         if expr.is_deref:
             # ptr^.field - expr.object should be a DerefExpr(pointer)
@@ -5347,6 +5541,130 @@ class CodeGen:
         offset: int = expr.index.value * self._calculate_element_width(arr_sym)
         return (arr_sym.asm_name(), offset)
 
+    def _collect_add_sub_chain(self, expr: BinaryExpr) -> list[tuple[BinOp, Expr]] | None:
+        """Collect a chain of ADD/SUB operations for RPN evaluation.
+        
+        For expression (((a + b) + c) + d), returns:
+        [(ADD, a), (ADD, b), (ADD, c), (ADD, d)]
+        
+        Returns None if not a valid chain (e.g., mixed with other operations).
+        """
+        chain: list[tuple[BinOp, Expr]] = []
+        current: Expr = expr
+        
+        while isinstance(current, BinaryExpr) and current.op in {BinOp.ADD, BinOp.SUB}:
+            chain.append((current.op, current.right))
+            current = current.left
+        
+        # Add the final left operand
+        chain.append((BinOp.ADD, current))
+        chain.reverse()
+        
+        # Only use chain optimization if we have 3+ operands and all are simple (not nested binop)
+        if len(chain) >= 3:
+            for op, operand in chain:
+                if isinstance(operand, BinaryExpr):
+                    return None  # Too complex, fall back to regular handling
+            return chain
+        
+        return None
+    
+    def _gen_add_sub_chain_rpn(self, chain: list[tuple[BinOp, Expr]]) -> None:
+        """Generate RPN-style ADD/SUB chain using __MATH0 as accumulator.
+        
+        For chain [(+, a), (+, b), (+, c)], generates:
+        - Load a → __MATH0
+        - Load b → __MATH1
+        - ADD16 → __MATH0
+        - Load c → __MATH1  
+        - ADD16 → __MATH0
+        
+        Result is left in __MATH0 (A/X).
+        """
+        if not chain or len(chain) < 2:
+            return
+        
+        self.math_routines_needed.add("ADD16")
+        self.math_routines_needed.add("SUB16")
+        
+        # Load first operand into __MATH0
+        first_op, first_expr = chain[0]
+        first_type = self.tc_check(first_expr)
+        is_first_16bit = first_type.sem_type.base == "WORD" or first_type.sem_type.is_pointer
+        
+        # Load first operand
+        if isinstance(first_expr, Identifier):
+            sym = self.current_symtab.lookup(first_expr.name)
+            self.emit(f"\tLDA {sym.asm_name()}")
+            self.emit(f"\tSTA __MATH0")
+            if is_first_16bit:
+                self.emit(f"\tLDA {sym.asm_name()}+1")
+                self.emit(f"\tSTA __MATH0+1")
+            else:
+                self.emit(f"\tLDX #0")
+                self.emit(f"\tSTX __MATH0+1")
+        elif isinstance(first_expr, IntLiteral):
+            val = first_expr.value & 0xFF
+            self.emit(f"\tLDA #${val:02X}")
+            self.emit(f"\tSTA __MATH0")
+            if is_first_16bit:
+                val_hi = (first_expr.value >> 8) & 0xFF
+                self.emit(f"\tLDA #${val_hi:02X}")
+                self.emit(f"\tSTA __MATH0+1")
+            else:
+                self.emit(f"\tLDX #0")
+                self.emit(f"\tSTX __MATH0+1")
+        else:
+            # Complex expression (including FieldAccess) - generate and store
+            # gen_expr will put result in A/X with proper widening already applied
+            self.gen_expr(first_expr)
+            self.emit(f"\tSTA __MATH0")
+            self.emit(f"\tSTX __MATH0+1")
+        
+        # Process remaining operands
+        for i in range(1, len(chain)):
+            op, operand = chain[i]
+            operand_type = self.tc_check(operand)
+            is_operand_16bit = operand_type.sem_type.base == "WORD" or operand_type.sem_type.is_pointer
+            
+            # Load operand into __MATH1
+            if isinstance(operand, Identifier):
+                sym = self.current_symtab.lookup(operand.name)
+                self.emit(f"\tLDA {sym.asm_name()}")
+                self.emit(f"\tSTA __MATH1")
+                if is_operand_16bit:
+                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                    self.emit(f"\tSTA __MATH1+1")
+                else:
+                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tSTX __MATH1+1")
+            elif isinstance(operand, IntLiteral):
+                val = operand.value & 0xFF
+                self.emit(f"\tLDA #${val:02X}")
+                self.emit(f"\tSTA __MATH1")
+                if is_operand_16bit:
+                    val_hi = (operand.value >> 8) & 0xFF
+                    self.emit(f"\tLDA #${val_hi:02X}")
+                    self.emit(f"\tSTA __MATH1+1")
+                else:
+                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tSTX __MATH1+1")
+            else:
+                # Complex expression (including FieldAccess) - generate and store
+                # gen_expr will put result in A/X with proper widening already applied
+                self.gen_expr(operand)
+                self.emit(f"\tSTA __MATH1")
+                self.emit(f"\tSTX __MATH1+1")
+            
+            # Perform operation
+            if op == BinOp.ADD:
+                self.emit("\tJSR __ADD16")
+            else:  # SUB
+                self.emit("\tJSR __SUB16")
+        
+        # Result is in __MATH0, move to A/X for caller
+        self.emit("\tLDA __MATH0")
+        self.emit("\tLDX __MATH0+1")
     
     def _gen_binary(self, expr: BinaryExpr, force_left_tmp=None) -> None:
         """Generate binary.
@@ -5355,6 +5673,16 @@ class CodeGen:
         t: ExprType = self.tc_check(expr)
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
+        
+        # OPTIMIZATION: Detect chained ADD/SUB operations and generate RPN-style with accumulator
+        # Pattern: ((a + b) + c) + d --> Load a → MATH0, b → MATH1, ADD, c → MATH1, ADD, d → MATH1, ADD
+        # This avoids intermediate temporaries and uses __MATH0 as running accumulator
+        if expr.op in {BinOp.ADD, BinOp.SUB}:
+            chain = self._collect_add_sub_chain(expr)
+            if chain and (t.sem_type.base == "WORD" or t.sem_type.is_pointer):
+                # Only use chain optimization for 16-bit results
+                self._gen_add_sub_chain_rpn(chain)
+                return
         
         # OPTIMIZATION: Detect ADD/SUB with immediate array subscripts
         # Pattern: arr[0] + value --> LDA arr[0]; CLC; ADC value
@@ -5447,7 +5775,8 @@ class CodeGen:
         # OPTIMIZATION: Detect and optimize array subscript chains
         # Pattern: arr[0] + arr[1] - arr[2]
         # Determine result type: use assignment target type if available, else expression result type
-        result_16_temp: bool = t.sem_type.base == "WORD" or (t.kind == ExprKind.ADDR and t.sem_type.is_pointer)
+        # Note: Pointers are 16-bit regardless of whether they're VALUE or ADDR kind
+        result_16_temp: bool = t.sem_type.base == "WORD" or t.sem_type.is_pointer
 
         # Force word-sized evaluation when required by caller context
         if self.force_word_result:
@@ -5480,8 +5809,9 @@ class CodeGen:
         
         # Determine operand sizes
         # IMPORTANT: Pointers are always 16-bit, even if pointing to BYTE
-        left_16: bool = left_t.sem_type.base == "WORD" or (left_t.kind == ExprKind.ADDR and left_t.sem_type.is_pointer)
-        right_16: bool = right_t.sem_type.base == "WORD" or (right_t.kind == ExprKind.ADDR and right_t.sem_type.is_pointer)
+        # Note: Pointers can be VALUE (from fields) or ADDR (array/@ operator)
+        left_16: bool = left_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer
+        right_16: bool = right_t.sem_type.base == "WORD" or right_t.sem_type.is_pointer
         result_16: bool = result_16_temp
         
         # Check if left operand is a BYTE arithmetic expression that can overflow
@@ -6921,43 +7251,57 @@ class CodeGen:
         if arg_t.sem_type.is_struct and not arg_t.sem_type.is_pointer:
             self._raise_error("LOW/HIGH not supported for struct values")
 
-        # Evaluate the expression to preserve side effects.
-        self.gen_expr(arg)
-        if name_upper == "HIGH":
+        if name_upper == "LOW":
+            # For LOW(), only load the low byte - directly load without X
+            if isinstance(arg, Identifier):
+                sym = self.current_symtab.lookup(arg.name)
+                if sym.is_const:
+                    self.emit(f"\tLDA #<{sym.asm_name()}")
+                else:
+                    self.emit(f"\tLDA {sym.asm_name()}")
+            elif isinstance(arg, IntLiteral):
+                self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
+            else:
+                # For complex expressions, evaluate normally (result is in A with X cleared for byte results)
+                # Just take the low byte that's in A after evaluation
+                self.gen_expr(arg)
+            # If result is used in 16-bit context, set high byte to 0
+            if self.force_word_result:
+                self.emit("\tLDX #0     ; widen byte builtin")
+        elif name_upper == "HIGH":
+            # For HIGH(), directly load the high byte
             if arg_t.sem_type.base == "BYTE" and not arg_t.sem_type.is_pointer:
+                # Byte value has no high byte, return 0
                 self.emit("\tLDA #0")
             else:
-                self.emit("\tTXA")
-
-        if self.force_word_result:
-            self.emit("\tLDX #0     ; widen byte builtin")
-        return True
-        
-        if expr.op == BinOp.LOR:
-            lbl_true: str = self.new_label("LOR_TRUE")
-            lbl_end: str  = self.new_label("LOR_END")
-
-            # lhs
-            self.gen_expr(expr.left)
-            _branch_if_nonzero(_is_word_value(expr.left), lbl_true)  # lhs != 0 → true
-
-            # rhs
-            self.gen_expr(expr.right)
-            _branch_if_nonzero(_is_word_value(expr.right), lbl_true)  # rhs != 0 → true
-
-            # false
-            self.emit("\tLDA #0")
-            self.emit(f"\tJMP {lbl_end}")
-
-            # true
-            self.emit(f"{lbl_true}:")
-            self.emit("\tLDA #1")
-
-            self.emit(f"{lbl_end}:")
+                # Load the high byte directly without loading the low byte first
+                # This requires special handling for different expression types
+                if isinstance(arg, Identifier):
+                    sym = self.current_symtab.lookup(arg.name)
+                    if sym.is_const:
+                        self.emit(f"\tLDA #>{sym.asm_name()}")
+                    else:
+                        self.emit(f"\tLDA {sym.asm_name()}+1")
+                elif isinstance(arg, IntLiteral):
+                    self.emit(f"\tLDA #${(arg.value >> 8) & 0xFF:02X}")
+                elif isinstance(arg, SubscriptExpr):
+                    # For array subscripts, we need the address first
+                    self._gen_subscript(arg, load_only=True, calc_addr_only=True)
+                    self.emit(f"\tLDY #1")
+                    self.emit(f"\tLDA (TMP0),Y")
+                elif isinstance(arg, FieldAccess):
+                    # Generate field access, then extract high byte from result
+                    self._gen_field_access(arg, load_only=True)
+                    self.emit(f"\tTXA")
+                else:
+                    # For other expressions, evaluate and use high byte from X
+                    self.gen_expr(arg)
+                    self.emit("\tTXA")
+            # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
-                self.emit("\tLDX #0     ; note 5074")   # X = result high byte
-            return
+                self.emit("\tLDX #0     ; widen byte builtin")
 
+        return True
 
     def gen_expr(self, expr, force_left_tmp=None) -> None:
         """Generate assembly for an expression node.
@@ -7017,9 +7361,9 @@ class CodeGen:
         elif isinstance(expr, BinaryExpr):
             # Conservative TMP usage check before generating potentially large expressions
             needed: int = self._estimate_temp_slots(expr)
-            max_temps: int = 6  # TMP0..TMP5 available
+            max_temps: int = 16  # Hard limit: TMP0..TMP15 available (can dynamically allocate up to 16)
             if needed > max_temps:
-                self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but only {max_temps} available. Simplify the expression.")
+                self._raise_error(f"Expression too complex: requires {needed} temporary slot(s) but hard limit is {max_temps}. Simplify the expression.")
 
             # FAST PATH: Optimize simple byte operations (a op b) to avoid RPN overhead
             # For expressions like: a < b, a + b, a & b where both are identifiers/literals
@@ -7128,7 +7472,6 @@ class CodeGen:
         rhs = fold_expr(rhs)
 
         lhs_t: ExprType = self.tc_check(lhs, read_check_enabled=False)
-        rhs_t: ExprType = self.tc_check(rhs)
 
         # typová kompatibilita                
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr, FieldAccess)):
@@ -7163,7 +7506,7 @@ class CodeGen:
                     arr_addr: str = arr_sym.asm_name()
                     element_width: int = self._calculate_element_width(arr_sym)
 
-                    # Pointer arrays are always in ZEROPAGE; use direct ZP indexed stores
+                    # Pointer arrays can be in ZP or BSS; direct indexed stores work for both
                     if arr_sym.type.is_pointer:
                         # Constant index path uses direct store below
                         if not isinstance(lhs.index, IntLiteral):
@@ -7287,6 +7630,22 @@ class CodeGen:
                 sym: Symbol = self.current_symtab.lookup(lhs.object.name)
                 if sym.is_const:
                     self._raise_error(f"Cannot assign to field of const struct '{lhs.object.name}'")
+
+        if isinstance(rhs, StructLiteral):
+            if not lhs_t.sem_type.is_struct or lhs_t.sem_type.is_pointer:
+                self._raise_error("Struct literal requires struct lvalue")
+            if not isinstance(lhs, Identifier):
+                self._raise_error("Struct literal assignment requires a struct variable")
+            sym = self.current_symtab.lookup(lhs.name)
+            struct_info = sym.type.struct_info or (
+                self.struct_registry.lookup(sym.type.base.upper()) if self.struct_registry else None
+            )
+            if struct_info is None:
+                self._raise_error(f"Cannot determine struct type for '{lhs.name}'")
+            self._emit_struct_literal_store(sym.asm_name(), struct_info, rhs.values, ctx_name=sym.name)
+            return
+
+        rhs_t: ExprType = self.tc_check(rhs)
 
         # Special case: array-to-array assignment (string copy)
         # str3 = str2 -> copy str2 content into str3 until NUL or max length
@@ -7783,7 +8142,8 @@ class CodeGen:
         # Pattern: ptr^ = value where ptr is a simple identifier in zero page
         if isinstance(lhs, DerefExpr) and isinstance(lhs.pointer, Identifier):
             ptr_sym: Symbol = self.current_symtab.lookup(lhs.pointer.name)
-            if ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array:
+            if (ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array
+                and ptr_sym.in_zeropage):
                 # Pointer is in zero page, can use direct indirect addressing
                 ptr_addr: str = ptr_sym.asm_name()
                 
@@ -7876,7 +8236,8 @@ class CodeGen:
                     zp_sym = self.current_symtab.lookup(sub_expr.array.name)
                 except KeyError:
                     zp_sym = None
-                if zp_sym and zp_sym.is_array and zp_sym.type.is_pointer and zp_sym.address is None:
+                if (zp_sym and zp_sym.is_array and zp_sym.type.is_pointer and zp_sym.address is None
+                    and not zp_sym.is_const and zp_sym.in_zeropage):
                     is_zp_ptr_array = True
 
             if is_zp_ptr_array and zp_sym:
@@ -8438,40 +8799,16 @@ class CodeGen:
 
             if sem_type.is_struct and not sem_type.is_pointer:
                 struct_info = sem_type.struct_info
-                struct_size = struct_info.size if struct_info is not None else sem_type.width
+                if struct_info is None:
+                    self._raise_error(f"Cannot determine size of struct parameter '{pname}'")
+                struct_size = struct_info.size
                 if struct_size <= 0:
                     self._raise_error(f"Cannot determine size of struct parameter '{pname}'")
                 if struct_size > 255:
                     self._raise_error(f"Struct parameter '{pname}' is too large ({struct_size} bytes)")
 
                 if isinstance(arg, StructLiteral):
-                    # Flatten nested list initializers into a byte sequence
-                    flattened: list[Expr] = []
-
-                    def flatten_values(val) -> None:
-                        if isinstance(val, ListInit):
-                            for item in val.values:
-                                flatten_values(item)
-                            return
-                        flattened.append(val)
-
-                    for v in arg.values:
-                        flatten_values(v)
-
-                    if len(flattened) != struct_size:
-                        self._raise_error(
-                            f"Struct literal for '{pname}' has {len(flattened)} byte(s), "
-                            f"expected {struct_size}"
-                        )
-
-                    for offset, ex in enumerate(flattened):
-                        prev_suppress = self.suppress_byte_return_x
-                        self.suppress_byte_return_x = True
-                        try:
-                            self.gen_expr(ex)
-                        finally:
-                            self.suppress_byte_return_x = prev_suppress
-                        self.emit(f"\tSTA {asm}+{offset}")
+                    self._emit_struct_literal_store(asm, struct_info, arg.values, ctx_name=pname)
                     continue
 
                 if isinstance(arg, Identifier):
@@ -8489,8 +8826,8 @@ class CodeGen:
                     if src_sym.is_const:
                         if not src_sym.init or not isinstance(src_sym.init, ListInit):
                             self._raise_error(f"Const struct '{src_sym.name}' has no initialization")
-                        values = [ex.value for ex in src_sym.init.values if isinstance(ex, IntLiteral)]
-                        data_key = (tuple(values), False)
+                        # Extract bytes with proper field type handling
+                        data_key = self._extract_const_struct_bytes(src_sym.init, struct_info)
                         if data_key not in self.array_literals:
                             self.array_id += 1
                             self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
@@ -8511,12 +8848,10 @@ class CodeGen:
                     self.emit(f"\tLDA #>{asm}")
                     self.emit("\tSTA TMP2+1")
                     self.emit(f"\tLDX #${struct_size:02X}")
-                    self.emit("\tLDY #$00")
                     self.emit("\tJSR COPY_BYTES")
                     continue
 
                 self._raise_error(f"Struct parameter '{pname}' requires a struct value or literal")
-
 
             if reg_case in {"word0", "word0_byte1"} and index == reg_a_index:
                 if reorder_regs:
@@ -8646,6 +8981,109 @@ class CodeGen:
                     self.emit("\tTAX")
                 elif op == "Y":
                     self.emit("\tTAY")
+
+    def _emit_struct_literal_store(
+        self,
+        base_asm: str,
+        struct_info: StructInfo,
+        values: Sequence[Expr | InitValue],
+        *,
+        base_offset: int = 0,
+        ctx_name: str | None = None,
+    ) -> None:
+        """Store a struct literal into memory at base_asm + base_offset."""
+        if len(values) != len(struct_info.fields):
+            ctx = f"'{ctx_name}'" if ctx_name else "struct"
+            self._raise_error(
+                f"Struct literal for {ctx} has {len(values)} field(s), "
+                f"expected {len(struct_info.fields)}"
+            )
+
+        def emit_scalar(field: StructFieldInfo, val: Expr | InitValue, offset: int) -> int:
+            if isinstance(val, ExprInit):
+                val = val.expr
+            if not isinstance(val, Expr):
+                self._raise_error("Struct literal field requires expression")
+            if field.is_pointer or field.base_type == "WORD":
+                prev_force = self.force_word_result
+                prev_suppress = self.suppress_byte_return_x
+                self.force_word_result = True
+                self.suppress_byte_return_x = False
+                try:
+                    self.gen_expr(val)
+                finally:
+                    self.force_word_result = prev_force
+                    self.suppress_byte_return_x = prev_suppress
+                self.emit(f"\tSTA {base_asm}+{offset}")
+                self.emit(f"\tSTX {base_asm}+{offset+1}")
+                return 2
+
+            prev_suppress = self.suppress_byte_return_x
+            self.suppress_byte_return_x = True
+            try:
+                self.gen_expr(val)
+            finally:
+                self.suppress_byte_return_x = prev_suppress
+            self.emit(f"\tSTA {base_asm}+{offset}")
+            return 1
+
+        def is_struct_type(field: StructFieldInfo) -> bool:
+            if field.is_pointer:
+                return False
+            if not self.struct_registry:
+                return False
+            return self.struct_registry.is_defined(field.base_type)
+
+        offset = base_offset
+        for field, val in zip(struct_info.fields, values):
+            if field.array_sizes:
+                if not isinstance(val, ListInit):
+                    self._raise_error("Struct literal array field requires list initializer")
+                total = 1
+                for dim in field.array_sizes:
+                    if dim is None:
+                        self._raise_error("Struct literal array field has unknown size")
+                    total *= dim
+                if len(val.values) != total:
+                    self._raise_error(
+                        f"Struct literal array field has {len(val.values)} value(s), expected {total}"
+                    )
+                for elem in val.values:
+                    if is_struct_type(field):
+                        if not isinstance(elem, ListInit):
+                            self._raise_error("Struct array element requires list initializer")
+                        nested = self.struct_registry.lookup(field.base_type) if self.struct_registry else None
+                        if nested is None:
+                            self._raise_error("Struct array element type is undefined")
+                        self._emit_struct_literal_store(
+                            base_asm,
+                            nested,
+                            elem.values,
+                            base_offset=offset,
+                            ctx_name=ctx_name,
+                        )
+                        offset += nested.size
+                    else:
+                        offset += emit_scalar(field, elem, offset)
+                continue
+
+            if is_struct_type(field):
+                if not isinstance(val, ListInit):
+                    self._raise_error("Nested struct field requires list initializer")
+                nested = self.struct_registry.lookup(field.base_type) if self.struct_registry else None
+                if nested is None:
+                    self._raise_error("Nested struct type is undefined")
+                self._emit_struct_literal_store(
+                    base_asm,
+                    nested,
+                    val.values,
+                    base_offset=offset,
+                    ctx_name=ctx_name,
+                )
+                offset += nested.size
+                continue
+
+            offset += emit_scalar(field, val, offset)
 
 
     def gen_stmt(self, stmt):
