@@ -21,7 +21,8 @@
 9. [Structs](#structs)
 10. [Pointers](#pointers)
 11. [Module System](#module-system)
-12. [Advanced Topics](#advanced-topics)
+12. [Directives](#directives)
+13. [Advanced Topics](#advanced-topics)
 
 ---
 
@@ -1833,6 +1834,62 @@ Best practices:
 ```
 
 ---
+
+## Directives
+
+ZAP supports several directives for conditional compilation, module management, and diagnostics. Directives start with a dot (`.`).
+
+### Preprocessor Directives
+
+| Directive | Description |
+|-----------|-------------|
+| `.define SYMBOL` | Defines a symbol for use in conditional blocks. |
+| `.undef SYMBOL` | Undefines a previously defined symbol. |
+| `.ifdef SYMBOL` | Compiles the following block only if `SYMBOL` is defined. |
+| `.ifndef SYMBOL` | Compiles the following block only if `SYMBOL` is NOT defined. |
+| `.else` | Alternative branch for `.ifdef`/`.ifndef`. |
+| `.endif` | Ends a conditional block. |
+
+**Example:**
+```zap
+.define DEBUG
+
+.ifdef DEBUG
+    .info "Debug mode enabled"
+.else
+    .define OPTIMIZED
+.endif
+```
+
+### Module and Inclusion Directives
+
+| Directive | Description |
+|-----------|-------------|
+| `.module "name"` | Declares the current file as a module. Enclosed code is scoped to the module. |
+| `.include "path/to/file.zap"` | Includes another ZAP source file. |
+| `.incbin "path/to/file.bin"` | Includes a binary file directly into the output. |
+
+**Example:**
+```zap
+.module "graphics"
+.include "utils.zap"
+.incbin "sprite_data.bin"
+```
+
+### Diagnostic Directives
+
+| Directive | Description |
+|-----------|-------------|
+| `.error "message"` | Emits a compilation error with the specified message and stops compilation. |
+| `.warning "message"` | Emits a compilation warning but processing continues. |
+| `.info "message"` | Emits an informational message during compilation. |
+
+**Example:**
+```zap
+.ifdef DEMO_VERSION
+    .warning "Compiling demo version - features restricted"
+.endif
+```
 
 ## Advanced Topics
 
