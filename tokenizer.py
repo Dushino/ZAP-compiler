@@ -11,7 +11,7 @@ KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
                    "for", "to", "step",
                    "while", "repeat", "until",
                    "switch", "case", "default",
-                   "return", "break", "continue", "stop",                    
+                   "return", "break", "continue",                    
                    "asm"}
 PREPROC: set[str]         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
                    ".error", ".warning", ".info"}
