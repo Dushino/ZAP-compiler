@@ -12,14 +12,18 @@ This extension provides syntax highlighting for the Zap programming language.
 ## Supported Syntax
 
 ### Keywords
-- Control flow: `IF`, `ELSE`, `ELSEIF`, `WHILE`, `FOR`, `TO`, `STEP`, `REPEAT`, `UNTIL`, `SWITCH`, `CASE`, `DEFAULT`, `RETURN`, `BREAK`, `CONTINUE`, `STOP`, `END`
+- Control flow: `IF`, `ELSE`, `ELSEIF`, `WHILE`, `FOR`, `TO`, `STEP`, `REPEAT`, `UNTIL`, `SWITCH`, `CASE`, `DEFAULT`, `RETURN`, `BREAK`, `CONTINUE`, `END`
 - Declarations: `PROC`, `FUNC`, `STRUCT`, `ENUM`, `END`
 - Inline assembler: `ASM`, `END` (embedded ca65 highlighting between ASM / END)
-
 
 ### Data Types
 - `BYTE`, `WORD`
 - `CONST`, `STATIC` type modifiers
+- `low()`, `high()`, `sizeof()` built-in functions
+
+### Declaration Modifiers
+- `#PORT`, `#RD`, `#WR` - For hardware port definitions
+- `#KEEP`, `#NOEXPORT`, `#EXPORT` - For symbol visibility and dead code elimination control
 
 ### Preprocessor Directives
 - `.module`, `.include`
@@ -43,6 +47,14 @@ This extension provides syntax highlighting for the Zap programming language.
 - Strings: `"Hello, World!"`
 - ASCII values: `'a'`
 
+
+## Documentation
+
+For complete documentation, please visit the repository:
+
+- [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/GETTING_STARTED.md)
+- [Language Reference Manual](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ZAP_LANGUAGE_REFERENCE.md)
+- [Advanced Topics](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ADVANCED_TOPICS.md)
 
 ## Installation
 

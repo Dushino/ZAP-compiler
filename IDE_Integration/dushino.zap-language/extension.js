@@ -11,7 +11,8 @@ function activate(context) {
                 const filePath = editor.document.uri.fsPath;
                 const definition = { type: 'zap' };
 
-                const execution = new vscode.ShellExecution('zapc', [filePath]);
+                const compiler = process.platform === 'win32' ? 'zapc.exe' : 'zapc';
+                const execution = new vscode.ShellExecution(compiler, [filePath]);
 
                 const task = new vscode.Task(
                     definition,
@@ -29,12 +30,13 @@ function activate(context) {
                 // Tato část umožňuje VS Code znovu sestavit úkol, pokud je volán z tasks.json
                 if (task.definition.type === 'zap') {
                     const definition = task.definition;
+                    const compiler = process.platform === 'win32' ? 'zapc.exe' : 'zapc';
                     return new vscode.Task(
                         definition,
                         task.scope,
                         task.name,
                         task.source,
-                        new vscode.ShellExecution('zapc', [vscode.window.activeTextEditor.document.uri.fsPath]),
+                        new vscode.ShellExecution(compiler, [vscode.window.activeTextEditor.document.uri.fsPath]),
                         '$zap-matcher'
                     );
                 }
@@ -42,6 +44,11 @@ function activate(context) {
             }
         })
     );
+
+    // Helper to get executable name based on OS
+    const getZapCompiler = () => {
+        return process.platform === 'win32' ? 'zapc.exe' : 'zapc';
+    };
 
     // 2. Registrace příkazu pro vlastní klávesovou zkratku
     context.subscriptions.push(
@@ -53,6 +60,30 @@ function activate(context) {
             } else {
                 vscode.window.showWarningMessage('No ZAP build task found. Open a .zap file.');
             }
+        })
+    );
+
+    // 3. Register Quick Compile command (Ctrl+Shift+Z)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('zap.compile', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor || editor.document.languageId !== 'zap') {
+                vscode.window.showInformationMessage('Open a .zap file to compile.');
+                return;
+            }
+
+            const filePath = editor.document.uri.fsPath;
+            const compiler = getZapCompiler();
+
+            // Create a dedicated terminal or reuse existing
+            let terminal = vscode.window.terminals.find(t => t.name === 'ZAP Compiler');
+            if (!terminal) {
+                terminal = vscode.window.createTerminal('ZAP Compiler');
+            }
+
+            terminal.show(true);
+            // Quote path to handle spaces
+            terminal.sendText(`${compiler} "${filePath}"`);
         })
     );
 

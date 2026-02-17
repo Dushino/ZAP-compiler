@@ -98,12 +98,21 @@
                 "command": "zap.runBuild",
                 "title": "ZAP: Compile current file",
                 "category": "Build"
+            },
+            {
+                "command": "zap.compile",
+                "title": "ZAP: Quick Compile",
+                "category": "Build"
             }
         ],
         "menus": {
             "commandPalette": [
                 {
                     "command": "zap.runBuild",
+                    "when": "editorLangId == zap"
+                },
+                {
+                    "command": "zap.compile",
                     "when": "editorLangId == zap"
                 }
             ],
@@ -119,15 +128,21 @@
                     "command": "zap.runBuild",
                     "when": "resourceExtname == .zap",
                     "group": "navigation"
-                }            
+                }
             ]
         },
-        "keybindings":
-        {
-            "key": "ctrl+alt+z",
-            "command": "workbench.action.tasks.runTask",
-            "args": "zap: Build ZAP project"
-        }
+        "keybindings": [
+            {
+                "key": "ctrl+shift+z",
+                "command": "zap.compile",
+                "when": "editorTextFocus && editorLangId == zap"
+            },
+            {
+                "key": "ctrl+alt+z",
+                "command": "workbench.action.tasks.runTask",
+                "args": "zap: Build ZAP project"
+            }
+        ]
     },
     "activationEvents": [
         "onFile:*.zap"
