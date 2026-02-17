@@ -897,6 +897,69 @@ proc if_example()
 end
 ```
 
+### Switch Statement
+
+The `switch` statement selects a code block to execute based on the value of an expression. It supports `case` labels for specific values and an optional `default` label.
+
+**Syntax:**
+
+```zap
+switch expression
+    case value1
+        statement1
+        break
+    case value2
+        statement2
+        break
+    default
+        statement3
+end
+```
+
+**Key Features:**
+
+1.  **Expression Type**: The switch expression can be `byte` or `word` (or compatible types).
+2.  **Case Labels**: Must be constant expressions known at compile time.
+3.  **Fall-through**: ZAP! `switch` statements have **C-like fall-through behavior**. If a `case` block does not end with `break`, execution continues into the next `case` block.
+4.  **Default**: The `default` block executes if no case matches. It is optional.
+5.  **Break**: The `break` statement exits the `switch` structure.
+
+**Example with Break (No Fall-through):**
+
+```zap
+byte x = 1
+
+switch x
+    case 1
+        x = 10
+        break       ; Exit switch
+    case 2
+        x = 20
+        break       ; Exit switch
+    default
+        x = 0
+end
+; Result: x is 10
+```
+
+**Example with Fall-through:**
+
+```zap
+byte x = 1
+byte y = 0
+
+switch x
+    case 1
+        y = 1       ; No break, falls through to case 2
+    case 2
+        y = 2       ; Executes if x is 1 OR 2
+        break
+    default
+        y = 0
+end
+; Result: If x is 1, y becomes 2.
+```
+
 ### while Loop
 
 ```zap
