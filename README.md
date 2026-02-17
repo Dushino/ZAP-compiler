@@ -5,6 +5,19 @@ This document summarizes the key features and syntax of the ZAP programming lang
 ## Overview
 ZAP is a high-level language that compiles to 6502 assembly (specifically for Atari 8-bit systems). It balances high-level constructs (structs, loops) with low-level control (pointers, hardware registers).
 
+## Documentation
+
+For complete documentation, please visit the repository:
+
+- [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/GETTING_STARTED.md)
+- [Language Reference Manual](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ZAP_LANGUAGE_REFERENCE.md)
+- [Advanced Topics](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ADVANCED_TOPICS.md)
+
+## Installation
+
+See the main tutorial in the repository for installation instructions: https://github.com/Dushino/ZAP-compiler
+
+
 ## Core Syntax
 
 ### Program Structure
