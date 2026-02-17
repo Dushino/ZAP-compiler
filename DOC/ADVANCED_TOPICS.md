@@ -21,6 +21,7 @@
 10. [Compiler Internals](#compiler-internals)
 11. [Memory Allocation Details](#memory-allocation-details)
 12. [Safety Features](#safety-features)
+13. [Debugger Symbol Support](#debugger-symbol-support)
 
 ---
 
@@ -2135,13 +2136,144 @@ This feature prevents a common source of bugs and makes ZAP! programs more relia
 
 ---
 
-## Further Reading
+## Debugger Symbol Support
 
-- [ZAP! Language Reference](ZAP_LANGUAGE_REFERENCE.md)
-- [Getting Started Guide](GETTING_STARTED.md)
-- [Atari 8-Bit Hardware Guide](https://www.atariarchives.org/)
-- [6502 Assembly Language](https://www.masswerk.at/6502/6502_instruction_set.html)
+The ZAP! compiler now generates debug information that allows you to debug your compiled programs using emulator debuggers like VICE (Commodore emulator) and Oricutron (Oric emulator) with meaningful symbol names instead of raw hex addresses.
 
----
+### What Is Debugger Symbol Support?
 
-**Master ZAP! and create incredible retro software!**
+Debugger symbol support enables your debugging tools to:
+- **Reference code by procedure/function names** instead of hex addresses
+- **Set breakpoints by symbol name** (e.g., `break _main` instead of `break $4006`)
+- **Inspect variables by name** in memory
+- **View disassembly with label names** for better readability
+- **Understand program structure** through symbol information
+
+### How It Works
+
+#### Generation Pipeline
+
+```
+ZAP Source Code
+    ↓
+Compiler generates assembly with .DEBUGINFO directive
+    ↓
+ca65 assembler (-g flag) embeds debug info in object file
+    ↓
+ld65 linker generates .lbl or .sym label file
+    ↓
+VICE/Oricutron loads label file
+    ↓
+Debugging with symbol names enabled!
+```
+
+#### Automatic Features
+
+1. **`.DEBUGINFO +` Directive** - Automatically emitted in generated assembly
+   - Tells ca65 assembler to include all symbols (not just exports)
+   - Includes local labels, procedures, functions, and variables
+
+2. **Assembly with Debug Info** - Build process uses `-g` flag
+   - `ca65 -g` embeds symbol information in object files
+   - Increases object file size by ~30% (acceptable trade-off)
+
+3. **Label File Generation** - Linker generates symbol mapping
+   - VICE: Creates `.lbl` file with symbol → address mappings
+   - Oricutron: Creates `.sym` file with symbol → address mappings
+   - Automatically generated during `make` or `make.bat`
+
+### Usage
+
+#### Building with Debug Symbols
+
+**Using Make (Linux/macOS):**
+```bash
+make atari              # Generates p1.com and p1.lbl
+```
+
+**Using make.bat (Windows):**
+```batch
+make.bat atari          # Generates p1.com and p1.lbl
+```
+
+Both will generate:
+- `out/p1.com` - Your compiled Atari executable
+- `out/p1.lbl` - Label file with debug symbols (VICE format)
+
+#### Debugging with VICE
+
+1. **Start VICE with your program:**
+   ```bash
+   x64sc -moncommands out/p1.lbl out/p1.prg
+   ```
+
+2. **Or load labels in the VICE monitor:**
+   ```
+   ll "out/p1.lbl"
+   ```
+
+3. **Use symbol names in the monitor:**
+   ```
+   # Disassemble from a procedure
+   d ._main
+   
+   # Set breakpoint at procedure
+   break ._main
+   
+   # Display variable contents
+   print _my_variable
+   
+   # Jump to address by name
+   jump ._my_procedure
+   ```
+
+#### Debugging with Oricutron
+
+1. **Start Oricutron with your program:**
+   ```bash
+   oricutron -symfile out/p1.sym out/p1.com
+   ```
+
+2. **Or load symbols in the Oricutron monitor:**
+   ```
+   sl out/p1.sym
+   ```
+
+3. **Use symbol names:**
+   ```
+   # Disassemble from a procedure
+   d ._main
+   
+   # Set breakpoint
+   break ._main
+   ```
+
+### Symbol Naming Conventions
+
+Symbols generated from your ZAP code follow cc65 conventions:
+
+- **Procedures**: `_proc_name` (underscore prefix for public symbols)
+- **Functions**: `_func_name`
+- **Global variables**: `_var_name`
+- **Local variables**: Generated with scope qualifiers (visible to debugger)
+- **Labels**: Internal labels like `L1`, `L2`, etc.
+
+### troubleshooting
+
+#### Label file not generated
+
+**Problem**: No `.lbl` file appears after build
+
+**Solutions**:
+1. Check that `make atari` or `make.bat atari` completes without errors
+2. Verify `out/` directory exists and is writable
+3. Ensure ld65 has `-Ln` option (should be automatic)
+
+#### Symbols not recognized in VICE
+
+**Problem**: VICE says "Unknown command" when using symbol names
+
+**Solutions**:
+1. Ensure label file is loaded: `ll "path/to/p1.lbl"`
+2. Check that symbols have `.` prefix in VICE: `d ._main`
+3. Verify label file path is correct and file exists
