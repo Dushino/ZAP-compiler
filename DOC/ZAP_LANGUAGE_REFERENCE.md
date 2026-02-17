@@ -724,6 +724,8 @@ Bitwise operators perform bit-level manipulation on numeric values.
 | `\|` | `a \| b` | Bitwise OR |
 | `^` | `a ^ b` | Bitwise XOR |
 | `~` | `~a` | Bitwise NOT (unary) |
+| `<<` | `a << b` | Bitwise Left Shift |
+| `>>` | `a >> b` | Bitwise Right Shift |
 
 ```zap
 proc bitwise_example()
@@ -844,7 +846,9 @@ From lowest to highest:
 6. `^` (Bitwise XOR)
 7. `&` (Bitwise AND)
 8. `+`, `-` (Addition, Subtraction)
-9. `*`, `/`, `%` (Multiplication, Division, Modulo)
+8. `+`, `-` (Addition, Subtraction)
+9. `<<`, `>>` (Bitwise Shift)
+10. `*`, `/`, `%` (Multiplication, Division, Modulo)
 10. `-`, `!`, `~`, `@` (Unary)
 11. Primary (literals, variables, parentheses)
 

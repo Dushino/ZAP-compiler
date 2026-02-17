@@ -118,6 +118,12 @@ def _eval_binary(op: BinOp, a: int, b: int, node: Expr | None = None) -> IntLite
         return IntLiteral(a & b)
     if op == BinOp.BOR:
         return IntLiteral(a | b)
+    if op == BinOp.BXOR:
+        return IntLiteral(a ^ b)
+    if op == BinOp.LSHIFT:
+        return IntLiteral(a << b)
+    if op == BinOp.RSHIFT:
+        return IntLiteral(a >> b)
 
     raise SemanticError(f"Unsupported binary op in constant fold: {op}", node=node)
 
