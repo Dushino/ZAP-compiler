@@ -4,9 +4,6 @@
 $ErrorActionPreference = "Stop"
 
 $extensionSource = "$PSScriptRoot\dushino.zap-language"
-$extensionDest = "$env:USERPROFILE\.vscode\extensions\dushino.zap-language"
-
-Write-Host "Installing ZAP VSCode Extension..." -ForegroundColor Cyan
 
 # Check if source exists
 if (-not (Test-Path $extensionSource)) {
@@ -14,34 +11,58 @@ if (-not (Test-Path $extensionSource)) {
     exit 1
 }
 
-# Remove old installations
-$oldPaths = @(
-    "$env:USERPROFILE\.vscode\extensions\dushino42.zap-language",
-    "$env:USERPROFILE\.vscode\extensions\dushino.zap-language"
-)
+function Install-ZapExtension {
+    param (
+        [string]$TargetDir,
+        [string]$IdeName
+    )
 
-foreach ($oldPath in $oldPaths) {
-    if (Test-Path $oldPath) {
-        Write-Host "Removing old installation: $oldPath" -ForegroundColor Yellow
-        Remove-Item $oldPath -Recurse -Force
+    if (-not (Test-Path $TargetDir)) {
+        Write-Host "Skipping $IdeName installation: Directory not found at $TargetDir" -ForegroundColor DarkGray
+        return
     }
+
+    Write-Host "Installing ZAP Extension for $IdeName..." -ForegroundColor Cyan
+
+    $extensionDest = Join-Path $TargetDir "dushino.zap-language"
+    
+    # Remove old installations
+    $oldPaths = @(
+        (Join-Path $TargetDir "dushino42.zap-language"),
+        $extensionDest
+    )
+
+    foreach ($oldPath in $oldPaths) {
+        if (Test-Path $oldPath) {
+            Write-Host "Removing old installation: $oldPath" -ForegroundColor Yellow
+            Remove-Item $oldPath -Recurse -Force
+        }
+    }
+
+    # Remove extensions cache file
+    $extensionsJson = Join-Path $TargetDir "extensions.json"
+    if (Test-Path $extensionsJson) {
+        Write-Host "Removing extensions cache: $extensionsJson" -ForegroundColor Yellow
+        try {
+            Remove-Item $extensionsJson -Force
+        }
+        catch {
+            Write-Host "Warning: failed to remove $extensionsJson - $_" -ForegroundColor Yellow
+        }
+    }
+
+    # Copy extension
+    Write-Host "Copying extension to: $extensionDest" -ForegroundColor Green
+    Copy-Item $extensionSource $extensionDest -Recurse
+    Write-Host "Extension installed for $IdeName successfully!`n" -ForegroundColor Green
 }
 
-# Remove VSCode extensions cache file to avoid stale extension listings
-$extensionsJson = "$env:USERPROFILE\.vscode\extensions\extensions.json"
-if (Test-Path $extensionsJson) {
-    Write-Host "Removing VSCode extensions cache: $extensionsJson" -ForegroundColor Yellow
-    try {
-        Remove-Item $extensionsJson -Force
-    } catch {
-        Write-Host "Warning: failed to remove $extensionsJson - $_" -ForegroundColor Yellow
-    }
-}
+# Install for VSCode
+Install-ZapExtension -TargetDir "$env:USERPROFILE\.vscode\extensions" -IdeName "VS Code"
 
-# Copy extension with correct name
-Write-Host "Copying extension to: $extensionDest" -ForegroundColor Green
-Copy-Item $extensionSource $extensionDest -Recurse
+# Install for Antigravity
+Install-ZapExtension -TargetDir "$env:USERPROFILE\.antigravity\extensions" -IdeName "Antigravity"
 
-Write-Host "`nExtension installed successfully!" -ForegroundColor Green
-Write-Host "Please restart VSCode to activate the extension." -ForegroundColor Cyan
+Write-Host "Installation process completed." -ForegroundColor Cyan
+Write-Host "Please restart your IDEs to activate the extension." -ForegroundColor Cyan
 
