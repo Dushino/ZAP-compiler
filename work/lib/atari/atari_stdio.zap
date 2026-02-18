@@ -54,6 +54,11 @@ byte PLAYF2  @710
 byte PLAYF3  @711
 byte PLAYF4  @712
 
+const byte EOF = $FF
+; ToDo: Error codes
+; ToDo: File handling
+; ToDo: fopen modes masks
+
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40
@@ -61,7 +66,6 @@ const byte SCREEN_Y_SIZE = 24
 
 byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
 byte ^curptr                    #noexport   ; current position in the screen memory for output
-
 
 
 ; initialize internals for faster screen IO
@@ -76,7 +80,6 @@ proc CONSTRUCTOR()
         data = data + SCREEN_X_SIZE   
     end
 end
-
 
 
 /*
@@ -165,6 +168,7 @@ func byte getchar()
     return ch
 end
 
+
 /*
     putx - print HEX BYTE value as two characters
 */
@@ -173,7 +177,6 @@ proc putx(byte value)
     putchar(hex_digits[value >> 4])
     putchar(hex_digits[value & $0F])
 end
-
 
 
 /*
@@ -255,6 +258,7 @@ proc puts(byte ^str)
     end
 end
 
+
 /*
     gets - read characters from keyboard until newline, store them in buffer as null-terminated string
 */
@@ -274,3 +278,101 @@ func byte gets(byte ^buffer, byte max_len)
 
     return count
 end
+
+
+/*
+    fopen - open file
+*/
+func byte fopen(byte ^filename, byte mode)
+    return 0
+end
+
+
+/*
+    fclose - close file
+*/
+func byte fclose(byte file)
+    return 0
+end
+
+
+/*
+    ferror - check for error
+*/
+func byte ferror(byte file)
+    return 0
+end
+
+
+/*
+    feof - check for end of file
+*/
+func byte feof(byte file)
+    return EOF
+end
+
+
+/*
+    rename - rename file
+*/
+func byte rename(byte ^oldname, byte ^newname)
+    return 0
+end
+
+
+/*
+    remove - remove file
+*/
+func byte remove(byte ^filename)
+    return 0
+end
+
+
+/*
+    fseek - seek in file
+*/
+func byte fseek(byte file, word offset, byte whence)
+    return 0
+end
+
+
+/*
+    ftell - tell file position
+*/
+func word ftell(byte file)
+    return 0
+end
+
+
+/*
+    fread - read from file
+*/
+func byte fread(byte ^buffer, byte size, byte count, byte file)
+    return 0
+end
+
+
+/*
+    fwrite - write to file
+*/
+func byte fwrite(byte ^buffer, byte size, byte count, byte file)
+    return 0
+end
+
+
+/*
+    fgetc - get character from file
+*/
+func byte fgetc(byte file)
+    return 0
+end
+
+
+/*
+    fputc - put character to file
+*/
+func byte fputc(byte ch, byte file)
+    return 0
+end
+    
+; EOF
