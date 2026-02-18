@@ -1,13 +1,16 @@
 ; atari_stdio.zap
 
+.module "atari_stdio"
+
+
 /*
-    * puts	    výstup do stdout (bez formátování)
-    * gets	    vstup ze stdin (bez formátování)
-    * getchar	zadání jednoho znaku ze stdin
-    * putchar	výstup jednoho znaku do stdout
     * cls       vyčištění obrazovky
   
-
+    * getchar	zadání jednoho znaku ze stdin
+    * getc	    čtení jednoho znaku ze souboru
+    * gets	    vstup ze stdin (bez formátování)
+    * putchar	výstup jednoho znaku do stdout
+    * puts	    výstup řetězce do stdout
     * fopen	    otevření souboru
     * fclose	zavření souboru
     * ferror	při chybě program vrací, že návratová hodnota se nerovná 0
@@ -29,19 +32,14 @@
     * fseek	    pohybování kurzorem v souboru
     * ftell	    zjištění aktuální pozice kurzoru v souboru
     * fwrite	zápis dat do souboru
-    * getc	    čtení jednoho znaku ze souboru
-    * getchar	čtení jednoho znaku ze souboru
     * printf	výstup formátovaného řetězce do stdout
-    * puts	    výstup řetězce do stdout
     * rename	změna jména souboru
     * rewind	vrací kurzor na začátek souboru
-    * scanf	čtení formátovaného řetězce ze stdin
+    * scanf	    čtení formátovaného řetězce ze stdin
     * snprintf	zápis formátovaného řetězce do char pole (bezpečné)
     * sprintf	zápis formátovaného řetězce do char pole
     * sscanf	čtení formátovaného řetězce ze char pole
 */
-
-.module "atari_stdio"
 
 
 ; ATARI colors
@@ -73,7 +71,7 @@ byte PLAYF2  @710
 byte PLAYF3  @711
 byte PLAYF4  @712
 
-
+; FILE structure
 struct FILE
     byte fd     ; handle
 end
@@ -98,10 +96,7 @@ const byte SEEK_SET = 0
 const byte SEEK_CUR = 1
 const byte SEEK_END = 2
 
-
 ; ToDo: Error codes
-; ToDo: File handling
-; ToDo: fopen modes masks
 
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
