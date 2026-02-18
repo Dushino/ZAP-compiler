@@ -4,7 +4,9 @@ from compiler_pipeline import compile_program
 from module_system import ModuleSystem
 from preprocessor import Preprocessor
 import os
+import os
 import sys
+from version import __version__
 from typing import Optional, Set, List
 
 def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False) -> str:
@@ -164,6 +166,9 @@ if __name__ == "__main__":
                 out_file = args[i + 1]
                 i += 2
                 continue
+            if a == "--version":
+                print(f"zapc {__version__}")
+                sys.exit(0)
             if a == "-D":
                 if i + 1 >= len(args):
                     print("<cli>:1:1: error: -D requires a symbol name", file=sys.stderr)
