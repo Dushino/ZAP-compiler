@@ -16,4 +16,11 @@ class ExprType:
     sem_type: SemType     # byte / word / pointer
     kind: ExprKind        # VALUE / ADDR / LVALUE
 
+    @property
+    def width(self) -> int:
+        return self.sem_type.width
+
+    def get_size(self) -> int:
+        return self.sem_type.width
+
 

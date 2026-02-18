@@ -104,6 +104,8 @@ class SemType:
             return 1
         if base_lower == "word":
             return 2
+        if base_lower == "long":
+            return 4
         # Unknown type encountered during width computation - report as semantic error
         raise SemanticError(f"Unknown type: {self.base}", node=None)
     

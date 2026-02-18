@@ -8,7 +8,7 @@
         },
         {
             "include": "#attributes"
-        }, 
+        },
         {
             "include": "#preprocessor"
         },
@@ -52,7 +52,7 @@
                     "match": "@"
                 }
             ]
-        },        
+        },
         "comments": {
             "patterns": [
                 {
@@ -96,7 +96,7 @@
             "patterns": [
                 {
                     "name": "storage.type.zap",
-                    "match": "\\b(?:[Bb][Yy][Tt][Ee]|[Ww][Oo][Rr][Dd])\\b"
+                    "match": "\\b(?:[Bb][Yy][Tt][Ee]|[Ww][Oo][Rr][Dd]|[Ll][Oo][Nn][Gg])\\b"
                 },
                 {
                     "name": "storage.modifier.zap",
@@ -162,11 +162,15 @@
         "enum-block": {
             "begin": "^\\s*[Ee][Nn][Uu][Mm]\\b.*$",
             "beginCaptures": {
-                "0": { "name": "keyword.control.enum.zap" }
+                "0": {
+                    "name": "keyword.control.enum.zap"
+                }
             },
             "end": "^\\s*[Ee][Nn][Dd]\\b",
             "endCaptures": {
-                "0": { "name": "keyword.control.end.zap" }
+                "0": {
+                    "name": "keyword.control.end.zap"
+                }
             },
             "name": "meta.block.enum.zap",
             "patterns": [
@@ -174,7 +178,9 @@
                     "name": "entity.name.constant.enum.zap",
                     "match": "^[ \\t]*([A-Za-z_][A-Za-z0-9_]*)",
                     "captures": {
-                        "1": { "name": "entity.name.constant.enum.zap" }
+                        "1": {
+                            "name": "entity.name.constant.enum.zap"
+                        }
                     }
                 },
                 {

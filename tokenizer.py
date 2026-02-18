@@ -15,7 +15,7 @@ KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
                    "asm"}
 PREPROC: set[str]         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
                    ".error", ".warning", ".info"}
-TYPES: set[str]           = {"byte", "word"}
+TYPES: set[str]           = {"byte", "word", "long"}
 TYPEMOD: set[str]         = {"const", "static"}
 SINGLE_OPS: set[str]      = set("+-*/%><[]&|~^!")
 TWO_CHAR_OPS: set[str]    = {"==","!=","<=",">=","&&","||","<<",">>"}

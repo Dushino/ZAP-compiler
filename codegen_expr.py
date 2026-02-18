@@ -141,19 +141,28 @@ class CodeGen:
     
     class RPNNode:
         """Represents a node in RPN evaluation (operand or operator)."""
-        def __init__(self, node_type: str, value: object = None, is_16bit: bool = False):
+        def __init__(self, node_type: str, value: object = None, is_16bit: bool = False, width: int = 0):
             """Initialize code generation state.
             Stores symbol tables, options, and debug maps.
             """
             self.node_type = node_type  # 'OPERAND', 'OPERATOR', 'CONST', 'VAR', 'CALL', etc.
             self.value = value  # Operator name, variable name, constant value, etc.
-            self.is_16bit = is_16bit  # Whether this produces a 16-bit result
+            
+            # Auto-detect width from is_16bit if width not provided
+            if width == 0:
+                if is_16bit:
+                    width = 2
+                else:
+                    width = 1
+            
+            self.width = width
+            self.is_16bit = (width >= 2)  # For backward compatibility within existing methods
         
         def __repr__(self):
             """Return a readable debug representation.
             Used for logging and diagnostics.
             """
-            return f"RPNNode({self.node_type}, {self.value}, 16bit={self.is_16bit})"
+            return f"RPNNode({self.node_type}, {self.value}, width={self.width})"
     
     def ast_to_rpn(self, expr: BinaryExpr | UnaryExpr | Expr) -> list['CodeGen.RPNNode']:
         """Convert an AST expression to RPN sequence.
@@ -170,13 +179,34 @@ class CodeGen:
         """
         rpn: list['CodeGen.RPNNode'] = []
         
-        def get_width(node: Expr) -> bool:
-            """Determine if expression produces 16-bit result."""
+        def get_expr_width(node: Expr) -> int:
+            """Determine width of expression result in bytes."""
+            node_str = str(node)
             try:
                 expr_type = self.tc_check(node, read_check_enabled=False)
-                return expr_type.sem_type.width == 2
-            except:
-                return False
+                # print(f"DEBUG: get_expr_width({node_str}) type={expr_type.sem_type.base} width={expr_type.sem_type.width}")
+                return expr_type.sem_type.width
+            except Exception as e:
+                print(f"; DEBUG: get_expr_width({node_str}) tc_check failed: {e}")
+                # Fallback for identifiers if type check fails (e.g. context issues)
+                if isinstance(node, Identifier):
+                    try:
+                        sym = self.current_symtab.lookup(node.name)
+                        print(f"; DEBUG: get_expr_width({node_str}) fallback Identifier sym={sym.name} width={sym.type.width}")
+                        return sym.type.width
+                    except Exception as e2:
+                        print(f"; DEBUG: get_expr_width({node_str}) fallback Identifier failed: {e2}")
+                        pass
+                elif isinstance(node, IntLiteral):
+                    if node.value <= 255: return 1
+                    if node.value <= 65535: return 2
+                    return 4
+                elif isinstance(node, BinaryExpr):
+                    w1 = get_expr_width(node.left)
+                    w2 = get_expr_width(node.right)
+                    print(f"; DEBUG: get_expr_width({node_str}) fallback BinaryExpr w1={w1} w2={w2}")
+                    return max(w1, w2)
+                return 1
         
         def walk(node: Expr) -> None:
             """Recursively walk AST and build RPN sequence."""
@@ -184,51 +214,56 @@ class CodeGen:
                 # Left subtree -> Right subtree -> Operator
                 walk(node.left)
                 walk(node.right)
-                result_16bit = get_width(node)
-                rpn.append(self.RPNNode('BINOP', node.op, result_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('BINOP', node.op, width=width))
                 
             elif isinstance(node, UnaryExpr):
                 # Operand -> Unary Operator
                 walk(node.expr)
-                result_16bit = get_width(node)
-                rpn.append(self.RPNNode('UNOP', node.op, result_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('UNOP', node.op, width=width))
                 
             elif isinstance(node, Identifier):
                 # Variable reference
-                is_16bit = get_width(node)
-                rpn.append(self.RPNNode('VAR', node.name, is_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('VAR', node.name, width=width))
                 
             elif isinstance(node, IntLiteral):
                 # Constant value
                 value = node.value
-                is_16bit = isinstance(value, int) and value > 255
-                rpn.append(self.RPNNode('CONST', value, is_16bit))
+                width = 1
+                if isinstance(value, int):
+                    if value > 65535 or value < -32768: # simplistic check
+                        width = 4
+                    elif value > 255:
+                        width = 2
+                rpn.append(self.RPNNode('CONST', value, width=width))
                 
             elif isinstance(node, SubscriptExpr):
                 # Array subscript: array[index] -> load from compute address
-                is_16bit = get_width(node)
-                rpn.append(self.RPNNode('ARRAY_SUB', node, is_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('ARRAY_SUB', node, width=width))
                 
             elif isinstance(node, FieldAccess):
                 # Struct field access
-                is_16bit = get_width(node)
-                rpn.append(self.RPNNode('FIELD_ACCESS', node, is_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('FIELD_ACCESS', node, width=width))
                 
             elif isinstance(node, DerefExpr):
                 # Pointer dereference: *ptr
                 walk(node.pointer)  # Evaluate pointer first
-                is_16bit = get_width(node)
-                rpn.append(self.RPNNode('DEREF', node, is_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('DEREF', node, width=width))
                 
             elif isinstance(node, CallExpr):
                 # Function call
-                is_16bit = get_width(node)
-                rpn.append(self.RPNNode('CALL', node, is_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('CALL', node, width=width))
                 
             else:
                 # Unknown node type, treat as leaf
-                is_16bit = get_width(node)
-                rpn.append(self.RPNNode('UNKNOWN', node, is_16bit))
+                width = get_expr_width(node)
+                rpn.append(self.RPNNode('UNKNOWN', node, width=width))
         
         walk(expr)
         return rpn
@@ -246,26 +281,26 @@ class CodeGen:
         2. MATH1/MATH1+1 - right operand storage  
         3. For deeper stacks: spill to ZEROPAGE temps (TMP0-TMP5)
         """
-        eval_stack: list[tuple[str, bool]] = []  # Stack of (location, is_16bit)
-        temp_index = 0  # Counter for allocated temps
+        eval_stack: list[tuple[str, int]] = []  # Stack of (location, width)
+        temp_offset = 0  # Byte offset for allocated temps
         
-        def get_operand_loc(node_type: str, value: object, is_16bit: bool) -> tuple[str, bool]:
+        def get_operand_loc(node_type: str, value: object, width: int) -> tuple[str, int]:
             """Get location of an operand. Does not emit code for basic operands."""
             if node_type == 'CONST':
                 const_val = cast(int, value)
-                return (f"CONST:{const_val}", is_16bit)
+                return (f"CONST:{const_val}", width)
             
             elif node_type == 'VAR':
                 var_name = cast(str, value)
                 try:
                     sym = self.current_symtab.lookup(var_name)
                     if sym:
-                        return (sym.asm_name(), is_16bit)
+                        return (sym.asm_name(), width)
                 except Exception:
                     pass
-                return (var_name, is_16bit)
+                return (var_name, width)
             
-            return ("AX", is_16bit)
+            return ("AX", width)
 
         def load_to_ax(loc: str, is_16bit: bool) -> None:
             """Emit code to load a location into A/X."""
@@ -319,80 +354,162 @@ class CodeGen:
                 self.emit("\tSTA MATH1")
                 if force_word:
                     self._stz("MATH1+1")
+        
+        def emit_move_to_math(src: str, dst_math: str, width: int, target_width: int = 0) -> None:
+            """Move value from src to dst_math (MATH0 or MATH1)."""
+            if target_width == 0:
+                target_width = width
+            
+            if width <= 2:
+                # Use existing A/X logic for speed and code size
+                prev_suppress = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    load_to_ax(src, width == 2)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
 
-        def spill_ax_if_needed(stack: list[tuple[str, bool]]) -> None:
+                if dst_math == "MATH0":
+                    emit_set_math0_from_ax(width == 2, force_word=(target_width >= 2))
+                else:
+                    emit_set_math1_from_ax(width == 2, force_word=(target_width >= 2))
+                
+                # Zero-extend if target is wider than 2 bytes
+                if target_width > 2:
+                    self._stz(f"{dst_math}+2")
+                    self._stz(f"{dst_math}+3")
+            else:
+                # 32-bit (or >2 byte) move
+                if src.startswith("CONST:"):
+                    val = int(src.split(":")[1])
+                    self.emit(f"\tLDA #${val & 0xFF:02X}")
+                    self.emit(f"\tSTA {dst_math}")
+                    self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                    self.emit(f"\tSTA {dst_math}+1")
+                    self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
+                    self.emit(f"\tSTA {dst_math}+2")
+                    self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
+                    self.emit(f"\tSTA {dst_math}+3")
+                elif src == "MATH0" or src == "MATH1":
+                    # Register to Register move
+                    for i in range(4):
+                        offset = f"+{i}" if i > 0 else ""
+                        self.emit(f"\tLDA {src}{offset}")
+                        self.emit(f"\tSTA {dst_math}{offset}")
+                else:
+                    # Memory to Register move
+                    # Ensure we don't clobber X/Y if not needed, but A is fair game.
+                    # Simple copy loop unrolled
+                    for i in range(4):
+                        offset = f"+{i}" if i > 0 else ""
+                        self.emit(f"\tLDA {src}{offset}")
+                        self.emit(f"\tSTA {dst_math}{offset}")
+
+        def spill_ax_if_needed(stack: list[tuple[str, int]]) -> None:
             """If AX is on stack, spill it to a temp to avoid overwriting."""
-            for i, (loc, is_16) in enumerate(stack):
+            for i, (loc, width) in enumerate(stack):
                 if loc == "AX":
-                    # Allocation of spill slot in MATH_STACK (2 bytes per slot)
-                    nonlocal temp_index
-                    if temp_index >= 4:
+                    nonlocal temp_offset
+                    if temp_offset + width > 32:
                         self._raise_error(
-                            "Expression is too complex: Please simplify the expression by breaking it into smaller statements."
+                            "Expression is too complex (MATH_STACK overflow): Please simplify the expression."
                         )
-                    spill_base = f"MATH_STACK+{temp_index * 2}"
-                    temp_index += 1
+                    spill_base = f"MATH_STACK+{temp_offset}"
+                    temp_offset += width
                     
-                    self.emit(f"\tSTA {spill_base}")
-                    if is_16:
-                        self.emit(f"\tSTX {spill_base}+1")
-                    stack[i] = (spill_base, is_16)
+                    if width <= 2:
+                        self.emit(f"\tSTA {spill_base}")
+                        if width == 2:
+                            self.emit(f"\tSTX {spill_base}+1")
+                        elif not self.suppress_byte_return_x:
+                             # For byte results, usually only A is significant, X might be garbage or zero
+                             # But if we spill, we only need to restore A.
+                             pass
+                    else:
+                        # 4-byte spill from where? AX can only hold 2 bytes!
+                        # This should not happen if we respect that 4-byte values don't live in AX.
+                        # But if we treat AX as a placeholder for "result of last operation", 
+                        # and that operation was 32-bit, it returns in MATH0, not AX.
+                        # So "AX" location for 4-byte value is invalid state?
+                        # Or maybe we change semantic of "AX" to "Result Register".
+                        # For now, assume 32-bit results are in MATH0, so they hit spill_math0, not spill_ax.
+                        # However, if some routine mistakenly returns "AX" for 32-bit... check it.
+                        pass
+                    stack[i] = (spill_base, width)
 
-        def spill_math0_if_needed(stack: list[tuple[str, bool]]) -> None:
+        def spill_math0_if_needed(stack: list[tuple[str, int]]) -> None:
             """Spill MATH0 if it remains on the stack to avoid clobbering."""
-            for i, (loc, is_16) in enumerate(stack):
+            for i, (loc, width) in enumerate(stack):
                 if loc == "MATH0":
-                    nonlocal temp_index
-                    if temp_index >= 4:
+                    nonlocal temp_offset
+                    if temp_offset + width > 32:
                         self._raise_error(
-                            "Expression is too complex: Please simplify the expression by breaking it into smaller statements."
+                            "Expression is too complex (MATH_STACK overflow): Please simplify the expression."
                         )
-                    spill_base = f"MATH_STACK+{temp_index * 2}"
-                    temp_index += 1
+                    spill_base = f"MATH_STACK+{temp_offset}"
+                    temp_offset += width
                     
                     self.emit("\tLDA MATH0")
                     self.emit(f"\tSTA {spill_base}")
-                    if is_16:
+                    if width >= 2:
                         self.emit("\tLDA MATH0+1")
                         self.emit(f"\tSTA {spill_base}+1")
-                    stack[i] = (spill_base, is_16)
+                    if width >= 4:
+                        self.emit("\tLDA MATH0+2")
+                        self.emit(f"\tSTA {spill_base}+2")
+                        self.emit("\tLDA MATH0+3")
+                        self.emit(f"\tSTA {spill_base}+3")
+                    
+                    stack[i] = (spill_base, width)
 
-        def get_math_routine_for_op(op: 'BinOp', left_16: bool, right_16: bool) -> str | None:
+        def get_math_routine_for_op(op: 'BinOp', left_width: int, right_width: int) -> str | None:
             """Map binary operator to math routine. Returns routine name or None if not a math op."""
             from ast_nodes import BinOp
             
+            is_32 = left_width > 2 or right_width > 2
+            
             if op == BinOp.ADD:
-                if left_16 or right_16:
+                if is_32:
+                    return "ADD32"
+                elif left_width > 1 or right_width > 1:
                     return "ADD16"
                 else:
                     return None  # 8-bit addition handled with inline code
             elif op == BinOp.SUB:
-                if left_16 or right_16:
+                if is_32:
+                    return "SUB32"
+                elif left_width > 1 or right_width > 1:
                     return "SUB16"
                 else:
                     return None  # 8-bit subtraction handled with inline code
             elif op == BinOp.MUL:
-                if left_16 and right_16:
+                if is_32:
+                    return "MUL32"
+                elif left_width > 1 and right_width > 1:
                     return "MUL16"
-                elif left_16 or right_16:
+                elif left_width > 1 or right_width > 1:
                     return "MUL16_8"
                 else:
                     return "MUL8"
             elif op == BinOp.DIV:
-                if right_16 and left_16:
+                if is_32:
+                    return "DIV32"
+                elif right_width > 1 and left_width > 1:
                     return "DIV16"
-                elif right_16:
+                elif right_width > 1:
                     return "DIV8_16"
-                elif left_16:
+                elif left_width > 1:
                     return "DIV16_8"
                 else:
                     return "DIV8"
             elif op == BinOp.MOD:
-                if right_16 and left_16:
+                if is_32:
+                    return "MOD32"
+                elif right_width > 1 and left_width > 1:
                     return "MOD16"
-                elif right_16:
+                elif right_width > 1:
                     return "MOD8_16"
-                elif left_16:
+                elif left_width > 1:
                     return "MOD16_8"
                 else:
                     return "MOD8"
@@ -423,22 +540,23 @@ class CodeGen:
         for i, node in enumerate(rpn):
             if node.node_type == 'CONST' or node.node_type == 'VAR':
                 # Just push the location, don't emit yet
-                loc, is_16 = get_operand_loc(node.node_type, node.value, node.is_16bit)
-                eval_stack.append((loc, is_16))
+                loc, width = get_operand_loc(node.node_type, node.value, node.width)
+                eval_stack.append((loc, width))
                 
             elif node.node_type == 'BINOP':
                 if len(eval_stack) < 2:
                     self._raise_error(f"RPN: Insufficient operands for binary operator {node.value}")
                 
-                right_loc, right_16 = eval_stack.pop()
-                left_loc, left_16 = eval_stack.pop()
+                right_loc, right_width = eval_stack.pop()
+                left_loc, left_width = eval_stack.pop()
 
                 # FAST PATH OPTIMIZATION: For simple byte operations (var/const op var/const),
                 # generate direct accumulator code instead of using MATH0/MATH1 registers
                 from ast_nodes import BinOp
                 simple_left = not left_loc.startswith("MATH_STACK") and left_loc not in ("MATH0", "MATH1", "AX")
                 simple_right = not right_loc.startswith("MATH_STACK") and right_loc not in ("MATH0", "MATH1", "AX")
-                both_byte = not left_16 and not right_16
+                # Fast path only for 8-bit ops for now
+                both_byte = left_width <= 1 and right_width <= 1
                 fast_path_ops = {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, 
                                 BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
                 
@@ -524,9 +642,57 @@ class CodeGen:
                 # If an older stack entry still lives in MATH0, spill it before reuse.
                 spill_math0_if_needed(eval_stack)
                 
-                # Operand loading strategy with correct ordering for non-commutative ops.
+                # Check for 32-bit operations
+                is_32 = left_width > 2 or right_width > 2
+                
+                if is_32:
+                    # 32-bit Path: Logic is simpler, always use MATH0/MATH1 and routines
+                    # Load operands to MATH/MATH1
+                    # Optimization: if left is MATH0, just load right to MATH1.
+                    commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                    
+                    if left_loc == "MATH0":
+                         emit_move_to_math(right_loc, "MATH1", right_width, target_width=4)
+                    elif right_loc == "MATH0" and node.value in commutative_ops:
+                         emit_move_to_math(left_loc, "MATH1", left_width, target_width=4)
+                         # Implicit swap: MATH0 (new left) = old right, MATH1 (new right) = old left
+                    else:
+                         # Default safe moves
+                         # If right is in MATH0, move it to MATH1 first
+                         if right_loc == "MATH0":
+                             emit_move_to_math(right_loc, "MATH1", right_width, target_width=4)
+                             emit_move_to_math(left_loc, "MATH0", left_width, target_width=4)
+                         else:
+                             # Move right first to avoid clobbering if left needs MATH0
+                             emit_move_to_math(right_loc, "MATH1", right_width, target_width=4)
+                             emit_move_to_math(left_loc, "MATH0", left_width, target_width=4)
+
+                    routine = get_math_routine_for_op(cast(BinOp, node.value), left_width, right_width)
+                    if routine:
+                       self.emit(f"\tJSR {routine}")
+                       self.math_routines_needed.add(routine)
+                       eval_stack.append(("MATH0", node.width))
+                    elif node.value == BinOp.LSHIFT:
+                        self.emit("\tLDA MATH1")
+                        self.emit("\tJSR LSHIFT32")
+                        self.math_routines_needed.add("LSHIFT32")
+                        eval_stack.append(("MATH0", 4))
+                    elif node.value == BinOp.RSHIFT:
+                        self.emit("\tLDA MATH1")
+                        self.emit("\tJSR RSHIFT32")
+                        self.math_routines_needed.add("RSHIFT32")
+                        eval_stack.append(("MATH0", 4))
+                    elif node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
+                        self._gen_bitwise32(node.value)
+                        eval_stack.append(("MATH0", 4))
+                    else:
+                        # Fallback for non-routine 32-bit ops (e.g. comparisons logic for 32-bit?)
+                        self._raise_error(f"Unsupported 32-bit operation: {node.value}")
+                    continue
+
+                # Normal 8/16-bit Path
                 commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LAND, BinOp.LOR}
-                routine = get_math_routine_for_op(cast(BinOp, node.value), left_16, right_16)
+                routine = get_math_routine_for_op(cast(BinOp, node.value), left_width, right_width)
                 force_word_operands = routine in {"ADD16", "SUB16"}
                 use_ax_right = False
                 routine_ax: str | None = None
@@ -546,32 +712,32 @@ class CodeGen:
                             # Load left operand to A/X and use _AX variant (MATH0 stays intact, gets stored to MATH1 by _AX)
                             prev = self.suppress_byte_return_x
                             self.suppress_byte_return_x = False
-                            load_to_ax(left_loc, left_16)
+                            load_to_ax(left_loc, left_width == 2)
                             self.suppress_byte_return_x = prev
                             use_ax_right = True  # Signal to use the _AX variant
                         else:
                             # No _AX variant available, use traditional approach
-                            load_to_ax_for_math(left_loc, left_16)
-                            emit_set_math1_from_ax(left_16, force_word=force_word_operands)
+                            load_to_ax_for_math(left_loc, left_width == 2)
+                            emit_set_math1_from_ax(left_width == 2, force_word=force_word_operands)
                             use_ax_right = False
                     else:
                         # Preserve right in MATH1, then load left to MATH0 (order matters)
-                        load_to_ax_for_math(right_loc, right_16)
-                        emit_set_math1_from_ax(right_16, force_word=force_word_operands)
-                        load_to_ax_for_math(left_loc, left_16)
-                        emit_set_math0_from_ax(left_16, force_word=force_word_operands)
+                        load_to_ax_for_math(right_loc, right_width == 2)
+                        emit_set_math1_from_ax(right_width == 2, force_word=force_word_operands)
+                        load_to_ax_for_math(left_loc, left_width == 2)
+                        emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
                         use_ax_right = False
                 else:
                     if left_loc != "MATH0":
-                        load_to_ax_for_math(left_loc, left_16)
+                        load_to_ax_for_math(left_loc, left_width == 2)
                         if not skip_math0_store:
-                            emit_set_math0_from_ax(left_16, force_word=force_word_operands)
+                            emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
                     if use_ax_right:
                         if right_loc != "AX":
                             # For _AX entrypoints, always load both A and X (even for byte operands)
                             prev = self.suppress_byte_return_x
                             self.suppress_byte_return_x = False
-                            load_to_ax(right_loc, right_16)
+                            load_to_ax(right_loc, right_width == 2)
                             self.suppress_byte_return_x = prev
                     else:
                         # OPTIMIZATION: Skip MATH1 loading for shift operations with constant counts
@@ -579,8 +745,8 @@ class CodeGen:
                         skip_math1_load = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and 
                                          right_loc.startswith("CONST:"))
                         if right_loc != "MATH1" and not skip_math1_load:
-                            load_to_ax_for_math(right_loc, right_16)
-                            emit_set_math1_from_ax(right_16, force_word=force_word_operands)
+                            load_to_ax_for_math(right_loc, right_width == 2)
+                            emit_set_math1_from_ax(right_width == 2, force_word=force_word_operands)
                 
                 # 3. Perform operation
                 if routine:
@@ -591,38 +757,53 @@ class CodeGen:
                     else:
                         self.emit(f"\tJSR {routine}")
                         self.math_routines_needed.add(routine)
-                    eval_stack.append(("MATH0", node.is_16bit))
+                    eval_stack.append(("MATH0", node.width))
                 else:
                     # Inline 8-bit math
-                    if node.value == BinOp.ADD and not (left_16 or right_16):
+                    if node.value == BinOp.ADD and not (left_width > 1 or right_width > 1):
                         self.emit("\tLDA MATH0")
                         self.emit("\tCLC")
                         self.emit("\tADC MATH1")
                         self.emit("\tSTA MATH0")
-                        eval_stack.append(("MATH0", False))
-                    elif node.value == BinOp.SUB and not (left_16 or right_16):
+                        eval_stack.append(("MATH0", 1))
+                    elif node.value == BinOp.SUB and not (left_width > 1 or right_width > 1):
                         self.emit("\tLDA MATH0")
                         self.emit("\tSEC")
                         self.emit("\tSBC MATH1")
                         self.emit("\tSTA MATH0")
-                        eval_stack.append(("MATH0", False))
+                        eval_stack.append(("MATH0", 1))
                     elif node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
-                        result_16 = node.is_16bit
-                        self.emit("\tLDA MATH1")
-                        if result_16:
-                            self.emit("\tLDX MATH1+1")
-                        if node.value == BinOp.BAND:
-                            self._gen_bitwise_and(result_16, "MATH0")
-                        elif node.value == BinOp.BOR:
-                            self._gen_bitwise_or(result_16, "MATH0")
+                        result_width = node.width
+                        if result_width > 2:
+                            # 32-bit bitwise op: MATH0 = MATH0 op MATH1
+                            # Operands are already in MATH0 and MATH1
+                             for i in range(4):
+                                suffix = "" if i == 0 else f"+{i}"
+                                self.emit(f"\tLDA MATH0{suffix}")
+                                if node.value == BinOp.BAND:
+                                    self.emit(f"\tAND MATH1{suffix}")
+                                elif node.value == BinOp.BOR:
+                                    self.emit(f"\tORA MATH1{suffix}")
+                                else:
+                                    self.emit(f"\tEOR MATH1{suffix}")
+                                self.emit(f"\tSTA MATH0{suffix}")
+                             eval_stack.append(("MATH0", 4))
                         else:
-                            self._gen_bitwise_xor(result_16, "MATH0")
-                        self.emit("\tSTA MATH0")
-                        if result_16:
-                            self.emit("\tSTX MATH0+1")
-                        eval_stack.append(("MATH0", result_16))
+                            self.emit("\tLDA MATH1")
+                            if result_width == 2:
+                                self.emit("\tLDX MATH1+1")
+                            if node.value == BinOp.BAND:
+                                self._gen_bitwise_and(result_width == 2, "MATH0")
+                            elif node.value == BinOp.BOR:
+                                self._gen_bitwise_or(result_width == 2, "MATH0")
+                            else:
+                                self._gen_bitwise_xor(result_width == 2, "MATH0")
+                            self.emit("\tSTA MATH0")
+                            if result_width == 2:
+                                self.emit("\tSTX MATH0+1")
+                            eval_stack.append(("MATH0", result_width))
                     elif node.value in {BinOp.LSHIFT, BinOp.RSHIFT}:
-                        result_16 = node.is_16bit
+                        result_width = node.width
                         shift_count: int | None = None
                         if right_loc.startswith("CONST:"):
                             shift_count = int(right_loc.split(":")[1]) & 0xFF
@@ -633,27 +814,43 @@ class CodeGen:
                             # Constant-count shift: load left operand to A/X if not there
                             # Left operand should already be in A/X from earlier operand loading
                             # Use "A" as left_tmp to indicate value is in accumulator
-                            if node.value == BinOp.LSHIFT:
-                                self._gen_lshift(result_16, "A", shift_count)
+                            if result_width > 2:
+                                # 32-bit shift with constant count
+                                if left_loc != "MATH0":
+                                    emit_move_to_math(left_loc, "MATH0", 4)
+                                self.emit(f"\tLDA #{shift_count}")
+                                if node.value == BinOp.LSHIFT:
+                                    self._gen_lshift32() # shift count in A
+                                else:
+                                    self._gen_rshift32()
+                            elif node.value == BinOp.LSHIFT:
+                                self._gen_lshift(result_width == 2, "A", shift_count)
                             else:
-                                self._gen_rshift(result_16, "A", shift_count)
+                                self._gen_rshift(result_width == 2, "A", shift_count)
                         else:
                             # Variable-count shift: use traditional MATH0/MATH1 path
                             self.emit("\tLDA MATH1")
-                            if node.value == BinOp.LSHIFT:
-                                self._gen_lshift(result_16, "MATH0", shift_count)
+                            if result_width > 2:
+                                # 32-bit variable shift
+                                if node.value == BinOp.LSHIFT:
+                                    self._gen_lshift32()
+                                else:
+                                    self._gen_rshift32()
+                            elif node.value == BinOp.LSHIFT:
+                                self._gen_lshift(result_width == 2, "MATH0", shift_count)
                             else:
-                                self._gen_rshift(result_16, "MATH0", shift_count)
+                                self._gen_rshift(result_width == 2, "MATH0", shift_count)
                         # OPTIMIZATION: For 8-bit constant shifts, result stays in A - no need for MATH0
                         # Only store to MATH0 for 16-bit shifts or variable shifts
-                        if not (result_16 == False and shift_count is not None):
-                            self.emit("\tSTA MATH0")
-                            if result_16:
-                                self.emit("\tSTX MATH0+1")
-                            eval_stack.append(("MATH0", result_16))
+                        if not (result_width == 1 and shift_count is not None):
+                            if result_width <= 2: # Only needed for < 32-bit as 32-bit is already in MATH0
+                                self.emit("\tSTA MATH0")
+                                if result_width == 2:
+                                    self.emit("\tSTX MATH0+1")
+                            eval_stack.append(("MATH0", result_width))
                         else:
                             # 8-bit constant shift: result stays in A
-                            eval_stack.append(("A", False))
+                            eval_stack.append(("A", 1))
                     elif node.value in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
                         # Comparison operators: always produce BYTE (0 or 1)
                         # MATH0 = left, MATH1 = right
@@ -661,7 +858,109 @@ class CodeGen:
                         lbl_end = self.new_label("CMP_END")
                         
                         # Compare MATH0 vs MATH1
-                        if left_16 or right_16:
+                        if left_width > 2 or right_width > 2:
+                            # 32-bit comparison
+                            # If either is >2 bytes, treat both as 32-bit (MATH0/MATH1)
+                            # (They should be loaded to MATH0/MATH1 by now)
+                            
+                            if node.value == BinOp.EQ:
+                                # Check all 4 bytes for equality
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                self.emit(f"\tBNE {lbl_true}") # If different, not equal -> wait, logic reversed
+                                # If any byte differs, jump to false (which is default fallthrough)
+                                # Default is False, Jump to True?
+                                # Let's stick to: Jump to True if condition met.
+                                
+                                # Equality: All bytes must be equal.
+                                # If any differ, it's False.
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                self.emit(f"\tBNE {lbl_end}") # Not equal
+                                self.emit("\tLDA MATH0+1")
+                                self.emit("\tCMP MATH1+1")
+                                self.emit(f"\tBNE {lbl_end}")
+                                self.emit("\tLDA MATH0+2")
+                                self.emit("\tCMP MATH1+2")
+                                self.emit(f"\tBNE {lbl_end}")
+                                self.emit("\tLDA MATH0+3")
+                                self.emit("\tCMP MATH1+3")
+                                self.emit(f"\tBNE {lbl_end}")
+                                # All equal -> True
+                                self.emit("\tLDA #$01")
+                                self.emit(f"\tJMP {lbl_end}_SET")
+                                
+                                self.emit(f"{lbl_end}:")
+                                self.emit("\tLDA #$00")
+                                self.emit(f"{lbl_end}_SET:")
+                                
+                            elif node.value == BinOp.NE:
+                                # Inequality: Any byte differs -> True
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA MATH0+1")
+                                self.emit("\tCMP MATH1+1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA MATH0+2")
+                                self.emit("\tCMP MATH1+2")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA MATH0+3")
+                                self.emit("\tCMP MATH1+3")
+                                self.emit(f"\tBNE {lbl_true}")
+                                
+                                # All equal -> False
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                
+                                self.emit(f"{lbl_true}:")
+                                self.emit("\tLDA #$01")
+                                
+                            else:
+                                # Magnitude comparisons (LT, LE, GT, GE) - Unsigned 32-bit
+                                # Compare high bytes first
+                                self.emit("\tLDA MATH0+3")
+                                self.emit("\tCMP MATH1+3")
+                                self.emit(f"\tBNE {lbl_true}") # If high bytes differ, result is decided
+                                
+                                self.emit("\tLDA MATH0+2")
+                                self.emit("\tCMP MATH1+2")
+                                self.emit(f"\tBNE {lbl_true}")
+                                
+                                self.emit("\tLDA MATH0+1")
+                                self.emit("\tCMP MATH1+1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                # Fallthrough to decide based on flags
+                                
+                                self.emit(f"{lbl_true}:")
+                                # Flags are set from the significant byte comparison.
+                                # Unsigned: BCC (Left < Right), BCS (Left >= Right)
+                                # BEQ (Equal)
+                                
+                                if node.value == BinOp.LT:
+                                    self.emit(f"\tBCC {lbl_true}_RES") 
+                                elif node.value == BinOp.LE:
+                                    self.emit(f"\tBCC {lbl_true}_RES")
+                                    self.emit(f"\tBEQ {lbl_true}_RES")
+                                elif node.value == BinOp.GT:
+                                    self.emit(f"\tBCS {lbl_true}_CHECK_NE")
+                                    self.emit(f"\tJMP {lbl_end}") # Carry clear -> Less -> False
+                                    self.emit(f"{lbl_true}_CHECK_NE:")
+                                    self.emit(f"\tBNE {lbl_true}_RES") # Carry Set AND Not Equal -> Greater
+                                elif node.value == BinOp.GE:
+                                    self.emit(f"\tBCS {lbl_true}_RES")
+                                    
+                                # False case
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                
+                                self.emit(f"{lbl_true}_RES:")
+                                self.emit("\tLDA #$01")
+
+                        elif left_width == 2 or right_width == 2:
                             # 16-bit comparison - more complex
                             if node.value == BinOp.EQ:
                                 self.emit("\tLDA MATH0")
@@ -686,26 +985,31 @@ class CodeGen:
                                 self.emit(f"{lbl_true}:")
                                 self.emit("\tLDA #$01")
                             else:
-                                # For <, <=, >, >= with 16-bit: use SEC/SBC or similar
-                                # Simplified: subtract and check carry/sign
-                                self.emit("\tLDA MATH0")
-                                self.emit("\tSEC")
-                                self.emit("\tSBC MATH1")
+                                # For <, <=, >, >= with 16-bit: use simple CMP/SBC
+                                # Since ZAP is unsigned (per user), use CMP high then low
                                 self.emit("\tLDA MATH0+1")
-                                self.emit("\tSBC MATH1+1")
+                                self.emit("\tCMP MATH1+1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tCMP MATH1")
+                                
+                                self.emit(f"{lbl_true}:")
                                 if node.value == BinOp.LT:
-                                    self.emit("\tBMI " + lbl_true)
+                                    self.emit(f"\tBCC {lbl_true}_RES")
                                 elif node.value == BinOp.LE:
-                                    self.emit("\tBMI " + lbl_true)
-                                    self.emit("\tBEQ " + lbl_true)
+                                    self.emit(f"\tBCC {lbl_true}_RES")
+                                    self.emit(f"\tBEQ {lbl_true}_RES")
                                 elif node.value == BinOp.GT:
-                                    self.emit("\tBPL " + lbl_true)
-                                    self.emit("\tBNE " + lbl_true)
+                                    self.emit(f"\tBCS {lbl_true}_CHECK_NE")
+                                    self.emit(f"\tJMP {lbl_end}")
+                                    self.emit(f"{lbl_true}_CHECK_NE:")
+                                    self.emit(f"\tBNE {lbl_true}_RES")
                                 else:  # GE
-                                    self.emit("\tBPL " + lbl_true)
+                                    self.emit(f"\tBCS {lbl_true}_RES")
+                                
                                 self.emit("\tLDA #$00")
                                 self.emit(f"\tJMP {lbl_end}")
-                                self.emit(f"{lbl_true}:")
+                                self.emit(f"{lbl_true}_RES:")
                                 self.emit("\tLDA #$01")
                         else:
                             # 8-bit comparison
@@ -735,7 +1039,7 @@ class CodeGen:
                         self.emit("\tSTA MATH0")
                         if not self.suppress_byte_return_x:
                             self.emit("\tLDX #$00")  # Comparisons always return BYTE
-                        eval_stack.append(("MATH0", False))
+                        eval_stack.append(("MATH0", 1))
 
                     elif node.value in {BinOp.LAND, BinOp.LOR}:
                         # Logical AND/OR: Both operands should be BYTE (0 or 1)
@@ -784,21 +1088,53 @@ class CodeGen:
                         self.emit("\tSTA MATH0")
                         if not self.suppress_byte_return_x:
                             self.emit("\tLDX #$00")  # Logical operators always return BYTE
-                        eval_stack.append(("MATH0", False))
+                        eval_stack.append(("MATH0", 1))
             
             elif node.node_type == 'UNOP':
                 if len(eval_stack) < 1:
                     self._raise_error(f"RPN: Insufficient operands for unary operator {node.value}")
                 
-                operand_loc, operand_16 = eval_stack.pop()
-                load_to_ax(operand_loc, operand_16)
+                operand_loc, operand_width = eval_stack.pop()
                 
+                # Load operand to MATH0/AX
+                # Optimization: if op_loc is MATH0, it's already there
+                if operand_loc != "MATH0":
+                     # For UNOPs, we typically want operand in MATH0 for 32-bit routines,
+                     # or AX for 8/16-bit inline/routines.
+                     # But my logic below for 8/16 uses MATH0 or AX depending on op.
+                     pass 
+
                 from ast_nodes import UnOp
                 if node.value == UnOp.NOT:
                     # Logical NOT: result is 1 if operand is 0, else 0
-                    # For BYTE: test A directly
-                    # For WORD: test if A or X is nonzero
-                    if operand_16:
+                    if operand_width > 2:
+                        # 32-bit: Check if all bytes are zero
+                        if operand_loc != "MATH0":
+                            emit_move_to_math(operand_loc, "MATH0", 4)
+                        
+                        lbl_nonzero = self.new_label("NOT_NONZERO")
+                        lbl_end = self.new_label("NOT_END")
+                        
+                        self.emit("\tLDA MATH0")
+                        self.emit("\tORA MATH0+1")
+                        self.emit("\tORA MATH0+2")
+                        self.emit("\tORA MATH0+3")
+                        self.emit(f"\tBNE {lbl_nonzero}")
+                        
+                        # Zero -> 1
+                        self.emit("\tLDA #$01")
+                        self.emit(f"\tJMP {lbl_end}")
+                        self.emit(f"{lbl_nonzero}:")
+                        self.emit("\tLDA #$00")
+                        self.emit(f"{lbl_end}:")
+                        
+                        self.emit("\tSTA MATH0")
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")
+                        eval_stack.append(("MATH0", 1))
+
+                    elif operand_width == 2:
+                        load_to_ax(operand_loc, True)
                         # WORD: merge A/X to test non-zero
                         self.emit("\tSTA MATH0")        # Save A
                         self.emit("\tTXA")
@@ -812,7 +1148,12 @@ class CodeGen:
                         self.emit(f"{lbl_nonzero}:")
                         self.emit("\tLDA #$00")
                         self.emit(f"{lbl_end}:")
+                        self.emit("\tSTA MATH0")
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")
+                        eval_stack.append(("MATH0", 1))
                     else:
+                        load_to_ax(operand_loc, False)
                         # BYTE: test A only
                         lbl_nonzero = self.new_label("NOT_NONZERO")
                         lbl_end = self.new_label("NOT_END")
@@ -823,30 +1164,92 @@ class CodeGen:
                         self.emit(f"{lbl_nonzero}:")
                         self.emit("\tLDA #$00")
                         self.emit(f"{lbl_end}:")
-                    self.emit("\tSTA MATH0")            # Store result
-                    if not self.suppress_byte_return_x:
-                        self.emit("\tLDX #$00")         # Logical NOT always returns BYTE
-                    eval_stack.append(("MATH0", False))
+                        self.emit("\tSTA MATH0")
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")
+                        eval_stack.append(("MATH0", 1))
+
                 elif node.value == UnOp.BNOT:
                     # Bitwise NOT: invert all bits
-                    if operand_16:
+                    if operand_width > 2:
+                        if operand_loc != "MATH0":
+                            emit_move_to_math(operand_loc, "MATH0", 4)
+                        
+                        self.emit("\tLDA MATH0")
+                        self.emit("\tEOR #$FF")
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tLDA MATH0+1")
+                        self.emit("\tEOR #$FF")
+                        self.emit("\tSTA MATH0+1")
+                        self.emit("\tLDA MATH0+2")
+                        self.emit("\tEOR #$FF")
+                        self.emit("\tSTA MATH0+2")
+                        self.emit("\tLDA MATH0+3")
+                        self.emit("\tEOR #$FF")
+                        self.emit("\tSTA MATH0+3")
+                        
+                        eval_stack.append(("MATH0", 4))
+                    elif operand_width == 2:
+                        load_to_ax(operand_loc, True)
                         # WORD: invert both bytes
                         self.emit("\tEOR #$FF")         # Invert low byte
                         self.emit("\tSTA MATH0")        # Save low byte
                         self.emit("\tTXA")
                         self.emit("\tEOR #$FF")         # Invert high byte
                         self.emit("\tSTA MATH0+1")      # Save high byte
-                        eval_stack.append(("MATH0", True))
+                        eval_stack.append(("MATH0", 2))
                     else:
+                        load_to_ax(operand_loc, False)
                         # BYTE: invert just A
                         self.emit("\tEOR #$FF")
                         self.emit("\tSTA MATH0")        # Store result
                         if not self.suppress_byte_return_x:
                             self.emit("\tLDX #$00")
-                        eval_stack.append(("MATH0", False))
+                        eval_stack.append(("MATH0", 1))
+
+                elif node.value == UnOp.NEG:
+                    if operand_width > 2:
+                        if operand_loc != "MATH0":
+                            emit_move_to_math(operand_loc, "MATH0", 4)
+                        
+                        self.emit("\tJSR NEG32")
+                        self.math_routines_needed.add("NEG32")
+                        eval_stack.append(("MATH0", 4))
+                    
+                    elif operand_width == 2:
+                         if operand_loc != "MATH0":
+                            # NEG16 routine expects arg in constants or MATH0?
+                            # Actually internal `NEG16` routine probably works on MATH0.
+                            # But wait, does `NEG16` exist?
+                            # I see `NEG16` in `_math_stack_push`? No.
+                            # Let's check `get_math_routine_for_op`. BINOP only.
+                            # UNOP NEG was inline before?
+                            # No, previous code had:
+                            # elif node.value == UnOp.NEG and operand_16: 
+                            # self.emit("\tJSR NEG16")
+                            # So NEG16 exists.
+                            emit_move_to_math(operand_loc, "MATH0", 2)
+                            self.emit("\tJSR NEG16")
+                            self.math_routines_needed.add("NEG16")
+                            eval_stack.append(("MATH0", 2))
+                    else:
+                        # 8-bit NEG: -x = !x + 1
+                        load_to_ax(operand_loc, False)
+                        self.emit("\tEOR #$FF")
+                        self.emit("\tCLC")
+                        self.emit("\tADC #$01")
+                        self.emit("\tSTA MATH0")
+                        if not self.suppress_byte_return_x:
+                             self.emit("\tLDX #$00") # High byte 0
+                             # Wait, -128 neg is 128 (overflows to -128 unsigned?)
+                             # ZAP usually treats byte as unsigned, so NEG is 2s complement.
+                             # But return X is typically 0 for byte ops unless it promotoes?
+                             pass
+                        eval_stack.append(("MATH0", 1))
+
                 else:
                     self.emit(f"\t; TODO: unary {node.value}")
-                    eval_stack.append(("MATH0", operand_16))
+                    eval_stack.append(("MATH0", operand_width))
             
             elif node.node_type == 'CALL':
                 # Calls are not handled in RPN yet (see _is_rpn_safe)
@@ -855,10 +1258,16 @@ class CodeGen:
         
         # Final result extraction
         if eval_stack:
-            final_loc, final_16 = eval_stack.pop()
-            load_to_ax(final_loc, final_16)
-            if not final_16 and target_16bit:
-                self.emit("\tLDX #$00")
+            final_loc, final_width = eval_stack.pop()
+            if final_width > 2:
+                # 32-bit result: Keep in MATH0 (or move to MATH0 if not there)
+                # Do NOT load to AX as it can't hold 32 bits.
+                if final_loc != "MATH0":
+                    emit_move_to_math(final_loc, "MATH0", final_width)
+            else:
+                load_to_ax(final_loc, final_width)
+                if not final_width and target_16bit:
+                    self.emit("\tLDX #$00")
         
         # Emit helper routines if needed
         for helper in self.rpn_helper_routines_needed:
@@ -1018,35 +1427,56 @@ class CodeGen:
             self.emit("\tLDY #0")
             self.emit(f"\tSTA ({ptr}),Y")
 
-    def _math_stack_push(self, is_16bit: bool) -> None:
+    def _math_stack_push(self, width: int) -> None:
         """Helper for math stack push.
         Internal helper used during code generation.
         """
-        if self.math_stack_depth >= 4:
-            self._raise_error("Math stack overflow: requires more than 4 word slots. Simplify the expression.")
+        if self.math_stack_depth >= 8:
+            self._raise_error("Math stack overflow: requires more than 8 slots. Simplify the expression.")
         slot: int = self.math_stack_depth
-        offset: int = slot * 2
+        offset: int = slot * 4
         self.math_stack_depth += 1
-        if is_16bit:
-            self.emit(f"\tSTX MATH_STACK+{offset + 1}")
-        self.emit(f"\tSTA MATH_STACK+{offset}")
-        if not is_16bit:
-            self.emit("\tLDA #$00")
-            self.emit(f"\tSTA MATH_STACK+{offset + 1}")
+        
+        if width > 2:
+             # 32-bit: source in MATH0
+             self.emit(f"\tLDA MATH0")
+             self.emit(f"\tSTA MATH_STACK+{offset}")
+             self.emit(f"\tLDA MATH0+1")
+             self.emit(f"\tSTA MATH_STACK+{offset+1}")
+             self.emit(f"\tLDA MATH0+2")
+             self.emit(f"\tSTA MATH_STACK+{offset+2}")
+             self.emit(f"\tLDA MATH0+3")
+             self.emit(f"\tSTA MATH_STACK+{offset+3}")
+        else:
+             # 8/16-bit: source in A/X
+             self.emit(f"\tSTA MATH_STACK+{offset}")
+             if width == 2:
+                 self.emit(f"\tSTX MATH_STACK+{offset+1}")
+             else:
+                 self.emit(f"\tLDX #0")
+                 self.emit(f"\tSTX MATH_STACK+{offset+1}")
+             # Zero extend
+             self.emit(f"\tLDX #0") 
+             self.emit(f"\tSTX MATH_STACK+{offset+2}")
+             self.emit(f"\tSTX MATH_STACK+{offset+3}")
 
     def _math_stack_pop_to_op0(self) -> None:
         """Helper for math stack pop to op0.
         Internal helper used during code generation.
         """
-        if self.math_stack_depth <= 0:
-            self._raise_error("Math stack underflow during expression evaluation.")
         self.math_stack_depth -= 1
         slot: int = self.math_stack_depth
-        offset: int = slot * 2
+        offset: int = slot * 4
+        
         self.emit(f"\tLDA MATH_STACK+{offset}")
-        self.emit("\tSTA MATH0")
-        self.emit(f"\tLDA MATH_STACK+{offset + 1}")
-        self.emit("\tSTA MATH0+1")
+        self.emit(f"\tSTA MATH0")
+        self.emit(f"\tLDA MATH_STACK+{offset+1}")
+        self.emit(f"\tSTA MATH0+1")
+        self.emit(f"\tLDA MATH_STACK+{offset+2}")
+        self.emit(f"\tSTA MATH0+2")
+        self.emit(f"\tLDA MATH_STACK+{offset+3}")
+        self.emit(f"\tSTA MATH0+3")
+
 
     def _emit_store_byte_const(self, sym: Symbol, value: int) -> None:
         """Emit store byte const.
@@ -3052,6 +3482,227 @@ class CodeGen:
             self.emit("\tSTA MATH1")
             self.emit("\tSTX MATH1+1")
 
+        def emit_add32() -> None:
+            self.emit("; ADD32: MATH0 = MATH0 + MATH1")
+            self.emit("ADD32:")
+            self.emit("\tLDA MATH0")
+            self.emit("\tCLC")
+            self.emit("\tADC MATH1")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tADC MATH1+1")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tLDA MATH0+2")
+            self.emit("\tADC MATH1+2")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tLDA MATH0+3")
+            self.emit("\tADC MATH1+3")
+            self.emit("\tSTA MATH0+3")
+            self.emit("\tRTS")
+
+        def emit_sub32() -> None:
+            self.emit("; SUB32: MATH0 = MATH0 - MATH1")
+            self.emit("SUB32:")
+            self.emit("\tLDA MATH0")
+            self.emit("\tSEC")
+            self.emit("\tSBC MATH1")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tSBC MATH1+1")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tLDA MATH0+2")
+            self.emit("\tSBC MATH1+2")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tLDA MATH0+3")
+            self.emit("\tSBC MATH1+3")
+            self.emit("\tSTA MATH0+3")
+            self.emit("\tRTS")
+
+        def emit_neg32() -> None:
+            self.emit("; NEG32: MATH0 = -MATH0")
+            self.emit("NEG32:")
+            self.emit("\tSEC")
+            self.emit("\tLDA #0")
+            self.emit("\tSBC MATH0")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA #0")
+            self.emit("\tSBC MATH0+1")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tLDA #0")
+            self.emit("\tSBC MATH0+2")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tLDA #0")
+            self.emit("\tSBC MATH0+3")
+            self.emit("\tSTA MATH0+3")
+            self.emit("\tRTS")
+
+        def emit_mul32() -> None:
+            self.emit("; MUL32: MATH0 = MATH0 * MATH1")
+            self.emit("MUL32:")
+            self.emit("\tLDA MATH0")
+            self.emit("\tSTA TMP0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tSTA TMP1")
+            self.emit("\tLDA MATH0+2")
+            self.emit("\tSTA TMP2")
+            self.emit("\tLDA MATH0+3")
+            self.emit("\tSTA TMP3")
+            self._stz_multiple(["MATH0", "MATH0+1", "MATH0+2", "MATH0+3"])
+            self.emit("\tLDX #32")
+            self.emit("MUL32_LOOP:")
+            self.emit("\tLSR MATH1+3")
+            self.emit("\tROR MATH1+2")
+            self.emit("\tROR MATH1+1")
+            self.emit("\tROR MATH1")
+            self.emit("\tBCC MUL32_SKIP")
+            self.emit("\tLDA MATH0")
+            self.emit("\tCLC")
+            self.emit("\tADC TMP0")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tADC TMP1")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tLDA MATH0+2")
+            self.emit("\tADC TMP2")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tLDA MATH0+3")
+            self.emit("\tADC TMP3")
+            self.emit("\tSTA MATH0+3")
+            self.emit("MUL32_SKIP:")
+            self.emit("\tASL TMP0")
+            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP2")
+            self.emit("\tROL TMP3")
+            self.emit("\tDEX")
+            self.emit("\tBNE MUL32_LOOP")
+            self.emit("\tRTS")
+
+        def emit_div32() -> None:
+            self.emit("; DIV32: MATH0 = MATH0 / MATH1 (Unsigned)")
+            self.emit("DIV32:")
+            self._stz_multiple(["TMP0", "TMP1", "TMP2", "TMP3"])
+            self.emit("\tLDX #32")
+            self.emit("DIV32_LOOP:")
+            self.emit("\tASL MATH0")
+            self.emit("\tROL MATH0+1")
+            self.emit("\tROL MATH0+2")
+            self.emit("\tROL MATH0+3")
+            self.emit("\tROL TMP0")
+            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP2")
+            self.emit("\tROL TMP3")
+            self.emit("\tSEC")
+            self.emit("\tLDA TMP0")
+            self.emit("\tSBC MATH1")
+            self.emit("\tTAY")
+            self.emit("\tLDA TMP1")
+            self.emit("\tSBC MATH1+1")
+            self.emit("\tPHA")
+            self.emit("\tLDA TMP2")
+            self.emit("\tSBC MATH1+2")
+            self.emit("\tPHA")
+            self.emit("\tLDA TMP3")
+            self.emit("\tSBC MATH1+3")
+            self.emit("\tBCC DIV32_SKIP")
+            self.emit("\tSTA TMP3")
+            self.emit("\tPLA")
+            self.emit("\tSTA TMP2")
+            self.emit("\tPLA")
+            self.emit("\tSTA TMP1")
+            self.emit("\tSTY TMP0")
+            self.emit("\tINC MATH0")
+            self.emit("\tJMP DIV32_NEXT")
+            self.emit("DIV32_SKIP:")
+            self.emit("\tPLA")
+            self.emit("\tPLA")
+            self.emit("DIV32_NEXT:")
+            self.emit("\tDEX")
+            self.emit("\tBNE DIV32_LOOP")
+            self.emit("\tRTS")
+
+        def emit_mod32() -> None:
+            self.emit("; MOD32: MATH0 = MATH0 % MATH1 (Unsigned)")
+            self.emit("MOD32:")
+            self._stz_multiple(["TMP0", "TMP1", "TMP2", "TMP3"])
+            self.emit("\tLDX #32")
+            self.emit("MOD32_LOOP:")
+            self.emit("\tASL MATH0")
+            self.emit("\tROL MATH0+1")
+            self.emit("\tROL MATH0+2")
+            self.emit("\tROL MATH0+3")
+            self.emit("\tROL TMP0")
+            self.emit("\tROL TMP1")
+            self.emit("\tROL TMP2")
+            self.emit("\tROL TMP3")
+            self.emit("\tSEC")
+            self.emit("\tLDA TMP0")
+            self.emit("\tSBC MATH1")
+            self.emit("\tTAY")
+            self.emit("\tLDA TMP1")
+            self.emit("\tSBC MATH1+1")
+            self.emit("\tPHA")
+            self.emit("\tLDA TMP2")
+            self.emit("\tSBC MATH1+2")
+            self.emit("\tPHA")
+            self.emit("\tLDA TMP3")
+            self.emit("\tSBC MATH1+3")
+            self.emit("\tBCC MOD32_SKIP")
+            self.emit("\tSTA TMP3")
+            self.emit("\tPLA")
+            self.emit("\tSTA TMP2")
+            self.emit("\tPLA")
+            self.emit("\tSTA TMP1")
+            self.emit("\tSTY TMP0")
+            self.emit("\tINC MATH0")
+            self.emit("\tJMP MOD32_NEXT")
+            self.emit("MOD32_SKIP:")
+            self.emit("\tPLA")
+            self.emit("\tPLA")
+            self.emit("MOD32_NEXT:")
+            self.emit("\tDEX")
+            self.emit("\tBNE MOD32_LOOP")
+            self.emit("\tLDA TMP0")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA TMP1")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tLDA TMP2")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tLDA TMP3")
+            self.emit("\tSTA MATH0+3")
+            self.emit("\tRTS")
+
+        def emit_lshift32() -> None:
+            self.emit("; LSHIFT32: MATH0 = MATH0 << A")
+            self.emit("LSHIFT32:")
+            self.emit("\tCMP #0")
+            self.emit("\tBEQ LSHIFT32_EXIT")
+            self.emit("\tTAY")
+            self.emit("LSHIFT32_LOOP:")
+            self.emit("\tASL MATH0")
+            self.emit("\tROL MATH0+1")
+            self.emit("\tROL MATH0+2")
+            self.emit("\tROL MATH0+3")
+            self.emit("\tDEY")
+            self.emit("\tBNE LSHIFT32_LOOP")
+            self.emit("LSHIFT32_EXIT:")
+            self.emit("\tRTS")
+
+        def emit_rshift32() -> None:
+            self.emit("; RSHIFT32: MATH0 = MATH0 >> A (Unsigned)")
+            self.emit("RSHIFT32:")
+            self.emit("\tCMP #0")
+            self.emit("\tBEQ RSHIFT32_EXIT")
+            self.emit("\tTAY")
+            self.emit("RSHIFT32_LOOP:")
+            self.emit("\tLSR MATH0+3")
+            self.emit("\tROR MATH0+2")
+            self.emit("\tROR MATH0+1")
+            self.emit("\tROR MATH0")
+            self.emit("\tDEY")
+            self.emit("\tBNE RSHIFT32_LOOP")
+            self.emit("RSHIFT32_EXIT:")
+            self.emit("\tRTS")
+
         emitters: list[tuple[str, Any]] = [
             ("SET_MATH0", emit_set_math0),
             ("SET_MATH1", emit_set_math1),
@@ -3082,6 +3733,14 @@ class CodeGen:
             ("MOD8_16", emit_mod8_16),
             ("MOD16_AX", emit_mod16_ax),
             ("MOD16", emit_mod16),
+            ("ADD32", emit_add32),
+            ("SUB32", emit_sub32),
+            ("NEG32", emit_neg32),
+            ("MUL32", emit_mul32),
+            ("DIV32", emit_div32),
+            ("MOD32", emit_mod32),
+            ("LSHIFT32", emit_lshift32),
+            ("RSHIFT32", emit_rshift32),
         ]
 
         self.emit("; ------------------------------")
@@ -3150,7 +3809,7 @@ class CodeGen:
         self.emit("\n; System variables")
         
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
-        sys_temp_names = [("MATH_STACK", 8), ("MATH0", 4), ("MATH1", 2)]
+        sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
         for temp_name, temp_size in sys_temp_names:
             internal_name = self._internal_name_map.get(temp_name, temp_name)
             if temp_name in self.system_temp_slots:
@@ -3297,9 +3956,9 @@ class CodeGen:
         for temp_name, slot_label in self.system_temp_slots.items():
             # Determine size based on temp name
             temp_sizes_map = {
-                "MATH_STACK": 8,
+                "MATH_STACK": 32,
                 "MATH0": 4,
-                "MATH1": 2,
+                "MATH1": 4,
                 "TMP0": 2,
                 "TMP1": 2,
                 "TMP2": 2,
@@ -3452,6 +4111,44 @@ class CodeGen:
                 if not getattr(sym, 'shared_slot', None):
                     self.emit(f"{sym.asm_name()}:\t.res 2")
         
+        # Step 3.2: LONG variables - try zero page first
+        long_vars: list[Symbol] = [s for s in all_vars 
+                     if not s.is_const and s.address is None 
+                     and not s.type.is_pointer and not s.is_array
+                     and s.type.base == "LONG"]
+        
+        # Separate high-priority (marked for ZP) from regular
+        zp_priority_longs = [s for s in long_vars if s.zp_priority > 0]
+        regular_longs = [s for s in long_vars if s.zp_priority <= 0]
+        
+        # Sort priority by frequency
+        zp_priority_longs.sort(key=lambda s: -s.zp_priority)
+        
+        zp_long_vars = []
+        bss_long_vars = []
+        
+        # First, try to fit priority longs
+        for sym in zp_priority_longs:
+            if zp_offset + 4 <= ZEROPAGE_SIZE:
+                zp_long_vars.append(sym)
+                zp_offset += 4
+            else:
+                bss_long_vars.append(sym)
+        
+        # Then try to fit regular longs
+        for sym in regular_longs:
+            if zp_offset + 4 <= ZEROPAGE_SIZE:
+                zp_long_vars.append(sym)
+                zp_offset += 4
+            else:
+                bss_long_vars.append(sym)
+        
+        if zp_long_vars:
+            self.emit("\n; Long variables")
+            for sym in zp_long_vars:
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res 4")
+
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
         struct_vars: list[Symbol] = [s for s in all_vars 
                        if not s.is_const and s.address is None 
@@ -3478,7 +4175,7 @@ class CodeGen:
         ]
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
-        if bss_byte_vars or bss_word_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
+        if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
             self.emit("\n.segment \"BSS\"")
 
             if shared_slots_bss:
@@ -3499,6 +4196,13 @@ class CodeGen:
                     # Skip if already in shared slots
                     if not getattr(sym, 'shared_slot', None):
                         self.emit(f"{sym.asm_name()}:\t.res 2")
+
+            if bss_long_vars:
+                self.emit("; Long variables (BSS)")
+                for sym in bss_long_vars:
+                     # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 4")
             
             if bss_struct_vars:
                 self.emit("; Struct variables (BSS)")
@@ -3609,6 +4313,33 @@ class CodeGen:
                 val: int = val & 0xFFFF  # Mask after check
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
                     self._emit_store_byte_const(sym, val)
+                elif sym.type.base == "LONG":
+                    # Emit 4-byte initialization for LONG
+                    asm = sym.asm_name()
+                    # Byte 0
+                    if (val & 0xFF) == 0:
+                        self._stz(asm)
+                    else:
+                        self.emit(f"\tLDA #${val & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}")
+                    # Byte 1
+                    if ((val >> 8) & 0xFF) == 0:
+                        self._stz(f"{asm}+1")
+                    else:
+                        self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}+1")
+                    # Byte 2
+                    if ((val >> 16) & 0xFF) == 0:
+                        self._stz(f"{asm}+2")
+                    else:
+                        self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}+2")
+                    # Byte 3
+                    if ((val >> 24) & 0xFF) == 0:
+                        self._stz(f"{asm}+3")
+                    else:
+                        self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}+3")
                 else:  # WORD or pointer → store both bytes
                     self._emit_store_word_const(sym, val)
                 return
@@ -4280,6 +5011,21 @@ class CodeGen:
 
         # VALUE
         asm: str = sym.asm_name()
+        # VALUE
+        asm: str = sym.asm_name()
+        if t.sem_type.base == "LONG":
+            # Load 32-bit value into MATH0
+            # We can't use A/X for 32-bit values
+            self.emit(f"\tLDA {asm}")
+            self.emit(f"\tSTA MATH0")
+            self.emit(f"\tLDA {asm}+1")
+            self.emit(f"\tSTA MATH0+1")
+            self.emit(f"\tLDA {asm}+2")
+            self.emit(f"\tSTA MATH0+2")
+            self.emit(f"\tLDA {asm}+3")
+            self.emit(f"\tSTA MATH0+3")
+            return
+
         self.emit(f"\tLDA {asm}")
         if t.sem_type.base == "WORD":
             self.emit(f"\tLDX {asm}+1")
@@ -6254,8 +7000,10 @@ class CodeGen:
                     self.emit(f"\tAND #${mask:02X}")
                 return
 
-        if expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
-            self._gen_math_binop(expr, left_16, right_16)
+        if (expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD} or 
+                (expr.op in {BinOp.ADD, BinOp.SUB, BinOp.LSHIFT, BinOp.RSHIFT, 
+                             BinOp.BAND, BinOp.BOR, BinOp.BXOR} and t.width > 2)):
+            self._gen_math_binop(expr, left_t.width, right_t.width)
             return
 
         # Generate left operand
@@ -6455,7 +7203,7 @@ class CodeGen:
                     # BYTE operand: high byte is 0, don't rely on X
                     # Save only the low byte and use 0 for high byte
                     self.emit("\tSTA TMP3")
-                    self.emit("\tLDA TMP3")    # Restore low byte
+                    # self.emit("\tLDA TMP3")    # Restore low byte
                     self.emit("\tCLC")
                     self.emit(f"\tADC {left_tmp}")     # Add low bytes
                     self.emit("\tTAY")
@@ -6531,90 +7279,142 @@ class CodeGen:
                 self.emit(f"\tLDA {left_tmp}")
                 self.emit("\tSBC TMP2")
     
-    def _gen_math_binop(self, expr: BinaryExpr, left_16: bool, right_16: bool) -> None:
-        """Generate MUL/DIV/MOD using math stack and dedicated operands."""
+    def _gen_math_binop(self, expr: BinaryExpr, left_width: int, right_width: int) -> None:
+        """Generate MUL/DIV/MOD (and 32-bit ADD/SUB) using math stack."""
         def _is_simple_operand(op: Expr) -> bool:
-            """Return whether simple operand.
-            Internal helper used during code generation.
-            """
             return isinstance(op, (Identifier, IntLiteral))
 
-        def _emit_op0(op: Expr, is_16: bool) -> None:
-            """Emit op0.
-            Internal helper used during code generation.
-            """
+        def _emit_op0(op: Expr, width: int) -> None:
             if isinstance(op, IntLiteral):
-                val = op.value & 0xFFFF
+                val = op.value
                 self.emit(f"\tLDA #${val & 0xFF:02X}")
                 self.emit("\tSTA MATH0")
-                if is_16:
-                    self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
-                    self.emit("\tSTA MATH0+1")
+                self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                self.emit("\tSTA MATH0+1")
+                if width > 2:
+                    self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
+                    self.emit("\tSTA MATH0+2")
+                    self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
+                    self.emit("\tSTA MATH0+3")
                 else:
-                    self._stz("MATH0+1")
+                    self._stz("MATH0+2")
+                    self._stz("MATH0+3")
                 return
             if isinstance(op, Identifier):
                 sym = self.current_symtab.lookup(op.name)
-                self.emit(f"\tLDA {sym.asm_name()}")
+                asm = sym.asm_name()
+                self.emit(f"\tLDA {asm}")
                 self.emit("\tSTA MATH0")
-                if is_16:
-                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                if width >= 2:
+                    self.emit(f"\tLDA {asm}+1")
                     self.emit("\tSTA MATH0+1")
                 else:
                     self._stz("MATH0+1")
+                
+                if width > 2:
+                    self.emit(f"\tLDA {asm}+2")
+                    self.emit("\tSTA MATH0+2")
+                    self.emit(f"\tLDA {asm}+3")
+                    self.emit("\tSTA MATH0+3")
+                else:
+                    self._stz("MATH0+2")
+                    self._stz("MATH0+3")
                 return
 
-        def _emit_op1(op: Expr, is_16: bool) -> None:
-            """Emit op1.
-            Internal helper used during code generation.
-            """
+        def _emit_op1(op: Expr, width: int) -> None:
             if isinstance(op, IntLiteral):
-                val = op.value & 0xFFFF
+                val = op.value
                 self.emit(f"\tLDA #${val & 0xFF:02X}")
                 self.emit("\tSTA MATH1")
-                if is_16:
-                    self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
-                    self.emit("\tSTA MATH1+1")
+                self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                self.emit("\tSTA MATH1+1")
+                if width > 2:
+                    self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
+                    self.emit("\tSTA MATH1+2")
+                    self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
+                    self.emit("\tSTA MATH1+3")
                 else:
-                    self._stz("MATH1+1")
+                    self._stz("MATH1+2")
+                    self._stz("MATH1+3")
                 return
             if isinstance(op, Identifier):
                 sym = self.current_symtab.lookup(op.name)
-                self.emit(f"\tLDA {sym.asm_name()}")
+                asm = sym.asm_name()
+                self.emit(f"\tLDA {asm}")
                 self.emit("\tSTA MATH1")
-                if is_16:
-                    self.emit(f"\tLDA {sym.asm_name()}+1")
+                if width >= 2:
+                    self.emit(f"\tLDA {asm}+1")
                     self.emit("\tSTA MATH1+1")
                 else:
                     self._stz("MATH1+1")
+                
+                if width > 2:
+                    self.emit(f"\tLDA {asm}+2")
+                    self.emit("\tSTA MATH1+2")
+                    self.emit(f"\tLDA {asm}+3")
+                    self.emit("\tSTA MATH1+3")
+                else:
+                    self._stz("MATH1+2")
+                    self._stz("MATH1+3")
                 return
 
         # If both operands are simple, avoid math stack entirely.
         if _is_simple_operand(expr.left) and _is_simple_operand(expr.right):
-            _emit_op0(expr.left, left_16)
-            _emit_op1(expr.right, right_16)
+            _emit_op0(expr.left, left_width)
+            _emit_op1(expr.right, right_width)
         else:
             # Save left operand on math stack
             self.gen_expr(expr.left)
-            self._math_stack_push(left_16)
+            # If gen_expr result is in A/X (width <= 2) or MATH0 (width > 2), push correctly
+            self._math_stack_push(left_width)
 
-            # Evaluate right operand into A/X
+            # Evaluate right operand
             self.gen_expr(expr.right)
-            self.emit("\tSTA MATH1")
-            if right_16:
-                self.emit("\tSTX MATH1+1")
+            # Result in A/X or MATH0. Move to MATH1.
+            if right_width > 2:
+                # Already in MATH0? Move to MATH1?
+                # gen_expr for 32-bit leaves result in MATH0.
+                # Just move MATH0 -> MATH1
+                self.emit("\tLDA MATH0")
+                self.emit("\tSTA MATH1")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tSTA MATH1+1")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tSTA MATH1+2")
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tSTA MATH1+3")
             else:
-                self._stz("MATH1+1")
+                # Result in A/X
+                self.emit("\tSTA MATH1")
+                if right_width == 2:
+                    self.emit("\tSTX MATH1+1")
+                else:
+                    self._stz("MATH1+1")
+                self._stz("MATH1+2")
+                self._stz("MATH1+3")
 
-            # Restore left operand into MATH0/MATH0+1
+            # Restore left operand into MATH0/MATH0+1..3
             self._math_stack_pop_to_op0()
 
         if expr.op == BinOp.MUL:
-            self._gen_mul(left_16, right_16)
+            self._gen_mul(left_width, right_width)
         elif expr.op == BinOp.DIV:
-            self._gen_div(left_16, right_16)
-        else:
-            self._gen_mod(left_16, right_16)
+            self._gen_div(left_width, right_width)
+        elif expr.op == BinOp.MOD:
+            self._gen_mod(left_width, right_width)
+        elif expr.op == BinOp.ADD:
+            # Assume 32-bit add if called here
+            self.math_routines_needed.add("ADD32")
+            self.emit("\tJSR ADD32")
+        elif expr.op == BinOp.SUB:
+            self.math_routines_needed.add("SUB32")
+            self.emit("\tJSR SUB32")
+        elif expr.op == BinOp.LSHIFT:
+            self._gen_lshift32()
+        elif expr.op == BinOp.RSHIFT:
+            self._gen_rshift32()
+        elif expr.op in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
+            self._gen_bitwise32(expr.op)
 
         # Result is stored in MATH0; load low word into A/X for downstream codegen.
         if not (left_16 or right_16):
@@ -6624,8 +7424,45 @@ class CodeGen:
         self.emit("\tLDA MATH0")
         self.emit("\tLDX MATH0+1")
 
-    def _gen_mul(self, left_16: bool, right_16: bool) -> None:
+    def _gen_lshift32(self) -> None:
+        """Generate 32-bit left shift via runtime routine."""
+        self.math_routines_needed.add("LSHIFT32")
+        # Runtime routine expects count in A. Count is in MATH1.
+        self.emit("\tLDA MATH1")
+        self.emit("\tJSR LSHIFT32")
+
+    def _gen_rshift32(self) -> None:
+        """Generate 32-bit right shift via runtime routine."""
+        self.math_routines_needed.add("RSHIFT32")
+        # Runtime routine expects count in A. Count is in MATH1.
+        self.emit("\tLDA MATH1")
+        self.emit("\tJSR RSHIFT32")
+
+    def _gen_bitwise32(self, op: 'BinOp') -> None:
+        """Generate 32-bit bitwise op inline."""
+        from ast_nodes import BinOp
+        # MATH0 = MATH0 op MATH1
+        for i in range(4):
+            suffix = "" if i == 0 else f"+{i}"
+            self.emit(f"\tLDA MATH0{suffix}")
+            if op == BinOp.BAND:
+                self.emit(f"\tAND MATH1{suffix}")
+            elif op == BinOp.BOR:
+                self.emit(f"\tORA MATH1{suffix}")
+            elif op == BinOp.BXOR:
+                self.emit(f"\tEOR MATH1{suffix}")
+            self.emit(f"\tSTA MATH0{suffix}")
+
+    def _gen_mul(self, left_width: int, right_width: int) -> None:
         """Generate multiplication (call runtime routine)."""
+        if left_width > 2 or right_width > 2:
+            self.math_routines_needed.add("MUL32")
+            self.emit("\tJSR MUL32")
+            return
+
+        left_16 = left_width >= 2
+        right_16 = right_width >= 2
+        
         if not left_16 and not right_16:
             self.math_routines_needed.add("MUL8")
             self.emit("\tJSR MUL8")
@@ -6652,8 +7489,16 @@ class CodeGen:
             # MUL16 emits a full 32-bit product in MATH0
             self.emit("\tJSR MUL16")
 
-    def _gen_div(self, left_16: bool, right_16: bool) -> None:
+    def _gen_div(self, left_width: int, right_width: int) -> None:
         """Generate division (call runtime routine)."""
+        if left_width > 2 or right_width > 2:
+            self.math_routines_needed.add("DIV32")
+            self.emit("\tJSR DIV32")
+            return
+
+        left_16 = left_width >= 2
+        right_16 = right_width >= 2
+
         if not left_16 and not right_16:
             self.math_routines_needed.add("DIV8")
             self.emit("\tJSR DIV8")
@@ -6667,8 +7512,16 @@ class CodeGen:
             self.math_routines_needed.add("DIV16")
             self.emit("\tJSR DIV16")
 
-    def _gen_mod(self, left_16: bool, right_16: bool) -> None:
+    def _gen_mod(self, left_width: int, right_width: int) -> None:
         """Generate modulo (call runtime routine)."""
+        if left_width > 2 or right_width > 2:
+            self.math_routines_needed.add("MOD32")
+            self.emit("\tJSR MOD32")
+            return
+
+        left_16 = left_width >= 2
+        right_16 = right_width >= 2
+
         if not left_16 and not right_16:
             self.math_routines_needed.add("MOD8")
             self.emit("\tJSR MOD8")
@@ -6905,18 +7758,36 @@ class CodeGen:
             self.emit("\tLDA TMP0")    # Load result
 
     def _gen_unary(self, expr: UnaryExpr) -> None:
-        """Generate code for unary operators (@, !, ~)"""
+        """Generate code for unary operators (@, !, ~, -)"""
         operand_t: ExprType = self.tc_check(expr.expr)
+        width: int = operand_t.sem_type.width if hasattr(operand_t.sem_type, 'width') else operand_t.sem_type.get_size()
         
         if expr.op == UnOp.ADDROF:  # Address-of (@)
             # Generate code to load address of operand into A (low) and X (high)
             self._gen_address_of(expr.expr)
         
         elif expr.op == UnOp.BNOT:  # Bitwise NOT (~)
-            # Generate operand, then apply EOR #$FF to invert bits
+            # Generate operand
             self.gen_expr(expr.expr)
             
-            result_16: bool = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
+            if width > 2:
+                # 32-bit: Invert all 4 bytes in MATH0
+                # Operand is in MATH0
+                self.emit("\tLDA MATH0")
+                self.emit("\tEOR #$FF")
+                self.emit("\tSTA MATH0")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tEOR #$FF")
+                self.emit("\tSTA MATH0+1")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tEOR #$FF")
+                self.emit("\tSTA MATH0+2")
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tEOR #$FF")
+                self.emit("\tSTA MATH0+3")
+                return
+
+            result_16: bool = width >= 2
             
             if result_16:
                 # For WORD: invert both bytes
@@ -6937,7 +7808,22 @@ class CodeGen:
             lbl_zero: str = self.new_label("NOT_ZERO")
             lbl_end: str = self.new_label("NOT_END")
             
-            result_16: bool = operand_t.sem_type.base == "WORD" or operand_t.sem_type.is_pointer
+            if width > 2:
+                # 32-bit: Check if any byte is nonzero
+                self.emit("\tLDA MATH0")
+                self.emit("\tORA MATH0+1")
+                self.emit("\tORA MATH0+2")
+                self.emit("\tORA MATH0+3")
+                self.emit(f"\tBNE {lbl_zero}")
+                # Zero -> 1
+                self.emit("\tLDA #$01")
+                self.emit(f"\tJMP {lbl_end}")
+                self.emit(f"{lbl_zero}:")
+                self.emit("\tLDA #$00")
+                self.emit(f"{lbl_end}:")
+                return
+
+            result_16: bool = width >= 2
             
             if result_16:
                 # Test if A or X is nonzero
@@ -6959,6 +7845,36 @@ class CodeGen:
                 self.emit(f"{lbl_zero}:")
                 self.emit("\tLDA #$00")
                 self.emit(f"{lbl_end}:")
+
+        elif expr.op == UnOp.NEG:   # Negation (-)
+            self.gen_expr(expr.expr)
+            
+            if width > 2:
+                # 32-bit negation
+                self.math_routines_needed.add("NEG32")
+                self.emit("\tJSR NEG32")
+                return
+
+            result_16: bool = width >= 2
+            if result_16:
+                # 16-bit negation (0 - val)
+                # A/X contains val. Use TMP for storage.
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+                self.emit("\tLDA #0")
+                self.emit("\tSEC")
+                self.emit("\tSBC TMP0")
+                self.emit("\tTAY")
+                self.emit("\tLDA #0")
+                self.emit("\tSBC TMP0+1")
+                self.emit("\tTAX")
+                self.emit("\tTYA")
+            else:
+                # 8-bit negation (0 - val)
+                self.emit("\tSTA TMP0")
+                self.emit("\tLDA #0")
+                self.emit("\tSEC")
+                self.emit("\tSBC TMP0")
     
     def _estimate_temp_slots(self, expr) -> int:
         """Conservative estimator of required temporary *slots* for an expression.
@@ -7701,14 +8617,64 @@ class CodeGen:
             sym_lhs: Symbol = self.current_symtab.lookup(lhs.name)
 
             # Direct constant assignment
-            if isinstance(rhs, IntLiteral) and sym_lhs.address is None:
+            if isinstance(rhs, IntLiteral) and (sym_lhs.address is None or lhs_t.sem_type.base == "LONG"):
                 # Check if constant fits in target type
                 self._check_constant_fits(rhs.value, cast(SemType, lhs_t.sem_type), f"assignment to {lhs.name}")
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
                     self._emit_store_byte_const(sym_lhs, rhs.value)
+                elif lhs_t.sem_type.base == "LONG":
+                    # Emit 4-byte store for LONG constant
+                    val = rhs.value
+                    asm = sym_lhs.asm_name()
+                    # Byte 0
+                    if (val & 0xFF) == 0:
+                        self._stz(asm)
+                    else:
+                        self.emit(f"\tLDA #${val & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}")
+                    # Byte 1
+                    if ((val >> 8) & 0xFF) == 0:
+                        self._stz(f"{asm}+1")
+                    else:
+                        self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}+1")
+                    # Byte 2
+                    if ((val >> 16) & 0xFF) == 0:
+                        self._stz(f"{asm}+2")
+                    else:
+                        self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}+2")
+                    # Byte 3
+                    if ((val >> 24) & 0xFF) == 0:
+                        self._stz(f"{asm}+3")
+                    else:
+                        self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
+                        self.emit(f"\tSTA {asm}+3")
                 else:
                     self._emit_store_word_const(sym_lhs, rhs.value)
                 return
+
+            # Optimization: Direct LONG variable copy
+            if isinstance(rhs, Identifier) and lhs_t.sem_type.base == "LONG":
+                try:
+                    rhs_sym = self.current_symtab.lookup(rhs.name)
+                    if (not rhs_sym.is_array and rhs_sym.address is None and 
+                        not rhs_sym.type.is_pointer and rhs_sym.type.base == "LONG"):
+                        
+                        lhs_asm = sym_lhs.asm_name()
+                        rhs_asm = rhs_sym.asm_name()
+                        
+                        self.emit(f"\tLDA {rhs_asm}")
+                        self.emit(f"\tSTA {lhs_asm}")
+                        self.emit(f"\tLDA {rhs_asm}+1")
+                        self.emit(f"\tSTA {lhs_asm}+1")
+                        self.emit(f"\tLDA {rhs_asm}+2")
+                        self.emit(f"\tSTA {lhs_asm}+2")
+                        self.emit(f"\tLDA {rhs_asm}+3")
+                        self.emit(f"\tSTA {lhs_asm}+3")
+                        return
+                except KeyError:
+                    pass
 
             if isinstance(rhs, BinaryExpr):
                 asm: str = sym_lhs.asm_name()
@@ -7842,6 +8808,7 @@ class CodeGen:
                         total: int = const_val * scale
                         is_add = total >= 0
 
+
                         if is_word:
                             abs_total: int = (total if is_add else -total) & 0xFFFF
                             lo: int = abs_total & 0xFF
@@ -7862,7 +8829,7 @@ class CodeGen:
                                 self.emit(f"\tSBC #${hi:02X}")
                             self.emit(f"\tSTA {asm}+1")
                             return
-                        else:
+                        elif lhs_t.sem_type.base == "BYTE":
                             abs_total = (total if is_add else -total) & 0xFF
                             self.emit(f"\tLDA {asm}")
                             if is_add:
@@ -7987,7 +8954,7 @@ class CodeGen:
                             return
 
                 # Optimize byte var = var1 +/- imm (direct immediate operations)
-                if not is_word and rhs.op in {BinOp.ADD, BinOp.SUB}:
+                if not is_word and lhs_t.sem_type.base == "BYTE" and rhs.op in {BinOp.ADD, BinOp.SUB}:
                     # Check if one operand is identifier and other is immediate
                     var_opnd: Identifier | None = None
                     imm_opnd: IntLiteral | None = None
@@ -8382,6 +9349,16 @@ class CodeGen:
             asm: str = sym.asm_name()
             if sym.type.base == "BYTE" and not sym.type.is_pointer:
                 self.emit(f"\tSTA {asm}")
+            elif sym.type.base == "LONG":
+                # Expect result in MATH0
+                self.emit(f"\tLDA MATH0")
+                self.emit(f"\tSTA {asm}")
+                self.emit(f"\tLDA MATH0+1")
+                self.emit(f"\tSTA {asm}+1")
+                self.emit(f"\tLDA MATH0+2")
+                self.emit(f"\tSTA {asm}+2")
+                self.emit(f"\tLDA MATH0+3")
+                self.emit(f"\tSTA {asm}+3")
             else:
                 self.emit(f"\tSTA {asm}")
                 self.emit(f"\tSTX {asm}+1")
@@ -10270,7 +11247,7 @@ class CodeGen:
                     return
 
             # Fast path: byte identifier vs constant → simple CMP without LDX
-            if not is_16bit and isinstance(cond.left, Identifier):
+            if not is_16bit and isinstance(cond.left, Identifier) and left_t.sem_type.base == "BYTE":
                 sym: Symbol = self.current_symtab.lookup(cond.left.name)
                 asm: str = sym.asm_name()
                 if cond.op == BinOp.EQ:

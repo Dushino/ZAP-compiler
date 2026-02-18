@@ -12,6 +12,8 @@ def promote(a: SemType, b: SemType) -> SemType:
     """Promote two scalar types to a common arithmetic type."""
     if a.is_pointer or b.is_pointer:
         return SemType("WORD", False)
+    if a.base == "LONG" or b.base == "LONG":
+        return SemType("LONG", False)
     if a.base == "WORD" or b.base == "WORD":
         return SemType("WORD", False)
     return SemType("BYTE", False)
@@ -31,8 +33,10 @@ class ExprTypeChecker:
             # Small literals (0-255) are BYTE, larger are WORD
             if 0 <= expr.value <= 255:
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
-            else:
+            elif 0 <= expr.value <= 65535:
                 return ExprType(SemType("WORD", False), ExprKind.VALUE)
+            else:
+                return ExprType(SemType("LONG", False), ExprKind.VALUE)
 
         if isinstance(expr, StringLiteral):
             # String literals evaluate to a pointer to constant byte data
