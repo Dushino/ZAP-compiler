@@ -47,33 +47,25 @@ ZAP! is a programming language designed for **8-bit systems**, particularly the 
 
 ### Prerequisites
 
-1. **Python 3.x** - For running the ZAP! compiler
-2. **CC65 Toolchain** (optional) - For assembling/linking to Atari binaries
+1. **ZAP!** - For compiling ZAP programs
+   - Download from: https://github.com/Dushino/ZAP-compiler/releases
+2. **CC65 Toolchain** - For assembling/linking ZAP! generated assembler source files
    - Includes ca65 (assembler) and ld65 (linker)
+   - Download from: https://cc65.github.io/
+3. **IDE** (optional) - For editing ZAP source code VS Code and Antigravity are supported
+   - Download from: https://code.visualstudio.com/
+   - Download from: https://antigravity.google/
+4. **Python 3.x** (optional) - For ZAP! compiler development
+   - Download from: https://www.python.org/downloads/
+
 
 ### Setting Up ZAP!
 
-**On Windows:**
-```batch
-# Clone the repository
-git clone https://github.com/Dushino/ZAP-compiler.git
-cd ZAP-compiler
+Just be sure zapc is in your PATH.
 
-# Run your first compilation
-python compiler.py example.zap
 ```
 
-**On Linux/macOS:**
-```bash
-# Clone the repository
-git clone https://github.com/Dushino/ZAP-compiler.git
-cd ZAP-compiler
-
-# Run your first compilation
-python3 compiler.py example.zap
-```
-
-### Installing CC65 (Optional)
+### Installing CC65 
 
 For Atari-specific development:
 
@@ -130,7 +122,7 @@ This is the **minimal** ZAP program. Every program needs:
 ### Compile It
 
 ```bash
-python compiler.py hello.zap
+zapc --cpu 6502 -O1 hello.zap -o hello.s
 ```
 
 This generates `hello.s` (6502 assembly code).
@@ -150,9 +142,15 @@ end
 Save as `first.zap` and compile:
 
 ```bash
-python compiler.py first.zap -o first.s
+zapc --cpu 6502 -O1 first.zap -o first.s
 ```
 
+### Assemble and Link
+
+```bash
+ca65 first.s -o first.o
+ld65 first.o -o first.prg
+```
 ---
 
 ## Basic Concepts
@@ -188,7 +186,7 @@ byte ^ptr               ; Pointer (advanced)
 Programs make decisions and repeat:
 
 ```zap
-if condition then
+if condition 
     ; Do this
 else
     ; Do that
