@@ -1497,20 +1497,10 @@ class CodeGen:
         """
         # For BYTE types (not pointers)
         if target_type.base == "BYTE" and not target_type.is_pointer:
-            if value < 0 or value > 0xFF:
-                error_msg: str = f"Constant value {value} (0x{value:X}) does not fit in BYTE (0-255)"
-                if context:
-                    error_msg += f" ({context})"
-                self._raise_error(error_msg)
             return True
         
         # For WORD types and pointers
         if target_type.base == "WORD" or target_type.is_pointer:
-            if value < 0 or value > 0xFFFF:
-                error_msg: str = f"Constant value {value} (0x{value:X}) does not fit in WORD (0-65535)"
-                if context:
-                    error_msg += f" ({context})"
-                self._raise_error(error_msg)
             return True
         
         return True
@@ -3518,23 +3508,7 @@ class CodeGen:
             self.emit("\tSTA MATH0+3")
             self.emit("\tRTS")
 
-        def emit_neg32() -> None:
-            self.emit("; NEG32: MATH0 = -MATH0")
-            self.emit("NEG32:")
-            self.emit("\tSEC")
-            self.emit("\tLDA #0")
-            self.emit("\tSBC MATH0")
-            self.emit("\tSTA MATH0")
-            self.emit("\tLDA #0")
-            self.emit("\tSBC MATH0+1")
-            self.emit("\tSTA MATH0+1")
-            self.emit("\tLDA #0")
-            self.emit("\tSBC MATH0+2")
-            self.emit("\tSTA MATH0+2")
-            self.emit("\tLDA #0")
-            self.emit("\tSBC MATH0+3")
-            self.emit("\tSTA MATH0+3")
-            self.emit("\tRTS")
+
 
         def emit_mul32() -> None:
             self.emit("; MUL32: MATH0 = MATH0 * MATH1")
@@ -3735,7 +3709,7 @@ class CodeGen:
             ("MOD16", emit_mod16),
             ("ADD32", emit_add32),
             ("SUB32", emit_sub32),
-            ("NEG32", emit_neg32),
+
             ("MUL32", emit_mul32),
             ("DIV32", emit_div32),
             ("MOD32", emit_mod32),
@@ -5423,7 +5397,7 @@ class CodeGen:
         if (load_only and isinstance(base, Identifier) and isinstance(expr.index, IntLiteral) and
             not calc_addr_only):
             sym: Symbol = self.current_symtab.lookup(base.name)
-            if sym.is_array and not sym.is_const and sym.address is None:
+            if sym.is_array and not sym.is_const:
                 # This is a simple array with runtime base address
                 arr_addr: str = sym.asm_name()
                 element_width: int = self._calculate_element_width(sym)
@@ -7417,6 +7391,8 @@ class CodeGen:
             self._gen_bitwise32(expr.op)
 
         # Result is stored in MATH0; load low word into A/X for downstream codegen.
+        left_16 = left_width >= 2
+        right_16 = right_width >= 2
         if not (left_16 or right_16):
             self._stz("MATH0+1")
             self._stz("MATH0+2")

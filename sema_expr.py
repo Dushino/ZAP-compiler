@@ -295,7 +295,7 @@ class ExprTypeChecker:
             # Convert LVALUE to VALUE when reading (e.g., !ptr^ or -ptr^ or ~ptr^)
             if t.kind == ExprKind.LVALUE:
                 t = ExprType(t.sem_type, ExprKind.VALUE)
-            if t.kind != ExprKind.VALUE:
+            if t.kind != ExprKind.VALUE and t.kind != ExprKind.ADDR:
                 raise SemanticError("Unary operator requires value", node=expr)
             
             # For bitwise NOT (~), preserve the operand type
