@@ -7809,7 +7809,10 @@ class CodeGen:
                 self.emit(f"\tBNE {lbl_zero}")
                 # Value was zero, result is 1
                 self.emit("\tLDA #$01")
-                self.emit(f"\tBRA {lbl_end}")
+                if self.is_65c02:
+                    self.emit(f"\tBRA {lbl_end}")
+                else:
+                    self.emit(f"\tJMP {lbl_end}")
                 self.emit(f"{lbl_zero}:")
                 self.emit("\tLDA #$00")
                 self.emit(f"{lbl_end}:")
@@ -7817,7 +7820,10 @@ class CodeGen:
                 # Test A only
                 self.emit(f"\tBNE {lbl_zero}")
                 self.emit("\tLDA #$01")
-                self.emit(f"\tBRA {lbl_end}")
+                if self.is_65c02:
+                    self.emit(f"\tBRA {lbl_end}")
+                else:
+                    self.emit(f"\tJMP {lbl_end}")
                 self.emit(f"{lbl_zero}:")
                 self.emit("\tLDA #$00")
                 self.emit(f"{lbl_end}:")
