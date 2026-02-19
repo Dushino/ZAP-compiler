@@ -3,7 +3,7 @@
 byte a
 byte b @40000 = 0
 byte c = 0 
-byte d[4] @40000+8 = {$01, $02, $03, $04}
+byte d[4] @40000 = {$01, $02, $03, $04}
 
 const byte ca = $05
 const byte cc[4] = {$11, $12, $13, $14}

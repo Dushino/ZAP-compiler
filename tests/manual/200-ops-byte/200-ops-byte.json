@@ -1,7 +1,0 @@
-{
-    "max_cycles": 20000,
-    "dump_memory": [
-        "0x0082-0x00ff",
-        "0x9C40-0x9C5F"
-    ]
-}
