@@ -8419,7 +8419,7 @@ class CodeGen:
                     arr_sym: Symbol = self.current_symtab.lookup(lhs.array.name)
                 except KeyError:
                     raise SemanticError(f"Variable '{lhs.array.name}' is not defined", node=lhs.array)
-                if arr_sym.is_array and not arr_sym.is_const and arr_sym.address is None:
+                if arr_sym.is_array and not arr_sym.is_const:
                     arr_addr: str = arr_sym.asm_name()
                     element_width: int = self._calculate_element_width(arr_sym)
 
