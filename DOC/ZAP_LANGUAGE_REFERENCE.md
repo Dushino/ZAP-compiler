@@ -113,6 +113,16 @@ word value = $1234  ; Hex notation (4 digits for 16-bit)
 
 **Range**: 0-65535
 
+### long - 32-bit Unsigned Integer
+
+```zap
+long big_num        ; Uninitialized long variable
+long population = 1000000
+long mask = $FFFFFFFF
+```
+
+**Range**: 0-4294967295
+
 ### Character Literals
 
 Character literals are written with single quotes and are converted to their ASCII numeric values:
@@ -604,9 +614,9 @@ byte ^p1, ^p2          ; Two byte pointers
 
 | Operator | Example | Result | Notes |
 |----------|---------|--------|-------|
-| `+` | `5 + 3` | `8` | Addition (8/16-bit) |
-| `-` | `5 - 3` | `2` | Subtraction (8/16-bit) |
-| `*` | `5 * 3` | `15` | Multiplication (8/16-bit) |
+| `+` | `5 + 3` | `8` | Addition (8/16/32-bit) |
+| `-` | `5 - 3` | `2` | Subtraction (8/16/32-bit) |
+| `*` | `5 * 3` | `15` | Multiplication (8/16/32-bit) |
 | `/` | `15 / 3` | `5` | Integer division |
 | `%` | `17 % 5` | `2` | Modulo (remainder) |
 
@@ -624,14 +634,15 @@ end
 
 ### Expression Width and Promotion
 
-ZAP evaluates arithmetic at either 8-bit or 16-bit width based on operand types and the assignment target.
+ZAP evaluates arithmetic at 8-bit, 16-bit, or 32-bit width based on operand types and the assignment target.
 
 **Rules (arithmetic operators +, -, *, /, %):**
 
-- If any operand is `word` (or a pointer), the expression is evaluated as **16-bit**.
+- If any operand is `long`, the expression is evaluated as **32-bit**.
+- If any operand is `word` (or a pointer), the expression is evaluated as **16-bit** (unless there is a `long` operand).
 - If all operands are `byte` and the assignment target is `byte`, the expression is evaluated as **8-bit**.
-- If all operands are `byte` but the assignment target is `word`, the expression is evaluated as **16-bit** (zero-extended).
-- If the assignment target is `byte` but operands are `word`, the expression is evaluated as **16-bit** and then **truncated to the low byte** on assignment.
+- If assignment target is wider than operands, operands are promoted to target width.
+- If assignment target is narrower than operands, result is truncated.
 - Pointer arithmetic is always **16-bit** because addresses are 16-bit.
 
 **Summary table:**
@@ -640,10 +651,13 @@ ZAP evaluates arithmetic at either 8-bit or 16-bit width based on operand types 
 |--------|----------|------------------|-----------------|
 | `byte` | all `byte` | 8-bit | Wraps 0-255 |
 | `word` | all `byte` | 16-bit | Zero-extended |
+| `long` | all `byte` | 32-bit | Zero-extended |
 | `byte` | any `word`/pointer | 16-bit | Truncated to low byte |
 | `word` | any `word`/pointer | 16-bit | Full 16-bit result |
+| `long` | any `word`/pointer | 32-bit | Zero-extended |
+| `any`  | any `long` | 32-bit | Truncated if target is narrower |
 
-This preserves carry/borrow for `word` targets while keeping `byte`-only math compact and fast.
+This preserves carry/borrow for larger targets while keeping `byte`-only math compact and fast.
 
 ### Comparison Operators
 
