@@ -184,7 +184,7 @@ class CodeGen:
             node_str = str(node)
             try:
                 expr_type = self.tc_check(node, read_check_enabled=False)
-                # print(f"DEBUG: get_expr_width({node_str}) type={expr_type.sem_type.base} width={expr_type.sem_type.width}")
+                print(f"; DEBUG: get_expr_width({node_str}) type={expr_type.sem_type.base} width={expr_type.sem_type.width}")
                 return expr_type.sem_type.width
             except Exception as e:
                 print(f"; DEBUG: get_expr_width({node_str}) tc_check failed: {e}")
@@ -9325,6 +9325,12 @@ class CodeGen:
             self.assign_target_sym = prev_assign_sym
             self.assign_target_blocked = prev_assign_blocked
 
+        # Handle type narrowing: if RHS is LONG and LHS is smaller, load from MATH0
+        if rhs_t.sem_type.base == "LONG" and lhs_t.sem_type.base != "LONG":
+            self.emit("\tLDA MATH0")
+            if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
+                self.emit("\tLDX MATH0+1")
+
         # Handle type widening: if RHS is smaller than LHS, extend with zeros
         # This is needed when assigning a BYTE to a WORD target
         # BUT: Don't clear X if the RHS is a multiply (MUL8 returns 16-bit result in A,X)
@@ -10671,7 +10677,158 @@ class CodeGen:
         """
         left_t: ExprType = self.tc_check(cond.left)
         right_t: ExprType = self.tc_check(cond.right)
-        is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
+        
+        # Check widths to determine operation size
+        left_width: int = left_t.sem_type.width
+        right_width: int = right_t.sem_type.width
+        
+        is_32bit: bool = left_width > 2 or right_width > 2
+        is_16bit: bool = not is_32bit and (left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD")
+
+        if is_32bit:
+            # 32-bit comparison using MATH0/MATH1
+            # 1. Evaluate right operand into MATH1
+            #    We can use gen_expr directly if it detects 32-bit context, but gen_expr usually puts result in A/X or MATH0.
+            #    safest is to eval right, move to MATH1, then eval left to MATH0.
+            
+            # Optimization: if right is const/simple, load directly to MATH1?
+            # For now, rely on generic RPN helper style loading.
+            
+            # Evaluate right operand
+            self.gen_expr(cond.right)
+            # Result is now in MATH0 (if 32-bit) or A/X (if smaller and promoted?)
+            # Actually gen_expr for LONG puts it in MATH0.
+            # If right is not LONG (e.g. constant), we might need to be careful.
+            
+            # Helper to move result to destination
+            if right_width > 2:
+                # Already in MATH0, move to MATH1
+                self.emit("\tLDA MATH0")
+                self.emit("\tSTA MATH1")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tSTA MATH1+1")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tSTA MATH1+2")
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tSTA MATH1+3")
+            else:
+                # In A/X, promote to MATH1
+                self.emit("\tSTA MATH1")
+                if right_width == 2:
+                    self.emit("\tSTX MATH1+1")
+                else:
+                    self.emit("\tLDX #0")
+                    self.emit("\tSTX MATH1+1")
+                # Zero extend upper bytes
+                self.emit("\tLDA #0")
+                self.emit("\tSTA MATH1+2")
+                self.emit("\tSTA MATH1+3")
+
+            # Evaluate left operand (puts result in MATH0 or A/X)
+            self.gen_expr(cond.left)
+            
+            if left_width <= 2:
+                 # In A/X, promote to MATH0
+                self.emit("\tSTA MATH0")
+                if left_width == 2:
+                    self.emit("\tSTX MATH0+1")
+                else:
+                    self.emit("\tLDX #0")
+                    self.emit("\tSTX MATH0+1")
+                # Zero extend upper bytes
+                self.emit("\tLDA #0")
+                self.emit("\tSTA MATH0+2")
+                self.emit("\tSTA MATH0+3")
+
+            # Now compare MATH0 (left) vs MATH1 (right)
+            # Compare from high byte down
+            
+            if cond.op == BinOp.EQ:
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tCMP MATH1+3")
+                self.emit(f"\tBNE {lbl_false}")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tCMP MATH1+2")
+                self.emit(f"\tBNE {lbl_false}")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tCMP MATH1+1")
+                self.emit(f"\tBNE {lbl_false}")
+                self.emit("\tLDA MATH0")
+                self.emit("\tCMP MATH1")
+                self.emit(f"\tBNE {lbl_false}")
+                self.emit(f"\tJMP {lbl_true}")
+                return
+
+            if cond.op == BinOp.NE:
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tCMP MATH1+3")
+                self.emit(f"\tBNE {lbl_true}")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tCMP MATH1+2")
+                self.emit(f"\tBNE {lbl_true}")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tCMP MATH1+1")
+                self.emit(f"\tBNE {lbl_true}")
+                self.emit("\tLDA MATH0")
+                self.emit("\tCMP MATH1")
+                self.emit(f"\tBNE {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+                return
+
+            # For relational ops, we need careful branching.
+            # Common pattern: Compare high bytes. If !=, we know result (BCC/BCS). If ==, continue to next byte.
+            
+            # Helper to generate branch chain
+            lbl_decide = self.new_label("CMP32_DECIDE")
+            
+            # Byte 3
+            self.emit("\tLDA MATH0+3")
+            self.emit("\tCMP MATH1+3")
+            self.emit(f"\tBNE {lbl_decide}")
+            
+            # Byte 2
+            self.emit("\tLDA MATH0+2")
+            self.emit("\tCMP MATH1+2")
+            self.emit(f"\tBNE {lbl_decide}")
+            
+            # Byte 1
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tCMP MATH1+1")
+            self.emit(f"\tBNE {lbl_decide}")
+            
+            # Byte 0
+            self.emit("\tLDA MATH0")
+            self.emit("\tCMP MATH1")
+            # Fall through to decide (Carry is set correctly by last CMP)
+            
+            self.emit(f"{lbl_decide}:")
+            # Now flags (Z, C) are set from the most significant differing byte, 
+            # or from low byte if all equal.
+            
+            if cond.op == BinOp.LT:
+                # < : BCC (Carry Clear)
+                self.emit(f"\tBCC {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+            elif cond.op == BinOp.GE:
+                # >= : BCS (Carry Set)
+                self.emit(f"\tBCS {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+            elif cond.op == BinOp.GT:
+                # > : BEQ false (equal), BCC false (<), so BCS and BNE
+                # Logic: CMP sets Z=1 if equal, C=1 if >=.
+                # > is (C=1 AND Z=0)
+                self.emit(f"\tBEQ {lbl_false}")
+                self.emit(f"\tBCS {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+            elif cond.op == BinOp.LE:
+                # <= : (C=0 OR Z=1)
+                # i.e. BCC true, BEQ true
+                self.emit(f"\tBCC {lbl_true}")
+                self.emit(f"\tBEQ {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+                
+            return
+
 
         # Fast path: compare-to-zero simplification (unsigned)
         if isinstance(cond.right, IntLiteral) and (cond.right.value & 0xFFFF) == 0:
