@@ -4643,9 +4643,9 @@ class CodeGen:
                 # Non-constant values - use old method
                 for i, ex in enumerate(sym.init.values):
                     self.gen_expr(ex)
-                    elem_offset: int = i * 2 if sym.type.base == "WORD" else i
+                    elem_offset: int = i * 2 if (sym.type.base == "WORD" or sym.type.is_pointer) else i
                     self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
-                    if sym.type.base == "WORD":
+                    if sym.type.base == "WORD" or sym.type.is_pointer:
                         self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
                 return
             
@@ -4653,7 +4653,7 @@ class CodeGen:
             # Type narrowing: we've verified all elements are IntLiteral above
             values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
             array_len: int = len(values)
-            is_word: bool = sym.type.base == "WORD"
+            is_word: bool = sym.type.base == "WORD" or sym.type.is_pointer
             dest_var: str = sym.asm_name()
             COPY_THRESHOLD = 8  # bytes; above this, call shared copy to save space
             
