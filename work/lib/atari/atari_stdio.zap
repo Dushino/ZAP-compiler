@@ -36,35 +36,6 @@
 */
 
 
-; ATARI colors
-const byte COLOR_BLACK   = $00
-const byte COLOR_YELLOW1 = $10
-const byte COLOR_ORANGE2 = $20
-const byte COLOR_RED1    = $30
-const byte COLOR_VIOLET1 = $40
-const byte COLOR_VIOLET2 = $50
-const byte COLOR_VIOLET3 = $60
-const byte COLOR_BLUE1   = $70
-const byte COLOR_BLUE2   = $80
-const byte COLOR_BLUE3   = $90
-const byte COLOR_GREEN1  = $A0
-const byte COLOR_GREEN2  = $B0
-const byte COLOR_GREEN3  = $C0
-const byte COLOR_GREEN4  = $D0
-const byte COLOR_YELLOW2 = $E0
-const byte COLOR_BROWN   = $F0
-
-
-byte PCOLOR0 @704 
-byte PCOLOR1 @705       
-byte PCOLOR2 @706       
-byte PCOLOR3 @707       
-byte PLAYF0  @708       
-byte PLAYF1  @709
-byte PLAYF2  @710
-byte PLAYF3  @711
-byte PLAYF4  @712
-
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40

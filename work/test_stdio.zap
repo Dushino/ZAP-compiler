@@ -6,6 +6,8 @@
 .endif
 
 .include "lib/stdio.zap"
+.include "lib/types.zap"
+.include "lib/atari/atari_gtia.zap"
 
 
 struct MyStruct
@@ -35,6 +37,6 @@ proc main()
     ch = gets(inbuf, 15)    
     puts("\n\t1\t123\t1234\t12345\t123456\n")
     puts(inbuf)
-
-    PLAYF2 = COLOR_GREEN3 + 0
+    
+    GTIA_WR.COLPF0 = COLOR_GREEN3
 end
