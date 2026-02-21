@@ -70,7 +70,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
 
             mapped = False
             # If error already names a file and mapping exists, remap
-            if getattr(e, 'filename', None) and getattr(e, 'line', None) and e.filename in orig_map_per_file:
+            if getattr(e, 'filename', None) and getattr(e, 'line', None) and e.filename in orig_map_per_file and not getattr(e, '_line_mapped', False):
                 omap = orig_map_per_file.get(e.filename)
                 ln = getattr(e, 'line', None)
                 # Ensure ln and omap are valid before indexing

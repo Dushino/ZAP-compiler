@@ -162,9 +162,14 @@ class FuncAnalyzer:
                 if info:
                     fname, line, col = info
                     err_line = getattr(e, "line", None) or line
+                    # If the error line is from cleaned source, map it back to original
+                    orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+                    if orig_map and isinstance(err_line, int) and 1 <= err_line <= len(orig_map):
+                        err_line = orig_map[err_line - 1]
                     err_col = getattr(e, "col", None) or col
                     err = SemanticError(e.message, line=err_line, col=err_col)
                     err.filename = fname
+                    setattr(err, "_line_mapped", True)
                     orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
                     if orig_src:
                         err.source_text = "\n".join(orig_src)
@@ -429,8 +434,13 @@ class FuncAnalyzer:
                     info = _map_stmt_info(stmt)
                     if info:
                         fname, line, col = info
-                        err = SemanticError(e.message, line=line, col=col)
+                        err_line = getattr(e, "line", None) or line
+                        orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+                        if orig_map and isinstance(err_line, int) and 1 <= err_line <= len(orig_map):
+                            err_line = orig_map[err_line - 1]
+                        err = SemanticError(e.message, line=err_line, col=col)
                         err.filename = fname
+                        setattr(err, "_line_mapped", True)
                         raise err
                     raise
 

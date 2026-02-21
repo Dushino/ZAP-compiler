@@ -323,40 +323,40 @@ end
 /*
     fclose - close file
 */
-func ERRNO fclose(FILE^ file)
+func ERRNO fclose(FILE^ fd)
     ; TODO: implement file closing  
-    if file == NULL
+    if fd == NULL
         return ERRNO.EBADF
     end
-    set_fderror(file, ERRNO.ENODEV)
-    return filer^.error
+    set_fderror(fd, ERRNO.ENODEV)
+    return fd^.error
 end
 
 
 /*
     ferror - check for error
 */
-func ERRNO ferror(FILE^ file)
+func ERRNO ferror(FILE^ fd)
     ; TODO: implement error checking  
-    if file == NULL
+    if fd == NULL
         return ERRNO.EBADF
     end 
-    set_fderror(file, ERRNO.ENODEV)
-    return filer^.error
+    set_fderror(fd, ERRNO.ENODEV)
+    return fd^.error
 end
 
 
 /*
     feof - check for end of file
 */
-func BOOL feof(FILE^ file)
+func BOOL feof(FILE^ fd)
     ; TODO: implement end of file checking  
-    if file == NULL
+    if fd == NULL
         return BOOL.TRUE
     end     
     
-    set_fderror(file, ERRNO.ENODEV)
-    file^.eof = BOOL.TRUE
+    set_fderror(fd, ERRNO.ENODEV)
+    fd^.eof = BOOL.TRUE
     return BOOL.TRUE
 end
 
@@ -364,13 +364,13 @@ end
 /*
     rename - rename file
 */
-func ERRNO rename(FILE^ file, const byte ^oldname, const byte ^newname)
+func ERRNO rename(FILE^ fd, const byte ^oldname, const byte ^newname)
     ; TODO: implement file renaming  
-    if file == NULL
+    if fd == NULL
         return ERRNO.EBADF
     end 
-    set_fderror(file, ERRNO.ENODEV)
-    return file^.error
+    set_fderror(fd, ERRNO.ENODEV)
+    return fd^.error
 end
 
 
@@ -382,30 +382,30 @@ func ERRNO remove(byte^ filename)
     if filename == NULL
         return ERRNO.EBADF
     end 
-    set_fderror(file, ERRNO.ENODEV)
-    return file^.error
+    
+    return ERRNO.ENODEV
 end
 
 
 /*
     fseek - seek in file
 */
-func ERRNO fseek(FILE^ file, long offset, byte whence)
+func ERRNO fseek(FILE^ fd, long offset, byte whence)
     ; TODO: implement file seeking  
-    if file == NULL
+    if fd == NULL
         return ERRNO.EBADF
     end
-    set_fderror(file, ERRNO.ENODEV)
-    return file^.error
+    set_fderror(fd, ERRNO.ENODEV)
+    return fd^.error
 end
 
 
 /*
     ftell - tell file position
 */
-func long ftell(FILE^ file)
+func long ftell(FILE^ fd)
     ; TODO: implement file position telling  
-    if file == NULL
+    if fd == NULL
         return 0
     end 
     return 0
@@ -415,9 +415,9 @@ end
 /*
     fread - read from file
 */
-func word fread(FILE^ file, byte ^buffer, word size, word count)
+func word fread(FILE^ fd, byte ^buffer, word size, word count)
     ; TODO: implement file reading  
-    if file == NULL
+    if fd == NULL
         return 0
     end 
     return 0
@@ -427,9 +427,9 @@ end
 /*
     fwrite - write to file
 */
-func word fwrite(FILE^ file, byte ^buffer, word size, word count)
+func word fwrite(FILE^ fd, byte ^buffer, word size, word count)
     ; TODO: implement file writing  
-    if file == NULL
+    if fd == NULL
         return 0
     end 
     return 0
@@ -439,12 +439,12 @@ end
 /*
     fgetc - get character from file
 */
-func byte fgetc(FILE^ file)
+func byte fgetc(FILE^ fd)
     ; TODO: implement file reading  
-    if file == NULL        
+    if fd == NULL        
         return 0
     end 
-    set_fderror(file, ERRNO.ENODEV)
+    set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
 
@@ -452,12 +452,12 @@ end
 /*
     fputc - put character to file
 */
-func byte fputc(FILE^ file, byte ch)
+func byte fputc(FILE^ fd, byte ch)
     ; TODO: implement file writing  
-    if file == NULL
+    if fd == NULL
         return 0
     end 
-    set_fderror(file, ERRNO.ENODEV)
+    set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
 
@@ -465,13 +465,13 @@ end
 /*
     fprintf - print formatted string to file
 */
-func byte fprintf(FILE^ file, const byte ^format, word arg1 = 0, 
+func byte fprintf(FILE^ fd, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
     ; TODO: implement file writing  
-    if file == NULL
+    if fd == NULL
         return 0
     end 
-    set_fderror(file, ERRNO.ENODEV)
+    set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
 
@@ -479,12 +479,12 @@ end
 /*
     fputs - put string to file
 */
-func byte fputs(FILE^ file, const byte ^str)
+func byte fputs(FILE^ fd, const byte ^str)
     ; TODO: implement file writing  
-    if file == NULL
+    if fd == NULL
         return 0    
     end 
-    set_fderror(file, ERRNO.ENODEV)
+    set_fderror(fd, ERRNO.ENODEV)
     return 0    
 end
 
@@ -492,13 +492,13 @@ end
 /*
     fscanf - read formatted string from file
 */
-func byte fscanf(FILE^ file, const byte ^format, word arg1 = 0, 
+func byte fscanf(FILE^ fd, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
     ; TODO: implement file reading  
-    if file == NULL
+    if fd == NULL
         return 0
     end 
-    set_fderror(file, ERRNO.ENODEV)
+    set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
 
@@ -515,8 +515,8 @@ end
 /*
     rewind - move file cursor to the beginning of the file
 */
-func ERRNO rewind(FILE^ file)
-    return fseek(file, 0, SEEK_SET)
+func ERRNO rewind(FILE^ fd)
+    return fseek(fd, 0, SEEK_SET)
 end
 
 
