@@ -1675,6 +1675,99 @@ class CodeGen:
         label: str = label.split('-')[0].strip()    # Remove -1 (rare but possible)
         return label in self.fixed_address_labels
 
+    # ---------------------------------------------------------------------------
+    # Dead-store elimination (AST level)
+    # ---------------------------------------------------------------------------
+
+    def _expr_reads_var(self, expr, name: str) -> bool:
+        """Return True if expr reads the variable `name` anywhere in its tree."""
+        from ast_nodes import Identifier, BinaryExpr, UnaryExpr, SubscriptExpr, DerefExpr, FieldAccess, CallExpr
+        if isinstance(expr, Identifier):
+            return expr.name == name
+        if isinstance(expr, BinaryExpr):
+            return self._expr_reads_var(expr.left, name) or self._expr_reads_var(expr.right, name)
+        if isinstance(expr, UnaryExpr):
+            return self._expr_reads_var(expr.expr, name)
+        if isinstance(expr, SubscriptExpr):
+            return self._expr_reads_var(expr.array, name) or self._expr_reads_var(expr.index, name)
+        if isinstance(expr, DerefExpr):
+            return self._expr_reads_var(expr.pointer, name)
+        if isinstance(expr, FieldAccess):
+            return self._expr_reads_var(expr.object, name)
+        if isinstance(expr, CallExpr):
+            return any(self._expr_reads_var(a, name) for a in expr.args if a is not None)
+        return False
+
+    def _expr_has_calls(self, expr) -> bool:
+        """Return True if expr contains any CallExpr nodes (has side effects)."""
+        from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, DerefExpr, FieldAccess
+        if isinstance(expr, CallExpr):
+            return True
+        if isinstance(expr, BinaryExpr):
+            return self._expr_has_calls(expr.left) or self._expr_has_calls(expr.right)
+        if isinstance(expr, UnaryExpr):
+            return self._expr_has_calls(expr.expr)
+        if isinstance(expr, SubscriptExpr):
+            return self._expr_has_calls(expr.array) or self._expr_has_calls(expr.index)
+        if isinstance(expr, DerefExpr):
+            return self._expr_has_calls(expr.pointer)
+        if isinstance(expr, FieldAccess):
+            return self._expr_has_calls(expr.object)
+        return False
+
+    def _lhs_is_port(self, lhs) -> bool:
+        """Return True if the LHS identifier resolves to a PORT variable."""
+        from ast_nodes import Identifier
+        if not isinstance(lhs, Identifier):
+            return False
+        try:
+            sym = self.current_symtab.lookup(lhs.name)
+            return bool(sym.is_port)
+        except KeyError:
+            return False
+
+    def _elim_dead_stores(self, stmts: list) -> list:
+        """Eliminate dead stores: if two consecutive AssignStmts target the
+        same simple (non-PORT) scalar identifier, and the first is immediately
+        followed by the second with no intervening statements, the first store
+        is dead and can be removed.
+
+        Rules:
+        - LHS must be a bare Identifier (no arrays, struct fields, derefs).
+        - The variable must NOT have the PORT attribute (hardware registers
+          must always be written, even if the value is immediately overwritten).
+        - We only skip the earlier store when the very next statement is another
+          AssignStmt to the same identifier.
+        - The overwriting RHS must be pure (no CallExpr) to stay conservative.
+        """
+        from ast_nodes import AssignStmt, Identifier
+        if not stmts:
+            return stmts
+        result: list = []
+        i: int = 0
+        while i < len(stmts):
+            stmt = stmts[i]
+            # Check if this assignment is immediately overwritten by the next
+            if (
+                isinstance(stmt, AssignStmt)
+                and isinstance(stmt.lhs, Identifier)
+                and i + 1 < len(stmts)
+                and isinstance(stmts[i + 1], AssignStmt)
+                and isinstance(stmts[i + 1].lhs, Identifier)
+                and stmts[i + 1].lhs.name == stmt.lhs.name
+                and not self._lhs_is_port(stmt.lhs)                       # skip PORT vars
+                and not self._expr_has_calls(stmt.rhs)                    # RHS of skipped store is pure
+                and not self._expr_reads_var(stmts[i + 1].rhs, stmt.lhs.name)  # next RHS doesn't read same var
+            ):
+                # Dead store — skip it, emit only a source comment so the
+                # debug output still shows what was eliminated.
+                self.emit(f"; [dead store eliminated: {stmt.lhs.name} overwritten by next statement]")
+                i += 1
+                continue
+            result.append(stmt)
+            i += 1
+        return result
+
     def _is_port_variable(self, operand: str) -> bool:
         """Check if operand references a PORT (hardware port-mapped) variable.
         
@@ -1788,6 +1881,8 @@ class CodeGen:
         - Remove blank line immediately before RTS
         - Remove conditional branch to next label (no-op)
         - Replace LDA TMP0; TAY; LDA label,Y with LDY TMP0; LDA label,Y
+        - STA addr followed by STZ addr → STZ addr  (dead store before zero)
+        - STZ addr followed by STZ addr → single STZ addr  (duplicate zero store)
         """
         optimized: list[str] = []
         i = 0
@@ -1835,7 +1930,60 @@ class CodeGen:
             elif reg.upper() == "Y":
                 return _clobbers_y(line)
             return False
-        
+
+        # Helper: look ahead past blank/comment lines; stop at labels.
+        # Returns (op, operand, True) for the next real instruction, or (None, None, False).
+        def _peek_next_real(start_idx: int):
+            k = start_idx
+            while k < len(self.code):
+                p = self.code[k].strip()
+                pi = p.split(';')[0].strip()
+                if not pi:
+                    k += 1
+                    continue
+                if pi.endswith(':'):
+                    return None, None, False
+                pu = pi.upper()
+                parts = pu.split(maxsplit=1)
+                op = parts[0]
+                operand = parts[1].strip() if len(parts) > 1 else None
+                return op, operand, True
+            return None, None, False
+
+        # 8-bit math routines that don't use X as an input operand
+        _8BIT_ROUTINES_NO_X = {
+            "__MUL8_A", "__DIV8_A", "__MOD8_A",
+            "__MUL8",   "__DIV8",   "__MOD8",
+        }
+
+        # Branch instructions that test CPU flags (used by INC/DEC cancellation guard)
+        _BRANCH_OPS = {
+            "BEQ", "BNE", "BCC", "BCS", "BVC", "BVS", "BMI", "BPL",
+            "BRA",  # 65c02 unconditional branch; keep for safety
+        }
+
+        # Instructions that are pure stores (write-only, never read from addr)
+        _PURE_STORE_OPS = {"STA", "STX", "STY", "STZ"}
+        # Control-flow ops that end a safe look-ahead window
+        _STOP_OPS = _BRANCH_OPS | {"JMP", "JSR", "RTS", "RTI"}
+
+        def _instr_reads_addr(instr_upper: str, addr_upper: str) -> bool:
+            """Return True if instruction reads from memory addr.
+            Pure store ops (STA/STX/STY/STZ) and instructions with no memory
+            operand do NOT read addr.  Exact operand match only (conservative).
+            """
+            parts = instr_upper.split(maxsplit=1)
+            if len(parts) < 2:
+                return False  # no operand → no memory read
+            op = parts[0]
+            if op in _PURE_STORE_OPS:
+                return False  # write-only
+            operand = parts[1].split(';')[0].strip()  # strip inline comments
+            # Exact match or indexed variant (_A or _A,X or _A,Y)
+            return (operand == addr_upper
+                    or operand.startswith(addr_upper + ",")
+                    or operand.startswith(addr_upper + "+"))
+
         while i < len(self.code):
             line = self.code[i]
             line_stripped = line.strip()
@@ -2035,7 +2183,144 @@ class CodeGen:
                             i += 1
                             continue
             
-            # 65c02: Replace LDX #0; STA addr; STX addr+1 -> STA addr; STZ addr+1
+            cur_instr = line_stripped.split(';')[0].strip().upper()
+            cur_parts = cur_instr.split(maxsplit=1)
+            cur_op = cur_parts[0] if cur_parts else ""
+            cur_operand = cur_parts[1].strip() if len(cur_parts) > 1 else None
+
+            # Rule A: STA addr ; STZ same-addr  → just STZ addr
+            # Rule B: STZ addr ; STZ same-addr  → just STZ addr
+            # (comment lines between them are fine; don't cross labels; skip PORT)
+            if cur_op in ("STA", "STZ") and cur_operand and not _operand_is_port(cur_operand):
+                nxt_op, nxt_operand, found = _peek_next_real(i + 1)
+                if (
+                    found
+                    and nxt_op == "STZ"
+                    and nxt_operand is not None
+                    and cur_operand.upper() == nxt_operand.upper()
+                ):
+                    i += 1
+                    continue
+
+            # Rule C: STA __MATH0[+n] / __MATH1[+n] / __TMP[+n] followed immediately
+            # by STA <real-var>  →  drop the scratch-register store (A still holds value).
+            # Guard: destination must not be PORT, not another scratch reg.
+            if cur_op == "STA" and cur_operand:
+                cur_clean = cur_operand.upper().replace("__", "")
+                is_scratch = (
+                    cur_clean.startswith("MATH0")
+                    or cur_clean.startswith("MATH1")
+                    or cur_clean.startswith("TMP")
+                )
+                if is_scratch:
+                    nxt_op, nxt_operand, found = _peek_next_real(i + 1)
+                    if found and nxt_op == "STA" and nxt_operand:
+                        nxt_clean = nxt_operand.upper().replace("__", "")
+                        nxt_is_scratch = (
+                            nxt_clean.startswith("MATH")
+                            or nxt_clean.startswith("TMP")
+                        )
+                        if not nxt_is_scratch and not _operand_is_port(nxt_operand):
+                            i += 1
+                            continue
+
+            # Rule D: LDX #$00 immediately before JSR __MUL8_A / __DIV8_A / __MOD8_A
+            # These 8-bit routines don't use X as input; X is overwritten internally.
+            if cur_instr in ("LDX #0", "LDX #$0", "LDX #$00"):
+                nxt_op, nxt_target, found = _peek_next_real(i + 1)
+                if found and nxt_op == "JSR" and nxt_target in _8BIT_ROUTINES_NO_X:
+                    i += 1
+                    continue
+
+            # Rule E: INC addr ; DEC addr  (or DEC addr ; INC addr)  → remove both
+            # Net memory effect is zero. Only safe if:
+            #   - Same address, not a PORT variable
+            #   - The instruction after the pair is NOT a branch (no flag dependency)
+            if cur_op in ("INC", "DEC") and cur_operand and not _operand_is_port(cur_operand):
+                # Find the index of the next real instruction
+                j = i + 1
+                nxt_idx = None
+                while j < len(self.code):
+                    p = self.code[j].strip()
+                    pi = p.split(';')[0].strip()
+                    if not pi:
+                        j += 1
+                        continue
+                    if pi.endswith(':'):
+                        break
+                    nxt_idx = j
+                    break
+
+                if nxt_idx is not None:
+                    nxt_raw = self.code[nxt_idx].strip()
+                    nxt_instr_u = nxt_raw.split(';')[0].strip().upper()
+                    nxt_parts = nxt_instr_u.split(maxsplit=1)
+                    nxt_op2 = nxt_parts[0] if nxt_parts else ""
+                    nxt_operand2 = nxt_parts[1].strip() if len(nxt_parts) > 1 else None
+
+                    # Check: opposite operation on same address
+                    opposite = "DEC" if cur_op == "INC" else "INC"
+                    if (
+                        nxt_op2 == opposite
+                        and nxt_operand2 is not None
+                        and cur_operand.upper() == nxt_operand2.upper()
+                    ):
+                        # Check that the instruction AFTER the pair is not a branch
+                        after_op, _, after_found = _peek_next_real(nxt_idx + 1)
+                        if not after_found or after_op not in _BRANCH_OPS:
+                            # Eliminate both — skip current and skip the paired instruction
+                            i = nxt_idx + 1
+                            continue
+            # Rule F: STA addr is a dead store if a forward scan finds another
+            # STA addr before any instruction reads addr (or branches/JSR/labels).
+            # Eliminates intermediate stores in chains like:
+            #   LDA #7 / STA _A / ASL / STA _A / LSR / STA _A  →  keep only last STA _A
+            # Safe conditions: non-PORT, non-indexed (addr,X / addr,Y change effective
+            # address when X/Y changes), no read of addr, no control flow in the window.
+            if (
+                cur_op == "STA" and cur_operand
+                and not _operand_is_port(cur_operand)
+                and ",X" not in cur_operand.upper()
+                and ",Y" not in cur_operand.upper()
+            ):
+                addr_upper = cur_operand.upper()
+                j = i + 1
+                found_overwrite = False
+                while j < len(self.code):
+                    peek = self.code[j].strip()
+                    pi = peek.split(';')[0].strip()
+                    if not pi:          # blank or comment — skip
+                        j += 1
+                        continue
+                    if pi.endswith(':'):  # label — stop (can't analyze past)
+                        break
+                    pu = pi.upper()
+                    p_parts = pu.split(maxsplit=1)
+                    p_op = p_parts[0]
+                    # Stop at control-flow instructions (branches/JSR/JMP/RTS/RTI)
+                    if p_op in _STOP_OPS:
+                        break
+                    # Stop at any indirect addressing (could read our var through a pointer)
+                    p_operand_str = p_parts[1].strip() if len(p_parts) > 1 else ""
+                    if "(" in p_operand_str:
+                        break
+                    # Found another STA/STX/STY to same addr → current STA is dead
+                    if p_op in ("STA", "STX", "STY") and p_operand_str == addr_upper:
+                        found_overwrite = True
+                        break
+                    # Stop if addr is read by this instruction (direct addressing)
+                    if _instr_reads_addr(pu, addr_upper):
+                        break
+                    j += 1
+                if found_overwrite:
+                    i += 1
+                    continue
+
+
+            # 65c02: Replace LDX #0; STA addr; STX addr+1 → STA addr; STZ addr+1
+
+
+
             # Strip inline comments to check instruction
             instr_part = line_stripped.split(';')[0].strip().upper()
             if self.is_65c02 and (instr_part == "LDX #0" or instr_part == "LDX #$0" or instr_part == "LDX #$00"):
@@ -9761,8 +10046,8 @@ class CodeGen:
         for sym in proc.locals:
             self.gen_init(cast(Symbol, sym))
 
-        # tělo
-        for stmt in proc.ast.body:
+        # tělo (dead-store pre-pass removes consecutive overwrites of same scalar)
+        for stmt in self._elim_dead_stores(proc.ast.body):
             self.gen_stmt(stmt)
 
         if not (proc.ast.body and isinstance(proc.ast.body[-1], ReturnStmt)):
@@ -10713,8 +10998,8 @@ class CodeGen:
         for sym in func.locals:
             self.gen_init(cast(Symbol, sym))
 
-        # tělo
-        for stmt in func.ast.body:
+        # tělo (dead-store pre-pass removes consecutive overwrites of same scalar)
+        for stmt in self._elim_dead_stores(func.ast.body):
             self.gen_stmt(stmt)
 
         # fallback (pokud RETURN nebyl – zatím chyba v sémantice)
