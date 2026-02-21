@@ -36,7 +36,7 @@ class CodeGen:
     loop_stack = []
     internal_label_prefix = "__ZAP_"
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, func_return_buffers: dict[str, tuple[str, StructInfo]] | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
         """Initialize code generation state.
         Stores symbol tables, options, and debug maps.
         """
@@ -70,6 +70,7 @@ class CodeGen:
         # Parameter specs: mapping name -> list of (param_name, width_bytes, default_value, sem_type)
         self.proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] = proc_param_specs or {}
         self.func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] = func_param_specs or {}
+        self.func_return_buffers: dict[str, tuple[str, StructInfo]] = func_return_buffers or {}
         self.pruned_procs: list[str] = pruned_procs or []
         # Exports set (populated by pipeline)
         self.exports: set[str] = set()
@@ -92,6 +93,8 @@ class CodeGen:
         # Track current function return type for narrowing WORD to BYTE
         self.current_func_return_type: str | None = None
         self.current_func_return_is_pointer: bool = False
+        self.current_func_return_buf: str | None = None
+        self.current_func_return_struct: StructInfo | None = None
         # Caller-side widening: mark when a byte result must be treated as 16-bit
         self.force_word_result: bool = False
         # Suppress clearing X for byte-return functions (ABI change)
@@ -8657,6 +8660,12 @@ class CodeGen:
             if specs is not None:
                 self._emit_call_args(expr.name, expr.args, specs)
             self.emit(f"\tJSR {self.asm_symbol_name(expr.name)}")
+            ret_buf = self.func_return_buffers.get(expr.name)
+            if ret_buf:
+                asm_ret, _struct_info = ret_buf
+                self.emit(f"\tLDA #<{asm_ret}")
+                self.emit(f"\tLDX #>{asm_ret}")
+                return
             # Caller-side widening: only clear X when a byte result is used in word context
             ret_t: ExprType = self.tc_check(expr)
             if ret_t.sem_type.base == "BYTE" and not ret_t.sem_type.is_pointer and self.force_word_result:
@@ -8947,6 +8956,33 @@ class CodeGen:
             if struct_info is None:
                 self._raise_error(f"Cannot determine struct type for '{lhs.name}'")
             self._emit_struct_literal_store(sym.asm_name(), struct_info, rhs.values, ctx_name=sym.name)
+            return
+
+        if isinstance(rhs, CallExpr) and lhs_t.sem_type.is_struct and not lhs_t.sem_type.is_pointer:
+            if not isinstance(lhs, Identifier):
+                self._raise_error("Struct assignment requires a struct variable")
+            ret_buf = self.func_return_buffers.get(rhs.name)
+            if ret_buf is None:
+                self._raise_error("Struct assignment requires a struct-returning function")
+            asm_ret, ret_info = ret_buf
+            sym = self.current_symtab.lookup(lhs.name)
+            if sym.type.base.upper() != ret_info.name.upper():
+                self._raise_error("Struct assignment type mismatch")
+            specs: list[tuple[str, int, object, SemType]] | None = self.func_param_specs.get(rhs.name)
+            if specs is not None:
+                self._emit_call_args(rhs.name, rhs.args, specs)
+            self.emit(f"\tJSR {self.asm_symbol_name(rhs.name)}")
+            self.copy_bytes_needed = True
+            self.emit(f"\tLDA #<{asm_ret}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA #>{asm_ret}")
+            self.emit("\tSTA TMP0+1")
+            self.emit(f"\tLDA #<{sym.asm_name()}")
+            self.emit("\tSTA TMP2")
+            self.emit(f"\tLDA #>{sym.asm_name()}")
+            self.emit("\tSTA TMP2+1")
+            self.emit(f"\tLDX #${ret_info.size:02X}")
+            self.emit("\tJSR COPY_BYTES")
             return
 
         rhs_t: ExprType = self.tc_check(rhs)
@@ -10275,6 +10311,32 @@ class CodeGen:
                     self._emit_struct_literal_store(asm, struct_info, arg.values, ctx_name=pname)
                     continue
 
+                if isinstance(arg, CallExpr):
+                    ret_buf = self.func_return_buffers.get(arg.name)
+                    if ret_buf is None:
+                        self._raise_error(f"Struct parameter '{pname}' expects a struct value")
+                    asm_ret, ret_info = ret_buf
+                    if ret_info.name.upper() != struct_info.name.upper():
+                        self._raise_error(
+                            f"Struct parameter '{pname}' expects '{struct_info.name}', got '{ret_info.name}'"
+                        )
+                    specs_call: list[tuple[str, int, object, SemType]] | None = self.func_param_specs.get(arg.name)
+                    if specs_call is not None:
+                        self._emit_call_args(arg.name, arg.args, specs_call)
+                    self.emit(f"\tJSR {self.asm_symbol_name(arg.name)}")
+                    self.copy_bytes_needed = True
+                    self.emit(f"\tLDA #<{asm_ret}")
+                    self.emit("\tSTA TMP0")
+                    self.emit(f"\tLDA #>{asm_ret}")
+                    self.emit("\tSTA TMP0+1")
+                    self.emit(f"\tLDA #<{asm}")
+                    self.emit("\tSTA TMP2")
+                    self.emit(f"\tLDA #>{asm}")
+                    self.emit("\tSTA TMP2+1")
+                    self.emit(f"\tLDX #${struct_info.size:02X}")
+                    self.emit("\tJSR COPY_BYTES")
+                    continue
+
                 if isinstance(arg, Identifier):
                     src_sym: Symbol = self.current_symtab.lookup(arg.name)
                     if not src_sym.type.is_struct or src_sym.type.is_pointer:
@@ -10613,17 +10675,43 @@ class CodeGen:
         if isinstance(stmt, ReturnStmt):
             # Generate the return expression (if any - PROCs may have no return value)
             if stmt.expr is not None:
-                prev_suppress: bool = self.suppress_byte_return_x
-                prev_force: bool = self.force_word_result
-                if self.current_func_return_type == "BYTE" and not self.current_func_return_is_pointer:
-                    self.suppress_byte_return_x = True
-                elif self.current_func_return_type == "WORD" or self.current_func_return_is_pointer:
-                    self.force_word_result = True
-                try:
-                    self.gen_expr(stmt.expr)
-                finally:
-                    self.suppress_byte_return_x = prev_suppress
-                    self.force_word_result = prev_force
+                if self.current_func_return_struct and self.current_func_return_buf:
+                    struct_info = self.current_func_return_struct
+                    if isinstance(stmt.expr, StructLiteral):
+                        self._emit_struct_literal_store(self.current_func_return_buf, struct_info, stmt.expr.values, ctx_name="return")
+                    elif isinstance(stmt.expr, Identifier):
+                        sym = self.current_symtab.lookup(stmt.expr.name)
+                        if not sym.type.is_struct or sym.type.is_pointer:
+                            self._raise_error("RETURN expects a struct value")
+                        if sym.type.base.upper() != struct_info.name.upper():
+                            self._raise_error("RETURN struct type mismatch")
+                        self.copy_bytes_needed = True
+                        self.emit(f"\tLDA #<{sym.asm_name()}")
+                        self.emit("\tSTA TMP0")
+                        self.emit(f"\tLDA #>{sym.asm_name()}")
+                        self.emit("\tSTA TMP0+1")
+                        self.emit(f"\tLDA #<{self.current_func_return_buf}")
+                        self.emit("\tSTA TMP2")
+                        self.emit(f"\tLDA #>{self.current_func_return_buf}")
+                        self.emit("\tSTA TMP2+1")
+                        self.emit(f"\tLDX #${struct_info.size:02X}")
+                        self.emit("\tJSR COPY_BYTES")
+                    else:
+                        self._raise_error("RETURN expects a struct value")
+                    self.emit(f"\tLDA #<{self.current_func_return_buf}")
+                    self.emit(f"\tLDX #>{self.current_func_return_buf}")
+                else:
+                    prev_suppress: bool = self.suppress_byte_return_x
+                    prev_force: bool = self.force_word_result
+                    if self.current_func_return_type == "BYTE" and not self.current_func_return_is_pointer:
+                        self.suppress_byte_return_x = True
+                    elif self.current_func_return_type == "WORD" or self.current_func_return_is_pointer:
+                        self.force_word_result = True
+                    try:
+                        self.gen_expr(stmt.expr)
+                    finally:
+                        self.suppress_byte_return_x = prev_suppress
+                        self.force_word_result = prev_force
             
             # If function expects BYTE but expression is WORD, use only lower byte (A register already has it)
             # X register will be ignored on return
@@ -10974,8 +11062,14 @@ class CodeGen:
         
         self.current_symtab = cast(SymbolTable, func.symtab)
         self.tc.symtab = func.symtab
-        self.current_func_return_type = func.ast.ret_type.base  # Set return type for this function
-        self.current_func_return_is_pointer = func.ast.ret_type.is_pointer
+        self.current_func_return_type = func.ret_type.base  # Set return type for this function
+        self.current_func_return_is_pointer = func.ret_type.is_pointer
+        ret_buf = self.func_return_buffers.get(func.ast.name)
+        if ret_buf:
+            self.current_func_return_buf, self.current_func_return_struct = ret_buf
+        else:
+            self.current_func_return_buf = None
+            self.current_func_return_struct = None
 
         self.emit("; -- Function " + func.ast.name + " --")
         self.emit(f"{self.asm_symbol_name(func.ast.name)}:")
@@ -11011,6 +11105,8 @@ class CodeGen:
             self.tc.symtab = prev_tc_symtab
         self.current_func_return_type = prev_func_return_type
         self.current_func_return_is_pointer = prev_func_return_is_pointer
+        self.current_func_return_buf = None
+        self.current_func_return_struct = None
 
     def _gen_relational(self, expr: BinaryExpr) -> None:
         """Generate relational.

@@ -46,7 +46,7 @@ class FuncAnalyzer:
 
     def analyze_decl(self, func: FuncDecl) -> None:
         """Register a function signature and enforce declaration rules."""
-        ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
+        ret_sem = self._resolve_ret_type(func.ret_type.base, func.ret_type.is_pointer)
         # Count required parameters (those without defaults)
         required_params: int = sum(1 for p in func.params if p.default_value is None)
         try:
@@ -127,7 +127,7 @@ class FuncAnalyzer:
         scoped.local = local_symtab
 
         # návratový typ
-        ret_sem = SemType(func.ret_type.base, func.ret_type.is_pointer)
+        ret_sem = self._resolve_ret_type(func.ret_type.base, func.ret_type.is_pointer)
 
         # update expr_tc to use scoped symbol table
         prev_symtab: SymbolLookup = self.expr_tc.symtab
@@ -440,21 +440,28 @@ class FuncAnalyzer:
                     if isinstance(folded, IntLiteral):
                         val: int = folded.value
                         # BYTE: must fit 0..255
-                        if ret_sem.base == "BYTE" and not ret_sem.is_pointer:
+                        if ret_sem.base == "BYTE" and not ret_sem.is_pointer and not ret_sem.is_struct:
                             if val < 0 or val > 0xFF:
                                 msg = f"Return value {val} (0x{val:X}) does not fit in BYTE (0-255)"
                                 raise SemanticError(msg, node=stmt.expr)
                         # WORD: must fit 0..65535
-                        if ret_sem.base == "WORD" and not ret_sem.is_pointer:
+                        if ret_sem.base == "WORD" and not ret_sem.is_pointer and not ret_sem.is_struct:
                             if val < 0 or val > 0xFFFF:
                                 msg = f"Return value {val} (0x{val:X}) does not fit in WORD (0-65535)"
                                 raise SemanticError(msg, node=stmt.expr)
 
+                if ret_sem.is_struct and not ret_sem.is_pointer:
+                    if et is None or not et.sem_type.is_struct:
+                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}", node=stmt)
+                    # Allow struct literal or exact struct type match
+                    if et.sem_type.base != ret_sem.base and et.sem_type.base != "STRUCT_LITERAL":
+                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}", node=stmt)
                 if et is not None and et.sem_type.base != ret_sem.base:
                     # Allow implicit narrowing from WORD to BYTE (use lower byte)
                     # Allow implicit widening from BYTE to WORD (zero-extend)
                     if (ret_sem.base == "BYTE" and et.sem_type.base == "WORD") or \
-                       (ret_sem.base == "WORD" and et.sem_type.base == "BYTE"):
+                       (ret_sem.base == "WORD" and et.sem_type.base == "BYTE") or \
+                       (ret_sem.base == "LONG" and et.sem_type.base in {"BYTE", "WORD"}):
                         # This is allowed - implicit conversion
                         pass
                     else:
@@ -499,3 +506,24 @@ class FuncAnalyzer:
             symtab=scoped,
             ret_type=ret_sem
         )
+
+    def _resolve_ret_type(self, base: str, is_pointer: bool) -> SemType:
+        """Resolve function return type for enums and structs."""
+        base_upper = base.upper()
+        # Struct return (by value or pointer)
+        if self.struct_registry and self.struct_registry.is_defined(base_upper):
+            struct_info = self.struct_registry.lookup(base_upper)
+            return SemType(base=base, is_pointer=is_pointer, is_struct=True, struct_info=struct_info)
+
+        # Enum return -> map to enum base (BYTE/WORD)
+        symtab = getattr(self.expr_tc, "symtab", None)
+        enums = getattr(symtab, "_enums", None)
+        if enums is None:
+            parent = getattr(symtab, "parent", None)
+            if parent is not None:
+                enums = getattr(parent, "_enums", None)
+        if enums and base_upper in enums and not is_pointer:
+            enum_base = enums[base_upper].get("base", "BYTE")
+            return SemType(base=enum_base, is_pointer=False)
+
+        return SemType(base, is_pointer)

@@ -245,8 +245,29 @@ class ExprTypeChecker:
                 BinOp.EQ, BinOp.NE,
                 BinOp.LT, BinOp.GT, BinOp.LE, BinOp.GE
             }:
-                if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
-                    raise SemanticError("Comparison requires values", node=expr)
+                left_is_ptr = (lt.kind == ExprKind.ADDR and lt.sem_type.is_pointer)
+                right_is_ptr = (rt.kind == ExprKind.ADDR and rt.sem_type.is_pointer)
+
+                if left_is_ptr or right_is_ptr:
+                    def _is_word_value(t: ExprType) -> bool:
+                        return t.kind == ExprKind.VALUE and (not t.sem_type.is_pointer) and t.sem_type.base == "WORD"
+
+                    def _is_int_literal_value(node, t: ExprType) -> bool:
+                        return (
+                            isinstance(node, IntLiteral)
+                            and t.kind == ExprKind.VALUE
+                            and (not t.sem_type.is_pointer)
+                            and t.sem_type.base in {"BYTE", "WORD"}
+                        )
+
+                    left_ok = left_is_ptr or _is_word_value(lt) or _is_int_literal_value(expr.left, lt)
+                    right_ok = right_is_ptr or _is_word_value(rt) or _is_int_literal_value(expr.right, rt)
+
+                    if not (left_ok and right_ok):
+                        raise SemanticError("Pointer comparison requires pointer, WORD, or integer literal", node=expr)
+                else:
+                    if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
+                        raise SemanticError("Comparison requires values", node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
             # logické

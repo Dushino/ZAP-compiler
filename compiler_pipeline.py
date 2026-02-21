@@ -1,6 +1,6 @@
 from ast_nodes import Program, ProcDecl, FuncDecl
 from ast_nodes import Program, ProcDecl, FuncDecl, SegmentDirective, IncbinDirective, StructDef
-from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry
+from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry, Symbol, SemType, StructInfo
 from sema import DeclarationAnalyzer, StructAnalyzer, EnumAnalyzer
 from sema_expr import ExprTypeChecker
 from sema_proc import ProcAnalyzer
@@ -1744,6 +1744,39 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 raise RuntimeError(f"Internal compiler error: Func analyzer returned None for function '{p.name}'")
             analyzed_funcs.append(af)
 
+    # Add generated return buffers for struct-returning functions
+    func_return_buffers: dict[str, tuple[str, StructInfo]] = {}
+    for af in analyzed_funcs:
+        ret_sem = af.ret_type
+        if ret_sem.is_struct and not ret_sem.is_pointer and ret_sem.struct_info is not None:
+            buf_name = f"RETBUF_{af.ast.name}"
+            try:
+                global_symtab.define(
+                    Symbol(
+                        name=buf_name,
+                        type=SemType(
+                            base=ret_sem.base,
+                            is_pointer=False,
+                            is_struct=True,
+                            struct_info=ret_sem.struct_info,
+                        ),
+                        is_const=False,
+                        const_value=None,
+                        is_array=False,
+                        array_len=None,
+                        init=None,
+                        address=None,
+                        proc_name="",
+                        array_dims=None,
+                        is_generated=True,
+                    )
+                )
+            except SemanticError:
+                # If it already exists, reuse it
+                pass
+            sym = global_symtab.lookup(buf_name)
+            func_return_buffers[af.ast.name] = (sym.asm_name(), ret_sem.struct_info)
+
     # --- codegen ---   
     # reuse func_table from analysis (already has all functions registered)
     tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
@@ -1807,6 +1840,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         func_param_specs=func_param_specs,
         pruned_procs=removed_procs,
         struct_registry=struct_registry,
+        func_return_buffers=func_return_buffers,
         system_temp_slots={},  # Will be updated after liveness analysis
     )
     # Recompute exports to reflect pruned (removed) procs/funcs and globals

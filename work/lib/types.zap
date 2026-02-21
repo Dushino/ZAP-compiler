@@ -2,11 +2,20 @@
 
 .module "types"
 
+.include "errno.zap"
+
+
+enum BOOL
+    FALSE,
+    TRUE
+end
+
+
 ; FILE structure
 struct FILE
-    byte fd     ; handle
-    byte error  ; error code
-    byte eof    ; end of file
+    byte  fd     ; handle
+    ERRNO error  ; error code
+    BOOL  eof    ; end of file
 end
 
 
