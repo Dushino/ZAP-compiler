@@ -2,7 +2,6 @@
 
 .module "types"
 
-; FIXME: struct is not propagated from module to module
 ; FILE structure
 struct FILE
     byte fd     ; handle

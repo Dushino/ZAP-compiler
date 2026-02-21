@@ -441,9 +441,6 @@ class ModuleSystem:
             raw_source = raw_source[1:]
 
         platform_symbol_added = None
-        # IMPORTANT: this scan pass must not persist .define/.undef side-effects,
-        # otherwise the subsequent full parse pass would process directives twice.
-        symbols_snapshot: Set[str] = set(self.preprocessor.defined_symbols)
         try:
             path_parts = os.path.normpath(filepath).split(os.sep)
             if 'lib' in path_parts:
@@ -457,8 +454,6 @@ class ModuleSystem:
                             platform_symbol_added = sym
             processed_source, defined_symbols = self.preprocessor.process(raw_source)
         finally:
-            # Restore preprocessor symbol state to what it was before the scan.
-            self.preprocessor.defined_symbols = symbols_snapshot
             if platform_symbol_added is not None:
                 self.preprocessor.defined_symbols.discard(platform_symbol_added)
 
@@ -541,6 +536,10 @@ class ModuleSystem:
         self.include_stack.append(full_path)
         
         try:
+            # Snapshot symbols at module entry; parsing this same file later must start from
+            # this state to avoid processing its .define/.undef directives twice.
+            entry_symbols: Set[str] = set(self.preprocessor.defined_symbols)
+
             # First scan directives so includes can be loaded before parsing.
             is_module, module_name, includes, defined_symbols, module_directive_info = self._scan_file_directives(full_path)
 
@@ -600,10 +599,16 @@ class ModuleSystem:
                     dep_struct_names.update(dep_info.exported_types)
 
             # Parse this module with dependency-exported type names available.
-            program, parsed_is_module, parsed_module_name, _parsed_includes, parsed_defined_symbols, _mdi = self.parse_file(
-                full_path,
-                initial_struct_names=dep_struct_names,
-            )
+            symbols_after_scan_and_deps: Set[str] = set(self.preprocessor.defined_symbols)
+            try:
+                self.preprocessor.defined_symbols = set(entry_symbols)
+                program, parsed_is_module, parsed_module_name, _parsed_includes, parsed_defined_symbols, _mdi = self.parse_file(
+                    full_path,
+                    initial_struct_names=dep_struct_names,
+                )
+            finally:
+                # Keep global symbol flow from directive-scan/include loading.
+                self.preprocessor.defined_symbols = symbols_after_scan_and_deps
 
             # Keep canonical values from directive scan but refresh symbols from parse pass.
             module_info.is_module = parsed_is_module

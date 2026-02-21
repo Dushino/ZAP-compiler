@@ -3,6 +3,7 @@
 .module "stdio"
 
 .include "errno.zap"
+.include "types.zap"
 
 
 proc CONSTRUCTOR()
