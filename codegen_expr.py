@@ -899,10 +899,14 @@ class CodeGen:
                                 if left_loc != "MATH0":
                                     emit_move_to_math(left_loc, "MATH0", 4)
                                 self.emit(f"\tLDA #{shift_count}")
+                                # Directly emit JSR (don't call _gen_lshift32/_gen_rshift32 as they
+                                # would overwrite A with LDA MATH1 before the JSR)
                                 if node.value == BinOp.LSHIFT:
-                                    self._gen_lshift32() # shift count in A
+                                    self.math_routines_needed.add("LSHIFT32")
+                                    self.emit("\tJSR LSHIFT32")
                                 else:
-                                    self._gen_rshift32()
+                                    self.math_routines_needed.add("RSHIFT32")
+                                    self.emit("\tJSR RSHIFT32")
                             elif node.value == BinOp.LSHIFT:
                                 self._gen_lshift(result_width == 2, "A", shift_count)
                             else:
@@ -3142,7 +3146,8 @@ class CodeGen:
             self.emit("\tADC #$00")
             self.emit("\tSTA MATH0+3")
             self.emit("MUL16_8_SKIP:")
-            self.emit("\tROL TMP0+1")
+            self.emit("\tASL TMP0")     # shift multiplicand left (low byte)
+            self.emit("\tROL TMP0+1")   # shift multiplicand left (high byte with carry)
             self.emit("\tDEX")
             self.emit("\tBNE MUL16_8_LOOP")
             self.emit("\tLDA MATH0")
@@ -3199,6 +3204,8 @@ class CodeGen:
             self.emit("\tROL TMP3")
             self.emit("\tDEX")
             self.emit("\tBNE MUL16_LOOP")
+            self.emit("\tLDA MATH0")
+            self.emit("\tLDX MATH0+1")
             self.emit("\tRTS")
 
         def emit_div8() -> None:
@@ -5422,13 +5429,13 @@ class CodeGen:
                 self.emit("\tLDX #0     ; note 3212; note 3239")  # Clear high byte
             elif stride_val == 2:
                 # Multiply by 2: ASL
-                self.emit("\tASL A")
+                self.emit("\tASL")
                 self.emit("\tLDX #0     ; note 3243")
             elif stride_val & (stride_val - 1) == 0:
                 # Power of 2: use bit shifts
                 shifts = (stride_val - 1).bit_length()  # log2(stride_val)
                 for _ in range(shifts):
-                    self.emit("\tASL A")
+                    self.emit("\tASL")
                 self.emit("\tLDX #0     ; note 3249")
             else:
                 # General multiplication (non-power-of-2)
@@ -7260,7 +7267,7 @@ class CodeGen:
             # Need to multiply offset by element size
             if ptr_elem_size == 2:
                 # Optimization: use ASL to multiply by 2
-                self.emit("\tASL A")  # Multiply by 2
+                self.emit("\tASL")  # Multiply by 2
             else:
                 # General case: multiply by ptr_elem_size
                 self.emit("\tSTA TMP3")  # Save offset
@@ -7343,7 +7350,7 @@ class CodeGen:
         if ptr_elem_size == 2:
             # Pointer to WORD: scale offset by 2
             # A (offset) needs to be multiplied by 2 before subtracting
-            self.emit("\tASL A")  # Multiply by 2
+            self.emit("\tASL")  # Multiply by 2
         
         if is_16bit:
             # 16-bit: (left_tmp,left_tmp+1) - (A,X) → (A,X)
@@ -7717,7 +7724,7 @@ class CodeGen:
             if left_tmp != "A":
                 self.emit(f"\tLDA {left_tmp}")
             for _ in range(shift_count):
-                self.emit("\tASL A")
+                self.emit("\tASL")   # accumulator mode (ca65 syntax: no 'A' suffix)
             return
         if result_16:
             # 16-bit shift left (left_tmp,left_tmp+1) << A → (A,X)
@@ -7735,12 +7742,8 @@ class CodeGen:
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
-            self.emit("\tLDA TMP0")    # Load low byte
-            self.emit("\tASL A")       # Shift left
-            self.emit("\tSTA TMP0")    # Store back
-            self.emit("\tLDA TMP0+1")  # Load high byte
-            self.emit("\tROL A")       # Rotate with carry
-            self.emit("\tSTA TMP0+1")  # Store back
+            self.emit("\tASL TMP0")    # Shift low byte left
+            self.emit("\tROL TMP0+1")  # Rotate high byte left with carry
             self.emit("\tDEC TMP2")    # Decrement shift count
             self.emit(f"\tBNE {lbl_loop}")
             self.emit(f"{lbl_end}:")
@@ -7760,9 +7763,7 @@ class CodeGen:
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
-            self.emit("\tLDA TMP0")    # Load value
-            self.emit("\tASL A")       # Shift left
-            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tASL TMP0")    # Shift left in place
             self.emit("\tDEC TMP2")    # Decrement counter
             self.emit(f"\tBNE {lbl_loop}")
             self.emit(f"{lbl_end}:")
@@ -7807,7 +7808,7 @@ class CodeGen:
             if left_tmp != "A":
                 self.emit(f"\tLDA {left_tmp}")
             for _ in range(shift_count):
-                self.emit("\tLSR A")
+                self.emit("\tLSR")   # accumulator mode (ca65 syntax: no 'A' suffix)
             return
         if result_16:
             # 16-bit shift right (left_tmp,left_tmp+1) >> A → (A,X)
@@ -7825,12 +7826,8 @@ class CodeGen:
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
-            self.emit("\tLDA TMP0+1")  # Load high byte
-            self.emit("\tLSR A")       # Shift right
-            self.emit("\tSTA TMP0+1")  # Store back
-            self.emit("\tLDA TMP0")    # Load low byte
-            self.emit("\tROR A")       # Rotate right with carry
-            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tLSR TMP0+1")  # Shift high byte right
+            self.emit("\tROR TMP0")    # Rotate low byte right with carry
             self.emit("\tDEC TMP2")    # Decrement shift count
             self.emit(f"\tBNE {lbl_loop}")
             self.emit(f"{lbl_end}:")
@@ -7850,9 +7847,7 @@ class CodeGen:
             self.emit(f"\tLDA TMP2")   # Load shift count
             self.emit(f"\tBEQ {lbl_end}")
             self.emit(f"{lbl_loop}:")
-            self.emit("\tLDA TMP0")    # Load value
-            self.emit("\tLSR A")       # Shift right
-            self.emit("\tSTA TMP0")    # Store back
+            self.emit("\tLSR TMP0")    # Shift right in place
             self.emit("\tDEC TMP2")    # Decrement counter
             self.emit(f"\tBNE {lbl_loop}")
             self.emit(f"{lbl_end}:")
@@ -8950,9 +8945,11 @@ class CodeGen:
                                 self.emit(f"\tSTA MATH0+3")
                                 self.emit(f"\tLDA #{shift_amount}")
                                 if rhs.op == BinOp.MUL:
-                                    self._gen_lshift32()
+                                    self.math_routines_needed.add("LSHIFT32")
+                                    self.emit("\tJSR LSHIFT32")
                                 else:
-                                    self._gen_rshift32()
+                                    self.math_routines_needed.add("RSHIFT32")
+                                    self.emit("\tJSR RSHIFT32")
                                 self.emit(f"\tLDA MATH0")
                                 self.emit(f"\tSTA {asm}")
                                 self.emit(f"\tLDA MATH0+1")
