@@ -1,0 +1,221 @@
+find p1/obj  -name '*.o' -type f -delete 2>/dev/null | true
+find p1/out  -name '*.com' -type f -delete 2>/dev/null | true
+find p1/out  -name '*.cut' -type f -delete 2>/dev/null | true
+find p1/out  -name '*.da65' -type f -delete 2>/dev/null | true
+find p1/src2 -name '*.s' -type f -delete 2>/dev/null | true
+find p1/src2 -name '*.inc' -type f -delete 2>/dev/null | true
+find tests -name 'tests_report.txt' -type f -delete 2>/dev/null | true
+find tests/pass -name '*.s' -type f -delete 2>/dev/null | true
+find tests/pass -name '*.o' -type f -delete 2>/dev/null | true
+find tests/pass -name '*.com' -type f -delete 2>/dev/null | true
+find tests/pass -name '*.cut' -type f -delete 2>/dev/null | true
+find tests/pass -name '*.txt' -type f -delete 2>/dev/null | true
+find tests/pass -name '*.da65' -type f -delete 2>/dev/null | true
+find tests/fail -name '*.s' -type f -delete 2>/dev/null | true
+find tests/fail -name '*.o' -type f -delete 2>/dev/null | true
+set -x
+==========================================
+Running ZAP Compiler Test Suite
+==========================================
+
+Testing files that SHOULD PASS...
+------------------------------------------
+001-main-entry-point.zap:                         ✅ PASS (all 4 variants)
+002-byte-type.zap:                                ✅ PASS (all 4 variants)
+003-word-type.zap:                                ✅ PASS (all 4 variants)
+004-byte-pointer.zap:                             ✅ PASS (all 4 variants)
+005-simple-array.zap:                             ✅ PASS (all 4 variants)
+006-word-pointers.zap:                            ✅ PASS (all 4 variants)
+007-arrays-1d-byte.zap:                           ✅ PASS (all 4 variants)
+008-if-statement.zap:                             ✅ PASS (all 4 variants)
+009-arrays-1d-word.zap:                           ✅ PASS (all 4 variants)
+010-while-loop.zap:                               ✅ PASS (all 4 variants)
+011-arrays-mixed.zap:                             ✅ PASS (all 4 variants)
+012-arrays-multidim-2d.zap:                       ✅ PASS (all 4 variants)
+013-nested-procedures.zap:                        ✅ PASS (all 4 variants)
+014-procedure-call.zap:                           ✅ PASS (all 4 variants)
+015-arrays-multidim-3d.zap:                       ✅ PASS (all 4 variants)
+016-comparison-operators.zap:                     ✅ PASS (all 4 variants)
+017-subtraction.zap:                              ✅ PASS (all 4 variants)
+018-arithmetic-operators.zap:                     ✅ PASS (all 4 variants)
+019-arrays-inferred-size.zap:                     ✅ PASS (all 4 variants)
+020-division.zap:                                 ✅ PASS (all 4 variants)
+021-arrays-string-init.zap:                       ✅ PASS (all 4 variants)
+022-global-variable.zap:                          ✅ PASS (all 4 variants)
+023-modulo.zap:                                   ✅ PASS (all 4 variants)
+024-multiplication.zap:                           ✅ PASS (all 4 variants)
+025-pointers-dereference.zap:                     ✅ PASS (all 4 variants)
+026-operator-precedence.zap:                      ✅ PASS (all 4 variants)
+027-pointers-arithmetic.zap:                      ✅ PASS (all 4 variants)
+028-address-of-operator.zap:                      ✅ PASS (all 4 variants)
+029-loop-termination.zap:                         ✅ PASS (all 4 variants)
+030-conditional-true.zap:                         ✅ PASS (all 4 variants)
+031-structs-simple.zap:                           ✅ PASS (all 4 variants)
+032-equality.zap:                                 ✅ PASS (all 4 variants)
+033-structs-nested.zap:                           ✅ PASS (all 4 variants)
+034-inequality.zap:                               ✅ PASS (all 4 variants)
+035-structs-arrays.zap:                           ✅ PASS (all 4 variants)
+036-less-equal.zap:                               ✅ PASS (all 4 variants)
+037-structs-pointers.zap:                         ✅ PASS (all 4 variants)
+038-greater-equal.zap:                            ✅ PASS (all 4 variants)
+039-procedures-basic.zap:                         ✅ PASS (all 4 variants)
+040-complex-logic.zap:                            ✅ PASS (all 4 variants)
+041-procedures-parameters.zap:                    ✅ PASS (all 4 variants)
+042-array-loop.zap:                               ✅ PASS (all 4 variants)
+043-functions-basic.zap:                          ✅ PASS (all 4 variants)
+044-bitwise-operations.zap:                       ✅ PASS (all 4 variants)
+045-functions-return-values.zap:                  ✅ PASS (all 4 variants)
+046-control-flow-if-else.zap:                     ✅ PASS (all 4 variants)
+047-shift-operations.zap:                         ✅ PASS (all 4 variants)
+048-cast-operations.zap:                          ✅ PASS (all 4 variants)
+049-control-flow-while.zap:                       ✅ PASS (all 4 variants)
+050-control-flow-for.zap:                         ✅ PASS (all 4 variants)
+051-increment-decrement.zap:                      ✅ PASS (all 4 variants)
+052-assignment-chain.zap:                         ✅ PASS (all 4 variants)
+053-control-flow-break.zap:                       ✅ PASS (all 4 variants)
+054-nested-arrays.zap:                            ✅ PASS (all 4 variants)
+055-operators-arithmetic.zap:                     ✅ PASS (all 4 variants)
+056-operators-bitwise.zap:                        ✅ PASS (all 4 variants)
+057-struct-basic.zap:                             ✅ PASS (all 4 variants)
+058-operators-comparison.zap:                     ✅ PASS (all 4 variants)
+059-string-literals.zap:                          ✅ PASS (all 4 variants)
+060-escape-sequences.zap:                         ✅ PASS (all 4 variants)
+061-operators-logical.zap:                        ✅ PASS (all 4 variants)
+062-constants.zap:                                ✅ PASS (all 4 variants)
+063-expressions-complex.zap:                      ✅ PASS (all 4 variants)
+064-initialization-arrays.zap:                    ✅ PASS (all 4 variants)
+065-initialization-structs.zap:                   ✅ PASS (all 4 variants)
+066-const-scalar.zap:                             ✅ PASS (all 4 variants)
+067-const-arrays.zap:                             ✅ PASS (all 4 variants)
+068-const-structs.zap:                            ✅ PASS (all 4 variants)
+069-fixed-address-variables.zap:                  ✅ PASS (all 4 variants)
+070-global-local-scope.zap:                       ✅ PASS (all 4 variants)
+073-directives.zap:                               ✅ PASS (all 4 variants)
+074-incbin.zap:                                   ✅ PASS (all 4 variants)
+075-early-return.zap:                             ✅ PASS (all 4 variants)
+076-CPU-as-symbol1.zap:                           ✅ PASS (all 4 variants)
+077-static.zap:                                   ✅ PASS (all 4 variants)
+078-port.zap:                                     ✅ PASS (all 4 variants)
+079-default-params.zap:                           ✅ PASS (all 4 variants)
+080-pointer-mix.zap:                              ✅ PASS (all 4 variants)
+081-identifiers.zap:                              ✅ PASS (all 4 variants)
+082-identifiers-shadow.zap:                       ✅ PASS (all 4 variants)
+083-integer-literals.zap:                         ✅ PASS (all 4 variants)
+084-whitespace-comments.zap:                      ✅ PASS (all 4 variants)
+085-strings.zap:                                  ✅ PASS (all 4 variants)
+086-variables.zap:                                ✅ PASS (all 4 variants)
+087-expressions.zap:                              ✅ PASS (all 4 variants)
+088-default-param-usage.zap:                      ✅ PASS (all 4 variants)
+089-shadowing-local.zap:                          ✅ PASS (all 4 variants)
+090-char-word.zap:                                ✅ PASS (all 4 variants)
+091-define-ifdef.zap:                             ✅ PASS (all 4 variants)
+092-struct-field-pass.zap:                        ✅ PASS (all 4 variants)
+093-return-word.zap:                              ✅ PASS (all 4 variants)
+094-struct-init.zap:                              ✅ PASS (all 4 variants)
+095-add-call-16bit.zap:                           ✅ PASS (all 4 variants)
+096-arithmetic-16bit.zap:                         ❌ FAIL (4/4 variants failed) [OUTPUT_MISMATCH:_default] [OUTPUT_MISMATCH:_6502] [OUTPUT_MISMATCH:_O1] [OUTPUT_MISMATCH:_6502_-O1]
+097-division-16bit.zap:                           ✅ PASS (all 4 variants)
+098-subtraction-16bit.zap:                        ✅ PASS (all 4 variants)
+099-mul-div-mod-variants.zap:                     ❌ FAIL (4/4 variants failed) [OUTPUT_MISMATCH:_default] [OUTPUT_MISMATCH:_6502] [OUTPUT_MISMATCH:_O1] [OUTPUT_MISMATCH:_6502_-O1]
+100-basic.zap:                                    ✅ PASS (all 4 variants)
+101-explicit-values.zap:                          ✅ PASS (all 4 variants)
+102-word-range.zap:                               ✅ PASS (all 4 variants)
+103-array_of_pointers.zap:                        ✅ PASS (all 4 variants)
+104-word-loops.zap:                               ✅ PASS (all 4 variants)
+105-switch.zap:                                   ✅ PASS (all 4 variants)
+106-lo-hi.zap:                                    ✅ PASS (all 4 variants)
+107-sizeof.zap:                                   ✅ PASS (all 4 variants)
+108-bitwise-shift-rpn.zap:                        ✅ PASS (all 4 variants)
+109-comparison-rpn.zap:                           ✅ PASS (all 4 variants)
+110-logical-and-rpn.zap:                          ✅ PASS (all 4 variants)
+111-logical-or-rpn.zap:                           ✅ PASS (all 4 variants)
+112-mixed-logical-rpn.zap:                        ✅ PASS (all 4 variants)
+113-unary-not-rpn.zap:                            ✅ PASS (all 4 variants)
+114-unary-bnot-rpn.zap:                           ✅ PASS (all 4 variants)
+115-unary-with-comparison-rpn.zap:                ✅ PASS (all 4 variants)
+tests/pass/116-moderately-complex-expr/116-moderately-complex-expr_default.s:96: Error: Illegal addressing mode
+tests/pass/116-moderately-complex-expr/116-moderately-complex-expr_6502.s:97: Error: Illegal addressing mode
+tests/pass/116-moderately-complex-expr/116-moderately-complex-expr_O1.s:95: Error: Illegal addressing mode
+tests/pass/116-moderately-complex-expr/116-moderately-complex-expr_6502_-O1.s:98: Error: Illegal addressing mode
+116-moderately-complex-expr.zap:                  ❌ FAIL (4/4 variants failed) [CA65_ERROR:_default] [CA65_ERROR:_6502] [CA65_ERROR:_O1] [CA65_ERROR:_6502_-O1]
+117-repeat-until.zap:                             ✅ PASS (all 4 variants)
+118-stdio.zap:                                    ✅ PASS (all 4 variants)
+120-var-const-combinations.zap:                   ✅ PASS (all 4 variants)
+121-expr-contexts.zap:                            ✅ PASS (all 4 variants)
+122-const-correctness.zap:                        ✅ PASS (all 4 variants)
+133-long.zap:                                     ❌ FAIL (4/4 variants failed) [OUTPUT_MISMATCH:_default] [OUTPUT_MISMATCH:_6502] [OUTPUT_MISMATCH:_O1] [OUTPUT_MISMATCH:_6502_-O1]
+200-ops-byte.zap:                                 ✅ PASS (all 4 variants)
+
+Testing files that SHOULD FAIL...
+------------------------------------------
+001-main-entry-point-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+source.zap:                                       ✅ PASS (correctly rejected all 4 variants)
+002-byte-type-error.zap:                          ✅ PASS (correctly rejected all 4 variants)
+003-simple-array-error.zap:                       ✅ PASS (correctly rejected all 4 variants)
+004-word-pointers-error.zap:                      ✅ PASS (correctly rejected all 4 variants)
+005-arrays-1d-byte-error.zap:                     ✅ PASS (correctly rejected all 4 variants)
+006-if-statement-error.zap:                       ✅ PASS (correctly rejected all 4 variants)
+007-arrays-1d-word-error.zap:                     ✅ PASS (correctly rejected all 4 variants)
+008-while-loop-error.zap:                         ✅ PASS (correctly rejected all 4 variants)
+010-nested-procedures-error.zap:                  ✅ PASS (correctly rejected all 4 variants)
+011-procedure-call-error.zap:                     ✅ PASS (correctly rejected all 4 variants)
+013-comparison-operators-error.zap:               ✅ PASS (correctly rejected all 4 variants)
+014-arithmetic-operators-error.zap:               ✅ PASS (correctly rejected all 4 variants)
+016-division-error.zap:                           ✅ PASS (correctly rejected all 4 variants)
+018-global-variable-error.zap:                    ✅ PASS (correctly rejected all 4 variants)
+019-modulo-error.zap:                             ✅ PASS (correctly rejected all 4 variants)
+023-loop-termination-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+024-conditional-true-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+026-equality-error.zap:                           ✅ PASS (correctly rejected all 4 variants)
+028-inequality-error.zap:                         ✅ PASS (correctly rejected all 4 variants)
+030-less-equal-error.zap:                         ✅ PASS (correctly rejected all 4 variants)
+032-greater-equal-error.zap:                      ✅ PASS (correctly rejected all 4 variants)
+034-complex-logic-error.zap:                      ✅ PASS (correctly rejected all 4 variants)
+037-bitwise-operations-error.zap:                 ✅ PASS (correctly rejected all 4 variants)
+040-shift-operations-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+041-cast-operations-error.zap:                    ✅ PASS (correctly rejected all 4 variants)
+044-increment-decrement-error.zap:                ✅ PASS (correctly rejected all 4 variants)
+045-assignment-chain-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+047-nested-arrays-error.zap:                      ✅ PASS (correctly rejected all 4 variants)
+050-struct-basic-error.zap:                       ✅ PASS (correctly rejected all 4 variants)
+052-string-literals-error.zap:                    ✅ PASS (correctly rejected all 4 variants)
+053-escape-sequences-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+055-constants-error.zap:                          ✅ PASS (correctly rejected all 4 variants)
+066-main-missing.zap:                             ✅ PASS (correctly rejected all 4 variants)
+067-identifiers-error.zap:                        ✅ PASS (correctly rejected all 4 variants)
+068-identifiers-error2.zap:                       ✅ PASS (correctly rejected all 4 variants)
+070-identifier-not-declared-error.zap:            ✅ PASS (correctly rejected all 4 variants)
+071-integer-literals-error.zap:                   ✅ PASS (correctly rejected all 4 variants)
+072-comments-error.zap:                           ✅ PASS (correctly rejected all 4 variants)
+073-strings-error.zap:                            ✅ PASS (correctly rejected all 4 variants)
+074-variables-error.zap:                          ✅ PASS (correctly rejected all 4 variants)
+075-expressions-error.zap:                        ✅ PASS (correctly rejected all 4 variants)
+076-undefined-result.zap:                         ✅ PASS (correctly rejected all 4 variants)
+111-error-directive.zap:                          ✅ PASS (correctly rejected all 4 variants)
+113-identifiers-underscore-error.zap:             ✅ PASS (correctly rejected all 4 variants)
+114-assign-const-error.zap:                       ✅ PASS (correctly rejected all 4 variants)
+121-return-type-mismatch.zap:                     ✅ PASS (correctly rejected all 4 variants)
+121-return-word-too-big.zap:                      ✅ PASS (correctly rejected all 4 variants)
+124-keyword-as-ident.zap:                         ✅ PASS (correctly rejected all 4 variants)
+127-array-size-mismatch.zap:                      ✅ PASS (correctly rejected all 4 variants)
+129-rd-no-port.zap:                               ✅ PASS (correctly rejected all 4 variants)
+130-struct-field-write-ro.zap:                    ✅ PASS (correctly rejected all 4 variants)
+131-include-missing.zap:                          ✅ PASS (correctly rejected all 4 variants)
+131-struct-field-read-wo.zap:                     ✅ PASS (correctly rejected all 4 variants)
+134-func-too-many-params.zap:                     ✅ PASS (correctly rejected all 4 variants)
+enum-base-invalid.zap:                            ✅ PASS (correctly rejected all 4 variants)
+enum-brace-style.zap:                             ✅ PASS (correctly rejected all 4 variants)
+enum-byte-range.zap:                              ✅ PASS (correctly rejected all 4 variants)
+enum-conflict.zap:                                ✅ PASS (correctly rejected all 4 variants)
+enum-duplicate.zap:                               ✅ PASS (correctly rejected all 4 variants)
+test_stack_overflow.zap:                          ❌ FAIL (4/4 variants passed) [UNEXPECTED_PASS:_default] [UNEXPECTED_PASS:_6502] [UNEXPECTED_PASS:_O1] [UNEXPECTED_PASS:_6502_-O1]
+
+==========================================
+Test Results Summary
+==========================================
+Should-pass tests: 117 passed
+Should-fail tests: 60 correctly rejected
+Errors: 5
+
+❌ 5 test(s) behaved incorrectly
+make: *** [Makefile:91: tests] Error 1
