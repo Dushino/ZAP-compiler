@@ -2,10 +2,10 @@
 Module system for handling .module and .include directives
 """
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Set, Optional, List, NoReturn, cast
 from parser import Parser
-from ast_nodes import Program, Declaration, ProcDecl, FuncDecl
+from ast_nodes import Program, Declaration, ProcDecl, FuncDecl, StructDef, EnumDecl
 from preprocessor import Preprocessor
 from errors import SemanticError
 
@@ -24,6 +24,8 @@ class ModuleInfo:
     includes: list[str]  # List of included module names
     defined_symbols: Optional[Set[str]] = None  # Preprocessor .define symbols
     program: Program | None = None
+    # Exported type names (STRUCT/ENUM), uppercase. Includes transitive exports from dependencies.
+    exported_types: Set[str] = field(default_factory=set)
 
 
 class ModuleSystem:
@@ -51,7 +53,7 @@ class ModuleSystem:
         # Map module names to their defining file path to detect duplicates
         self.module_name_to_path: Dict[str, str] = {}
     
-    def parse_file(self, filepath: str):
+    def parse_file(self, filepath: str, initial_struct_names: Optional[Set[str]] = None):
         """Parse a single file and extract module directives"""
         with open(filepath, 'r', encoding='utf-8-sig') as f:
             raw_source: str = f.read()
@@ -190,7 +192,7 @@ class ModuleSystem:
         cleaned_source: str = '\n'.join(cleaned_lines)
         
         try:
-            parser = Parser(cleaned_source, filename=filepath)
+            parser = Parser(cleaned_source, filename=filepath, initial_struct_names=initial_struct_names)
             program: Program = parser.parse_program()
         except Exception as e:
             # If parsing failed, prefer to report the location in the original file
@@ -429,6 +431,95 @@ class ModuleSystem:
         err = SemanticError(f"File not found: {filename} (searched in: current dir, and {len(self.include_dirs)} include directories)")
         err.filename = relative_to_dir
         raise err
+
+    def _scan_file_directives(self, filepath: str) -> tuple[bool, Optional[str], list[str], Optional[Set[str]], Optional[tuple[int, int, str]]]:
+        """Scan .module/.include directives without parsing declarations/statements."""
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            raw_source: str = f.read()
+
+        if raw_source.startswith('\ufeff'):
+            raw_source = raw_source[1:]
+
+        platform_symbol_added = None
+        # IMPORTANT: this scan pass must not persist .define/.undef side-effects,
+        # otherwise the subsequent full parse pass would process directives twice.
+        symbols_snapshot: Set[str] = set(self.preprocessor.defined_symbols)
+        try:
+            path_parts = os.path.normpath(filepath).split(os.sep)
+            if 'lib' in path_parts:
+                lib_idx = path_parts.index('lib')
+                if lib_idx + 1 < len(path_parts):
+                    platform = path_parts[lib_idx + 1]
+                    if platform:
+                        sym = platform.upper()
+                        if sym not in self.preprocessor.defined_symbols:
+                            self.preprocessor.defined_symbols.add(sym)
+                            platform_symbol_added = sym
+            processed_source, defined_symbols = self.preprocessor.process(raw_source)
+        finally:
+            # Restore preprocessor symbol state to what it was before the scan.
+            self.preprocessor.defined_symbols = symbols_snapshot
+            if platform_symbol_added is not None:
+                self.preprocessor.defined_symbols.discard(platform_symbol_added)
+
+        is_module: bool = False
+        module_name: Optional[str] = None
+        includes: list[str] = []
+        module_directive_info: Optional[tuple[int, int, str]] = None
+
+        orig_lines: List[str] = raw_source.split('\n')
+        kept_line_nums = getattr(self.preprocessor, 'last_kept_line_numbers', None)
+
+        if kept_line_nums is not None:
+            for ln in kept_line_nums:
+                line = orig_lines[ln - 1]
+                stripped: str = line.strip()
+                if stripped.startswith('.module'):
+                    is_module = True
+                    first_q: int = line.find('"')
+                    if first_q == -1:
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module') + 1)
+                        err.filename = filepath
+                        err.source_text = raw_source
+                        raise err
+                    second_q: int = line.find('"', first_q + 1)
+                    if second_q == -1:
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q + 1)
+                        err.filename = filepath
+                        err.source_text = raw_source
+                        raise err
+                    module_name = line[first_q + 1:second_q]
+                    module_directive_info = (ln, first_q + 1, line)
+                elif stripped.startswith('.include'):
+                    parts: List[str] = line.split('"')
+                    if len(parts) >= 2:
+                        includes.append(parts[1])
+        else:
+            lines: List[str] = processed_source.split('\n')
+            for ln, line in enumerate(lines, start=1):
+                stripped: str = line.strip()
+                if stripped.startswith('.module'):
+                    is_module = True
+                    first_q: int = line.find('"')
+                    if first_q == -1:
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=line.find('.module') + 1)
+                        err.filename = filepath
+                        err.source_text = processed_source
+                        raise err
+                    second_q: int = line.find('"', first_q + 1)
+                    if second_q == -1:
+                        err = SemanticError("Invalid .module directive: module name must be enclosed in double quotes", line=ln, col=first_q + 1)
+                        err.filename = filepath
+                        err.source_text = processed_source
+                        raise err
+                    module_name = line[first_q + 1:second_q]
+                    module_directive_info = (ln, first_q + 1, line)
+                elif stripped.startswith('.include'):
+                    parts: List[str] = line.split('"')
+                    if len(parts) >= 2:
+                        includes.append(parts[1])
+
+        return is_module, module_name, includes, defined_symbols, module_directive_info
     
     def load_module(self, module_path: str) -> ModuleInfo:
         """Load a module and its dependencies"""
@@ -450,8 +541,8 @@ class ModuleSystem:
         self.include_stack.append(full_path)
         
         try:
-            # Parse the module file
-            program, is_module, module_name, includes, defined_symbols, module_directive_info = self.parse_file(full_path)
+            # First scan directives so includes can be loaded before parsing.
+            is_module, module_name, includes, defined_symbols, module_directive_info = self._scan_file_directives(full_path)
 
             # If this file declares a module name, check for duplicate module names globally
             if is_module and module_name:
@@ -461,70 +552,90 @@ class ModuleSystem:
                     line_no, col_no, text = module_directive_info if module_directive_info else (None, None, None)
                     err = SemanticError(f"Duplicate module name '{module_name}' already declared in {prev}", line=line_no, col=col_no)
                     err.filename = full_path
-                    try:
-                        err.source_text = '\n'.join((program.debug or {}).get('source_lines', []))
-                    except Exception:
-                        err.source_text = None
+                    err.source_text = None
                     raise err
                 else:
                     # Register module name -> file path
                     self.module_name_to_path[module_name] = full_path
 
-            # Separate declarations, and also preserve the original top-level items
-            declarations = program.decls
-            procedures: List[ProcDecl] = [p for p in program.procs if isinstance(p, ProcDecl)]
-            functions: List[FuncDecl] = [p for p in program.procs if isinstance(p, FuncDecl)]
-            top_level_items = list(program.procs)
-            
-            # Create module info (includes will be resolved to absolute paths below)
+            # Create placeholder entry early so recursive graphs can reference this module.
             module_info = ModuleInfo(
                 filepath=full_path,
                 is_module=is_module,
                 module_name=module_name,
-                declarations=declarations,
-                procedures=procedures,
-                functions=functions,
-                top_level_items=top_level_items,
+                declarations=[],
+                procedures=[],
+                functions=[],
+                top_level_items=[],
                 includes=[],
                 defined_symbols=defined_symbols,
-                program=program
+                program=None,
+                exported_types=set(),
             )
-
-            # Store in cache
             self.loaded_modules[full_path] = module_info
 
             # Load and resolve dependencies, store absolute paths
-            resolved_includes = []
+            resolved_includes: list[str] = []
             for inc in includes:
                 # Resolve include path relative to current file's directory
                 inc_dir: str = os.path.dirname(full_path)
                 try:
                     inc_path: str = self._find_file(inc, inc_dir)
                 except SemanticError as e:
-                    # Re-wrap with context of the including file and, if available,
-                    # point to the .include directive's location so the user sees
-                    # the exact line/col where the include failed.
-                    inc_info = None
-                    prog = module_info.program
-                    debug = (prog.debug or {}) if prog else {}
-                    include_directives = debug.get('include_directives') or {}
-                    inc_info = include_directives.get(inc)
-                    if inc_info:
-                        iline, icol, _text = inc_info
-                        err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=iline, col=icol)
-                        err.filename = full_path
-                        err.source_text = '\n'.join(debug.get('orig_source_lines', []))
-                        raise err
-                    else:
-                        err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
-                        err.filename = full_path
-                        raise err
+                    err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
+                    err.filename = full_path
+                    raise err
                 # Ensure dependency is loaded
                 self.load_module(inc_path)
                 resolved_includes.append(inc_path)
 
-            # Replace includes with resolved absolute paths
+            # Replace includes with resolved absolute paths in module info
             module_info.includes = resolved_includes
+
+            # Gather visible type names exported by dependencies (transitively).
+            dep_struct_names: Set[str] = set()
+            for inc_path in resolved_includes:
+                dep_info = self.loaded_modules.get(inc_path)
+                if dep_info:
+                    dep_struct_names.update(dep_info.exported_types)
+
+            # Parse this module with dependency-exported type names available.
+            program, parsed_is_module, parsed_module_name, _parsed_includes, parsed_defined_symbols, _mdi = self.parse_file(
+                full_path,
+                initial_struct_names=dep_struct_names,
+            )
+
+            # Keep canonical values from directive scan but refresh symbols from parse pass.
+            module_info.is_module = parsed_is_module
+            module_info.module_name = parsed_module_name
+            module_info.defined_symbols = parsed_defined_symbols
+            module_info.program = program
+
+            # Separate declarations, and preserve original top-level items.
+            module_info.declarations = program.decls
+            module_info.procedures = [p for p in program.procs if isinstance(p, ProcDecl)]
+            module_info.functions = [p for p in program.procs if isinstance(p, FuncDecl)]
+            module_info.top_level_items = list(program.procs)
+
+            # Exported type names: transitive dependency exports + this module's own exported types.
+            own_exported_types: Set[str] = set()
+            for decl in module_info.declarations:
+                if isinstance(decl, (StructDef, EnumDecl)):
+                    if module_info.is_module:
+                        if not getattr(decl, 'noexport', False):
+                            own_exported_types.add(decl.name.upper())
+                    else:
+                        if getattr(decl, 'export', False):
+                            own_exported_types.add(decl.name.upper())
+            for item in module_info.top_level_items:
+                if isinstance(item, (StructDef, EnumDecl)):
+                    if module_info.is_module:
+                        if not getattr(item, 'noexport', False):
+                            own_exported_types.add(item.name.upper())
+                    else:
+                        if getattr(item, 'export', False):
+                            own_exported_types.add(item.name.upper())
+            module_info.exported_types = dep_struct_names | own_exported_types
             
             return module_info
             
@@ -605,12 +716,27 @@ class ModuleSystem:
             if module_info.defined_symbols:
                 all_defined_symbols.update(module_info.defined_symbols)
             
-            # Add this module's declarations and collect exports for variables
+            # Add this module's declarations and collect exports for variables and types
             for decl in module_info.declarations:
-                # Skip non-variable declarations (e.g., EnumDecl, StructDef)
+                # Export rules for type declarations mirror variable behavior:
+                # - In a .module file, export all except #NOEXPORT
+                # - In non-module file, export only #EXPORT
+                if isinstance(decl, (StructDef, EnumDecl)):
+                    type_name = decl.name
+                    if module_info.is_module:
+                        if not getattr(decl, 'noexport', False):
+                            all_exports.add(type_name)
+                    else:
+                        if getattr(decl, 'export', False):
+                            all_exports.add(type_name)
+                    all_decls.append(decl)
+                    continue
+
+                # Skip other non-variable declarations
                 if not hasattr(decl, 'declarators'):
                     all_decls.append(decl)
                     continue
+
                 for d in decl.declarators:
                     name: str = d.name
                     if name in seen_decls:
@@ -632,6 +758,17 @@ class ModuleSystem:
 
             # Merge top-level items, deduping procs/funcs by name, preserving directives
             for item in module_info.top_level_items:
+                if isinstance(item, (StructDef, EnumDecl)):
+                    type_name = item.name
+                    if module_info.is_module:
+                        if not getattr(item, 'noexport', False):
+                            all_exports.add(type_name)
+                    else:
+                        if getattr(item, 'export', False):
+                            all_exports.add(type_name)
+                    all_procs.append(item)
+                    continue
+
                 # Determine whether this item should be exported to other files
                 should_export = False
                 if isinstance(item, ProcDecl) or isinstance(item, FuncDecl):

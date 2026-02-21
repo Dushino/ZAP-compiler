@@ -40,7 +40,7 @@ from errors import SyntaxError
 
 class Parser:
     """Parse ZAP source text into an AST program."""
-    def __init__(self, source: str, filename: str | None = None) -> None:
+    def __init__(self, source: str, filename: str | None = None, initial_struct_names: Optional[set[str]] = None) -> None:
         """Initialize parser state and tokenize the input source."""
         self.filename: str = filename or "<input.act>"
         # Remove BOM if present (can be \ufeff or UTF-8 BOM misinterpreted as 'ï»¿')
@@ -68,7 +68,7 @@ class Parser:
         self.proc_src: dict[str, tuple[str, int, int, str]] = {}
         self.param_src: dict[tuple[str, str], tuple[str, int, str]] = {}
         # Struct names for type checking in parse_declaration
-        self.struct_names: set[str] = set()
+        self.struct_names: set[str] = set((s.upper() for s in (initial_struct_names or set())))
 
     def _readable_token(self, ttype: str, tvalue: Optional[str] = None) -> str:
         """Return a human-readable description for a token type/value.
@@ -296,6 +296,8 @@ class Parser:
         struct_is_port: bool = False
         struct_port_rd: Optional[bool] = None
         struct_port_wr: Optional[bool] = None
+        struct_noexport: bool = False
+        struct_export: bool = False
         while self.cur.type == TOK_DECLMOD:
             val: str = self.cur.value.upper()
             if val == 'PORT':
@@ -304,6 +306,10 @@ class Parser:
                 struct_port_rd = True
             elif val == 'WR':
                 struct_port_wr = True
+            elif val == 'NOEXPORT':
+                struct_noexport = True
+            elif val == 'EXPORT':
+                struct_export = True
             else:
                 self.error(f"Unsupported struct modifier '{val}'")
             self.advance()
@@ -387,7 +393,17 @@ class Parser:
                                       is_port=field_is_port, port_rd=field_port_rd, port_wr=field_port_wr))
         
         self.expect(TOK_KEYWORD, "END")
-        return StructDef(struct_name, fields, is_port=struct_is_port, port_rd=struct_port_rd, port_wr=struct_port_wr, line=start_line, col=start_col)
+        return StructDef(
+            struct_name,
+            fields,
+            is_port=struct_is_port,
+            port_rd=struct_port_rd,
+            port_wr=struct_port_wr,
+            noexport=struct_noexport,
+            export=struct_export,
+            line=start_line,
+            col=start_col,
+        )
 
     def parse_enum(self) -> EnumDecl:
         """Parse enum declaration (END-style only):
@@ -406,6 +422,19 @@ class Parser:
             self.advance()
         name: str = self.cur.value
         self.expect(TOK_IDENT)
+
+        enum_noexport: bool = False
+        enum_export: bool = False
+        while self.cur.type == TOK_DECLMOD:
+            val: str = self.cur.value.upper()
+            if val == 'NOEXPORT':
+                enum_noexport = True
+            elif val == 'EXPORT':
+                enum_export = True
+            else:
+                self.error(f"Unsupported enum modifier '{val}'")
+            self.advance()
+
         items = []
         # END-style enum, parse until END
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
@@ -427,7 +456,7 @@ class Parser:
                 self.advance()
                 continue
         self.expect(TOK_KEYWORD, "END")
-        return EnumDecl(name, base, items, line=start_line, col=start_col)
+        return EnumDecl(name, base, items, noexport=enum_noexport, export=enum_export, line=start_line, col=start_col)
 
 
     def parse_proc(self) -> ProcDecl:

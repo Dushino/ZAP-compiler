@@ -199,6 +199,9 @@ class StructDef(ASTNode):
     is_port: bool = False
     port_rd: Optional[bool] = None
     port_wr: Optional[bool] = None
+    # Declaration modifiers
+    noexport: bool = False  # #NOEXPORT prevents exporting from a module
+    export: bool = False    # #EXPORT forces export even in non-module files
     line: int = 0
     col: int = 0
 
@@ -474,6 +477,9 @@ class EnumDecl(ASTNode):
     name: str
     base: str  # "byte" or "word"
     items: list[EnumItem]
+    # Declaration modifiers
+    noexport: bool = False  # #NOEXPORT prevents exporting from a module
+    export: bool = False    # #EXPORT forces export even in non-module files
     line: int = 0
     col: int = 0
 
