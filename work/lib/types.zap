@@ -1,0 +1,32 @@
+; types.zap
+
+.module "types"
+
+; FIXME: struct is not propagated from module to module
+; FILE structure
+struct FILE
+    byte fd     ; handle
+    byte error  ; error code
+    byte eof    ; end of file
+end
+
+
+; NULL file handle
+const word NULL = 0
+
+
+; constants for EOF and file handle max
+const byte EOF = $FF
+const byte FILE_HANDLE_MAX = 4
+
+
+; constants for fopen modes
+const byte FILE_MODE_READ = 1
+const byte FILE_MODE_WRITE = 2
+const byte FILE_MODE_APPEND = 4
+
+
+; Constants for fseek
+const byte SEEK_SET = 0
+const byte SEEK_CUR = 1
+const byte SEEK_END = 2 

@@ -2,10 +2,12 @@
 
 .module "stdio"
 
+.include "errno.zap"
+
+
 proc CONSTRUCTOR()
     ; initialization code for stdio module, if needed
 end
-
 
 .ifdef ATARI
     .include "./atari/atari_stdio.zap"

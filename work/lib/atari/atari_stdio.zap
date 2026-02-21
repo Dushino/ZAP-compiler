@@ -1,6 +1,8 @@
 ; atari_stdio.zap
 
 .module "atari_stdio"
+.include "../errno.zap"
+.include "../types.zap"
 
 
 /*
@@ -24,18 +26,10 @@
     * fgetc     čtení jednoho znaku ze souboru
     * fputc     zápis jednoho znaku do souboru
     * fgets	    čtení řádku ze souboru
-    * fopen	    otevření souboru
     * fprintf	zápis formátovaného řetězce do souboru
     * fputs	    zápis řádku do souboru
-    * fread	    čtení dat ze souboru
     * fscanf	čtení formátovaného řetězce ze souboru
-    * fseek	    pohybování kurzorem v souboru
-    * ftell	    zjištění aktuální pozice kurzoru v souboru
-    * fwrite	zápis dat do souboru
     * printf	výstup formátovaného řetězce do stdout
-    * rename	změna jména souboru
-    * rewind	vrací kurzor na začátek souboru
-    * scanf	    čtení formátovaného řetězce ze stdin
     * snprintf	zápis formátovaného řetězce do char pole (bezpečné)
     * sprintf	zápis formátovaného řetězce do char pole
     * sscanf	čtení formátovaného řetězce ze char pole
@@ -70,33 +64,6 @@ byte PLAYF1  @709
 byte PLAYF2  @710
 byte PLAYF3  @711
 byte PLAYF4  @712
-
-; FILE structure
-struct FILE
-    byte fd     ; handle
-end
-
-; NULL file handle
-const word NULL = 0
-
-
-; constants for EOF and file handle max
-const byte EOF = $FF
-const byte FILE_HANDLE_MAX = 4
-
-
-; constants for fopen modes
-const byte FILE_MODE_READ = 1
-const byte FILE_MODE_WRITE = 2
-const byte FILE_MODE_APPEND = 4
-
-
-; Constants for fseek
-const byte SEEK_SET = 0
-const byte SEEK_CUR = 1
-const byte SEEK_END = 2
-
-; ToDo: Error codes
 
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
@@ -273,7 +240,6 @@ putchar_sputc:
                     sta _PUTCHAR_CH
     end
 
-
     curptr^ = ch
     curptr = curptr + 1
     
@@ -329,9 +295,17 @@ end
 /*
     fopen - open file
 */
-func FILE^ fopen(byte^ filename, byte mode)
-    FILE^ fd = 0
-    return fd
+func byte fopen(FILE^ fd, byte^ filename, byte mode)
+    
+    fd = NULL
+
+    ; TODO: implement file opening  
+    ;if fd == NULL
+    ;    return EBADF
+    ;end
+    
+    ;return fd.error
+    return EBADF
 end
 
 
@@ -339,7 +313,7 @@ end
     fclose - close file
 */
 func byte fclose(FILE^ file)
-    return 0
+    return EBADF
 end
 
 
@@ -347,7 +321,12 @@ end
     ferror - check for error
 */
 func byte ferror(FILE^ file)
-    return 0
+    ; TODO: implement error checking  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -355,7 +334,12 @@ end
     feof - check for end of file
 */
 func byte feof(FILE^ file)
-    return EOF
+    ; TODO: implement end of file checking  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.eof
+    return EBADF
 end
 
 
@@ -363,7 +347,12 @@ end
     rename - rename file
 */
 func byte rename(FILE^ file, const byte ^oldname, const byte ^newname)
-    return 0
+    ; TODO: implement file renaming  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -371,7 +360,12 @@ end
     remove - remove file
 */
 func byte remove(byte^ filename)
-    return 0
+    ; TODO: implement file removal  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -379,7 +373,12 @@ end
     fseek - seek in file
 */
 func byte fseek(FILE^ file, word offset, byte whence)
-    return 0
+    ; TODO: implement file seeking  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -387,7 +386,12 @@ end
     ftell - tell file position
 */
 func word ftell(FILE^ file)
-    return 0
+    ; TODO: implement file position telling  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -395,7 +399,12 @@ end
     fread - read from file
 */
 func byte fread(FILE^ file, byte ^buffer, word size, word count)
-    return 0
+    ; TODO: implement file reading  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -403,7 +412,12 @@ end
     fwrite - write to file
 */
 func byte fwrite(FILE^ file, byte ^buffer, word size, word count)
-    return 0
+    ; TODO: implement file writing  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -411,7 +425,12 @@ end
     fgetc - get character from file
 */
 func byte fgetc(FILE^ file)
-    return 0
+    ; TODO: implement file reading  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -419,7 +438,12 @@ end
     fputc - put character to file
 */
 func byte fputc(FILE^ file, byte ch)
-    return 0
+    ; TODO: implement file writing  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -428,7 +452,12 @@ end
 */
 func byte fprintf(FILE^ file, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    return 0
+    ; TODO: implement file writing  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -436,7 +465,12 @@ end
     fputs - put string to file
 */
 func byte fputs(FILE^ file, const byte ^str)
-    return 0
+    ; TODO: implement file writing  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
 
 
@@ -445,8 +479,14 @@ end
 */
 func byte fscanf(FILE^ file, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    return 0
+    ; TODO: implement file reading  
+    ;if file == NULL
+    ;    return EBADF
+    ;end 
+    ;return file^.error
+    return EBADF
 end
+
 
 /*
     printf - print formatted string to screen
@@ -470,6 +510,7 @@ end
 */
 func byte scanf(const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
+    ; TODO: implement console input reading  
     return 0
 end
 
@@ -479,6 +520,7 @@ end
 */
 func byte snprintf(byte ^buffer, word size, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
+    ; TODO: implement buffer writing  
     return 0
 end
 
@@ -488,6 +530,7 @@ end
 */
 func byte sprintf(byte ^buffer, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
+    ; TODO: implement buffer writing  
     return 0
 end
 
@@ -497,6 +540,7 @@ end
 */
 func byte sscanf(const byte ^buffer, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
+    ; TODO: implement buffer reading  
     return 0
 end
 
