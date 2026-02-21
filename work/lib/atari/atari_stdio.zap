@@ -279,7 +279,7 @@ func byte gets(byte ^buffer, byte max_len)
     byte count = 0
 
     ch = getchar()
-    while ch != 155 && count < max_len - 1
+    while (ch != 155) && (count < max_len - 2)
         putchar(ch)   ; echo the character back to the screen
         buffer^ = ch
         buffer = buffer + 1

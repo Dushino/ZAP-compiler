@@ -1,9 +1,11 @@
 ﻿; test_stdio.zap
 ; working area for testing random parts of stdio.zap
 
-.define ATARI
-.include "lib/stdio.zap"
+.ifndef ATARI
+    .define ATARI
+.endif
 
+.include "lib/stdio.zap"
 
 
 struct MyStruct
@@ -12,18 +14,6 @@ struct MyStruct
     byte c
 end
 
-
-proc getcmd()
-    const byte CMD_SIZE = 16
-
-
-    byte ch
-    ch = getchar()
-    while ch == 0
-        ch = getchar()
-    end
-    return ch
-end
 
 
 proc main()
