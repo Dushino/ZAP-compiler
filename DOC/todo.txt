@@ -414,3 +414,6 @@ __MEMCPY_FOR_END_3:	.res 2
 
 [x] Review whole documentation
 [x] Check ENUM and STRUCT propagation from .module
+
+[ ] Check LONG arithmetic, operators, pointers
+
