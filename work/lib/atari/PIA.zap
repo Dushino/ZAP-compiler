@@ -13,3 +13,5 @@ struct PIA_RD_struct #port
 end
 
 PIA_RD_struct PIA @$D300
+
+; EOF

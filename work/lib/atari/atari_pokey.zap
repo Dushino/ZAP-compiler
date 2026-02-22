@@ -75,3 +75,7 @@ byte STRIG2 @646
 byte STRIG3 @647
 
 
+POKEY_WR_struct POKEY_WR @$D200
+POKEY_RD_struct POKEY_RD @$D200
+
+; EOF

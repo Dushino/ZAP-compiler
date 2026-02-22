@@ -135,7 +135,7 @@ const byte COLOR_ORANGE_GREEN   = $E0
 const byte COLOR_ORANGE         = $F0
 
 
-GTIA_RD_struct GTIA_RD = $D000
-GTIA_WR_struct GTIA_WR = $D000
+GTIA_RD_struct GTIA_RD @$D000
+GTIA_WR_struct GTIA_WR @$D000
 
 ; EOF
