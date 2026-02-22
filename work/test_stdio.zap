@@ -28,7 +28,8 @@ proc main()
 
     cls()    
 
-    PLAYF2 = COLOR_BLUE2 + 4
+    COLOR4 = COLOR_MEDIUM_BLUE + 4
+
     puts(msg1)
     putchar('\n')    
     puts(msg2)
@@ -38,5 +39,7 @@ proc main()
     puts("\n\t1\t123\t1234\t12345\t123456\n")
     puts(inbuf)
     
-    GTIA_WR.COLPF0 = COLOR_GREEN3
+    COLOR4 = COLOR_MEDIUM_GREEN + 4
 end
+
+; EOF
