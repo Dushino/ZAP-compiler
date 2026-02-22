@@ -38,3 +38,5 @@ const byte FILE_MODE_APPEND = 4
 const byte SEEK_SET = 0
 const byte SEEK_CUR = 1
 const byte SEEK_END = 2 
+
+; EOF
