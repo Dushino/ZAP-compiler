@@ -9892,7 +9892,9 @@ class CodeGen:
             # But kept as fallback for complex pointer expressions
             # 1️⃣ ulož RHS hodnotu
             self.emit("\tSTA TMP2")
-            self.emit("\tSTX TMP2+1")
+            # Only save X if we're storing a WORD; for BYTE we only need the low byte
+            if lhs_t.sem_type.base == "WORD":
+                self.emit("\tSTX TMP2+1")
 
             # 2️⃣ vygeneruj adresu pointeru
             self.gen_expr(lhs.pointer)
