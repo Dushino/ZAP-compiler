@@ -23,8 +23,7 @@ end
 const word NULL = 0
 
 
-; constants for EOF and file handle max
-const byte EOF = $FF
+; maximum number of open file handles
 const byte FILE_HANDLE_MAX = 4
 
 

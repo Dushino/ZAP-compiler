@@ -17,7 +17,6 @@ struct MyStruct
 end
 
 
-
 proc main()
 
     byte ch

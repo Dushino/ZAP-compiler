@@ -44,6 +44,14 @@ const byte SCREEN_Y_SIZE = 24
 byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
 byte ^curptr                    #noexport   ; current position in the screen memory for output
 
+byte KBHIT @764
+byte TIMER @20
+
+const byte ATARI_KEY_RETURN = 155
+byte kbcode @$D209
+byte scr1 @40000
+
+
 
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
@@ -162,18 +170,85 @@ proc putx(byte value)
     putchar(hex_digits[value & $0F])
 end
 
+/*
+    delay - wait for a specified time
+*/
+proc delay(byte delay)
+    
+    TIMER = 0
+    while TIMER < delay
+    end
+end
+
+
+/*
+    cursor_on - turn on cursor
+*/
+proc cursor_on()
+    curptr^ = curptr^ | $80    
+end
+
+
+/*
+    cursor_off - turn off cursor
+*/
+proc cursor_off()
+    curptr^ = curptr^ & $7F    
+end
+
+
+/*
+    getcblink - wait for keyboard key press and return ATASCII code
+    blinking cursor
+*/
+func byte getcblink()
+    byte i
+
+    KBHIT = 255
+    while KBHIT == 255
+        ; cursor on
+        cursor_on()
+
+        i = 0
+        while i < 4
+            delay(5)
+            if KBHIT != 255
+                break
+            end
+            i = i + 1   
+        end
+
+        ; cursor off
+        cursor_off()
+        if KBHIT == 255
+            i = 0
+            while i < 4
+                delay(5)
+                if KBHIT != 255
+                    break
+                end
+                i = i + 1   
+            end
+        end
+    end
+    cursor_off()
+
+    return getchar()
+end
+
 
 /*
     crlf - move cursor to the beginning of the next line, scroll screen if needed
 */
 proc crlf()
-    cur_xpos = 0
 
+    cur_xpos = 0
     if cur_ypos < SCREEN_Y_SIZE - 1
         cur_ypos = cur_ypos + 1
     else
         ; scroll screen up
         memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
+        ; clear last line
         memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
     end
     curptr = vlstart[cur_ypos]
@@ -249,13 +324,13 @@ func byte gets(byte ^buffer, byte max_len)
     byte ch
     byte count = 0
 
-    ch = getchar()
-    while (ch != 155) && (count < max_len - 2)
+    ch = getcblink()
+    while (ch != ATARI_KEY_RETURN) && (count < max_len - 1)
         putchar(ch)   ; echo the character back to the screen
         buffer^ = ch
         buffer = buffer + 1
         count = count + 1
-        ch = getchar()
+        ch = getcblink()
     end
     buffer^ = 0   ; null-terminate the string
 
