@@ -1972,6 +1972,9 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # ZP prioritization (analyze frequency for optimal ZP allocation)
     prioritize_locals_to_zp(analyzed_procs, analyzed_funcs)
     
+    # Assign zero-page variables before code emission so optimizations can rely on sym.in_zeropage
+    cg.assign_zeropage(analyzed_procs, analyzed_funcs)
+    
     # Now generate code with updated stmt_src
     for p in program.procs:
         if isinstance(p, SegmentDirective):

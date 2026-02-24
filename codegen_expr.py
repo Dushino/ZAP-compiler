@@ -2437,57 +2437,16 @@ class CodeGen:
                     i += 1
                     continue
 
-            # Optimize word load/store via (ptr),Y: avoid TAX/STX
-            if i + 6 < len(self.code):
-                l1 = self.code[i].strip()
-                l2 = self.code[i + 1].strip()
-                l3 = self.code[i + 2].strip()
-                l4 = self.code[i + 3].strip()
-                l5 = self.code[i + 4].strip()
-                l6 = self.code[i + 5].strip()
-                l7 = self.code[i + 6].strip()
-                l1_raw = l1.split(';')[0].strip()
-                l2_raw = l2.split(';')[0].strip()
-                l3_raw = l3.split(';')[0].strip()
-                l4_raw = l4.split(';')[0].strip()
-                l5_raw = l5.split(';')[0].strip()
-                l6_raw = l6.split(';')[0].strip()
-                l7_raw = l7.split(';')[0].strip()
-                l1_u = l1_raw.upper()
-                l2_u = l2_raw.upper()
-                l3_u = l3_raw.upper()
-                l4_u = l4_raw.upper()
-                l5_u = l5_raw.upper()
-                l6_u = l6_raw.upper()
-                l7_u = l7_raw.upper()
-                if (l1_u == "LDY #1" and l3_u == "TAX" and l4_u == "DEY" and
-                        l6_u.startswith("STA ") and l7_u.startswith("STX ")):
-                    if l2_u.startswith("LDA (") and l2_u.endswith("),Y") and l5_u.startswith("LDA (") and l5_u.endswith("),Y"):
-                        ptr2_u = l2_u[len("LDA ("):-len("),Y")].strip()
-                        ptr5_u = l5_u[len("LDA ("):-len("),Y")].strip()
-                        if ptr2_u == ptr5_u:
-                            dest = l6_raw.split(maxsplit=1)[1].strip()
-                            dest_hi = l7_raw.split(maxsplit=1)[1].strip()
-                            ptr2_u_norm = ptr2_u.upper()
-                            dest_u = dest.upper()
-                            dest_hi_u = dest_hi.upper()
-                            if (dest_hi_u == f"{dest_u}+1" and
-                                    not _operand_is_port(dest) and not _operand_is_port(dest_hi) and
-                                    ptr2_u_norm not in {dest_u, dest_hi_u}):
-                                indent = self.code[i + 5][:len(self.code[i + 5]) - len(self.code[i + 5].lstrip())]
-                                ptr2 = l2_raw[len("LDA ("):-len("),Y")].strip()
-                                optimized.append(self.code[i])
-                                optimized.append(self.code[i + 1])
-                                optimized.append(f"{indent}STA {dest}+1\n")
-                                if self.is_65c02:
-                                    optimized.append(f"{indent}LDA ({ptr2})\n")
-                                    optimized.append(f"{indent}STA {dest}\n")
-                                else:
-                                    optimized.append(self.code[i + 3])
-                                    optimized.append(self.code[i + 4])
-                                    optimized.append(self.code[i + 5])
-                                i += 7
-                                continue
+            # Optimize word load/store via (ptr),Y
+            # Previous sequence (7 instrs): LDY #1; LDA (ptr),Y; TAX; DEY; LDA (ptr),Y; STA dest; STX dest+1
+            # Current sequence (6 instrs): LDY #1; LDA (ptr),Y; STA dest+1; DEY; LDA (ptr),Y; STA dest
+            # Optimization: If 65c02, can we optimize this?
+            # Actually, the 6-instruction sequence is already quite optimal without a hardware 16-bit register.
+            # No TAX/STX are present to remove.
+            # But we can optimize `STA dest+1` maybe. No, it's fine.
+            # I will leave this peephole block commented out or removed since the sequence it optimized
+            # no longer exists.
+            pass
 
             # Replace LDX #0; CLC; ADC TMP0; STA TMP0; TXA -> CLC; ADC TMP0; STA TMP0; LDA #0
             if i + 4 < len(self.code):
@@ -4179,6 +4138,144 @@ class CodeGen:
         """Generate vars.
         Internal helper used during code generation.
         """
+
+
+    def assign_zeropage(self, procs=None, funcs=None) -> None:
+        """Assign variables to the Zero Page segment before code generation starts."""
+        
+        # Collect all variables (globals + locals from procs and funcs)
+        all_vars: list[Symbol] = list(self.global_symtab)
+        if procs:
+            for proc in procs:
+                all_vars.extend(proc.locals)
+                local_tbl = getattr(proc.symtab, "local", None)
+                if local_tbl is not None:
+                    all_vars.extend(list(local_tbl))
+        if funcs:
+            for func in funcs:
+                all_vars.extend(func.locals)
+
+        # Deduplicate
+        uniq: dict[str, Symbol] = {}
+        for s in all_vars:
+            uniq[s.asm_name()] = s
+        all_vars = list(uniq.values())
+        
+        # Reset per-symbol ZP placement hints
+        for sym in all_vars:
+            sym.in_zeropage = False
+
+        # Assume up to 64 bytes used by system + fixed vars to be extremely conservative
+        zp_offset: int = 64
+        ZEROPAGE_SIZE = 256
+
+        # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
+        pointer_scalars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
+        ]
+        pointer_arrays: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
+        ]
+
+        # Pointer scalars
+        pointer_scalar_slots: dict[str, list[Symbol]] = {}
+        pointer_scalar_slot_order: list[str] = []
+        for sym in pointer_scalars:
+            slot_label = sym.shared_slot or sym.asm_name()
+            if slot_label not in pointer_scalar_slots:
+                pointer_scalar_slots[slot_label] = []
+                pointer_scalar_slot_order.append(slot_label)
+            pointer_scalar_slots[slot_label].append(sym)
+
+        for slot_label in pointer_scalar_slot_order:
+            if zp_offset + 2 <= ZEROPAGE_SIZE:
+                zp_offset += 2
+                for sym in pointer_scalar_slots[slot_label]:
+                    sym.in_zeropage = True
+
+        # Pointer arrays
+        pointer_array_slots: dict[str, list[Symbol]] = {}
+        pointer_array_slot_sizes: dict[str, int] = {}
+        pointer_array_slot_order: list[str] = []
+        for sym in pointer_arrays:
+            slot_label = sym.shared_slot or sym.asm_name()
+            if slot_label not in pointer_array_slots:
+                pointer_array_slots[slot_label] = []
+                pointer_array_slot_sizes[slot_label] = 0
+                pointer_array_slot_order.append(slot_label)
+            pointer_array_slots[slot_label].append(sym)
+            total_size = sym.get_total_array_size()
+            if total_size > pointer_array_slot_sizes[slot_label]:
+                pointer_array_slot_sizes[slot_label] = total_size
+
+        for slot_label in pointer_array_slot_order:
+            total_size = pointer_array_slot_sizes[slot_label]
+            if total_size == 0: continue
+            if zp_offset + total_size <= ZEROPAGE_SIZE:
+                zp_offset += total_size
+                for sym in pointer_array_slots[slot_label]:
+                    sym.in_zeropage = True
+
+        # Step 2: Try to put BYTE variables in zero page
+        byte_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "BYTE"]
+        
+        zp_priority_bytes = sorted([s for s in byte_vars if s.zp_priority > 0], key=lambda s: -s.zp_priority)
+        regular_bytes = [s for s in byte_vars if s.zp_priority <= 0]
+        
+        for sym in zp_priority_bytes:
+            if zp_offset + 1 <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += 1
+        for sym in regular_bytes:
+            if zp_offset + 1 <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += 1
+                
+        # Step 3: Try to put WORD variables in zero page
+        word_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "WORD"]
+                    
+        zp_priority_words = sorted([s for s in word_vars if s.zp_priority > 0], key=lambda s: -s.zp_priority)
+        regular_words = [s for s in word_vars if s.zp_priority <= 0]
+
+        for sym in zp_priority_words:
+            if zp_offset + 2 <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += 2
+        for sym in regular_words:
+            if zp_offset + 2 <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += 2
+                
+        # Step 4: Try to put LONG variables in zero page
+        long_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "LONG"]
+                    
+        zp_priority_longs = sorted([s for s in long_vars if s.zp_priority > 0], key=lambda s: -s.zp_priority)
+        regular_longs = [s for s in long_vars if s.zp_priority <= 0]
+
+        for sym in zp_priority_longs:
+            if zp_offset + 4 <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += 4
+        for sym in regular_longs:
+            if zp_offset + 4 <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += 4
+
+    def gen_vars_block(self, procs=None, funcs=None, code: list[str] | None = None) -> list[str]:
+        """Generate vars.
+        Internal helper used during code generation.
+        """
         temp_sizes: dict[str, int] = {
             self._internal_name_map.get("TMP0", "TMP0"): 2,
             self._internal_name_map.get("TMP1", "TMP1"): 2,
@@ -4197,7 +4294,15 @@ class CodeGen:
             self._internal_name_map.get("TMP14", "TMP14"): 2,
             self._internal_name_map.get("TMP15", "TMP15"): 2,
         }
+
+        if code is None:
+            code = self.code
+
         temps_in_use: set[str] = self._detect_temp_usage(code)
+
+        # Capture output into a new list
+        saved_code = self.code
+        self.code = []
 
         self.emit(".segment \"ZEROPAGE\"")
         self.emit("\n; System variables")
@@ -4276,15 +4381,77 @@ class CodeGen:
                     self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
             self.emit("")
 
-        # Zero page offset tracking (starts after emitted system variables)
-        zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
-        ZEROPAGE_SIZE = 256
-
-        # Reset per-symbol ZP placement hints
+        # Shared slots for aliased locals (need to be emitted before individual locals)
+        shared_slots_zp: dict[str, int] = {}   # slot_label -> size (in bytes)
+        shared_slots_bss: dict[str, int] = {}  # slot_label -> size (in bytes)
+        
+        # First, collect slots from system temps (always ZP)
+        for temp_name, slot_label in self.system_temp_slots.items():
+            # Determine size based on temp name
+            temp_sizes_map = {
+                "MATH_STACK": 32,
+                "MATH0": 4,
+                "MATH1": 4,
+                "TMP0": 2,
+                "TMP1": 2,
+                "TMP2": 2,
+                "TMP3": 2,
+                "TMP4": 2,
+                "TMP5": 2,
+            }
+            temp_size = temp_sizes_map.get(temp_name, 2)
+            if slot_label in shared_slots_zp:
+                shared_slots_zp[slot_label] = max(shared_slots_zp[slot_label], temp_size)
+            else:
+                shared_slots_zp[slot_label] = temp_size
+        
+        # Then collect slots from procedure/function locals
         for sym in all_vars:
-            sym.in_zeropage = False
+            slot_label = getattr(sym, 'shared_slot', None)
+            if slot_label:
+                # Determine size: WORD = 2, BYTE = 1, struct/array = struct_size or array total_size
+                # Take MAXIMUM size across all variables sharing this slot
+                sym_size = 0
+                if sym.is_array:
+                    sym_size = sym.get_total_array_size()
+                elif sym.type.is_struct and sym.type.struct_info:
+                    sym_size = sym.type.struct_info.size
+                elif sym.type.is_pointer:
+                    sym_size = 2
+                elif sym.type.base == "WORD":
+                    sym_size = 2
+                elif sym.type.base == "BYTE":
+                    sym_size = 1
+                else:
+                    # Default to 2 bytes (word)
+                    sym_size = 2
+                
+                # Decide segment: arrays/structs -> BSS, pointers -> ZP (arrays only if they fit), scalars -> ZP
+                use_bss = False
+                if sym.is_array and not sym.type.is_pointer:
+                    use_bss = True
+                elif sym.type.is_struct:
+                    use_bss = True
+                elif sym.is_array and sym.type.is_pointer:
+                    use_bss = not sym.in_zeropage
+                elif sym.type.is_pointer and not sym.is_array:
+                    use_bss = not sym.in_zeropage
 
-        # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
+                target = shared_slots_bss if use_bss else shared_slots_zp
+
+                # Keep maximum size for this slot
+                if slot_label in target:
+                    target[slot_label] = max(target[slot_label], sym_size)
+                else:
+                    target[slot_label] = sym_size
+
+        if shared_slots_zp:
+            self.emit("\n; Shared slots (for aliased locals)")
+            for slot_label, size in sorted(shared_slots_zp.items()):
+                self.emit(f"{slot_label}:\t.res {size}")
+            self.emit("")
+
+        # Step 1: POINTER SCALARS/ARRAYS use ZP if they fit; otherwise they fall back to BSS
         pointer_scalars: list[Symbol] = [
             s for s in all_vars
             if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
@@ -4294,58 +4461,309 @@ class CodeGen:
             if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
         ]
 
-        # Pointer scalars: allocate to ZP only if they fit; otherwise place in BSS
-        pointer_scalar_slots: dict[str, list[Symbol]] = {}
-        pointer_scalar_slot_order: list[str] = []
-        for sym in pointer_scalars:
-            slot_label = sym.shared_slot or sym.asm_name()
-            if slot_label not in pointer_scalar_slots:
-                pointer_scalar_slots[slot_label] = []
-                pointer_scalar_slot_order.append(slot_label)
-            pointer_scalar_slots[slot_label].append(sym)
+        if pointer_scalars or pointer_arrays:
+            self.emit("\n; Pointer variables")
+            for sym in pointer_scalars:
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None) and sym.in_zeropage:
+                    self.emit(f"{sym.asm_name()}:\t.res 2")
 
-        for slot_label in pointer_scalar_slot_order:
-            if zp_offset + 2 <= ZEROPAGE_SIZE:
-                zp_offset += 2
-                for sym in pointer_scalar_slots[slot_label]:
-                    sym.in_zeropage = True
-            else:
-                for sym in pointer_scalar_slots[slot_label]:
-                    sym.in_zeropage = False
-
-        # Pointer arrays: allocate to ZP only if they fit; otherwise place in BSS
-        pointer_array_slots: dict[str, list[Symbol]] = {}
-        pointer_array_slot_sizes: dict[str, int] = {}
-        pointer_array_slot_order: list[str] = []
-        for sym in pointer_arrays:
-            slot_label = sym.shared_slot or sym.asm_name()
-            if slot_label not in pointer_array_slots:
-                pointer_array_slots[slot_label] = []
-                pointer_array_slot_sizes[slot_label] = 0
-                pointer_array_slot_order.append(slot_label)
-            pointer_array_slots[slot_label].append(sym)
-            total_size = sym.get_total_array_size()
-            if total_size == 0:
-                self._raise_error(f"Array pointer '{sym.name}' has unknown size")
-            if total_size > pointer_array_slot_sizes[slot_label]:
-                pointer_array_slot_sizes[slot_label] = total_size
-
-        for slot_label in pointer_array_slot_order:
-            total_size = pointer_array_slot_sizes[slot_label]
-            if total_size == 0:
-                continue
-            if zp_offset + total_size <= ZEROPAGE_SIZE:
-                zp_offset += total_size
-                for sym in pointer_array_slots[slot_label]:
-                    sym.in_zeropage = True
-            else:
-                for sym in pointer_array_slots[slot_label]:
-                    sym.in_zeropage = False
-
-        # Shared slots for aliased locals (need to be emitted before individual locals)
-        shared_slots_zp: dict[str, int] = {}   # slot_label -> size (in bytes)
-        shared_slots_bss: dict[str, int] = {}  # slot_label -> size (in bytes)
+            for sym in pointer_arrays:
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    if sym.in_zeropage:
+                        total_size = sym.get_total_array_size()
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
         
+        # Step 2: BYTE variables - try zero page first
+        byte_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "BYTE"]
+        
+        zp_byte_vars = [s for s in byte_vars if s.in_zeropage]
+        bss_byte_vars = [s for s in byte_vars if not s.in_zeropage]
+        
+        if zp_byte_vars:
+            self.emit("\n; Byte variables")
+            for sym in zp_byte_vars:
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res 1")
+        
+        # Step 3: WORD (non-pointer, non-array) variables - try zero page first
+        word_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "WORD"]
+        
+        zp_word_vars = [s for s in word_vars if s.in_zeropage]
+        bss_word_vars = [s for s in word_vars if not s.in_zeropage]
+        
+        if zp_word_vars:
+            self.emit("\n; Word variables")
+            for sym in zp_word_vars:
+                # Skip if already in shared slots
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res 2")
+        
+        # Step 3.2: LONG variables - try zero page first
+        long_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "LONG"]
+        
+        zp_long_vars = [s for s in long_vars if s.in_zeropage]
+        bss_long_vars = [s for s in long_vars if not s.in_zeropage]
+        
+        if zp_long_vars:
+            self.emit("\n; Long variables")
+            for sym in zp_long_vars:
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res 4")
+
+        # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
+        struct_vars: list[Symbol] = [s for s in all_vars 
+                    if not s.is_const and s.address is None 
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.is_struct]
+        
+        bss_struct_vars: list[Symbol] = struct_vars  # All struct vars go to BSS
+
+        
+        # Step 4: ALL non-pointer ARRAYS must go to BSS segment (pointer arrays were handled in Step 1)
+        array_vars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
+        ]
+
+        pointer_array_bss: list[Symbol] = [
+            s for s in all_vars
+            if (not s.is_const and s.address is None and s.is_array and s.type.is_pointer and not s.in_zeropage)
+        ]
+
+        pointer_scalar_bss: list[Symbol] = [
+            s for s in all_vars
+            if (not s.is_const and s.address is None and not s.is_array and s.type.is_pointer and not s.in_zeropage)
+        ]
+        
+        # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
+        if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
+            self.emit("\n.segment \"BSS\"")
+
+            if shared_slots_bss:
+                self.emit("; Shared slots (BSS)")
+                for slot_label, size in sorted(shared_slots_bss.items()):
+                    self.emit(f"{slot_label}:\t.res {size}")
+            
+            if bss_byte_vars:
+                self.emit("; Byte variables (BSS)")
+                for sym in bss_byte_vars:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 1")
+            
+            if bss_word_vars:
+                self.emit("; Word variables (BSS)")
+                for sym in bss_word_vars:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 2")
+
+            if bss_long_vars:
+                self.emit("; Long variables (BSS)")
+                for sym in bss_long_vars:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 4")
+            
+            if bss_struct_vars:
+                self.emit("; Struct variables (BSS)")
+                for sym in bss_struct_vars:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        if sym.type.is_struct and sym.type.struct_info:
+                            struct_size: int = sym.type.struct_info.size
+                            self.emit(f"{sym.asm_name()}:\t.res {struct_size}")
+                        else:
+                            # Fallback (shouldn't happen if is_struct is correct)
+                            self.emit(f"{sym.asm_name()}:\t.res 1")
+
+            if pointer_scalar_bss:
+                self.emit("; Pointer variables (BSS)")
+                for sym in pointer_scalar_bss:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        self.emit(f"{sym.asm_name()}:\t.res 2")
+
+            if pointer_array_bss:
+                self.emit("; Pointer arrays (BSS)")
+                for sym in pointer_array_bss:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        total_size = sym.get_total_array_size()
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
+
+            if array_vars:
+                self.emit("; Arrays (BSS)")
+                for sym in array_vars:
+                    # Skip if already in shared slots
+                    if not getattr(sym, 'shared_slot', None):
+                        total_size = sym.get_total_array_size()
+                        self.emit(f"{sym.asm_name()}:\t.res {total_size}")
+        self.emit("")
+
+        # Restore original code and return generated block
+        vars_block = self.code
+        self.code = saved_code
+        return vars_block
+
+    def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None) -> None:
+        """Generate vars.
+        Internal helper used during code generation.
+        """
+        # Clear code and emit variables
+        code = self.code
+        self.code = []
+
+        # Find which temps are used across the whole program
+        temps_in_use: set[str] = self._detect_temp_usage(code)
+
+        self.emit(".segment \"ZEROPAGE\"")
+        self.emit("\n; System variables")
+        
+        # Emit system temps: use shared slots if assigned, otherwise dedicated slots
+        sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
+        for temp_name, temp_size in sys_temp_names:
+            internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if temp_name in self.system_temp_slots:
+                # This temp uses a shared slot - emit as alias
+                slot_name = self.system_temp_slots[temp_name]
+                self.emit(f"{internal_name} = {slot_name}")
+            else:
+                # No shared slot - emit dedicated allocation
+                self.emit(f"{internal_name}:\t.res {temp_size}")
+        
+        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11", "TMP12", "TMP13", "TMP14", "TMP15"]:
+            name = self._internal_name_map.get(raw_name, raw_name)
+            if name in temps_in_use:
+                if raw_name in self.system_temp_slots:
+                    # This temp uses a shared slot - emit as alias
+                    slot_name = self.system_temp_slots[raw_name]
+                    self.emit(f"{name} = {slot_name}")
+                else:
+                    # No shared slot - emit dedicated allocation
+                    size: int = temp_sizes[name]
+                    self.emit(f"{name}:\t.res {size}")
+        self.emit("")
+
+        # Collect all variables (globals + locals from procs and funcs)
+        all_vars: list[Symbol] = list(self.global_symtab)
+        if procs:
+            for proc in procs:
+                # include analyzed locals
+                all_vars.extend(proc.locals)
+                # include any temps declared during codegen in the scoped local table
+                local_tbl: Any | None = getattr(proc.symtab, "local", None)
+                if local_tbl is not None:
+                    all_vars.extend(list(local_tbl))
+            if funcs:
+                for func in funcs:
+                    all_vars.extend(func.locals)
+
+            # Deduplicate by ASM name to avoid double emission
+            uniq: dict[str, Symbol] = {}
+            for s in all_vars:
+                uniq[s.asm_name()] = s
+            all_vars: list[Symbol] = list(uniq.values())
+
+            fixed: list[Symbol] = [s for s in all_vars if getattr(s, "address", None) is not None]
+            if fixed:
+                self.emit("\n; Fixed-address variables")
+                for sym in fixed:
+                    self.emit(f"{sym.asm_name()} = ${sym.address:04X}")
+                    # Track fixed-address labels to prevent peephole optimization
+                    self.fixed_address_labels.add(sym.asm_name())
+                    # Also track PORT variables separately for future optimization strategy changes
+                    if getattr(sym, "is_port", False):
+                        self.port_labels.add(sym.asm_name())
+                self.emit("")
+
+            # Constants (scalar consts)
+            const_scalars: list[Symbol] = [
+                s for s in all_vars
+                if s.is_const and not s.is_array and not s.type.is_struct and getattr(s, 'address', None) is None
+            ]
+            if const_scalars:
+                self.emit("\n; Constants")
+                for sym in const_scalars:
+                    if sym.const_value is None:
+                        # should not happen for scalar const
+                        continue
+                    if sym.type.base == "WORD" or sym.type.is_pointer:
+                        self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFFFF:04X}")
+                    else:
+                        self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
+                self.emit("")
+
+            # Zero page offset tracking (starts after emitted system variables)
+            zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
+            ZEROPAGE_SIZE = 256
+
+            # Reset per-symbol ZP placement hints
+            for sym in all_vars:
+                sym.in_zeropage = False
+
+            # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
+            pointer_scalars: list[Symbol] = [
+                s for s in all_vars
+                if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
+            ]
+            pointer_arrays: list[Symbol] = [
+                s for s in all_vars
+                if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
+            ]
+
+            # Pointer scalars: allocate to ZP only if they fit; otherwise place in BSS
+            pointer_scalar_slots: dict[str, list[Symbol]] = {}
+            pointer_scalar_slot_order: list[str] = []
+            for sym in pointer_scalars:
+                slot_label = sym.shared_slot or sym.asm_name()
+                if slot_label not in pointer_scalar_slots:
+                    pointer_scalar_slots[slot_label] = []
+                    pointer_scalar_slot_order.append(slot_label)
+                pointer_scalar_slots[slot_label].append(sym)
+
+            for slot_label in pointer_scalar_slot_order:
+                if zp_offset + 2 <= ZEROPAGE_SIZE:
+                    zp_offset += 2
+                    for sym in pointer_scalar_slots[slot_label]:
+                        sym.in_zeropage = True
+                else:
+                    for sym in pointer_scalar_slots[slot_label]:
+                        sym.in_zeropage = False
+
+            # Pointer arrays: allocate to ZP only if they fit; otherwise place in BSS
+            pointer_array_slots: dict[str, list[Symbol]] = {}
+            pointer_array_slot_sizes: dict[str, int] = {}
+            pointer_array_slot_order: list[str] = []
+            for sym in pointer_arrays:
+                slot_label = sym.shared_slot or sym.asm_name()
+                if slot_label not in pointer_array_slots:
+                    pointer_array_slots[slot_label] = []
+                    pointer_array_slot_sizes[slot_label] = 0
+                    pointer_array_slot_order.append(slot_label)
+                pointer_array_slots[slot_label].append(sym)
+                total_size = sym.get_total_array_size()
+                if total_size == 0:
+                    self._raise_error(f"Array pointer '{sym.name}' has unknown size")
+                if total_size > pointer_array_slot_sizes[slot_label]:
+                    pointer_array_slot_sizes[slot_label] = total_size
+
+            for slot_label in pointer_array_slot_order:
+                total_size = pointer_array_slot_sizes[slot_label]
+                if total_size == 0:
+                    continue
         # First, collect slots from system temps (always ZP)
         for temp_name, slot_label in self.system_temp_slots.items():
             # Determine size based on temp name
@@ -4427,37 +4845,9 @@ class CodeGen:
                         total_size = sym.get_total_array_size()
                         self.emit(f"{sym.asm_name()}:\t.res {total_size}")
         
-        # Step 2: Try to put BYTE variables in zero page, overflow to BSS
-        byte_vars: list[Symbol] = [s for s in all_vars 
-                     if not s.is_const and s.address is None 
-                     and not s.type.is_pointer and not s.is_array
-                     and s.type.base == "BYTE"]
         
-        # Separate high-priority (marked for ZP) from regular byte vars
-        zp_priority_bytes = [s for s in byte_vars if s.zp_priority > 0]
-        regular_bytes = [s for s in byte_vars if s.zp_priority <= 0]
-        
-        # Sort priority bytes by frequency (descending)
-        zp_priority_bytes.sort(key=lambda s: -s.zp_priority)
-        
-        zp_byte_vars = []
-        bss_byte_vars = []
-        
-        # First, try to fit priority bytes in ZP
-        for sym in zp_priority_bytes:
-            if zp_offset + 1 <= ZEROPAGE_SIZE:
-                zp_byte_vars.append(sym)
-                zp_offset += 1
-            else:
-                bss_byte_vars.append(sym)
-        
-        # Then try to fit regular bytes (lower priority)
-        for sym in regular_bytes:
-            if zp_offset + 1 <= ZEROPAGE_SIZE:
-                zp_byte_vars.append(sym)
-                zp_offset += 1
-            else:
-                bss_byte_vars.append(sym)
+        zp_byte_vars = [s for s in byte_vars if s.in_zeropage]
+        bss_byte_vars = [s for s in byte_vars if not s.in_zeropage]
         
         if zp_byte_vars:
             self.emit("\n; Byte variables")
@@ -4472,31 +4862,8 @@ class CodeGen:
                      and not s.type.is_pointer and not s.is_array
                      and s.type.base == "WORD"]
         
-        # Separate high-priority (marked for ZP) from regular word vars
-        zp_priority_words = [s for s in word_vars if s.zp_priority > 0]
-        regular_words = [s for s in word_vars if s.zp_priority <= 0]
-        
-        # Sort priority words by frequency (descending)
-        zp_priority_words.sort(key=lambda s: -s.zp_priority)
-        
-        zp_word_vars = []
-        bss_word_vars = []
-        
-        # First, try to fit priority words in ZP
-        for sym in zp_priority_words:
-            if zp_offset + 2 <= ZEROPAGE_SIZE:
-                zp_word_vars.append(sym)
-                zp_offset += 2
-            else:
-                bss_word_vars.append(sym)
-        
-        # Then try to fit regular words (lower priority)
-        for sym in regular_words:
-            if zp_offset + 2 <= ZEROPAGE_SIZE:
-                zp_word_vars.append(sym)
-                zp_offset += 2
-            else:
-                bss_word_vars.append(sym)
+        zp_word_vars = [s for s in word_vars if s.in_zeropage]
+        bss_word_vars = [s for s in word_vars if not s.in_zeropage]
         
         if zp_word_vars:
             self.emit("\n; Word variables")
@@ -4511,31 +4878,8 @@ class CodeGen:
                      and not s.type.is_pointer and not s.is_array
                      and s.type.base == "LONG"]
         
-        # Separate high-priority (marked for ZP) from regular
-        zp_priority_longs = [s for s in long_vars if s.zp_priority > 0]
-        regular_longs = [s for s in long_vars if s.zp_priority <= 0]
-        
-        # Sort priority by frequency
-        zp_priority_longs.sort(key=lambda s: -s.zp_priority)
-        
-        zp_long_vars = []
-        bss_long_vars = []
-        
-        # First, try to fit priority longs
-        for sym in zp_priority_longs:
-            if zp_offset + 4 <= ZEROPAGE_SIZE:
-                zp_long_vars.append(sym)
-                zp_offset += 4
-            else:
-                bss_long_vars.append(sym)
-        
-        # Then try to fit regular longs
-        for sym in regular_longs:
-            if zp_offset + 4 <= ZEROPAGE_SIZE:
-                zp_long_vars.append(sym)
-                zp_offset += 4
-            else:
-                bss_long_vars.append(sym)
+        zp_long_vars = [s for s in long_vars if s.in_zeropage]
+        bss_long_vars = [s for s in long_vars if not s.in_zeropage]
         
         if zp_long_vars:
             self.emit("\n; Long variables")
@@ -9624,80 +9968,30 @@ class CodeGen:
                 # Pointer is in zero page, can use direct indirect addressing
                 ptr_addr: str = ptr_sym.asm_name()
                 
-                # Special optimization for simple RHS (identifier or immediate)
-                if isinstance(rhs, Identifier):
-                    rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
-                    rhs_addr: str = rhs_sym.asm_name()
-                    
-                    # Load RHS and store directly
-                    self.emit(f"\tLDA {rhs_addr}")
-                    if lhs_t.sem_type.base == "WORD":
-                        # WORD: load high byte too
-                        self.emit(f"\tLDX {rhs_addr}+1")
-                        if self.is_65c02:
-                            self.emit(f"\tSTA ({ptr_addr})")
-                            self.emit(f"\tLDY #1")
-                            self.emit(f"\tSTX ({ptr_addr}),Y")
-                        else:
-                            self.emit(f"\tLDY #0")
-                            self.emit(f"\tSTA ({ptr_addr}),Y")
-                            self.emit(f"\tINY")
-                            self.emit(f"\tSTX ({ptr_addr}),Y")
-                    else:
-                        # BYTE: store only low byte (no need for X)
-                        if self.is_65c02:
-                            self.emit(f"\tSTA ({ptr_addr})")
-                        else:
-                            self.emit(f"\tLDY #0")
-                            self.emit(f"\tSTA ({ptr_addr}),Y")
-                    return
-                elif isinstance(rhs, IntLiteral):
-                    # Immediate value
-                    val_low: int = rhs.value & 0xFF
-                    val_high: int = (rhs.value >> 8) & 0xFF
-                    
-                    self.emit(f"\tLDA #${val_low:02X}")
-                    if lhs_t.sem_type.base == "WORD":
-                        self.emit(f"\tLDX #${val_high:02X}")
-                        if self.is_65c02:
-                            self.emit(f"\tSTA ({ptr_addr})")
-                            self.emit(f"\tLDY #1")
-                            self.emit(f"\tSTX ({ptr_addr}),Y")
-                        else:
-                            self.emit(f"\tLDY #0")
-                            self.emit(f"\tSTA ({ptr_addr}),Y")
-                            self.emit(f"\tINY")
-                            self.emit(f"\tSTX ({ptr_addr}),Y")
-                    else:
-                        if self.is_65c02:
-                            self.emit(f"\tSTA ({ptr_addr})")
-                        else:
-                            self.emit(f"\tLDY #0")
-                            self.emit(f"\tSTA ({ptr_addr}),Y")
-                    return
-                
-                # For complex expressions, generate normally
+                # 1. Compute RHS and store in TMP2
                 self.gen_expr(rhs)
                 
-                # Store to dereferenced pointer
+                self.emit("\tSTA TMP2")
                 if lhs_t.sem_type.base == "WORD":
-                    # WORD: store both low and high bytes
-                    if self.is_65c02:
-                        self.emit(f"\tSTA ({ptr_addr})")
-                        self.emit(f"\tLDY #1")
-                        self.emit(f"\tSTX ({ptr_addr}),Y")
-                    else:
-                        self.emit(f"\tLDY #0")
-                        self.emit(f"\tSTA ({ptr_addr}),Y")
-                        self.emit(f"\tINY")
-                        self.emit(f"\tSTX ({ptr_addr}),Y")
+                    self.emit("\tSTX TMP2+1")
+                
+                # 2. Store to dereferenced pointer directly (no TMP0 needed)
+                self.emit("\tLDA TMP2")
+                if lhs_t.sem_type.base == "WORD":
+                    self.emit("\tLDY #0")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
                 else:
-                    # BYTE: store only low byte
                     if self.is_65c02:
                         self.emit(f"\tSTA ({ptr_addr})")
                     else:
-                        self.emit(f"\tLDY #0")
+                        self.emit("\tLDY #0")
                         self.emit(f"\tSTA ({ptr_addr}),Y")
+                
+                if lhs_t.sem_type.base == "WORD":
+                    self.emit("\tINY")
+                    self.emit("\tLDA TMP2+1")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                    
                 return
 
         # OPTIMIZATION: Dereferenced subscript of ZEROPAGE pointer array
