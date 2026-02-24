@@ -720,13 +720,16 @@ def _liveness_block(
             continue
 
         if isinstance(st, AssignStmt):
+            uses_rhs = _expr_used_locals(st.rhs, name_to_id)
+            uses_lhs = set()
+            if not isinstance(st.lhs, Identifier):
+                uses_lhs = _expr_used_locals(st.lhs, name_to_id)
+
             call_names = _stmt_call_names(st)
             for callee in call_names:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(live)
+                    call_live_across.setdefault((caller_name, callee), set()).update(live | uses_rhs | uses_lhs)
 
-            uses_rhs = _expr_used_locals(st.rhs, name_to_id)
-            uses_lhs = set()
             defs: set[str] = set()
             if isinstance(st.lhs, Identifier):
                 key = st.lhs.name.upper() if isinstance(st.lhs.name, str) else st.lhs.name
@@ -743,11 +746,11 @@ def _liveness_block(
             continue
 
         if isinstance(st, ReturnStmt):
+            uses = _expr_used_locals(st.expr, name_to_id)
             call_names = _stmt_call_names(st)
             for callee in call_names:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(set())
-            uses = _expr_used_locals(st.expr, name_to_id)
+                    call_live_across.setdefault((caller_name, callee), set()).update(uses)
             live = uses
             _add_interference(live, graph, class_key)
             continue
@@ -786,7 +789,7 @@ def _liveness_block(
             cond_live_out = then_in | else_in
             for callee in cond_calls:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out)
+                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out | cond_uses)
             live = cond_uses | cond_live_out
             _add_interference(live, graph, class_key)
             continue
@@ -816,7 +819,7 @@ def _liveness_block(
             cond_live_out = body_in | live
             for callee in cond_calls:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out)
+                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out | cond_uses)
             live = loop_live_in
             _add_interference(live, graph, class_key)
             continue
@@ -846,7 +849,7 @@ def _liveness_block(
             cond_live_out = body_in | live
             for callee in cond_calls:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out)
+                    call_live_across.setdefault((caller_name, callee), set()).update(cond_live_out | cond_uses)
             live = loop_live_in
             _add_interference(live, graph, class_key)
             continue
@@ -915,7 +918,7 @@ def _liveness_block(
 
             for callee in loop_calls:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(loop_live_in)
+                    call_live_across.setdefault((caller_name, callee), set()).update(loop_live_in | loop_uses)
 
             live = loop_live_in
             _add_interference(live, graph, class_key)
@@ -934,7 +937,7 @@ def _liveness_block(
                     graph,
                     class_key,
                     for_temp_map=for_temp_map,
-                    break_live=break_live,
+                    break_live=live,  # break inside a switch exits the switch
                     continue_live=continue_live,
                 )
                 case_ins.append(case_in)
@@ -945,7 +948,7 @@ def _liveness_block(
                 merged |= ci
             for callee in cond_calls:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(merged)
+                    call_live_across.setdefault((caller_name, callee), set()).update(merged | cond_uses)
             live = cond_uses | merged
             _add_interference(live, graph, class_key)
             continue
@@ -980,12 +983,11 @@ def _liveness_inits(
         if init is None:
             continue
 
+        uses = _init_used_locals(init, name_to_id)
         call_names = _init_call_names(init)
         for callee in call_names:
             if callee in valid_callees:
-                call_live_across.setdefault((caller_name, callee), set()).update(live)
-
-        uses = _init_used_locals(init, name_to_id)
+                call_live_across.setdefault((caller_name, callee), set()).update(live | uses)
         defs: set[str] = set()
         key = sym.name.upper() if isinstance(sym.name, str) else sym.name
         if key in name_to_id:
