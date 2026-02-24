@@ -48,6 +48,21 @@ byte KBHIT @764
 byte TIMER @20
 
 const byte ATARI_KEY_RETURN = 155
+const byte ATARI_KEY_LEFT = $1E
+const byte ATARI_KEY_RIGHT = $1F
+const byte ATARI_KEY_UP = $1C
+const byte ATARI_KEY_DOWN = $1D
+const byte ATARI_KEY_CTRL_LEFT = $2B
+const byte ATARI_KEY_CTRL_RIGHT = $2A
+const byte ATARI_KEY_CTRL_UP = $2D
+const byte ATARI_KEY_CTRL_DOWN = $3D
+const byte ATARI_KEY_HOME = $7D
+const byte ATARI_KEY_END = $1D
+const byte ATARI_KEY_DEL = $FE
+const byte ATARI_KEY_INSERT = $FF
+const byte ATARI_KEY_BACKSPACE = $7E
+
+
 byte kbcode @$D209
 byte scr1 @40000
 
@@ -304,6 +319,19 @@ end
 
 
 /*
+    putbkspc - print backspace to the screen
+*/
+proc putbkspc()
+    if cur_xpos > 0
+        cur_xpos = cur_xpos - 1                    
+        curptr = curptr - 1
+        curptr^ = 0
+    end
+    
+end
+
+
+/*
     puts - print null-terminated string to the screen
 */
 proc puts(byte ^str)
@@ -318,21 +346,65 @@ end
 
 
 /*
+    gotoxy - move cursor to the specified position
+*/
+proc gotoxy(byte x, byte y)
+    cur_xpos = x
+    cur_ypos = y
+    curptr = vlstart[cur_ypos] + cur_xpos
+end
+
+
+
+/*
     gets - read characters from keyboard until newline, store them in buffer as null-terminated string
 */
 func byte gets(byte ^buffer, byte max_len)
     byte ch
     byte count = 0
-
-    ch = getcblink()
-    while (ch != ATARI_KEY_RETURN) && (count < max_len - 1)
-        putchar(ch)   ; echo the character back to the screen
-        buffer^ = ch
-        buffer = buffer + 1
-        count = count + 1
+    
+    while BOOL.TRUE
         ch = getcblink()
+
+        switch ch
+            case ATARI_KEY_RETURN
+                COLOR4 = COLOR_MEDIUM_GREEN + 14                
+                return count                
+
+            case ATARI_KEY_BACKSPACE
+                count = count - 1
+                buffer = buffer - 1                    
+                buffer^ = 0
+                putbkspc()
+                break
+            
+            case ATARI_KEY_LEFT
+                if cur_xpos > 0
+                    buffer = buffer - 1                    
+                    cur_xpos = cur_xpos - 1                    
+                    curptr = curptr - 1
+                end
+                break
+
+            case ATARI_KEY_RIGHT
+                if (cur_xpos < SCREEN_X_SIZE - 1) && (cur_xpos < max_len - 1)
+                    buffer = buffer + 1                    
+                    cur_xpos = cur_xpos + 1                    
+                    curptr = curptr + 1
+                end
+                break
+
+            default
+                if count < max_len
+                    buffer^ = ch                
+                    buffer = buffer + 1
+                    count = count + 1
+                    putchar(ch)   ; echo the character back to the screen
+                end
+                break                
+        end
+        ch = getcblink()        
     end
-    buffer^ = 0   ; null-terminate the string
 
     return count
 end
