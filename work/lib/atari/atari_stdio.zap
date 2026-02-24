@@ -47,21 +47,20 @@ byte ^curptr                    #noexport   ; current position in the screen mem
 byte KBHIT @764
 byte TIMER @20
 
-const byte ATARI_KEY_RETURN = 155
-const byte ATARI_KEY_LEFT = $1E
-const byte ATARI_KEY_RIGHT = $1F
-const byte ATARI_KEY_UP = $1C
-const byte ATARI_KEY_DOWN = $1D
-const byte ATARI_KEY_CTRL_LEFT = $2B
-const byte ATARI_KEY_CTRL_RIGHT = $2A
-const byte ATARI_KEY_CTRL_UP = $2D
-const byte ATARI_KEY_CTRL_DOWN = $3D
-const byte ATARI_KEY_HOME = $7D
-const byte ATARI_KEY_END = $1D
-const byte ATARI_KEY_DEL = $FE
-const byte ATARI_KEY_INSERT = $FF
-const byte ATARI_KEY_BACKSPACE = $7E
-const byte ATARI_KEY_ESCAPE = $1B
+const byte ATARI_KEY_RETURN         = $9B
+const byte ATARI_KEY_LEFT           = $1E
+const byte ATARI_KEY_RIGHT          = $1F
+const byte ATARI_KEY_UP             = $1C
+const byte ATARI_KEY_DOWN           = $1D
+const byte ATARI_KEY_CTRL_LEFT      = $2B
+const byte ATARI_KEY_CTRL_RIGHT     = $2A
+const byte ATARI_KEY_CTRL_UP        = $2D
+const byte ATARI_KEY_CTRL_DOWN      = $3D
+const byte ATARI_KEY_HOME           = $7D
+const byte ATARI_KEY_DELETE         = $FE
+const byte ATARI_KEY_INSERT         = $FF
+const byte ATARI_KEY_BACKSPACE      = $7E
+const byte ATARI_KEY_ESCAPE         = $1B
 
 
 byte kbcode @$D209
@@ -223,7 +222,6 @@ func byte getcblink()
     while BOOL.TRUE
         ; cursor on
         cursor_on()
-
         i = 0
         while i < 4
             delay(5)
@@ -236,15 +234,13 @@ func byte getcblink()
 
         ; cursor off
         cursor_off()
-        if KBHIT != 255
-            i = 0
-            while i < 4
-                delay(5)
-                if KBHIT != 255
-                    return getchar()                
-                end
-                i = i + 1   
+        i = 0
+        while i < 4
+            delay(5)
+            if KBHIT != 255
+                return getchar()                
             end
+            i = i + 1   
         end
     end
     return getchar()
@@ -270,6 +266,28 @@ end
 
 
 /*
+    Convert ASCII to screen code
+*/
+func byte ascii_to_screen(byte ch)
+    ; convert ATASCII to screen code, handle inverse bit
+    asm
+                    lda _ASCII_TO_SCREEN_CH
+                    asl a               ; shift out the inverse bit
+                    adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
+                    bpl ascii_to_screen_codeok        ; screen code ok?
+                    eor #$40            ; needs correction
+ascii_to_screen_codeok:     lsr a               ; undo the shift
+                    bcc ascii_to_screen_sputc
+                    eor #$80            ; restore the inverse bit            
+ascii_to_screen_sputc:
+                    sta _ASCII_TO_SCREEN_CH
+    end
+
+    return ch
+end
+
+
+/*
     putchar to current screen location and move cursor forward, scroll screen if needed
 */
 proc putchar(byte ch)
@@ -286,21 +304,7 @@ proc putchar(byte ch)
             return
     end
 
-    ; convert ATASCII to screen code, handle inverse bit
-    asm
-                    lda _PUTCHAR_CH
-                    asl a               ; shift out the inverse bit
-                    adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
-                    bpl putchar_codeok        ; screen code ok?
-                    eor #$40            ; needs correction
-putchar_codeok:     lsr a               ; undo the shift
-                    bcc putchar_sputc
-                    eor #$80            ; restore the inverse bit            
-putchar_sputc:
-                    sta _PUTCHAR_CH
-    end
-
-    curptr^ = ch
+    curptr^ = ascii_to_screen(ch)
     curptr = curptr + 1
     
     cur_xpos = cur_xpos + 1
@@ -363,7 +367,6 @@ end
 func byte gets(const byte ^buffer, byte max_len)
     byte  ch             ; read character
     byte  pos = 0        ; buffer position
-    byte  count = 0      ; number of characters read
     byte^ bufp           ; current character pointer in buffer
     
 
@@ -373,6 +376,7 @@ func byte gets(const byte ^buffer, byte max_len)
         ch = getcblink()
 
         switch ch
+
             case ATARI_KEY_RETURN
             case ATARI_KEY_ESCAPE
             case ATARI_KEY_UP
@@ -381,19 +385,18 @@ func byte gets(const byte ^buffer, byte max_len)
                 return ch
 
             case ATARI_KEY_BACKSPACE
-                if pos > 0
-                    ; screen
-                    putbkspc()
-                    ; buffer
-                    pos = pos - 1
-                    bufp = bufp - 1                    
-                end
+                ; TODO: implement backspace
+                break
+
+            case ATARI_KEY_DELETE
+                ; TODO: implement delete
                 break
             
             case ATARI_KEY_LEFT
                 if pos > 0
                     ; screen
-                    cur_xpos = cur_xpos - 1                    
+                    cur_xpos = cur_xpos - 1
+                    curptr = curptr - 1                    
                     ; buffer
                     bufp = bufp - 1
                     pos = pos - 1
@@ -403,7 +406,8 @@ func byte gets(const byte ^buffer, byte max_len)
             case ATARI_KEY_RIGHT
                 if (cur_xpos < SCREEN_X_SIZE - 1) && (pos < max_len - 1)
                     ; screen
-                    cur_xpos = cur_xpos + 1                    
+                    cur_xpos = cur_xpos + 1
+                    curptr = curptr + 1                    
                     ; buffer
                     bufp = bufp + 1
                     pos = pos + 1
@@ -411,25 +415,25 @@ func byte gets(const byte ^buffer, byte max_len)
                 break
 
             default
-                if count < max_len
+                if pos == max_len
+                    ; screen
+                    curptr^ = ascii_to_screen(ch)
+
+                    ; buffer
+                    bufp^ = ch                
+                else
                     ; screen
                     putchar(ch)   ; echo the character back to the screen
                     ; buffer
                     bufp^ = ch                
                     bufp = bufp + 1
-                    if pos < count
-                        count = count + 1
-                        pos = pos + 1
-                    else
-                        
-                    end
-                    
+                    pos = pos + 1
                 end
                 break                
         end
     end
 
-    return count
+    return 0
 end
 
 
