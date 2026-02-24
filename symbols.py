@@ -147,12 +147,11 @@ class Symbol:
 
     def asm_name(self) -> str:
         """Return assembly name: _NAME for globals, _PROC_NAME for locals."""
-        if self.shared_slot:
-            return self.shared_slot
-        prefix = "__" if self.is_generated else "_"
         if self.proc_name:
-            return f"{prefix}{self.proc_name}_{self.name}"
-        return f"{prefix}{self.name}"
+            # Local variables always have a single underscore prefix, even if generated.
+            return f"_{self.proc_name.upper()}_{self.name.upper()}"
+        prefix = "__" if self.is_generated else "_"
+        return f"{prefix}{self.name.upper()}"
     
     def get_total_array_size(self) -> int:
         """Calculate total size in bytes for array (including element type width)"""

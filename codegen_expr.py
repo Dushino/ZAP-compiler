@@ -10077,7 +10077,9 @@ class CodeGen:
 
         # Embed local variable equates for inline assembly references (excluding parameters)
         param_names = {pname for pname, _, _, _ in proc_specs} if proc_specs else set()
-        for sym in proc.locals:
+        local_tbl = getattr(proc.symtab, "local", None)
+        all_locals = list(local_tbl) if local_tbl else proc.locals
+        for sym in all_locals:
             self._emit_local_name_equate(proc.ast.name, sym, param_names)
 
         # INIT lokálů
@@ -10128,11 +10130,9 @@ class CodeGen:
         they are assigned to shared slots. Only emits when location differs from standard names."""
         for pname, width, _default, _sem_type in specs:
             sym = self.current_symtab.lookup(pname)
-            asm_loc = sym.asm_name()
-            param_label = f"_{callee_name.upper()}_{pname.upper()}"
-            # Only emit if location is different (has shared slot or other reassignment)
-            if asm_loc != param_label:
-                self.emit(f"{param_label} = {asm_loc}")
+            if sym.shared_slot:
+                param_label = sym.asm_name()
+                self.emit(f"{param_label} = {sym.shared_slot}")
 
     def _emit_local_name_equate(self, proc_name: str, sym: Symbol, param_names: set[str] | None = None) -> None:
         """Emit equate declaration for a local variable name to its actual storage location.
@@ -10140,9 +10140,8 @@ class CodeGen:
         they are assigned to shared slots. Only emits for locals with actual shared slots."""
         # Only emit for locals that have shared slots assigned (different from their normal name)
         if sym.proc_name and sym.name not in (param_names or set()) and sym.shared_slot:
-            asm_loc = sym.asm_name()
-            local_label = f"_{proc_name.upper()}_{sym.name.upper()}"
-            self.emit(f"{local_label} = {asm_loc}")
+            local_label = sym.asm_name()
+            self.emit(f"{local_label} = {sym.shared_slot}")
 
     def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object, SemType]]) -> None:
         """Emit param reg stores.
@@ -10886,9 +10885,13 @@ class CodeGen:
                 self.emit("\tSTA TMP4")
                 self.emit("\tTXA")
                 self.emit("\tORA TMP4")
-                self.emit(f"\tBEQ {lbl_else}")
+                self.emit(f"\tBNE {lbl_then}")
+                self.emit(f"\tJMP {lbl_else}")
             else:
-                self.emit(f"\tBEQ {lbl_else}")
+                self.emit(f"\tBNE {lbl_then}")
+                self.emit(f"\tJMP {lbl_else}")
+
+            self.emit(f"{lbl_then}:")
 
             for s in stmt.then_body:
                 self.gen_stmt(s)
@@ -10949,9 +10952,11 @@ class CodeGen:
                     self.emit("\tSTA TMP4")
                     self.emit("\tTXA")
                     self.emit("\tORA TMP4")
-                    self.emit(f"\tBEQ {lbl_end}")
+                    self.emit(f"\tBNE {lbl_body}")
+                    self.emit(f"\tJMP {lbl_end}")
                 else:
-                    self.emit(f"\tBEQ {lbl_end}")
+                    self.emit(f"\tBNE {lbl_body}")
+                    self.emit(f"\tJMP {lbl_end}")
 
             self.emit(f"{lbl_body}:")
 
@@ -11013,10 +11018,11 @@ class CodeGen:
                     self.emit("\tSTA TMP4")
                     self.emit("\tTXA")
                     self.emit("\tORA TMP4")
-                    self.emit(f"\tBEQ {lbl_start}")
+                    self.emit(f"\tBNE {lbl_end}")
+                    self.emit(f"\tJMP {lbl_start}")
                 else:
-                    self.emit(f"\tBEQ {lbl_start}")
-                self.emit(f"\tJMP {lbl_end}")
+                    self.emit(f"\tBNE {lbl_end}")
+                    self.emit(f"\tJMP {lbl_start}")
 
             self.emit(f"{lbl_end}:")
 
@@ -11087,7 +11093,9 @@ class CodeGen:
 
         # Emit local variable equates for inline assembly references (excluding parameters)
         param_names = {pname for pname, _, _, _ in func_specs} if func_specs else set()
-        for sym in func.locals:
+        local_tbl = getattr(func.symtab, "local", None)
+        all_locals = list(local_tbl) if local_tbl else func.locals
+        for sym in all_locals:
             self._emit_local_name_equate(func.ast.name, sym, param_names)
 
         # init lokálů
@@ -11249,10 +11257,17 @@ class CodeGen:
             self.emit("\tLDX #0     ; note 6178")
 
     def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
-        """Emit relational test that jumps to lbl_true or lbl_false using only short local branches and absolute JMPs.
+        """Emit relational test that jumps to lbl_true or lbl_false using only short local branches and absolute JMPs."""
+        lbl_false_proxy: str = self.new_label("REL_FALSE_PROXY")
+        
+        self._emit_relational_branch_impl(cond, lbl_true=lbl_true, lbl_false=lbl_false_proxy)
+        
+        self.emit(f"\tJMP {lbl_true}")
+        self.emit(f"{lbl_false_proxy}:")
+        self.emit(f"\tJMP {lbl_false}")
 
-        This avoids boolean materialization and keeps conditional branches within range by funneling through local labels.
-        """
+    def _emit_relational_branch_impl(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
+        """Internal implementation for _emit_relational_branch."""
         left_t: ExprType = self.tc_check(cond.left)
         right_t: ExprType = self.tc_check(cond.right)
         
