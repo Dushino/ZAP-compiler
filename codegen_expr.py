@@ -214,6 +214,12 @@ class CodeGen:
         def walk(node: Expr) -> None:
             """Recursively walk AST and build RPN sequence."""
             if isinstance(node, BinaryExpr):
+                # OPTIMIZATION: Swap operands for commutative operations in RPN
+                # if the left is an IntLiteral so the constant is on the right
+                if node.op in {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.EQ, BinOp.NE}:
+                    if isinstance(node.left, IntLiteral) and not isinstance(node.right, IntLiteral):
+                        node = BinaryExpr(left=node.right, op=node.op, right=node.left, line=node.line, col=node.col)
+                
                 # Left subtree -> Right subtree -> Operator
                 walk(node.left)
                 walk(node.right)
@@ -672,6 +678,45 @@ class CodeGen:
                         self.emit("\tSTA MATH0")
                         eval_stack.append(("MATH0", False))
                         continue  # Skip general path
+
+                # FAST PATH OPTIMIZATION: 16-bit and 32-bit immediate bitwise 
+                if node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR} and right_loc.startswith("CONST:"):
+                    is_32_bitwise = left_width > 2 or right_width > 2
+                    if is_32_bitwise or node.width == 2:
+                        spill_math0_if_needed(eval_stack)
+                        val = int(right_loc.split(":")[1])
+                        asm_op = "AND" if node.value == BinOp.BAND else "ORA" if node.value == BinOp.BOR else "EOR"
+                        width = node.width
+                        
+                        if is_32_bitwise:
+                            if left_loc != "MATH0":
+                                emit_move_to_math(left_loc, "MATH0", left_width, target_width=width)
+                            for j in range(4):
+                                suffix = "" if j == 0 else f"+{j}"
+                                self.emit(f"\tLDA MATH0{suffix}")
+                                self.emit(f"\t{asm_op} #${(val >> (j*8)) & 0xFF:02X}")
+                                self.emit(f"\tSTA MATH0{suffix}")
+                            eval_stack.append(("MATH0", width))
+                        else:  # 16-bit
+                            if left_loc == "A" or left_loc == "AX":
+                                pass
+                            elif left_loc == "MATH0":
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tLDX MATH0+1")
+                            else:
+                                load_to_ax(left_loc, True)
+                            
+                            self.emit(f"\t{asm_op} #${val & 0xFF:02X}")
+                            self.emit("\tTAY")
+                            self.emit("\tTXA")
+                            self.emit(f"\t{asm_op} #${(val >> 8) & 0xFF:02X}")
+                            self.emit("\tTAX")
+                            self.emit("\tTYA")
+                            
+                            self.emit("\tSTA MATH0")
+                            self.emit("\tSTX MATH0+1")
+                            eval_stack.append(("MATH0", width))
+                        continue
 
                 # If an older stack entry still lives in MATH0, spill it before reuse.
                 spill_math0_if_needed(eval_stack)
@@ -7159,6 +7204,13 @@ class CodeGen:
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
         
+        # OPTIMIZATION: Swap operands for commutative operations if left is constant and right is not
+        if expr.op in {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.EQ, BinOp.NE}:
+            if isinstance(expr.left, IntLiteral) and not isinstance(expr.right, IntLiteral):
+                # Swap operands by tracking them in a new node variable
+                expr = BinaryExpr(left=expr.right, op=expr.op, right=expr.left, line=expr.line, col=expr.col)
+                left_t, right_t = right_t, left_t
+        
         # OPTIMIZATION: Detect chained ADD/SUB operations and generate RPN-style with accumulator
         # Pattern: ((a + b) + c) + d --> Load a → MATH0, b → MATH1, ADD, c → MATH1, ADD, d → MATH1, ADD
         # This avoids intermediate temporaries and uses __MATH0 as running accumulator
@@ -7558,6 +7610,51 @@ class CodeGen:
         right_has_call = _contains_call_or_math(expr.right)
         left_needs_word: bool = result_16_adj and left_t.sem_type.base == "BYTE" and not left_t.sem_type.is_pointer
         right_needs_word: bool = result_16_adj and right_t.sem_type.base == "BYTE" and not right_t.sem_type.is_pointer
+
+        # Fast path: Bitwise operations with an immediate right operand (IntLiteral)
+        if expr.op in {BinOp.BAND, BinOp.BOR, BinOp.BXOR} and isinstance(expr.right, IntLiteral) and not left_is_ptr and not right_is_ptr:
+            asm_op = "AND" if expr.op == BinOp.BAND else "ORA" if expr.op == BinOp.BOR else "EOR"
+            val = expr.right.value
+            
+            if t.width > 2:
+                # 32-bit fast path
+                self.gen_expr(expr.left)
+                self.emit("\tLDA MATH0")
+                self.emit(f"\t{asm_op} #${val & 0xFF:02X}")
+                self.emit("\tSTA MATH0")
+                self.emit("\tLDA MATH0+1")
+                self.emit(f"\t{asm_op} #${(val >> 8) & 0xFF:02X}")
+                self.emit("\tSTA MATH0+1")
+                self.emit("\tLDA MATH0+2")
+                self.emit(f"\t{asm_op} #${(val >> 16) & 0xFF:02X}")
+                self.emit("\tSTA MATH0+2")
+                self.emit("\tLDA MATH0+3")
+                self.emit(f"\t{asm_op} #${(val >> 24) & 0xFF:02X}")
+                self.emit("\tSTA MATH0+3")
+                return
+            
+            # Generate left operand for 8/16-bit
+            prev_force = self.force_word_result
+            if left_needs_word:
+                self.force_word_result = True
+            try:
+                self.gen_expr(expr.left)
+            finally:
+                self.force_word_result = prev_force
+
+            if result_16_adj:
+                # 16-bit fast path (result is in A/X)
+                self.emit(f"\t{asm_op} #${val & 0xFF:02X}")
+                self.emit("\tTAY")
+                self.emit("\tTXA")
+                self.emit(f"\t{asm_op} #${(val >> 8) & 0xFF:02X}")
+                self.emit("\tTAX")
+                self.emit("\tTYA")
+            else:
+                # 8-bit fast path (result is in A)
+                self.emit(f"\t{asm_op} #${val & 0xFF:02X}")
+            return
+
 
         if (expr.op in {BinOp.ADD, BinOp.SUB} and isinstance(expr.right, BinaryExpr) and
                 expr.right.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD} and
@@ -9968,29 +10065,25 @@ class CodeGen:
                 # Pointer is in zero page, can use direct indirect addressing
                 ptr_addr: str = ptr_sym.asm_name()
                 
-                # 1. Compute RHS and store in TMP2
+                # 1. Compute RHS
                 self.gen_expr(rhs)
                 
-                self.emit("\tSTA TMP2")
-                if lhs_t.sem_type.base == "WORD":
-                    self.emit("\tSTX TMP2+1")
-                
                 # 2. Store to dereferenced pointer directly (no TMP0 needed)
-                self.emit("\tLDA TMP2")
                 if lhs_t.sem_type.base == "WORD":
+                    # Save high byte (X), but low byte (A) is ready to store
+                    self.emit("\tSTX TMP2+1")
                     self.emit("\tLDY #0")
                     self.emit(f"\tSTA ({ptr_addr}),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA TMP2+1")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
                 else:
+                    # BYTE assignment: value is already in A, just store it
                     if self.is_65c02:
                         self.emit(f"\tSTA ({ptr_addr})")
                     else:
                         self.emit("\tLDY #0")
                         self.emit(f"\tSTA ({ptr_addr}),Y")
-                
-                if lhs_t.sem_type.base == "WORD":
-                    self.emit("\tINY")
-                    self.emit("\tLDA TMP2+1")
-                    self.emit(f"\tSTA ({ptr_addr}),Y")
                     
                 return
 
