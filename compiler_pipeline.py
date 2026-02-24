@@ -1190,14 +1190,38 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
             local_class,
         )
 
+    # Build direct call graph
+    direct_calls: dict[str, set[str]] = {}
+    for (caller, callee) in call_live_across.keys():
+        direct_calls.setdefault(caller, set()).add(callee)
+
+    # Compute transitive closure of the call graph
+    transitive_calls: dict[str, set[str]] = {}
+    for caller in valid_callees:
+        transitive_calls[caller] = set(direct_calls.get(caller, set()))
+
+    changed = True
+    while changed:
+        changed = False
+        for caller in valid_callees:
+            current_callees = list(transitive_calls[caller])
+            for callee in current_callees:
+                for indirect_callee in transitive_calls.get(callee, set()):
+                    if indirect_callee not in transitive_calls[caller]:
+                        transitive_calls[caller].add(indirect_callee)
+                        changed = True
+
     # Cross-call interference: locals live across a call interfere with callee locals
+    # AND all transitively called locals.
     for (caller, callee), live_ids in call_live_across.items():
-        callee_ids = routine_locals.get(callee, [])
-        if not callee_ids:
-            continue
-        for caller_id in live_ids:
-            for callee_id in callee_ids:
-                _add_edge(caller_id, callee_id, graph, local_class)
+        active_routines = {callee} | transitive_calls.get(callee, set())
+        for routine in active_routines:
+            callee_ids = routine_locals.get(routine, [])
+            if not callee_ids:
+                continue
+            for caller_id in live_ids:
+                for callee_id in callee_ids:
+                    _add_edge(caller_id, callee_id, graph, local_class)
 
     # Parameter-to-parameter interference: all parameters of a function/procedure are simultaneously
     # live at function entry and must not share slots
