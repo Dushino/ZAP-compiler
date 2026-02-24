@@ -61,11 +61,11 @@ const byte ATARI_KEY_END = $1D
 const byte ATARI_KEY_DEL = $FE
 const byte ATARI_KEY_INSERT = $FF
 const byte ATARI_KEY_BACKSPACE = $7E
+const byte ATARI_KEY_ESCAPE = $1B
 
 
 byte kbcode @$D209
 byte scr1 @40000
-
 
 
 ; initialize internals for faster screen IO
@@ -220,7 +220,7 @@ func byte getcblink()
     byte i
 
     KBHIT = 255
-    while KBHIT == 255
+    while BOOL.TRUE
         ; cursor on
         cursor_on()
 
@@ -228,26 +228,25 @@ func byte getcblink()
         while i < 4
             delay(5)
             if KBHIT != 255
-                break
+                cursor_off()
+                return getchar()
             end
             i = i + 1   
         end
 
         ; cursor off
         cursor_off()
-        if KBHIT == 255
+        if KBHIT != 255
             i = 0
             while i < 4
                 delay(5)
                 if KBHIT != 255
-                    break
+                    return getchar()                
                 end
                 i = i + 1   
             end
         end
     end
-    cursor_off()
-
     return getchar()
 end
 
@@ -322,6 +321,7 @@ end
     putbkspc - print backspace to the screen
 */
 proc putbkspc()
+
     if cur_xpos > 0
         cur_xpos = cur_xpos - 1                    
         curptr = curptr - 1
@@ -357,53 +357,76 @@ end
 
 
 /*
-    gets - read characters from keyboard until newline, store them in buffer as null-terminated string
+    gets - read characters from keyboard until newline or ESC, store them in buffer
+    return: keycode    
 */
-func byte gets(byte ^buffer, byte max_len)
-    byte ch
-    byte count = 0
+func byte gets(const byte ^buffer, byte max_len)
+    byte  ch             ; read character
+    byte  pos = 0        ; buffer position
+    byte  count = 0      ; number of characters read
+    byte^ bufp           ; current character pointer in buffer
     
+
+    ; read characters from keyboard until newline
+    bufp = buffer
     while BOOL.TRUE
         ch = getcblink()
 
         switch ch
             case ATARI_KEY_RETURN
+            case ATARI_KEY_ESCAPE
+            case ATARI_KEY_UP
+            case ATARI_KEY_DOWN
                 COLOR4 = COLOR_MEDIUM_GREEN + 14                
-                return count                
+                return ch
 
             case ATARI_KEY_BACKSPACE
-                count = count - 1
-                buffer = buffer - 1                    
-                buffer^ = 0
-                putbkspc()
+                if pos > 0
+                    ; screen
+                    putbkspc()
+                    ; buffer
+                    pos = pos - 1
+                    bufp = bufp - 1                    
+                end
                 break
             
             case ATARI_KEY_LEFT
-                if cur_xpos > 0
-                    buffer = buffer - 1                    
+                if pos > 0
+                    ; screen
                     cur_xpos = cur_xpos - 1                    
-                    curptr = curptr - 1
+                    ; buffer
+                    bufp = bufp - 1
+                    pos = pos - 1
                 end
                 break
 
             case ATARI_KEY_RIGHT
-                if (cur_xpos < SCREEN_X_SIZE - 1) && (cur_xpos < max_len - 1)
-                    buffer = buffer + 1                    
+                if (cur_xpos < SCREEN_X_SIZE - 1) && (pos < max_len - 1)
+                    ; screen
                     cur_xpos = cur_xpos + 1                    
-                    curptr = curptr + 1
+                    ; buffer
+                    bufp = bufp + 1
+                    pos = pos + 1
                 end
                 break
 
             default
                 if count < max_len
-                    buffer^ = ch                
-                    buffer = buffer + 1
-                    count = count + 1
+                    ; screen
                     putchar(ch)   ; echo the character back to the screen
+                    ; buffer
+                    bufp^ = ch                
+                    bufp = bufp + 1
+                    if pos < count
+                        count = count + 1
+                        pos = pos + 1
+                    else
+                        
+                    end
+                    
                 end
                 break                
         end
-        ch = getcblink()        
     end
 
     return count

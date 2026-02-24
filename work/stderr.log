@@ -1,0 +1,98 @@
+[211] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 211 ---
+  insn_checked=1, examining 'STA (_MEMSET_PTR),Y'
+  insn_checked=2, examining 'INC _MEMSET_PTR'
+  insn_checked=3, examining 'BNE __ZAP_INC_WORD_10'
+  insn_checked=4, examining 'INC _MEMSET_PTR+1'
+[271] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 271 ---
+  insn_checked=1, examining 'LDA (_MEMCPY_PTR2),Y'
+  insn_checked=2, examining 'LDY #0'
+  -> FOUND MATCH at 273
+  *** SUCCESS, removed idx 273 ***
+[313] TOP OF LOOP SEES: >>>LDY #$00<<<
+--- DEBUG: Testing LDY #$00 at line 313 ---
+  insn_checked=1, examining 'JSR _MEMSET'
+  insn_checked=2, examining 'RTS'
+  insn_checked=3, examining '_GETCHAR:'
+  -> failed: label
+[357] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 357 ---
+  insn_checked=1, examining 'LDA (_CURPTR),Y'
+  insn_checked=2, examining 'ORA #$80'
+  insn_checked=3, examining 'LDY #0'
+  -> FOUND MATCH at 360
+  *** SUCCESS, removed idx 360 ***
+[367] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 367 ---
+  insn_checked=1, examining 'LDA (_CURPTR),Y'
+  insn_checked=2, examining 'AND #$7F'
+  insn_checked=3, examining 'LDY #0'
+  -> FOUND MATCH at 370
+  *** SUCCESS, removed idx 370 ***
+[530] TOP OF LOOP SEES: >>>LDY #1<<<
+--- DEBUG: Testing LDY #1 at line 530 ---
+  insn_checked=1, examining 'LDA (__TMP0),Y'
+  insn_checked=2, examining 'TAX'
+  insn_checked=3, examining 'DEY'
+  -> failed: clobbered by DEY
+[555] TOP OF LOOP SEES: >>>LDY #1<<<
+--- DEBUG: Testing LDY #1 at line 555 ---
+  insn_checked=1, examining 'LDA (__TMP0),Y'
+  insn_checked=2, examining 'TAX'
+  insn_checked=3, examining 'DEY'
+  -> failed: clobbered by DEY
+[624] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 624 ---
+  insn_checked=1, examining 'STA (_CURPTR),Y'
+  insn_checked=2, examining 'INC _CURPTR'
+  insn_checked=3, examining 'BNE __ZAP_INC_WORD_62'
+  insn_checked=4, examining 'INC _CURPTR+1'
+[673] TOP OF LOOP SEES: >>>LDY #1<<<
+--- DEBUG: Testing LDY #1 at line 673 ---
+  insn_checked=1, examining 'LDA (__TMP0),Y'
+  insn_checked=2, examining 'TAX'
+  insn_checked=3, examining 'DEY'
+  -> failed: clobbered by DEY
+[711] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 711 ---
+  insn_checked=1, examining 'STA (_CURPTR),Y'
+  insn_checked=2, examining 'JMP __ZAP_ENDIF_73'
+  insn_checked=3, examining '__ZAP_ELSE_72:'
+  -> failed: label
+[725] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 725 ---
+  insn_checked=1, examining 'LDA (_PUTS_STR),Y'
+  insn_checked=2, examining 'STA _PUTS_CH'
+  insn_checked=3, examining '__ZAP_WHILE_77:'
+  -> failed: label
+[746] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 746 ---
+  insn_checked=1, examining 'LDA (_PUTS_STR),Y'
+  insn_checked=2, examining 'STA _PUTS_CH'
+  insn_checked=3, examining 'JMP __ZAP_WHILE_77'
+  insn_checked=4, examining '__ZAP_ENDWHILE_78:'
+  -> failed: label
+[953] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 953 ---
+  insn_checked=1, examining 'STA (_GETS_BUFP),Y'
+  insn_checked=2, examining 'INC _GETS_BUFP'
+  insn_checked=3, examining 'BNE __ZAP_INC_WORD_122'
+  insn_checked=4, examining 'INC _GETS_BUFP+1'
+[1060] TOP OF LOOP SEES: >>>LDY #0<<<
+--- DEBUG: Testing LDY #0 at line 1060 ---
+  insn_checked=1, examining 'STA (__TMP0),Y'
+  insn_checked=2, examining 'INC _MAIN_CH'
+  insn_checked=3, examining 'JMP __ZAP_WHILE_127'
+  insn_checked=4, examining '__ZAP_ENDWHILE_128:'
+  -> failed: label
+[1071] TOP OF LOOP SEES: >>>LDY #$0F<<<
+--- DEBUG: Testing LDY #$0F at line 1071 ---
+  insn_checked=1, examining 'JSR _GETS'
+  insn_checked=2, examining 'STA _MAIN_CH'
+  insn_checked=3, examining 'LDA #<__STR_DATA_3'
+  insn_checked=4, examining 'LDX #>__STR_DATA_3'
+[1099] TOP OF LOOP SEES: >>>LDY #$00<<<
+--- DEBUG: Testing LDY #$00 at line 1099 ---
+  insn_checked=1, examining 'ARRCPY_LOOP:'
+  -> failed: label

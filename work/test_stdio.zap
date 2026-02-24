@@ -23,7 +23,7 @@ proc main()
     byte ^ptr
     byte msg1[] = "1. Hello World! "        ; BSS segment
     const byte msg2[] = "2. Hello World! "  ; CODE segment
-    byte inbuf[15]                          ; BSS segment
+    byte inbuf[16]                          ; BSS segment
 
     cls()    
 
@@ -33,12 +33,21 @@ proc main()
     putchar('\n')    
     puts(msg2)
     putchar('\n')
-    puts("3. Hello World!\n")    
+    puts("3. Hello World!\n")
+
+    ; clear input buffer
+    for ch = 0 to 15
+        inbuf[ch] = '-'
+    end
+    inbuf[15] = 0
+
     ch = gets(inbuf, 15)    
     puts("\n\t1\t123\t1234\t12345\t123456\n")
+    putchar('>')
     puts(inbuf)
+    putchar('<')
     
-    COLOR4 = COLOR_MEDIUM_GREEN + 4
+    ; COLOR4 = COLOR_MEDIUM_GREEN + 4
 end
 
 ; EOF

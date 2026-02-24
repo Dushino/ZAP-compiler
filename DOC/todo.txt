@@ -424,6 +424,42 @@ __MEMCPY_FOR_END_3:	.res 2
     [ ] DOCs incl. grammar
 
     
+[x] LDY #0 
+; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 130:         ptr1^ = ptr2^
+	LDY #0
+	LDA (_MEMCPY_PTR2),Y
+	STA __TMP2
+	LDY #0
+	STA (_MEMCPY_PTR1),Y
 
+[ ]
+; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 365:     while BOOL.TRUE
+__ZAP_while_85:
+	LDA #$01
+	BNE __ZAP_while_body_87
+	JMP __ZAP_endwhile_86
+__ZAP_while_body_87:
 
+[ ]
 
+; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 308:     if cur_xpos >= SCREEN_X_SIZE
+	LDA _CUR_XPOS
+	CMP #$28
+	BCS __ZAP_then_68
+	JMP __ZAP_REL_FALSE_PROXY_69
+	JMP __ZAP_then_68
+__ZAP_REL_FALSE_PROXY_69:
+	JMP __ZAP_else_66
+__ZAP_then_68:
+
+to
+
+; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 308:     if cur_xpos >= SCREEN_X_SIZE
+	LDA _CUR_XPOS
+	CMP #$28
+	BCS __ZAP_then_68
+	JMP __ZAP_else_66
+	JMP __ZAP_then_68
+__ZAP_REL_FALSE_PROXY_69:
+	JMP __ZAP_else_66
+__ZAP_then_68:

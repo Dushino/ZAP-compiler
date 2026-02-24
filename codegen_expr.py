@@ -1,4 +1,4 @@
-
+import sys
 from typing import Any, Callable, Literal, NoReturn, Sequence, cast
 from version import __version__
 from constfold import fold_expr
@@ -2036,7 +2036,7 @@ class CodeGen:
             line = self.code[i]
             line_stripped = line.strip()
             line_upper = line_stripped.upper()
-
+            
             if line_stripped == "; ASM_BLOCK_BEGIN":
                 in_asm_block = True
                 optimized.append(line)
@@ -2051,32 +2051,57 @@ class CodeGen:
                 optimized.append(line)
                 i += 1
                 continue
-
-            # Remove redundant immediate loads when the register was not clobbered by the middle instruction.
-            if i + 2 < len(self.code):
-                l1 = self.code[i].strip()
-                l2 = self.code[i + 1].strip()
-                l3 = self.code[i + 2].strip()
-                l1_u = l1.split(';')[0].strip().upper()
-                l2_u = l2.split(';')[0].strip().upper()
-                l3_u = l3.split(';')[0].strip().upper()
-
-                if l1_u.startswith("LDX #") and l3_u.startswith("LDX #") and not _clobbers_x(l2_u):
-                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
-                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
-                    if imm1 is not None and imm1 == imm3:
-                        optimized.append(self.code[i])
-                        optimized.append(self.code[i + 1])
-                        i += 3
-                        continue
-
-                if l1_u.startswith("LDY #") and l3_u.startswith("LDY #") and not _clobbers_y(l2_u):
-                    imm1 = _parse_imm(l1_u.split(maxsplit=1)[1])
-                    imm3 = _parse_imm(l3_u.split(maxsplit=1)[1])
-                    if imm1 is not None and imm1 == imm3:
-                        optimized.append(self.code[i])
-                        optimized.append(self.code[i + 1])
-                        i += 3
+            # Remove redundant immediate loads when the register was not clobbered by intervening instructions
+            if line_upper.startswith("LDX #") or line_upper.startswith("LDY #"):
+                load_instr = line_stripped.split(';')[0].strip().upper()
+                reg = "X" if load_instr.startswith("LDX") else "Y"
+                imm1 = _parse_imm(load_instr.split(maxsplit=1)[1])
+                
+                if imm1 is not None:
+                    # Scan ahead up to 4 real instructions
+                    j = i + 1
+                    found_match = False
+                    intervening_safe = True
+                    match_idx = -1
+                    insn_checked = 0
+                    
+                    while j < len(self.code) and insn_checked < 4:
+                        look_line = self.code[j].strip()
+                        look_u = look_line.split(';')[0].strip().upper()
+                        
+                        if not look_u:
+                            j += 1
+                            continue
+                            
+                        insn_checked += 1
+                        
+                        if look_u.endswith(":"):
+                            intervening_safe = False
+                            break
+                        
+                        if look_u.startswith(f"LD{reg} #"):
+                            imm2 = _parse_imm(look_u.split(maxsplit=1)[1])
+                            if imm2 is not None and imm1 == imm2:
+                                found_match = True
+                                match_idx = j
+                                break
+                            else:
+                                intervening_safe = False
+                                break
+                        
+                        clobbers = _clobbers_x(look_u) if reg == "X" else _clobbers_y(look_u)
+                        if clobbers:
+                            intervening_safe = False
+                            break
+                            
+                        j += 1
+                    
+                    if found_match and intervening_safe:
+                        # Add current instruction and all safe intervening instructions
+                        for k in range(i, match_idx):
+                            optimized.append(self.code[k])
+                        # Skip the redundant load
+                        i = match_idx + 1
                         continue
 
             # Remove redundant immediate loads if the same value was just loaded and only stored in between.
