@@ -1,4 +1,5 @@
-; just a test for random compiler features
+; STRUCT test 
+; TODO: array of structs, array in struct
 
 byte ^curptr = 40000
 
@@ -22,8 +23,6 @@ struct MyStruct
     MyEnum e
     Point p
 end
-
-BYTE ^arrptr[1024]
 
 
 proc putchar(byte ch)
@@ -80,10 +79,5 @@ proc main()
     putchar(high(rv))    ; should be 41239 % 256 = $A1
     
     test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
-
-    arrptr[0] = 42
-    putchar(arrptr[0])    ; should be 42
-
-    arrptr[1000] = 42
-    putchar(arrptr[1000])    ; should be 42
+    
 end

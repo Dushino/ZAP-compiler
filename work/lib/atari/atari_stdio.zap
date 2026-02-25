@@ -364,10 +364,10 @@ end
     gets - read characters from keyboard until newline or ESC, store them in buffer
     return: keycode    
 */
-func byte gets(const byte ^buffer, byte max_len)
+func byte gets(const byte ^buffer, const byte max_len)
     byte  ch             ; read character
     byte  pos = 0        ; buffer position
-    byte^ bufp           ; current character pointer in buffer
+    byte ^bufp           ; current character pointer in buffer
     
 
     ; read characters from keyboard until newline
