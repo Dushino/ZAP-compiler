@@ -139,13 +139,12 @@ end
 */
 proc cls()
     word i
-    byte ^ptr1 = vlstart[0]
 
     cur_xpos = 0
     cur_ypos = 0    
     curptr = vlstart[0]
     
-    memset(vlstart[0], 0, SCREEN_X_SIZE * SCREEN_Y_SIZE)   ; clear color memory    
+    memset(vlstart[0], 0, SCREEN_X_SIZE * SCREEN_Y_SIZE)   
 end
 
 
