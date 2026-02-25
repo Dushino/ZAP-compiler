@@ -466,3 +466,6 @@ to
 ; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 223:     while BOOL.TRUE
 __ZAP_while_24:
 __ZAP_while_body_26:
+
+
+
