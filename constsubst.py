@@ -22,6 +22,22 @@ def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
             return IntLiteral(sym.const_value)
         return expr
 
+    # ENUM MEMBER (FieldAccess with Identifier object)
+    from ast_nodes import FieldAccess
+    if isinstance(expr, FieldAccess) and isinstance(expr.object, Identifier):
+        enum_name = expr.object.name.upper()
+        # Lookup enum definitions starting from current scope
+        enums = getattr(symtab, '_enums', None)
+        if enums is None:
+            parent = getattr(symtab, 'parent', None)
+            if parent is not None:
+                enums = getattr(parent, '_enums', None)
+        if enums and enum_name in enums:
+            members = enums[enum_name]['members']
+            mname = expr.field.upper()
+            if mname in members:
+                return IntLiteral(members[mname])
+
     # UNARY
     if isinstance(expr, UnaryExpr):
         return UnaryExpr(
