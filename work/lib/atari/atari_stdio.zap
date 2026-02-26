@@ -214,7 +214,7 @@ end
     getcblink - wait for keyboard key press and return ATASCII code
     blinking cursor
 */
-func byte getcblink()
+func byte getcblink() 
     byte i
 
     KBHIT = 255

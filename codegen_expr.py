@@ -4533,6 +4533,8 @@ class CodeGen:
                     sym_size = sym.type.struct_info.size
                 elif sym.type.is_pointer:
                     sym_size = 2
+                elif sym.type.base == "LONG":
+                    sym_size = 4
                 elif sym.type.base == "WORD":
                     sym_size = 2
                 elif sym.type.base == "BYTE":
@@ -10401,7 +10403,11 @@ class CodeGen:
             var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
             end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
         )
-        self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
+        end_width: int = max(var_t.sem_type.width, end_t.sem_type.width)
+        if end_width == 4:
+            self._declare_temp(end_name, "LONG")
+        else:
+            self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
         end_var = Identifier(end_name)
         self.gen_assign(end_var, stmt.end)
 
@@ -10448,8 +10454,17 @@ class CodeGen:
             step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
         )
 
-        self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
-        self._declare_temp(step_name, "WORD" if step_is_word else "BYTE")
+        end_width: int = max(var_t.sem_type.width, end_t.sem_type.width)
+        if end_width == 4:
+            self._declare_temp(end_name, "LONG")
+        else:
+            self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
+
+        step_width: int = max(var_t.sem_type.width, step_t.sem_type.width)
+        if step_width == 4:
+            self._declare_temp(step_name, "LONG")
+        else:
+            self._declare_temp(step_name, "WORD" if step_is_word else "BYTE")
 
         end_var = Identifier(end_name)
         step_var = Identifier(step_name)
@@ -11165,24 +11180,12 @@ class CodeGen:
             expr = subst_const(stmt.expr, cast(SymbolTable, self.current_symtab))
             expr = fold_expr(expr)
             expr_t = self.tc_check(expr)
-            is_word = expr_t.sem_type.base == "WORD" or expr_t.sem_type.is_pointer
+            is_long = expr_t.sem_type.width == 4
+            is_word = not is_long and (expr_t.sem_type.base == "WORD" or expr_t.sem_type.is_pointer)
 
-            self.used_temps.add("TMP4")
-
-            prev_force: bool = self.force_word_result
-            if is_word:
-                self.force_word_result = True
-            try:
-                self.gen_expr(expr)
-            finally:
-                self.force_word_result = prev_force
-
-            self.emit("\tSTA TMP4")
-            if is_word:
-                self.emit("\tSTX TMP4+1")
-            else:
-                self.emit("\tLDA #$00")
-                self.emit("\tSTA TMP4+1")
+            val_name: str = self.new_label("switch_val")
+            val_sym: Symbol = self._declare_temp(val_name, "LONG" if is_long else ("WORD" if is_word else "BYTE"))
+            self.gen_assign(Identifier(val_name), expr)
 
             end_label: str = self.new_label("endswitch")
 
@@ -11200,63 +11203,78 @@ class CodeGen:
                     comparisons.append((label_expr, lbl))
 
             fallback_label: str = self.new_label("switch_nomatch")
-            uses_tmp5 = False
+            cmp_sym: Symbol | None = None
 
             for idx, (label_expr, lbl) in enumerate(comparisons):
                 next_label: str = fallback_label if idx == len(comparisons) - 1 else self.new_label("switch_next")
 
                 folded = fold_expr(subst_const(label_expr, cast(SymbolTable, self.current_symtab)))
                 if isinstance(folded, IntLiteral):
-                    val = folded.value & 0xFFFF
-                    if is_word:
-                        self.emit("\tLDA TMP4+1")
+                    val = folded.value & 0xFFFFFFFF
+                    if is_long:
+                        self.emit(f"\tLDA {val_sym.asm_name()}+3")
+                        self.emit(f"\tCMP #${(val >> 24) & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tLDA {val_sym.asm_name()}+2")
+                        self.emit(f"\tCMP #${(val >> 16) & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
                         self.emit(f"\tCMP #${(val >> 8) & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit("\tLDA TMP4")
+                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tCMP #${val & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tJMP {lbl}")
+                    elif is_word:
+                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tCMP #${(val >> 8) & 0xFF:02X}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tLDA {val_sym.asm_name()}")
                         self.emit(f"\tCMP #${val & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                     else:
-                        self.emit("\tLDA TMP4")
+                        self.emit(f"\tLDA {val_sym.asm_name()}")
                         self.emit(f"\tCMP #${val & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                 else:
-                    uses_tmp5 = True
-                    prev_force = self.force_word_result
-                    if is_word:
-                        self.force_word_result = True
-                    try:
-                        self.gen_expr(folded)
-                    finally:
-                        self.force_word_result = prev_force
+                    if cmp_sym is None:
+                        cmp_name: str = self.new_label("switch_cmp")
+                        cmp_sym = self._declare_temp(cmp_name, "LONG" if is_long else ("WORD" if is_word else "BYTE"))
+                        
+                    self.gen_assign(Identifier(cmp_sym.name), folded)
 
-                    self.emit("\tSTA TMP5")
-                    if is_word:
-                        self.emit("\tSTX TMP5+1")
-                    else:
-                        self.emit("\tLDA #$00")
-                        self.emit("\tSTA TMP5+1")
-
-                    if is_word:
-                        self.emit("\tLDA TMP4+1")
-                        self.emit("\tCMP TMP5+1")
+                    if is_long:
+                        self.emit(f"\tLDA {val_sym.asm_name()}+3")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}+3")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit("\tLDA TMP4")
-                        self.emit("\tCMP TMP5")
+                        self.emit(f"\tLDA {val_sym.asm_name()}+2")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}+2")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}+1")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tJMP {lbl}")
+                    elif is_word:
+                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}+1")
+                        self.emit(f"\tBNE {next_label}")
+                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                     else:
-                        self.emit("\tLDA TMP4")
-                        self.emit("\tCMP TMP5")
+                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tCMP {cmp_sym.asm_name()}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
 
                 if next_label != fallback_label:
                     self.emit(f"{next_label}:")
-
-            if uses_tmp5:
-                self.used_temps.add("TMP5")
 
             self.emit(f"{fallback_label}:")
             if default_label is not None:
@@ -11313,14 +11331,22 @@ class CodeGen:
             # Default path: evaluate condition to boolean and branch on zero
             cond_t: ExprType = self.tc_check(cond)
             is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
+            is_long_cond: bool = cond_t.sem_type.width == 4
             prev_suppress: bool = self.suppress_byte_return_x
-            if not is_word_cond:
+            if not is_word_cond and not is_long_cond:
                 self.suppress_byte_return_x = True
             try:
                 self.gen_expr(cond)
             finally:
                 self.suppress_byte_return_x = prev_suppress
-            if is_word_cond:
+            if is_long_cond:
+                self.emit("\tLDA MATH0")
+                self.emit("\tORA MATH0+1")
+                self.emit("\tORA MATH0+2")
+                self.emit("\tORA MATH0+3")
+                self.emit(f"\tBNE {lbl_then}")
+                self.emit(f"\tJMP {lbl_else}")
+            elif is_word_cond:
                 self.used_temps.add("TMP4")
                 # Merge A/X to test non-zero (WORD-safe)
                 self.emit("\tSTA TMP4")
@@ -11381,14 +11407,22 @@ class CodeGen:
             else:
                 cond_t: ExprType = self.tc_check(cond)
                 is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
+                is_long_cond: bool = cond_t.sem_type.width == 4
                 prev_suppress: bool = self.suppress_byte_return_x
-                if not is_word_cond:
+                if not is_word_cond and not is_long_cond:
                     self.suppress_byte_return_x = True
                 try:
                     self.gen_expr(cond)
                 finally:
                     self.suppress_byte_return_x = prev_suppress
-                if is_word_cond:
+                if is_long_cond:
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tORA MATH0+1")
+                    self.emit("\tORA MATH0+2")
+                    self.emit("\tORA MATH0+3")
+                    self.emit(f"\tBNE {lbl_body}")
+                    self.emit(f"\tJMP {lbl_end}")
+                elif is_word_cond:
                     self.used_temps.add("TMP4")
                     self.emit("\tSTA TMP4")
                     self.emit("\tTXA")
@@ -11447,14 +11481,22 @@ class CodeGen:
             else:
                 cond_t: ExprType = self.tc_check(cond)
                 is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
+                is_long_cond: bool = cond_t.sem_type.width == 4
                 prev_suppress: bool = self.suppress_byte_return_x
-                if not is_word_cond:
+                if not is_word_cond and not is_long_cond:
                     self.suppress_byte_return_x = True
                 try:
                     self.gen_expr(cond)
                 finally:
                     self.suppress_byte_return_x = prev_suppress
-                if is_word_cond:
+                if is_long_cond:
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tORA MATH0+1")
+                    self.emit("\tORA MATH0+2")
+                    self.emit("\tORA MATH0+3")
+                    self.emit(f"\tBNE {lbl_end}")
+                    self.emit(f"\tJMP {lbl_start}")
+                elif is_word_cond:
                     self.used_temps.add("TMP4")
                     self.emit("\tSTA TMP4")
                     self.emit("\tTXA")

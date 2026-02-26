@@ -13,9 +13,8 @@ CLAUDE.md
 
 Prompt 0:
 This is a Python transpiler from ZAP! language to 6502/65c02 assembly using ca65. 
-Read the entire codebase, documentation and tests to summarize: the overall architecture, how types are represented, how operators are processed, and how code generation works. 
+Read the entire codebase, documentation in DOC directory and tests to summarize: the overall architecture, how types are represented, how operators are processed, and how code generation works. 
 After each significant change, update PROGRESS.md with what was done, what remains, and any known issues.
-
 Do not change anything yet.
 
 
