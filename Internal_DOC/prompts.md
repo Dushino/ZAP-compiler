@@ -20,7 +20,8 @@ Do not change anything yet.
 
 
 Prompt 1:
-Find ALL places in the codebase where ###############. List every #####################
+Intention is: ################
+Find ALL places in the codebase where ############### is. List ALL combinations of data types BYTE, WORD, LONG, pointer and STRUCT and ENUM types, all arithmetic operators +, -, , /, all bitwise operators &, |, ^, ~, all logical operators !, &&, ||, all comparison operators <, >, =, <=, >=, address operator @.
 Present this as a table. Do not change anything yet.
 
 
@@ -47,5 +48,5 @@ List every change you made, which files were modified, what was the root cause o
 
 
 Prompt 6:
-Update documentation files in DOC folder: ARCHITECTURE.md and PROGRESS.md to match current state.
+Update user facing documentation files in DOC folder. Update ARCHITECTURE.md and PROGRESS.md to match current state.
 

@@ -1733,7 +1733,7 @@ ptr^ = 99           ; x now = 99
 
 ### Pointer Arithmetic
 
-Pointers support addition and subtraction. Offsets are automatically scaled by the pointed-to type:
+Pointers support strict C-style addition and subtraction. Offsets are automatically scaled by the pointed-to type:
 
 ```zap
 proc pointer_arithmetic()
@@ -1750,7 +1750,25 @@ proc pointer_arithmetic()
     ; WORD pointers: +1 moves 2 bytes
     wptr = wptr + 1         ; Skips to next WORD
     word addr2 = wptr^      ; addr2 = $2000
+
+    ; Pointer difference computes the distance in elements
+    word diff = wptr - @addresses ; diff = 1
 end
+```
+
+**Supported Math Operations**:
+- **`PTR + INT`** / **`INT + PTR`**: Moves the pointer forward by `INT` elements (scaled by `sizeof(type)`).
+- **`PTR - INT`**: Moves the pointer backward by `INT` elements (scaled by `sizeof(type)`).
+- **`PTR - PTR`**: Computes the difference between two pointers in elements. Both pointers must be of the same type. Returns a `WORD`.
+
+**Unsupported Math Operations**:
+- `PTR + PTR`, multiplying pointers, dividing pointers, and all bitwise operations (`&`, `|`, `^`, `<<`, `>>`) on pointers are explicitly bounded by the semantic checker and will cause a compilation error.
+
+### Pointer Comparisons
+Pointers can be compared using relational operators (`==`, `!=`, `<`, `>`, `<=`, `>=`).
+- You can compare a pointer against another pointer (even of a different type as ZAP is flexible across addresses).
+- You can compare a pointer against the literal constant `0` (null check).
+- Comparing a pointer against a regular scalar value or an array string reference is strictly illegal.
 ```
 
 ### Pointer to Pointers (Limited)

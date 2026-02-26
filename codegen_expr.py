@@ -220,11 +220,56 @@ class CodeGen:
                     if isinstance(node.left, IntLiteral) and not isinstance(node.right, IntLiteral):
                         node = BinaryExpr(left=node.right, op=node.op, right=node.left, line=node.line, col=node.col)
                 
-                # Left subtree -> Right subtree -> Operator
+                # Check for Pointer Arithmetic Scaling needing injection into RPN
+                lt_type = None
+                rt_type = None
+                try:
+                    lt_type = self.tc_check(node.left, read_check_enabled=False)
+                    rt_type = self.tc_check(node.right, read_check_enabled=False)
+                except Exception:
+                    pass
+
+                scale_left = False
+                scale_right = False
+                scale_factor = 1
+                is_ptr_diff = False
+                
+                if lt_type and rt_type:
+                    if node.op == BinOp.ADD:
+                        if lt_type.kind == ExprKind.ADDR and rt_type.kind == ExprKind.VALUE:
+                            scale_factor = SemType(base=lt_type.sem_type.base, is_pointer=False, is_struct=lt_type.sem_type.is_struct, struct_info=lt_type.sem_type.struct_info).width
+                            scale_right = (scale_factor > 1)
+                        elif lt_type.kind == ExprKind.VALUE and rt_type.kind == ExprKind.ADDR:
+                            scale_factor = SemType(base=rt_type.sem_type.base, is_pointer=False, is_struct=rt_type.sem_type.is_struct, struct_info=rt_type.sem_type.struct_info).width
+                            scale_left = (scale_factor > 1)
+                    elif node.op == BinOp.SUB:
+                        if lt_type.kind == ExprKind.ADDR and rt_type.kind == ExprKind.VALUE:
+                            scale_factor = SemType(base=lt_type.sem_type.base, is_pointer=False, is_struct=lt_type.sem_type.is_struct, struct_info=lt_type.sem_type.struct_info).width
+                            scale_right = (scale_factor > 1)
+                        elif lt_type.kind == ExprKind.ADDR and rt_type.kind == ExprKind.ADDR:
+                            scale_factor = SemType(base=lt_type.sem_type.base, is_pointer=False, is_struct=lt_type.sem_type.is_struct, struct_info=lt_type.sem_type.struct_info).width
+                            is_ptr_diff = (scale_factor > 1)
+                
+                # Left subtree
                 walk(node.left)
+                if scale_left:
+                    rpn.append(self.RPNNode('CONST', scale_factor, width=2 if scale_factor > 255 else 1))
+                    rpn.append(self.RPNNode('BINOP', BinOp.MUL, width=max(get_expr_width(node.left), 2 if scale_factor > 255 else 1)))
+                
+                # Right subtree
                 walk(node.right)
+                if scale_right:
+                    rpn.append(self.RPNNode('CONST', scale_factor, width=2 if scale_factor > 255 else 1))
+                    rpn.append(self.RPNNode('BINOP', BinOp.MUL, width=max(get_expr_width(node.right), 2 if scale_factor > 255 else 1)))
+                
+                # Operator
                 width = get_expr_width(node)
                 rpn.append(self.RPNNode('BINOP', node.op, width=width))
+                
+                # Pointer difference division
+                if is_ptr_diff:
+                    rpn.append(self.RPNNode('CONST', scale_factor, width=2 if scale_factor > 255 else 1))
+                    rpn.append(self.RPNNode('BINOP', BinOp.DIV, width=width))
                 
             elif isinstance(node, UnaryExpr):
                 # Operand -> Unary Operator
@@ -11556,7 +11601,7 @@ class CodeGen:
             # pravý operand first (for correct CMP operand order)
             self.gen_expr(expr.right)
             # Ensure high byte is well-defined in 16-bit context
-            if is_16bit and right_t.sem_type.base != "WORD":
+            if is_16bit and right_t.sem_type.base != "WORD" and not right_t.sem_type.is_pointer:
                 self.emit("\tLDX #0     ; note 6088")
             self.emit("\tSTA TMP0")
             if is_16bit:      # Fixme: ? Je to spravne? Nechybi tady and right_t.sem_type.base != "WORD":
@@ -11565,7 +11610,7 @@ class CodeGen:
             # levý operand
             self.gen_expr(expr.left)
             # Ensure left high byte is well-defined in 16-bit context
-            if is_16bit and left_t.sem_type.base != "WORD":
+            if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
                 self.emit("\tLDX #0     ; note 6097")
 
             cmp_operand = "TMP0"
@@ -11672,7 +11717,7 @@ class CodeGen:
         right_width: int = right_t.sem_type.width
         
         is_32bit: bool = left_width > 2 or right_width > 2
-        is_16bit: bool = not is_32bit and (left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD")
+        is_16bit: bool = not is_32bit and (left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer or right_t.sem_type.is_pointer)
 
         if is_32bit:
             # 32-bit comparison using MATH0/MATH1
@@ -12027,7 +12072,7 @@ class CodeGen:
 
                 # Load left side into A/X
                 self.gen_expr(cond.left)
-                if left_t.sem_type.base != "WORD":
+                if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
                     self.emit("\tLDX #0     ; note 7054")
 
                 if cond.op == BinOp.EQ:
@@ -12257,7 +12302,7 @@ class CodeGen:
 
                         # Load left side into A/X
                         self.gen_expr(cond.left)
-                        if is_16bit and left_t.sem_type.base != "WORD":
+                        if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
                             self.emit("\tLDX #0     ; note 7036")
 
                         if cond.op == BinOp.EQ:
@@ -12442,7 +12487,7 @@ class CodeGen:
 
             # Evaluate left into A/X
             self.gen_expr(cond.left)
-            if is_16bit and left_t.sem_type.base != "WORD":
+            if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
                 self.emit("\tLDX #0     ; note 6311")
         else:
             # Try simple byte operand optimization for 8-bit compares
@@ -12462,15 +12507,16 @@ class CodeGen:
             else:
                 # Evaluate right into TMP0/(TMP0+1)
                 self.gen_expr(cond.right)
-                if is_16bit and right_t.sem_type.base != "WORD":
-                    self.emit("\tLDX #0     ; note 6325")
+                if is_16bit and right_t.sem_type.base != "WORD" and not right_t.sem_type.is_pointer:
+                    self.emit("\tLDX #0     ; note 6317")
                 self.emit("\tSTA TMP0")
                 if is_16bit:
-                    self.emit("\tSTX TMP0+1")
+                    self.emit("\tSTX TMP0+1") # This was `self.emit("\tSTX                # left")`
                 self.gen_expr(cond.left)
-                if is_16bit and left_t.sem_type.base != "WORD":
-                    self.emit("\tLDX #0     ; note 6331")
-                # Set cmp_lo and cmp_hi to TMP0
+                if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
+                    self.emit("\tLDX #0     ; note 6323")
+                
+                cmp_operand = "TMP0"
                 cmp_lo = "TMP0"
                 cmp_hi = "TMP0+1"
 

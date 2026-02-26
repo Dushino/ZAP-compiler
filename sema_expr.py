@@ -231,11 +231,22 @@ class ExprTypeChecker:
                         raise SemanticError("Division by zero", node=expr.right)
                 
                 if lt.kind == ExprKind.ADDR or rt.kind == ExprKind.ADDR:
-                    if op in (BinOp.ADD, BinOp.SUB):
+                    if op == BinOp.ADD:
                         if lt.kind == ExprKind.ADDR and rt.kind == ExprKind.VALUE:
                             return ExprType(lt.sem_type, ExprKind.ADDR)
                         if lt.kind == ExprKind.VALUE and rt.kind == ExprKind.ADDR:
                             return ExprType(rt.sem_type, ExprKind.ADDR)
+                        raise SemanticError("Cannot add two pointers", node=expr)
+
+                    if op == BinOp.SUB:
+                        if lt.kind == ExprKind.ADDR and rt.kind == ExprKind.VALUE:
+                            return ExprType(lt.sem_type, ExprKind.ADDR)
+                        if lt.kind == ExprKind.ADDR and rt.kind == ExprKind.ADDR:
+                            if lt.sem_type.base != rt.sem_type.base or lt.sem_type.is_struct != rt.sem_type.is_struct:
+                                raise SemanticError("Cannot subtract pointers of different types", node=expr)
+                            return ExprType(SemType("WORD", False), ExprKind.VALUE)
+                        raise SemanticError("Invalid pointer arithmetic", node=expr)
+
                     raise SemanticError("Invalid pointer arithmetic", node=expr)
 
                 return ExprType(promote(lt.sem_type, rt.sem_type), ExprKind.VALUE)
@@ -245,29 +256,23 @@ class ExprTypeChecker:
                 BinOp.EQ, BinOp.NE,
                 BinOp.LT, BinOp.GT, BinOp.LE, BinOp.GE
             }:
-                left_is_ptr = (lt.kind == ExprKind.ADDR and lt.sem_type.is_pointer)
-                right_is_ptr = (rt.kind == ExprKind.ADDR and rt.sem_type.is_pointer)
+                if lt.kind not in (ExprKind.VALUE, ExprKind.ADDR) or rt.kind not in (ExprKind.VALUE, ExprKind.ADDR):
+                    raise SemanticError("Comparison requires values or pointers", node=expr)
 
-                if left_is_ptr or right_is_ptr:
-                    def _is_word_value(t: ExprType) -> bool:
-                        return t.kind == ExprKind.VALUE and (not t.sem_type.is_pointer) and t.sem_type.base == "WORD"
+                is_lt_ptr = lt.sem_type.is_pointer or lt.kind == ExprKind.ADDR
+                is_rt_ptr = rt.sem_type.is_pointer or rt.kind == ExprKind.ADDR
 
-                    def _is_int_literal_value(node, t: ExprType) -> bool:
-                        return (
-                            isinstance(node, IntLiteral)
-                            and t.kind == ExprKind.VALUE
-                            and (not t.sem_type.is_pointer)
-                            and t.sem_type.base in {"BYTE", "WORD"}
-                        )
+                if is_lt_ptr or is_rt_ptr:
+                    if is_lt_ptr and is_rt_ptr:
+                        pass
+                    else:
+                        def _is_zero_literal(node) -> bool:
+                            from ast_nodes import IntLiteral
+                            return isinstance(node, IntLiteral) and node.value == 0
+                        
+                        if not ((is_lt_ptr and _is_zero_literal(expr.right)) or (is_rt_ptr and _is_zero_literal(expr.left))):
+                            raise SemanticError("Invalid pointer comparison", node=expr)
 
-                    left_ok = left_is_ptr or _is_word_value(lt) or _is_int_literal_value(expr.left, lt)
-                    right_ok = right_is_ptr or _is_word_value(rt) or _is_int_literal_value(expr.right, rt)
-
-                    if not (left_ok and right_ok):
-                        raise SemanticError("Pointer comparison requires pointer, WORD, or integer literal", node=expr)
-                else:
-                    if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
-                        raise SemanticError("Comparison requires values", node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
             # logické

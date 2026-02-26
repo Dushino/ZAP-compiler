@@ -96,7 +96,7 @@ ptr^ = 99
 
 ### Pointer Arithmetic
 
-Pointers support addition and subtraction. **Type matters**:
+Pointers support strict C-style addition and subtraction. **Type matters**:
 
 ```zap
 ; BYTE pointer: +1 moves 1 byte
@@ -110,11 +110,19 @@ word addresses[] = {$1000, $2000, $3000}
 word ^wptr = @addresses
 wptr = wptr + 1         ; Points to second WORD (2 bytes later)
 word addr2 = wptr^      ; addr2 = $2000
+
+; Pointer Difference: Distance in elements
+word distance = wptr - @addresses  ; Returns 1 (1 element apart)
 ```
 
 **The scaling is automatic:**
 - `byte ^ptr + 1` moves 1 byte
 - `word ^ptr + 1` moves 2 bytes
+- `long ^ptr + 1` moves 4 bytes
+- `struct Point ^ptr + 1` moves by the `sizeof(Point)`
+
+**Pointer comparisons**:
+Pointers cleanly support all relational operators (`==`, `!=`, `<`, `>`, `<=`, `>=`) against other pointers or the literal constant `0`. Comparing a pointer to an arbitrary numeric threshold or scalar variable is heavily restricted by the semantic checker.
 
 ### Pointer Arrays
 
