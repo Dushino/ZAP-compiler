@@ -469,3 +469,45 @@ __ZAP_while_body_26:
 
 [ ] Unify internal copy routines __COPY_BYTES and __ARRCPY
 
+[ ] Better generator
+; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 17:     while my_long
+__ZAP_while_4:
+	LDA _MAIN_MY_LONG
+	STA __MATH0
+	LDA _MAIN_MY_LONG+1
+	STA __MATH0+1
+	LDA _MAIN_MY_LONG+2
+	STA __MATH0+2
+	LDA _MAIN_MY_LONG+3
+	STA __MATH0+3
+	LDA __MATH0
+	ORA __MATH0+1
+	ORA __MATH0+2
+	ORA __MATH0+3
+
+to
+    LDA _MAIN_MY_LONG    
+    ORA _MAIN_MY_LONG+1
+    ORA _MAIN_MY_LONG+2
+    ORA _MAIN_MY_LONG+3
+
+[ ] Peephole
+; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 4:     long my_long = 65536
+	LDA #$00
+	STA _MAIN_MY_LONG
+	STA _MAIN_MY_LONG+1
+	LDA #$00
+	STA _MAIN_MY_LONG+2
+	STA _MAIN_MY_LONG+3
+
+[ ] Peephole
+; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 24:     for my_long = my_long to end_val step 1
+	LDA _MAIN_MY_LONG
+	STA _MAIN_MY_LONG
+	LDA _MAIN_MY_LONG+1
+	STA _MAIN_MY_LONG+1
+	LDA _MAIN_MY_LONG+2
+	STA _MAIN_MY_LONG+2
+	LDA _MAIN_MY_LONG+3
+	STA _MAIN_MY_LONG+3
+
