@@ -1144,6 +1144,18 @@ class Parser:
             self.expect(TOK_RBRACE)
             return CallStmt(lhs.name, args)
 
+        if self.cur.type == TOK_COMPOUNDASSIGN:
+            op_str: str = self.cur.value   # "+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>"
+            self.advance()
+            rhs_expr = self.parse_expr()
+            # Desugar: lhs op= rhs_expr  →  lhs = lhs op rhs_expr
+            binary = BinaryExpr(lhs, BinOp(op_str), rhs_expr, line=start_line, col=start_col)
+            node = AssignStmt(lhs, binary)
+            line_text: str = (self.source_lines[start_line-1]
+                              if 1 <= start_line <= len(self.source_lines) else "")
+            self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
+            return node
+
         self.expect(TOK_EQU)
 
         rhs = self.parse_expr()

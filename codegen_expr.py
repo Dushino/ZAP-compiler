@@ -2283,6 +2283,11 @@ class CodeGen:
                                                 if load_op == "LDA":  # These affect A
                                                     can_remove = False
                                                     break
+                                            # Memory-modifying ops invalidate any register tracking
+                                            # (e.g. ROL __TMP0+1 between STX __TMP0+1 and LDX __TMP0+1)
+                                            if self._modifies_memory_operand(verify_line, load_operand):
+                                                can_remove = False
+                                                break
                                     
                                     if can_remove:
                                         found_match = True
@@ -7249,7 +7254,7 @@ class CodeGen:
                 if expr.op == BinOp.ADD:
                     self.emit("\tCLC")
                     if isinstance(expr.right, IntLiteral):
-                        self.emit(f"\tADC #{expr.right.value & 0xFF:02X}")
+                        self.emit(f"\tADC #${expr.right.value & 0xFF:02X}")
                     elif isinstance(expr.right, Identifier):
                         right_sym: Symbol = self.current_symtab.lookup(expr.right.name)
                         self.emit(f"\tADC {right_sym.asm_name()}")

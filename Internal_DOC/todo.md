@@ -526,7 +526,10 @@ to:
 
 
 [ ] Cosmetics in generated code
-[ ] Unify generated LDA #$00 and #0
+    [ ] Unify generated LDA #$00 and #0
+    [ ] Empty lines
+    [ ] Double -- MAIN
+
 
 [x] Check for .segment directive, it is probably still there
         if isinstance(stmt, SegmentDirective):
@@ -538,4 +541,20 @@ to:
 [ ] Check arrays init and copy for lenghts 0, $FF
 
 [ ] Auto short branches?
+
+[ ] Syntax sugar = compound assignent
+<var> <operator>= <expr>
+
+[ ] Check expressions evaluation for assign and other occurences to be the same
+
+[ ] Check for variable uninitialized for all types
+
+[ ] Remove compiler's debug messages
+
+[ ] Add cmdline parameters for CODE, BSS, DATA segment names SEGC, SEGB, SEGD?
+
+
+[ ] This is a pre-existing bug — ADC #0A should be ADC #$0A. Let me find the emit location: ${expr ...:02X}
+- check for all datatypes and operations
+
 

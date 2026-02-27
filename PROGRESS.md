@@ -451,3 +451,39 @@ that would have crashed (class no longer exists).
 ### Verification
 - `pyright` (all modified files): 0 errors, 0 warnings.
 - `make tests`: 125/125 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+
+---
+
+## Feature: Compound assignment operators (2026-02-27)
+
+### What was done
+
+Added 10 compound assignment operators as pure **parse-time syntax sugar**. `lhs op= rhs`
+desugars to `lhs = lhs op rhs` inside `parse_assign()` before semantic analysis, so all
+existing type-checking and optimisations apply automatically.
+
+**Operators:** `+=  -=  *=  /=  %=  &=  |=  ^=  <<=  >>=`
+
+**Files changed:**
+
+| File | Change |
+|---|---|
+| `token_types.py` | Added `TOK_COMPOUNDASSIGN = "COMPOUNDASSIGN"` |
+| `tokenizer.py` | Added `COMPOUND_ASSIGN_TWO` / `COMPOUND_ASSIGN_THREE` dicts; recognition inserted before the two-char ops check (three-char `<<=`/`>>=` checked first) |
+| `parser.py` | `parse_assign()` desugars `TOK_COMPOUNDASSIGN` → `AssignStmt(lhs, BinaryExpr(lhs, op, rhs))` |
+| `DOC/grammar.ebnf` | Added `compound_op` production; updated `assignment` rule |
+| `DOC/ZAP_LANGUAGE_REFERENCE.md` | Added "Compound Assignment Operators" section |
+| `tests/pass/140-compound-assign/` | New 20-check test covering all 10 operators on BYTE/WORD/LONG scalars, array subscript, and pointer lvalue |
+
+**Bug fixed during test development:**
+
+`codegen_expr.py` O1 peephole optimizer at line ~2282: the redundant-LDX elimination pass
+checked for arithmetic ops clobbering `A` only (`if load_op == "LDA"`), but neglected the
+case where a memory-modifying instruction like `ROL __TMP0+1` modified the tracked memory
+address between a `STX __TMP0+1` and a subsequent `LDX __TMP0+1`. Added a call to the
+existing `_modifies_memory_operand()` helper to invalidate the elimination in that case.
+This manifested as `w <<= 1` (16-bit left shift) storing the wrong high byte under `-O1`.
+
+### Verification
+- `pyright token_types.py tokenizer.py parser.py codegen_expr.py`: 0 errors, 0 warnings.
+- `make tests`: 126/126 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.

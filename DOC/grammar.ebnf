@@ -92,7 +92,11 @@ statement       ::= assignment
                   | asm_stmt
                   | expr_stmt ;
 
-assignment      ::= lvalue "=" expression ;
+assignment      ::= lvalue "=" expression
+                  | lvalue compound_op expression ;
+
+compound_op     ::= "+=" | "-=" | "*=" | "/=" | "%="
+                  | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
 
 call_stmt       ::= IDENT "(" [ expr_list ] ")" ;
 
@@ -237,6 +241,7 @@ expr_list       ::= expression { "," expression } ;
    - CONST SUPPORT: All types (byte, word, pointers, arrays, structs) support const initialization
    - BITWISE OPERATORS: & (AND), | (OR), ^ (XOR) for bit manipulation
    - STRUCT ARRAYS: Arrays of structs with full initialization and field access support
+   - COMPOUND ASSIGNMENT: lhs op= expr is syntax sugar for lhs = lhs op expr (all arithmetic and bitwise ops)
    - STATIC VARIABLES: Local variables that persist across procedure calls
    - PORT VARIABLES: Hardware port-mapped variables (e.g., PORT byte POKEY_AUDF1 @$D200)
    - DECLARATION MODIFIERS: Trailing modifiers may be attached to top-level declarations, procedures, and functions. Supported modifiers include `#KEEP` (prevent dead-code elimination), `#NOEXPORT` (do not export from a module), `#EXPORT` (force export from non-module file), and `#PORT` / `#RD` / `#WR` (port-related modifiers). Modifiers may be combined and are case-insensitive.

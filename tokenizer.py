@@ -19,6 +19,14 @@ TYPES: set[str]           = {"byte", "word", "long"}
 TYPEMOD: set[str]         = {"const", "static"}
 SINGLE_OPS: set[str]      = set("+-*/%><[]&|~^!")
 TWO_CHAR_OPS: set[str]    = {"==","!=","<=",">=","&&","||","<<",">>"}
+# Compound assignment operators — value stored is the bare operator (without '=')
+COMPOUND_ASSIGN_TWO: dict[str, str] = {
+    "+=": "+", "-=": "-", "*=": "*", "/=": "/", "%=": "%",
+    "&=": "&", "|=": "|", "^=": "^",
+}
+COMPOUND_ASSIGN_THREE: dict[str, str] = {
+    "<<=": "<<", ">>=": ">>",
+}
 DELIMIN: set[str]         = {","}
 PTR             = set()
 SQB: set[str]             = {"[","]"}
@@ -427,10 +435,25 @@ class Tokenizer:
                 self._emit(TOK_DECLMOD, self.sline, self.scol, text.upper())
                 continue
 
-            # two-char ops
+            # compound assignment and two-char ops
             c1: str = ch
             c2: str = self._peek(1) or ''
             di: str = (c1 or '') + (c2 or '')
+
+            # Three-char compound assignments: <<= and >>= (must precede two-char ops)
+            c3_ch: str = self._peek(2) or ''
+            tri: str = di + c3_ch
+            if tri in COMPOUND_ASSIGN_THREE:
+                self._emit(TOK_COMPOUNDASSIGN, self.sline, self.scol, COMPOUND_ASSIGN_THREE[tri])
+                self._advance(3)
+                continue
+
+            # Two-char compound assignments: +=, -=, *=, /=, %=, &=, |=, ^=
+            if di in COMPOUND_ASSIGN_TWO:
+                self._emit(TOK_COMPOUNDASSIGN, self.sline, self.scol, COMPOUND_ASSIGN_TWO[di])
+                self._advance(2)
+                continue
+
             if di in TWO_CHAR_OPS:
                 self._emit(TOK_OP, self.sline, self.scol, di)
                 self._advance(2)

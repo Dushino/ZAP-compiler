@@ -895,6 +895,53 @@ proc precedence_example()
 end
 ```
 
+### Compound Assignment Operators
+
+ZAP supports C-style compound assignment as syntax sugar. `lhs op= expr` is exactly
+equivalent to `lhs = lhs op expr` — the desugaring happens at parse time so all
+existing type-checking rules and code-generation optimisations apply unchanged.
+
+| Operator | Equivalent to | Types |
+|----------|--------------|-------|
+| `x += expr`  | `x = x + expr`  | byte, word, long, pointer (`+=` only) |
+| `x -= expr`  | `x = x - expr`  | byte, word, long, pointer (`-=` only) |
+| `x *= expr`  | `x = x * expr`  | byte, word, long |
+| `x /= expr`  | `x = x / expr`  | byte, word, long |
+| `x %= expr`  | `x = x % expr`  | byte, word, long |
+| `x &= expr`  | `x = x & expr`  | byte, word, long |
+| `x \|= expr` | `x = x \| expr` | byte, word, long |
+| `x ^= expr`  | `x = x ^ expr`  | byte, word, long |
+| `x <<= expr` | `x = x << expr` | byte, word, long |
+| `x >>= expr` | `x = x >> expr` | byte, word, long |
+
+All lvalue forms are supported on the left-hand side: plain variables, array elements,
+struct fields, and pointer dereferences.
+
+```zap
+proc compound_assign_example()
+    byte b = 10
+    word w = 1000
+    long l = 65536
+    byte arr[4] = {1, 2, 3, 4}
+    byte ^ptr
+
+    b += 5          ; b = 15
+    b *= 2          ; b = 30
+    b >>= 1         ; b = 15
+
+    w += 256        ; w = 1256
+    w &= $00FF      ; w = 232 ($E8)
+
+    l <<= 1         ; l = 131072
+    l -= 1          ; l = 131071
+
+    arr[1] += 10    ; arr[1] = 12
+
+    ptr = @arr
+    ptr += 2        ; advance pointer by 2 elements
+end
+```
+
 ---
 
 ## Control Flow
