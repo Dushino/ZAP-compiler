@@ -52,16 +52,7 @@ class DebugParser(Parser):
             iteration += 1
             print(f"\n  Iteration {iteration}: pos={self.pos}, type={self.cur.type}, value={self.cur.value}")
             
-            if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".SEGMENT":
-                print("    -> .SEGMENT directive")
-                self.advance()
-                if self.cur.type != TOK_STRING:
-                    self.error("Expected string after .segment")
-                segment_name = self.cur.value
-                self.advance()
-                from ast_nodes import SegmentDirective
-                procs.append(SegmentDirective(segment_name))
-            elif self.cur.type == TOK_OP and self.cur.value == ".":
+            if self.cur.type == TOK_OP and self.cur.value == ".":
                 print("    -> . operator")
                 self.advance()
                 if self.cur.type == TOK_IDENT:
@@ -71,13 +62,6 @@ class DebugParser(Parser):
                         if self.cur.type != TOK_STRING:
                             self.error("Expected string after .include")
                         self.advance()
-                    elif directive == "SEGMENT":
-                        if self.cur.type != TOK_STRING:
-                            self.error("Expected string after .segment")
-                        segment_name = self.cur.value
-                        self.advance()
-                        from ast_nodes import SegmentDirective
-                        procs.append(SegmentDirective(segment_name))
                     else:
                         pass
                 else:

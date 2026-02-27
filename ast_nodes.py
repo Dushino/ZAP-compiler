@@ -18,12 +18,6 @@ class AsmBlock(ASTNode):
 
 
 @dataclass(frozen=True)
-class SegmentDirective(ASTNode):
-    """Assembler segment directive node."""
-    name: str
-
-
-@dataclass(frozen=True)
 class IncbinDirective(ASTNode):
     """Binary include directive node (.incbin)."""
     filename: str

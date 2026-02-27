@@ -32,7 +32,7 @@ from ast_nodes import IfStmt
 from ast_nodes import WhileStmt
 from ast_nodes import ForStmt
 from ast_nodes import RepeatUntilStmt
-from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, SegmentDirective, ErrorDirective, WarningDirective, InfoDirective, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase
+from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, ErrorDirective, WarningDirective, InfoDirective, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
@@ -1628,7 +1628,7 @@ class Parser:
         return node
 
 
-    def parse_stmt(self) -> SegmentDirective | IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | RepeatUntilStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
+    def parse_stmt(self) -> IncbinDirective | AsmBlock | ErrorDirective | WarningDirective | InfoDirective | IfStmt | WhileStmt | RepeatUntilStmt | ForStmt | SwitchStmt | BreakStmt | ContinueStmt | ReturnStmt | CallStmt | AssignStmt:
         """Parse a single statement or directive inside a procedure/function."""
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")

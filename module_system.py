@@ -819,7 +819,7 @@ class ModuleSystem:
                     else:
                         all_procs.append(item)
                 else:
-                    # e.g., SegmentDirective or other future top-level items
+                    # Other top-level items (IncbinDirective, StructDef, etc.)
                     all_procs.append(item)
         
         # Collect everything starting from main

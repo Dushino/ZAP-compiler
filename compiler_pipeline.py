@@ -1,5 +1,4 @@
-from ast_nodes import Program, ProcDecl, FuncDecl
-from ast_nodes import Program, ProcDecl, FuncDecl, SegmentDirective, IncbinDirective, StructDef
+from ast_nodes import Program, ProcDecl, FuncDecl, IncbinDirective, StructDef
 from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry, Symbol, SemType, StructInfo
 from sema import DeclarationAnalyzer, StructAnalyzer, EnumAnalyzer
 from sema_expr import ExprTypeChecker
@@ -1983,10 +1982,6 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     
     # Now generate code with updated stmt_src
     for p in program.procs:
-        if isinstance(p, SegmentDirective):
-            cg.emit(f'.segment "{p.name}"')
-            continue
-        
         if isinstance(p, IncbinDirective):
             cg.emit(f'.incbin "{p.filename}"')
             continue

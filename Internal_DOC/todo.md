@@ -506,8 +506,6 @@ to
 	STA _MAIN_MY_LONG+3
 
 
-[ ] Auto short branches?
-
 [x] Group STAs when loading values:
 	LDA #$04
 	STA _MAIN_END_VAL
@@ -528,17 +526,16 @@ to:
 
 
 [ ] Cosmetics in generated code
+[ ] Unify generated LDA #$00 and #0
 
-
-[ ] Check for .segment directive, it is probably still there
+[x] Check for .segment directive, it is probably still there
         if isinstance(stmt, SegmentDirective):
             self.emit(f'.segment "{stmt.name}"')
             return
 
-
-[ ] Unify generated LDA #$00 and #0
-
 [ ] Check array of structs and arrays in struct
 
 [ ] Check arrays init and copy for lenghts 0, $FF
+
+[ ] Auto short branches?
 

@@ -14,7 +14,6 @@
 program         ::= { top_level } ;
 
 top_level       ::= declaration
-                  | segment_directive
                   | proc_decl
                   | func_decl
                   | struct_decl
@@ -28,7 +27,6 @@ enum_item       ::= IDENT [ "=" expression ] ;
 
 module_decl     ::= ".module" STRING [ decl_modifiers ] ;
 include_decl    ::= ".include" STRING ;
-segment_directive ::= ".segment" STRING ;
 
 (* ============ TYPES ============ *)
 type            ::= base_type [ "^" ] ;
@@ -92,7 +90,6 @@ statement       ::= assignment
                   | continue_stmt
                   | return_stmt
                   | asm_stmt
-                  | segment_directive
                   | expr_stmt ;
 
 assignment      ::= lvalue "=" expression ;
@@ -232,8 +229,7 @@ expr_list       ::= expression { "," expression } ;
    - Binary \b escape sequences must have at least one binary digit following
    - IF statements use IF-ELSEIF-ELSE-END structure (ELSEIF/ELSE optional)
    - Module system: .module marks a file as importable, .include loads dependencies
-   - .segment directive controls code/data segment placement (ca65 compatible)
-   - ASM blocks embed raw 6502 assembly code
+   - ASM blocks embed raw 6502 assembly code; ca65 directives like .segment are only valid inside ASM...END blocks
    - STRUCT types: Composite types with named fields of various types
    - STRUCT INITIALIZATION: { value1, value2, ... } for creating struct instances
    - CONST STRUCTS: const <struct_type> name = { init_values } prevents modification

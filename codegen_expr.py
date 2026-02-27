@@ -11016,13 +11016,9 @@ class CodeGen:
         """Generate assembly for a statement node.
         Dispatches to statement-specific emitters.
         """
-        from ast_nodes import SegmentDirective, IncbinDirective
+        from ast_nodes import IncbinDirective
         # Emit source comment for this statement
         self.emit_src_comment_for_stmt(stmt)
-        
-        if isinstance(stmt, SegmentDirective):
-            self.emit(f'.segment "{stmt.name}"')
-            return
 
         if isinstance(stmt, IncbinDirective):
             self.emit(f'.incbin "{stmt.filename}"')

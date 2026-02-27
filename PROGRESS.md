@@ -412,3 +412,42 @@ is functionally identical (same bytes copied); one opcode byte differs per call 
 ### Verification
 - `pyright codegen_expr.py`: 0 errors, 0 warnings.
 - `make tests`: 125/125 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+
+---
+
+## Cleanup: Remove `.segment` directive remnants (2026-02-27)
+
+### What was done
+
+The `.segment` directive was already removed from the ZAP language (only valid inside `asm...end`
+blocks). However, dead code and documentation references remained.
+
+**`ast_nodes.py`**: Removed `SegmentDirective` dataclass entirely.
+
+**`parser.py`**:
+- Removed `SegmentDirective` from `from ast_nodes import …`
+- Removed `SegmentDirective |` from `parse_stmt()` return type annotation
+
+**`compiler_pipeline.py`**:
+- Merged duplicate `from ast_nodes import …` lines (removed redundant line 1)
+- Removed `SegmentDirective` from the import
+- Removed dead `isinstance(p, SegmentDirective)` handler in the main code-gen loop
+
+**`codegen_expr.py`**:
+- Removed `SegmentDirective` from the local import inside `gen_stmt()`
+- Removed dead `isinstance(stmt, SegmentDirective)` handler
+
+**`module_system.py`**: Updated stale comment to remove `SegmentDirective` mention.
+
+**`DOC/grammar.ebnf`**:
+- Removed `| segment_directive` from `top_level` production
+- Removed `| segment_directive` from `statement` production
+- Removed `segment_directive ::= ".segment" STRING ;` rule definition
+- Updated notes to reflect that `.segment` is only valid inside `asm...end` blocks
+
+**`generated_tests/debug_parse_prog_inst.py`**: Removed dead `.SEGMENT` parsing branches
+that would have crashed (class no longer exists).
+
+### Verification
+- `pyright` (all modified files): 0 errors, 0 warnings.
+- `make tests`: 125/125 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
