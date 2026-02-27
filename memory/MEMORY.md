@@ -90,6 +90,9 @@
 - **Dead JMP + proxy elimination** (`codegen_expr.py:11808`): `_emit_relational_branch` wrapper simplified to a single delegation call; removed always-dead `JMP lbl_true` and unnecessary `REL_FALSE_PROXY` indirection — saves 3 instructions per relational branch in all control-flow contexts.
 - **Grouped STA by value for multibyte constant stores** (`codegen_expr.py:5167` gen_init, ~9532 gen_assign, 1680 `_emit_store_word_const`): bytes grouped by value in first-occurrence order using `dict[int, list[int]]`. One `LDA #$XX` per unique byte value, all its `STA`s follow immediately. 65C02 zero group uses `STZ` (no LDA). Total LDA count = number of unique byte values — strictly optimal. Supersedes sequential `last_a` approach.
 
+## Refactoring
+- **`__ARRCPY` unified into `__COPY_BYTES`** (`codegen_expr.py`): deleted `_gen_arrcpy_routine()`, `arrcpy_needed` flag, `"ARRCPY"` name-map entry; converted both former callers (`_gen_string_copy` and `gen_local_var_init` StringInit BYTE path) to `copy_bytes_needed=True` + `LDX #count` + `JSR COPY_BYTES`. Unified convention: TMP0=src, TMP2=dst, X=count (0..255), clobbers A/X/Y only (TMP3 no longer consumed).
+
 ## Known fixed bugs
 - `codegen_expr.py` (was ~5168): `val & 0xFFFF` mask before LONG init was removed — it truncated bytes 2-3 for values > 65535
 - `compiler_pipeline.py:_predeclare_for_loop_temps`: `declare_temp` now takes `type_base: str` (was `is_word: bool`); end/step temps declared as LONG when loop var or bound is LONG; `RepeatUntilStmt` added to `scan_stmts` recursion

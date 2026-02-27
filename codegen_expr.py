@@ -53,7 +53,6 @@ class CodeGen:
         self.array_literals = {}   # Maps array data tuple to label name
         self.array_id = 0
         self.copy_bytes_needed = False
-        self.arrcpy_needed = False  # Flag to emit ARRCPY subroutine
         self.math_routines_needed: set[str] = set()
         self.is_65c02: bool = is_65c02
         self.used_globals: set[str] = used_globals or set()
@@ -1514,7 +1513,6 @@ class CodeGen:
         sys_names = {"MATH_STACK", "MATH0", "MATH1", "TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
         runtime_names = {
             "COPY_BYTES",
-            "ARRCPY",
             "SET_MATH0",
             "SET_MATH1",
             "GET_MATH0",
@@ -3105,7 +3103,6 @@ class CodeGen:
         # Ensure runtime helpers and data live in CODE segment
         self.emit("\n\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
-        self._gen_arrcpy_routine()
         self._gen_string_data()
         self._gen_math_routines()
         self.emit("\n; End of file")
@@ -3134,48 +3131,6 @@ class CodeGen:
         self.emit("\tBNE COPY_BYTES_LOOP")
         self.emit("COPY_BYTES_DONE:")
         self.emit("\tRTS\n")
-    
-    def _gen_arrcpy_routine(self) -> None:
-        """Generate ARRCPY subroutine for array copying.
-        
-        Only emitted if arrcpy_needed flag is set.
-        
-        Inputs:
-        - TMP0/TMP0+1: source address (pointer)
-        - TMP2/TMP2+1: destination address (pointer) 
-        - A: number of bytes to copy (0-255)
-        
-        Copies exactly A bytes from source to destination, regardless of content.
-        This implements array copy semantics (not C-string copy).
-        
-        Clobbers: A, X, Y
-        """
-        if not self.arrcpy_needed:
-            return
-        
-        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
-        
-        self.emit("; ------------------------------")
-        self.emit("; Array copy routine (ARRCPY)")
-        self.emit("; Inputs: TMP0/TMP0+1=src addr, TMP2/TMP2+1=dst addr, A=length")
-        self.emit("; Copies exactly A bytes regardless of content")
-        self.emit("; Clobbers: A, X, Y")
-        self.emit("; ------------------------------")
-        self.emit("ARRCPY:")
-        self.emit("\tSTA TMP3")          # Store length in TMP3
-        self.emit("\tLDX #$00")            # Initialize byte counter
-        self.emit("\tLDY #$00")            # Initialize index for indirect addressing
-        self.emit("ARRCPY_LOOP:")
-        self.emit("\tCPX TMP3")          # Check if we've copied all bytes
-        self.emit("\tBEQ ARRCPY_DONE")   # If so, done
-        self.emit("\tLDA (TMP0),Y")      # Load byte from source
-        self.emit("\tSTA (TMP2),Y")      # Store byte to destination
-        self.emit("\tINX")               # Increment byte counter
-        self.emit("\tINY")               # Increment byte index
-        self.emit("\tBNE ARRCPY_LOOP")   # Loop until page boundary (256 bytes max)
-        self.emit("ARRCPY_DONE:")
-        self.emit("\tRTS\n")
-
     
     def _gen_string_data(self) -> None:
         """Generate string literal data in code segment"""
@@ -3213,17 +3168,11 @@ class CodeGen:
         self.emit("")
     
     def _gen_string_copy(self, dst_sym, src_sym) -> None:
-        """Generate code to call ARRCPY subroutine.
-        
-        Sets up parameters and calls shared ARRCPY subroutine which copies
-        bytes from source to destination until null terminator or max length.
-        
-        Parameters:
-        - TMP0/TMP0+1: source address (pointer)
-        - TMP2/TMP2+1: destination address (pointer)
-        - A: destination max length (minus 1 for null terminator)
+        """Generate code to call COPY_BYTES subroutine for byte-array assignment.
+
+        Sets TMP0/TMP2 to src/dst addresses, X to byte count, then JSR COPY_BYTES.
         """
-        self.arrcpy_needed = True  # Mark that ARRCPY routine is needed
+        self.copy_bytes_needed = True
         
         src_asm = src_sym.asm_name()
         dst_asm = dst_sym.asm_name()
@@ -3263,15 +3212,14 @@ class CodeGen:
             self.emit(f"\tLDA #>{dst_asm}")
             self.emit("\tSTA TMP2+1")
         
-        # Set copy length in A (full array length, not minus 1)
+        # Set copy length in X (full array length)
         if dst_len > 0:
-            self.emit(f"\tLDA #${dst_len:02X}")
+            self.emit(f"\tLDX #${dst_len:02X}")
         else:
-            # No length limit (risky, but copy up to 255 bytes)
-            self.emit("\tLDA #$FF")
-        
-        # Call ARRCPY routine
-        self.emit("\tJSR ARRCPY")
+            # No length limit known; copy up to 255 bytes
+            self.emit("\tLDX #$FF")
+
+        self.emit("\tJSR COPY_BYTES")
 
     def _extract_const_values_from_listinit(self, init_list, flat_values: list[int]) -> None:
         """Extract const values from a ListInit, handling nested struct literals.
@@ -4228,7 +4176,7 @@ class CodeGen:
         temps: set[str] = {self._internal_name_map.get(n, n) for n in self.used_temps}
         code = self.code if code is None else code
 
-        if self.copy_bytes_needed or self.arrcpy_needed:
+        if self.copy_bytes_needed:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3")})
 
         if self.math_routines_needed:
@@ -5347,30 +5295,30 @@ class CodeGen:
                     self.emit(f"\tLDX #0")
                     self.emit(f"\tSTX {dest_var}+{term_offset}+1")
             else:
-                # Use ARRCPY routine for larger strings (fits in one page)
+                # Use COPY_BYTES routine for larger strings (fits in one page)
                 if content not in self.string_literals:
                     self.string_id += 1
                     self.string_literals[content] = f"__STR_DATA_{self.string_id}"
                 str_label = self.string_literals[content]
                 
-                # BYTE arrays: use ARRCPY for all sizes > COPY_THRESHOLD
+                # BYTE arrays: use COPY_BYTES for all sizes > COPY_THRESHOLD
                 if not is_word and str_len <= 255:
-                    self.arrcpy_needed = True
-                    
+                    self.copy_bytes_needed = True
+
                     # Set source and destination pointers
                     self.emit(f"\tLDA #<{str_label}")
                     self.emit(f"\tLDX #>{str_label}")
                     self.emit("\tSTA TMP0")
                     self.emit("\tSTX TMP0+1")
-                    
-                    self.emit(f"\tLDA #<{dest_var}")        
+
+                    self.emit(f"\tLDA #<{dest_var}")
                     self.emit(f"\tLDX #>{dest_var}")
                     self.emit("\tSTA TMP2")
                     self.emit("\tSTX TMP2+1")
-                    
+
                     # Copy full array length (str_len includes null terminator)
-                    self.emit(f"\tLDA #{str_len}")
-                    self.emit("\tJSR ARRCPY")
+                    self.emit(f"\tLDX #{str_len}")
+                    self.emit("\tJSR COPY_BYTES")
                 else:
                     # WORD arrays or very large arrays: use COPY_BYTES for now
                     self.copy_bytes_needed = True

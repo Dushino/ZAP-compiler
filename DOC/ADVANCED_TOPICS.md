@@ -528,8 +528,7 @@ __MOD16         ; 16-bit modulo
 
 **Array/Memory Operations:**
 ```
-__COPY_BYTES    ; Block memory copy
-__ARRCPY        ; Array copy with size checking
+__COPY_BYTES    ; Block memory copy (TMP0=src, TMP2=dst, X=count)
 ```
 
 **Comparison Helpers:**

@@ -375,3 +375,40 @@ This supersedes the previous `last_a` approach which only saved consecutive repe
 ### Verification
 - `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
 - `pyright codegen_expr.py`: 0 errors, 0 warnings.
+
+---
+
+## Refactor: Unify __ARRCPY into __COPY_BYTES (2026-02-27)
+
+### What was done
+
+Eliminated the duplicate `__ARRCPY` runtime routine and all supporting infrastructure,
+routing its two former callers to the existing `__COPY_BYTES` routine instead.
+
+**Root cause:** Both routines performed identical forward byte copies (TMP0 → TMP2),
+differing only in how the count was passed: `__ARRCPY` took count in A (saved to TMP3),
+while `__COPY_BYTES` took count in X (count-down, no TMP3). With 8 call sites vs 2,
+adopting the `__COPY_BYTES` calling convention for all callers is the minimal change.
+
+**Changes in `codegen_expr.py`:**
+| What | Where |
+|---|---|
+| Removed `arrcpy_needed` flag | `__init__` (line ~56) |
+| Removed `"ARRCPY"` from runtime name-map | `_build_internal_name_map()` (line ~1516) |
+| Removed `_gen_arrcpy_routine()` call | `gen_file_footer()` (line ~3107) |
+| Deleted `_gen_arrcpy_routine()` | lines 3138–3178 (~40 lines deleted) |
+| Converted `_gen_string_copy()` A1 | flag: `arrcpy_needed` → `copy_bytes_needed`; `LDA #count` → `LDX #count`; `JSR ARRCPY` → `JSR COPY_BYTES` |
+| Converted `gen_local_var_init()` A2 | same three changes |
+| Simplified `_detect_temp_usage()` | removed `or self.arrcpy_needed` |
+
+**`DOC/ADVANCED_TOPICS.md`:** Removed `__ARRCPY` entry; updated `__COPY_BYTES` description
+to include the calling convention (`TMP0=src, TMP2=dst, X=count`).
+
+**Net effect:** ~50 lines removed from codegen_expr.py. The two formerly-ARRCPY callers now
+emit `LDX #count / JSR __COPY_BYTES` instead of `LDA #count / JSR __ARRCPY`. Binary output
+is functionally identical (same bytes copied); one opcode byte differs per call site
+(`A2` LDX vs `A9` LDA) but is irrelevant to program semantics.
+
+### Verification
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
+- `make tests`: 125/125 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.

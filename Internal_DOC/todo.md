@@ -461,7 +461,7 @@ to
 __ZAP_while_24:
 __ZAP_while_body_26:
 
-[ ] Unify internal copy routines __COPY_BYTES and __ARRCPY
+[x] Unify internal copy routines __COPY_BYTES and __ARRCPY
 
 [x] Better generator
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 17:     while my_long
@@ -537,4 +537,8 @@ to:
 
 
 [ ] Unify generated LDA #$00 and #0
+
+[ ] Check array of structs and arrays in struct
+
+[ ] Check arrays init and copy for lenghts 0, $FF
 
