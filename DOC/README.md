@@ -20,6 +20,7 @@ ZAP! compiles ZAP! source code into optimized 6502 assembly for Atari 8-bit comp
 
 ### Language Support
 - Syntax is heavily inspired by Action! and C programming languages
+- Three integer types: `byte` (8-bit, 0–255), `word` (16-bit, 0–65535), `long` (32-bit, 0–4 294 967 295)
 - Module system with `.module` and `.include` directives
 - Module constructors: optional `PROC Constructor()` in module files (run at program init; treated as `#KEEP #NOEXPORT` and called automatically)
 - Declaration modifiers including `#PORT`, `#RD`, and `#WR` to mark hardware port variables and document read/write permissions

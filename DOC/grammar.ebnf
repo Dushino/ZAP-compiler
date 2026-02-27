@@ -1,5 +1,5 @@
 (* ZAP! Language Grammar - EBNF Notation *)
-(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, PORT Modifier, STATIC Variables *)
+(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, PORT Modifier, STATIC Variables, LONG (32-bit) Type *)
 (* Lexical tokens: IDENT, NUMBER, STRING, DECLMOD, ASM_BLOCK *)
 (*
    Enums: compile-time-only named integer constants. Default base type is `byte` unless a `word` is specified before the enum name.
@@ -33,7 +33,7 @@ segment_directive ::= ".segment" STRING ;
 (* ============ TYPES ============ *)
 type            ::= base_type [ "^" ] ;
 
-base_type       ::= "byte" | "word" | STRUCT_NAME ;
+base_type       ::= "byte" | "word" | "long" | STRUCT_NAME ;
 
 (* ============ DECLARATIONS ============ *)
 declaration     ::= [ type_modifier { type_modifier } ] type declarator_list [ decl_modifiers ] ;
@@ -199,8 +199,15 @@ expr_list       ::= expression { "," expression } ;
 
 (* ============ NOTES ============ *)
 (*
+   LONG Type:
+   - 32-bit unsigned integer type (0–4 294 967 295)
+   - Valid wherever byte or word is used: variables, parameters, return types, expressions, control flow
+   - FOR loop variable, bounds, and step may all be long
+   - SWITCH expression and CASE values may be long (multi-byte comparison generated)
+   - Truthiness in IF/WHILE/REPEAT: all four bytes are OR-ed; result is non-zero if any byte is non-zero
+
    Type Modifiers:
-   - CONST: Compile-time constant values (all types: byte, word, pointers, arrays, structs)
+   - CONST: Compile-time constant values (all types: byte, word, long, pointers, arrays, structs)
    - STATIC: Local variables that retain value between procedure calls (locals only)
    - PORT: Hardware port-mapped variables (globals only, requires @ address, no init)
    

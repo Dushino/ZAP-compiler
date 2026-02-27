@@ -37,6 +37,34 @@
 ## What remains
 - None.
 
+---
+
+## Documentation update: LONG type coverage (2026-02-27)
+
+Audited all user-facing documentation for correctness and completeness regarding the `long` (32-bit) type. Applied fixes across 5 files.
+
+### Changes
+
+**`DOC/grammar.ebnf`**:
+- Added `"long"` to `base_type` production — was silently missing, making the grammar technically wrong.
+- Updated header comment to record the change.
+- Added a `LONG Type` section in the `NOTES` block documenting FOR bounds, SWITCH case, and truthiness rules.
+- Updated the CONST note to include `long` in the list of supported types.
+
+**`DOC/ZAP_LANGUAGE_REFERENCE.md`**:
+- **SWITCH/CASE**: Corrected false claim "byte or word" → "byte, word, or long".
+- **Zero/Non-Zero Evaluation**: Added sub-section explaining 32-bit truthiness: all 4 bytes are OR-ed; a value like `65536` correctly evaluates as True even though its low byte is 0. Added code examples for IF, WHILE, and REPEAT-UNTIL with `long` conditions.
+- **FOR loop**: Added a `long` bounds example (start/end above word range) and a note that the compiler automatically allocates 4-byte temporaries for `long` bounds.
+- **Comparison operators**: Added a leading sentence stating that all comparisons work on `byte`, `word`, and `long`.
+- **Bitwise operators**: Added that operators work on all three integer types with result width matching the widest operand; added a `long` bitwise example.
+
+**`DOC/GETTING_STARTED.md`**:
+- Added `long` row to the Variable Types table with range and purpose.
+- Added a `long` initialisation example to the code snippet.
+
+**`DOC/README.md`**:
+- Added a line to Language Support listing all three integer types: `byte`, `word`, `long`.
+
 ## Known issues
 - None.
 

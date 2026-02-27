@@ -661,6 +661,8 @@ This preserves carry/borrow for larger targets while keeping `byte`-only math co
 
 ### Comparison Operators
 
+All comparison operators work on `byte`, `word`, and `long` operands. The result is always a `byte` (`0` for false, `1` for true).
+
 | Operator | Example | Meaning |
 |----------|---------|---------|
 | `==` | `x == 5` | Equal |
@@ -731,7 +733,7 @@ byte notflag = !flag  ; Logical negation
 
 ### Bitwise Operators
 
-Bitwise operators perform bit-level manipulation on numeric values.
+Bitwise operators perform bit-level manipulation on numeric values. They work on `byte`, `word`, and `long` operands. The result type matches the widest operand.
 
 | Operator | Example | Meaning |
 |----------|---------|---------|
@@ -746,16 +748,24 @@ Bitwise operators perform bit-level manipulation on numeric values.
 proc bitwise_example()
     byte mask = $0F
     byte value = $FF
-    
+
     byte and_result = value & mask     ; $0F - AND operation
     byte or_result = value | mask      ; $FF - OR operation
     byte xor_result = value ^ mask     ; $F0 - XOR operation
     byte not_result = ~value           ; $00 - Bitwise NOT
-    
+
     ; Common pattern: check if bit is set
     if value & $80 then
         ; High bit is set
-    endif
+    end
+
+    ; Bitwise operations on long (32-bit)
+    long flags = $FFFF0000
+    long masked = flags & $00FF0000    ; $00FF0000
+    long shifted = flags >> 8          ; $00FFFF00
+    if flags & $01000000 then
+        ; Bit 24 is set
+    end
 end
 ```
 
@@ -937,7 +947,7 @@ end
 
 **Key Features:**
 
-1.  **Expression Type**: The switch expression can be `byte` or `word` (or compatible types).
+1.  **Expression Type**: The switch expression can be `byte`, `word`, or `long` (or compatible types).
 2.  **Case Labels**: Must be constant expressions known at compile time.
 3.  **Fall-through**: ZAP! `switch` statements have **C-like fall-through behavior**. If a `case` block does not end with `break`, execution continues into the next `case` block.
 4.  **Default**: The `default` block executes if no case matches. It is optional.
@@ -1047,6 +1057,20 @@ end
 **Semantics:** The `to` bound is exclusive (C-like). With a positive step, the loop runs while `i < end`. With a negative step, it runs while `i > end`.
 To include a specific last value, set `to` one step past it (e.g., `for i = 0 to 10` includes 9 with step 1; `for i = 0 to 110 step 10` includes 100).
 
+**LONG bounds:** The loop variable, `to`-bound, and `step` may all be `long`. The compiler allocates 4-byte temporaries for the bounds automatically.
+
+```zap
+proc long_for_example()
+    long i
+    long start_val = 65536       ; Above word range
+    long end_val   = 65540
+
+    for i = start_val to end_val step 1
+        ; Iterates 4 times: i = 65536, 65537, 65538, 65539
+    end
+end
+```
+
 ### switch Statement
 
 ZAP supports C-style `switch` with `case`, `default`, fallthrough, and `break`.
@@ -1122,31 +1146,58 @@ end
 
 ### Zero/Non-Zero Evaluation
 
-In conditional statements, numbers evaluate as:
+In conditional statements (`if`, `while`, `repeat-until`), the condition expression evaluates as:
 - **Zero** - False
 - **Non-zero** - True
+
+This rule applies to **all integer types**: `byte`, `word`, and `long`.
 
 ```zap
 proc zero_evaluation()
     byte x = 0
     byte y = 1
-    
+
     if x then        ; False (x is 0)
     endif
-    
+
     if y then        ; True (y is non-zero)
     endif
-    
+
     if 0 then        ; False
     else
         ; This executes
     endif
-    
+
     if 1 then        ; True
         ; This executes
     endif
 end
 ```
+
+#### LONG (32-bit) Truthiness
+
+For `long` variables, **all four bytes are tested together**: the compiler OR-s all four bytes of the value and checks whether the result is non-zero. This means a `long` value like `65536` (`$00010000`) correctly evaluates as **True**, even though its low byte is `0`.
+
+```zap
+proc long_truthiness()
+    long counter = 65536    ; Value in bytes 2-3 only, low bytes are 0
+
+    if counter              ; True — upper bytes are non-zero
+        ; This executes
+    end
+
+    while counter           ; Loops while any of the 4 bytes is non-zero
+        counter = counter - 1
+    end
+
+    long flags = $01000000  ; Only byte 3 is set
+    repeat
+        flags = flags - $01000000
+    until flags             ; Stops when all 4 bytes become zero
+end
+```
+
+> **Note:** Without the 4-byte OR test, a `long` value of `65536` would appear `False` because its low byte is `0`. ZAP! handles this correctly for all control-flow statements.
 
 ---
 

@@ -219,10 +219,12 @@ byte health = 100       ; With assignment
 |------|-------|---------|
 | `byte` | 0-255 | Small numbers, characters, ASCII values |
 | `word` | 0-65535 | Larger numbers, addresses |
+| `long` | 0-4294967295 | 32-bit counters, large values, timestamps |
 
 ```zap
 byte health = 100       ; Character health (0-255)
 word high_score = 5000  ; High score (can be > 255)
+long population = 65536 ; 32-bit value (cannot fit in word)
 ```
 
 ### Using Variables
