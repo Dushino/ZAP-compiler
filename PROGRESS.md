@@ -273,3 +273,49 @@ Read the entire codebase, all documentation, and test suite to produce the archi
 - Type system reviewed across all phases (AST TypeNode → SemType → ExprType)
 - Operator processing and code generation strategy documented
 - Test suite: 125 passing tests, 60 negative tests, 4 compilation variants each
+
+---
+
+## Optimisation: Eliminate redundant LDA in LONG constant assignment — gen_assign + gen_init (2026-02-27)
+
+### What was done
+
+Applied `last_a` tracking to avoid emitting duplicate `LDA #$XX` instructions when multiple
+consecutive bytes of a LONG constant share the same value.
+
+**gen_assign** (`codegen_expr.py` LONG branch of IntLiteral assign):
+Replaced 4 independent `if zero → STZ / else → LDA + STA` blocks with a `for _bi in range(4)`
+loop that tracks `last_a: int | None`. If `A` already holds the required byte value, the `LDA`
+is omitted.
+
+**gen_init** (`codegen_expr.py:5167` — declaration initialisation path):
+Applied the identical loop pattern to the LONG initialiser block in `gen_init()`, which previously
+used the same independent-block approach.
+
+**Before** (`long my_long = 65536`, 6502 target — bytes 0x00, 0x00, 0x01, 0x00):
+```asm
+LDA #$00 / STA _MAIN_MY_LONG       ; byte 0
+LDA #$00 / STA _MAIN_MY_LONG+1    ; byte 1 — redundant LDA
+LDA #$01 / STA _MAIN_MY_LONG+2    ; byte 2
+LDA #$00 / STA _MAIN_MY_LONG+3    ; byte 3 — redundant LDA
+```
+
+**After**:
+```asm
+LDA #$00
+STA _MAIN_MY_LONG
+STA _MAIN_MY_LONG+1               ; A still $00 — no reload
+LDA #$01
+STA _MAIN_MY_LONG+2
+LDA #$00
+STA _MAIN_MY_LONG+3
+```
+
+Savings depend on byte pattern; up to 3 `LDA` instructions saved per LONG constant (when all 4
+bytes are equal, e.g. `long x = 0` on 6502 saves 3 loads).
+
+On 65C02 zero bytes still use `STZ` (which does not modify A, so `last_a` is reset to `None`).
+
+### Verification
+- `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.

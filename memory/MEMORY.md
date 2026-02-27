@@ -88,6 +88,7 @@
 - **32-bit direct compare** (`codegen_expr.py:11831`): fast path in `_emit_relational_branch_impl` compares LONG/WORD/BYTE simple identifiers and IntLiterals byte-by-byte directly; saves 14–16 instructions vs old MATH0/MATH1 spill path. Falls back to MATH0/MATH1 for complex expressions.
 - **SWITCH direct compare** (`codegen_expr.py:11192`): when switch expression is a simple scalar identifier, compare bytes directly from source variable — no temp copy or BSS allocation; saves 2/4/8 LDA/STA instructions for BYTE/WORD/LONG.
 - **Dead JMP + proxy elimination** (`codegen_expr.py:11808`): `_emit_relational_branch` wrapper simplified to a single delegation call; removed always-dead `JMP lbl_true` and unnecessary `REL_FALSE_PROXY` indirection — saves 3 instructions per relational branch in all control-flow contexts.
+- **Redundant LDA elimination in LONG constant stores** (`codegen_expr.py:5167` gen_init, ~9544 gen_assign): both paths now use a `last_a: int | None` tracking loop over 4 bytes; `LDA #$XX` is skipped if A already holds that value. STZ (65C02) resets `last_a=None` since it doesn't affect A. Saves up to 3 LDA instructions per LONG constant (worst case: all bytes equal, e.g. `long x = 0` on 6502).
 
 ## Known fixed bugs
 - `codegen_expr.py` (was ~5168): `val & 0xFFFF` mask before LONG init was removed — it truncated bytes 2-3 for values > 65535

@@ -415,7 +415,7 @@ __MEMCPY_FOR_END_3:	.res 2
 [x] Review whole documentation
 [x] Check ENUM and STRUCT propagation from .module
 
-[ ] Check LONG 
+[x] Check LONG 
     [ ] arithmetic
     [ ] assignments 
     [ ] unary operators
@@ -491,7 +491,7 @@ to
     ORA _MAIN_MY_LONG+2
     ORA _MAIN_MY_LONG+3
 
-[ ] Peephole
+[x] Remove redundant LDA #$00
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 4:     long my_long = 65536
 	LDA #$00
 	STA _MAIN_MY_LONG
@@ -515,4 +515,26 @@ to
         if isinstance(stmt, SegmentDirective):
             self.emit(f'.segment "{stmt.name}"')
             return
+
+[ ] Unify generated LDA #$00 and #0
+
+[ ] Auto short branches?
+
+[ ] Group STAs when loading values:
+	LDA #$04
+	STA _MAIN_END_VAL
+	LDA #$00
+	STA _MAIN_END_VAL+1
+	LDA #$01
+	STA _MAIN_END_VAL+2
+	LDA #$00
+	STA _MAIN_END_VAL+3
+to:
+	LDA #$04
+	STA _MAIN_END_VAL
+	LDA #$00
+	STA _MAIN_END_VAL+1
+	STA _MAIN_END_VAL+3	
+    LDA #$01
+	STA _MAIN_END_VAL+2
 

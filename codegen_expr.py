@@ -1680,21 +1680,24 @@ class CodeGen:
     def _emit_store_word_const(self, sym: Symbol, value: int) -> None:
         """Emit store word const.
         Internal helper used during code generation.
+        Group bytes by value (first-occurrence order) so lo==hi shares one LDA.
+        On 65C02 zero bytes use STZ (no LDA).
         """
         value &= 0xFFFF
-        lo: int = value & 0xFF
-        hi: int = (value >> 8) & 0xFF
         asm: str = sym.asm_name()
-        if lo == 0:
-            self._stz(asm)
-        else:
-            self.emit(f"\tLDA #${lo:02X}")
-            self.emit(f"\tSTA {asm}")
-        if hi == 0:
-            self._stz(f"{asm}+1")
-        else:
-            self.emit(f"\tLDA #${hi:02X}")
-            self.emit(f"\tSTA {asm}+1")
+        _sw_grp: dict[int, list[int]] = {}
+        for _bi, _bv in enumerate([(value & 0xFF), (value >> 8) & 0xFF]):
+            _sw_grp.setdefault(_bv, []).append(_bi)
+        for _bv, _offsets in _sw_grp.items():
+            if _bv == 0 and self.is_65c02:
+                for _bi in _offsets:
+                    _d = asm if _bi == 0 else f"{asm}+{_bi}"
+                    self.emit(f"\tSTZ {_d}")
+            else:
+                self.emit(f"\tLDA #${_bv:02X}")
+                for _bi in _offsets:
+                    _d = asm if _bi == 0 else f"{asm}+{_bi}"
+                    self.emit(f"\tSTA {_d}")
 
     def _emit_inc_word(self, asm: str) -> None:
         """Emit inc word.
@@ -5165,32 +5168,25 @@ class CodeGen:
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
                     self._emit_store_byte_const(sym, val)
                 elif sym.type.base == "LONG":
-                    # Emit 4-byte initialization for LONG
+                    # Emit 4-byte initialization for LONG.
+                    # Group bytes by value (first-occurrence order) so each unique byte value
+                    # needs only one LDA, with all its STA destinations following it.
+                    # On 65C02, zero bytes use STZ instead (no LDA, preserving that group).
                     asm = sym.asm_name()
-                    # Byte 0
-                    if (val & 0xFF) == 0:
-                        self._stz(asm)
-                    else:
-                        self.emit(f"\tLDA #${val & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}")
-                    # Byte 1
-                    if ((val >> 8) & 0xFF) == 0:
-                        self._stz(f"{asm}+1")
-                    else:
-                        self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}+1")
-                    # Byte 2
-                    if ((val >> 16) & 0xFF) == 0:
-                        self._stz(f"{asm}+2")
-                    else:
-                        self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}+2")
-                    # Byte 3
-                    if ((val >> 24) & 0xFF) == 0:
-                        self._stz(f"{asm}+3")
-                    else:
-                        self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}+3")
+                    _gi_grp: dict[int, list[int]] = {}
+                    for _bi in range(4):
+                        _bv: int = (val >> (_bi * 8)) & 0xFF
+                        _gi_grp.setdefault(_bv, []).append(_bi)
+                    for _bv, _offsets in _gi_grp.items():
+                        if _bv == 0 and self.is_65c02:
+                            for _bi in _offsets:
+                                _d = asm if _bi == 0 else f"{asm}+{_bi}"
+                                self.emit(f"\tSTZ {_d}")
+                        else:
+                            self.emit(f"\tLDA #${_bv:02X}")
+                            for _bi in _offsets:
+                                _d = asm if _bi == 0 else f"{asm}+{_bi}"
+                                self.emit(f"\tSTA {_d}")
                 else:  # WORD or pointer → store both bytes
                     self._emit_store_word_const(sym, val)
                 return
@@ -9542,33 +9538,26 @@ class CodeGen:
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
                     self._emit_store_byte_const(sym_lhs, rhs.value)
                 elif lhs_t.sem_type.base == "LONG":
-                    # Emit 4-byte store for LONG constant
+                    # Emit 4-byte store for LONG constant.
+                    # Group bytes by value (first-occurrence order) so each unique byte value
+                    # needs only one LDA, with all its STA destinations following it.
+                    # On 65C02, zero bytes use STZ instead (no LDA, preserving that group).
                     val = rhs.value
                     asm = sym_lhs.asm_name()
-                    # Byte 0
-                    if (val & 0xFF) == 0:
-                        self._stz(asm)
-                    else:
-                        self.emit(f"\tLDA #${val & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}")
-                    # Byte 1
-                    if ((val >> 8) & 0xFF) == 0:
-                        self._stz(f"{asm}+1")
-                    else:
-                        self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}+1")
-                    # Byte 2
-                    if ((val >> 16) & 0xFF) == 0:
-                        self._stz(f"{asm}+2")
-                    else:
-                        self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}+2")
-                    # Byte 3
-                    if ((val >> 24) & 0xFF) == 0:
-                        self._stz(f"{asm}+3")
-                    else:
-                        self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
-                        self.emit(f"\tSTA {asm}+3")
+                    _ga_grp: dict[int, list[int]] = {}
+                    for _bi in range(4):
+                        _bv: int = (val >> (_bi * 8)) & 0xFF
+                        _ga_grp.setdefault(_bv, []).append(_bi)
+                    for _bv, _offsets in _ga_grp.items():
+                        if _bv == 0 and self.is_65c02:
+                            for _bi in _offsets:
+                                _d = asm if _bi == 0 else f"{asm}+{_bi}"
+                                self.emit(f"\tSTZ {_d}")
+                        else:
+                            self.emit(f"\tLDA #${_bv:02X}")
+                            for _bi in _offsets:
+                                _d = asm if _bi == 0 else f"{asm}+{_bi}"
+                                self.emit(f"\tSTA {_d}")
                 else:
                     self._emit_store_word_const(sym_lhs, rhs.value)
                 return
