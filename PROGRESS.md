@@ -319,3 +319,59 @@ On 65C02 zero bytes still use `STZ` (which does not modify A, so `last_a` is res
 ### Verification
 - `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
 - `pyright codegen_expr.py`: 0 errors, 0 warnings.
+
+---
+
+## Optimisation: Group STAs by value for multibyte constant stores (2026-02-27)
+
+### What was done
+
+Replaced the sequential `last_a` tracking loop with a **grouping-by-value** approach in all three
+multibyte constant-store sites. Instead of emitting bytes in offset order 0→1→2→3 (which only
+saves a reload when identical values are _consecutive_), bytes are now grouped by value in
+first-occurrence order. Each unique byte value gets one `LDA`, followed immediately by all `STA`s
+that need that value.
+
+**Sites changed:**
+| Site | Location |
+|---|---|
+| `gen_init` LONG | `codegen_expr.py:5167` |
+| `gen_assign` LONG | `codegen_expr.py:~9532` |
+| `_emit_store_word_const` WORD | `codegen_expr.py:1680` |
+
+**Algorithm:** build `dict[int, list[int]]` (Python insertion-ordered) mapping each unique byte
+value to the list of byte offsets that hold it. Then for each group: on 65C02 emit `STZ` for
+the zero group (if any), otherwise emit `LDA #$XX` + one `STA` per offset in the group.
+
+**Before** (`long end_val = 65540` = `$00010004`, 6502):
+```asm
+LDA #$04 / STA +0
+LDA #$00 / STA +1
+LDA #$01 / STA +2
+LDA #$00 / STA +3   ← redundant LDA ($00 already loaded for +1)
+```
+
+**After** (6502):
+```asm
+LDA #$04 / STA +0
+LDA #$00 / STA +1 / STA +3   ← both $00 bytes grouped
+LDA #$01 / STA +2
+```
+
+**After** (65C02):
+```asm
+LDA #$04 / STA +0
+STZ +1 / STZ +3               ← zero group uses STZ (no LDA)
+LDA #$01 / STA +2
+```
+
+Savings (6502): one `LDA` per byte value that appears more than once.
+Worst case (all 4 bytes unique): no change. Best case (all equal, e.g. `long x = 0`): 3 `LDA`s
+eliminated (1 LDA + 4 STA instead of 4 LDA + 4 STA). Total `LDA` count is now always exactly
+equal to the number of unique byte values — strictly optimal.
+
+This supersedes the previous `last_a` approach which only saved consecutive repeats.
+
+### Verification
+- `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
