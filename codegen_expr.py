@@ -9270,6 +9270,10 @@ class CodeGen:
         """Generate assignment code for an lvalue and rhs.
         Handles arrays, structs, and scalar stores.
         """
+        # Early exit: self-assignment (x = x) has no effect
+        if isinstance(lhs, Identifier) and isinstance(rhs, Identifier) and lhs.name == rhs.name:
+            return
+        
         # Apply constant substitution and folding to RHS
         from constsubst import subst_const
         from typing import cast
@@ -10390,21 +10394,25 @@ class CodeGen:
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
-        # end
-        end_name: str = self.new_for_var("END")
-        end_t: ExprType = self.tc_check(stmt.end)
-        var_t: ExprType = self.tc_check(stmt.var)
-        end_is_word: bool = (
-            var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
-            end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
-        )
-        end_width: int = max(var_t.sem_type.width, end_t.sem_type.width)
-        if end_width == 4:
-            self._declare_temp(end_name, "LONG")
+        # Optimization: if end is a simple identifier, use it directly instead of creating a temporary
+        if isinstance(stmt.end, Identifier):
+            end_var = stmt.end
         else:
-            self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
-        end_var = Identifier(end_name)
-        self.gen_assign(end_var, stmt.end)
+            # end: create temporary only if end is complex expression
+            end_name: str = self.new_for_var("END")
+            end_t: ExprType = self.tc_check(stmt.end)
+            var_t: ExprType = self.tc_check(stmt.var)
+            end_is_word: bool = (
+                var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+                end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
+            )
+            end_width: int = max(var_t.sem_type.width, end_t.sem_type.width)
+            if end_width == 4:
+                self._declare_temp(end_name, "LONG")
+            else:
+                self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
+            end_var = Identifier(end_name)
+            self.gen_assign(end_var, stmt.end)
 
         # podmínka WHILE (C-like: end bound is exclusive)
         if step_expr.value > 0:
@@ -10432,44 +10440,47 @@ class CodeGen:
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
-        # vytvoř skryté proměnné
-        end_name: str = self.new_for_var("END")
-        step_name: str = self.new_for_var("STEP")
-
+        # vytvoř skryté proměnné (only if needed)
         var_t: ExprType = self.tc_check(stmt.var)
         end_t: ExprType = self.tc_check(stmt.end)
         step_t: ExprType = self.tc_check(stmt.step) if stmt.step is not None else self.tc_check(IntLiteral(1))
 
-        end_is_word: bool = (
-            var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
-            end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
-        )
-        step_is_word: bool = (
-            var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
-            step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
-        )
-
-        end_width: int = max(var_t.sem_type.width, end_t.sem_type.width)
-        if end_width == 4:
-            self._declare_temp(end_name, "LONG")
+        # Optimization: if end is a simple identifier, use it directly
+        if isinstance(stmt.end, Identifier):
+            end_var = stmt.end
         else:
-            self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
+            end_name: str = self.new_for_var("END")
+            end_is_word: bool = (
+                var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+                end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
+            )
+            end_width: int = max(var_t.sem_type.width, end_t.sem_type.width)
+            if end_width == 4:
+                self._declare_temp(end_name, "LONG")
+            else:
+                self._declare_temp(end_name, "WORD" if end_is_word else "BYTE")
+            end_var = Identifier(end_name)
+            self.gen_assign(end_var, stmt.end)
 
-        step_width: int = max(var_t.sem_type.width, step_t.sem_type.width)
-        if step_width == 4:
-            self._declare_temp(step_name, "LONG")
+        # Optimization: if step is a simple identifier, use it directly (or use literal 1)
+        if isinstance(stmt.step, Identifier):
+            step_var = stmt.step
+        elif stmt.step is not None:
+            step_name: str = self.new_for_var("STEP")
+            step_is_word: bool = (
+                var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+                step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
+            )
+            step_width: int = max(var_t.sem_type.width, step_t.sem_type.width)
+            if step_width == 4:
+                self._declare_temp(step_name, "LONG")
+            else:
+                self._declare_temp(step_name, "WORD" if step_is_word else "BYTE")
+            step_var = Identifier(step_name)
+            self.gen_assign(step_var, stmt.step)
         else:
-            self._declare_temp(step_name, "WORD" if step_is_word else "BYTE")
-
-        end_var = Identifier(end_name)
-        step_var = Identifier(step_name)
-
-        # end = ...
-        self.gen_assign(end_var, stmt.end)
-
-        # step = ... (nebo 1)
-        step_expr = stmt.step if stmt.step is not None else IntLiteral(1)
-        self.gen_assign(step_var, step_expr)
+            # Default step = 1
+            step_var = IntLiteral(1)
 
         # IF step > 0 THEN IF i > end THEN BREAK ELSE IF i < end THEN BREAK
         cond_step_pos = BinaryExpr(step_var, BinOp.GT, IntLiteral(0))
@@ -11327,31 +11338,51 @@ class CodeGen:
             cond_t: ExprType = self.tc_check(cond)
             is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
             is_long_cond: bool = cond_t.sem_type.width == 4
-            prev_suppress: bool = self.suppress_byte_return_x
-            if not is_word_cond and not is_long_cond:
-                self.suppress_byte_return_x = True
-            try:
-                self.gen_expr(cond)
-            finally:
-                self.suppress_byte_return_x = prev_suppress
-            if is_long_cond:
-                self.emit("\tLDA MATH0")
-                self.emit("\tORA MATH0+1")
-                self.emit("\tORA MATH0+2")
-                self.emit("\tORA MATH0+3")
+            
+            # Optimization: if condition is a simple identifier, ORA directly without copying to MATH0
+            if isinstance(cond, Identifier) and is_long_cond:
+                sym = self.current_symtab.lookup(cond.name)
+                asm = sym.asm_name()
+                self.emit(f"\tLDA {asm}")
+                self.emit(f"\tORA {asm}+1")
+                self.emit(f"\tORA {asm}+2")
+                self.emit(f"\tORA {asm}+3")
                 self.emit(f"\tBNE {lbl_then}")
                 self.emit(f"\tJMP {lbl_else}")
-            elif is_word_cond:
-                self.used_temps.add("TMP4")
-                # Merge A/X to test non-zero (WORD-safe)
-                self.emit("\tSTA TMP4")
-                self.emit("\tTXA")
-                self.emit("\tORA TMP4")
+            elif isinstance(cond, Identifier) and is_word_cond:
+                sym = self.current_symtab.lookup(cond.name)
+                asm = sym.asm_name()
+                self.emit(f"\tLDA {asm}")
+                self.emit(f"\tORA {asm}+1")
                 self.emit(f"\tBNE {lbl_then}")
                 self.emit(f"\tJMP {lbl_else}")
             else:
-                self.emit(f"\tBNE {lbl_then}")
-                self.emit(f"\tJMP {lbl_else}")
+                # General case: evaluate condition expression
+                prev_suppress: bool = self.suppress_byte_return_x
+                if not is_word_cond and not is_long_cond:
+                    self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(cond)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                if is_long_cond:
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tORA MATH0+1")
+                    self.emit("\tORA MATH0+2")
+                    self.emit("\tORA MATH0+3")
+                    self.emit(f"\tBNE {lbl_then}")
+                    self.emit(f"\tJMP {lbl_else}")
+                elif is_word_cond:
+                    self.used_temps.add("TMP4")
+                    # Merge A/X to test non-zero (WORD-safe)
+                    self.emit("\tSTA TMP4")
+                    self.emit("\tTXA")
+                    self.emit("\tORA TMP4")
+                    self.emit(f"\tBNE {lbl_then}")
+                    self.emit(f"\tJMP {lbl_else}")
+                else:
+                    self.emit(f"\tBNE {lbl_then}")
+                    self.emit(f"\tJMP {lbl_else}")
 
             self.emit(f"{lbl_then}:")
 
@@ -11403,30 +11434,50 @@ class CodeGen:
                 cond_t: ExprType = self.tc_check(cond)
                 is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
                 is_long_cond: bool = cond_t.sem_type.width == 4
-                prev_suppress: bool = self.suppress_byte_return_x
-                if not is_word_cond and not is_long_cond:
-                    self.suppress_byte_return_x = True
-                try:
-                    self.gen_expr(cond)
-                finally:
-                    self.suppress_byte_return_x = prev_suppress
-                if is_long_cond:
-                    self.emit("\tLDA MATH0")
-                    self.emit("\tORA MATH0+1")
-                    self.emit("\tORA MATH0+2")
-                    self.emit("\tORA MATH0+3")
+                
+                # Optimization: if condition is a simple identifier, ORA directly without copying to MATH0
+                if isinstance(cond, Identifier) and is_long_cond:
+                    sym = self.current_symtab.lookup(cond.name)
+                    asm = sym.asm_name()
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tORA {asm}+1")
+                    self.emit(f"\tORA {asm}+2")
+                    self.emit(f"\tORA {asm}+3")
                     self.emit(f"\tBNE {lbl_body}")
                     self.emit(f"\tJMP {lbl_end}")
-                elif is_word_cond:
-                    self.used_temps.add("TMP4")
-                    self.emit("\tSTA TMP4")
-                    self.emit("\tTXA")
-                    self.emit("\tORA TMP4")
+                elif isinstance(cond, Identifier) and is_word_cond:
+                    sym = self.current_symtab.lookup(cond.name)
+                    asm = sym.asm_name()
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tORA {asm}+1")
                     self.emit(f"\tBNE {lbl_body}")
                     self.emit(f"\tJMP {lbl_end}")
                 else:
-                    self.emit(f"\tBNE {lbl_body}")
-                    self.emit(f"\tJMP {lbl_end}")
+                    # General case: evaluate condition expression
+                    prev_suppress: bool = self.suppress_byte_return_x
+                    if not is_word_cond and not is_long_cond:
+                        self.suppress_byte_return_x = True
+                    try:
+                        self.gen_expr(cond)
+                    finally:
+                        self.suppress_byte_return_x = prev_suppress
+                    if is_long_cond:
+                        self.emit("\tLDA MATH0")
+                        self.emit("\tORA MATH0+1")
+                        self.emit("\tORA MATH0+2")
+                        self.emit("\tORA MATH0+3")
+                        self.emit(f"\tBNE {lbl_body}")
+                        self.emit(f"\tJMP {lbl_end}")
+                    elif is_word_cond:
+                        self.used_temps.add("TMP4")
+                        self.emit("\tSTA TMP4")
+                        self.emit("\tTXA")
+                        self.emit("\tORA TMP4")
+                        self.emit(f"\tBNE {lbl_body}")
+                        self.emit(f"\tJMP {lbl_end}")
+                    else:
+                        self.emit(f"\tBNE {lbl_body}")
+                        self.emit(f"\tJMP {lbl_end}")
 
             self.emit(f"{lbl_body}:")
 
@@ -11477,30 +11528,50 @@ class CodeGen:
                 cond_t: ExprType = self.tc_check(cond)
                 is_word_cond: bool = cond_t.sem_type.base == "WORD" or cond_t.sem_type.is_pointer
                 is_long_cond: bool = cond_t.sem_type.width == 4
-                prev_suppress: bool = self.suppress_byte_return_x
-                if not is_word_cond and not is_long_cond:
-                    self.suppress_byte_return_x = True
-                try:
-                    self.gen_expr(cond)
-                finally:
-                    self.suppress_byte_return_x = prev_suppress
-                if is_long_cond:
-                    self.emit("\tLDA MATH0")
-                    self.emit("\tORA MATH0+1")
-                    self.emit("\tORA MATH0+2")
-                    self.emit("\tORA MATH0+3")
+                
+                # Optimization: if condition is a simple identifier, ORA directly without copying to MATH0
+                if isinstance(cond, Identifier) and is_long_cond:
+                    sym = self.current_symtab.lookup(cond.name)
+                    asm = sym.asm_name()
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tORA {asm}+1")
+                    self.emit(f"\tORA {asm}+2")
+                    self.emit(f"\tORA {asm}+3")
                     self.emit(f"\tBNE {lbl_end}")
                     self.emit(f"\tJMP {lbl_start}")
-                elif is_word_cond:
-                    self.used_temps.add("TMP4")
-                    self.emit("\tSTA TMP4")
-                    self.emit("\tTXA")
-                    self.emit("\tORA TMP4")
+                elif isinstance(cond, Identifier) and is_word_cond:
+                    sym = self.current_symtab.lookup(cond.name)
+                    asm = sym.asm_name()
+                    self.emit(f"\tLDA {asm}")
+                    self.emit(f"\tORA {asm}+1")
                     self.emit(f"\tBNE {lbl_end}")
                     self.emit(f"\tJMP {lbl_start}")
                 else:
-                    self.emit(f"\tBNE {lbl_end}")
-                    self.emit(f"\tJMP {lbl_start}")
+                    # General case: evaluate condition expression
+                    prev_suppress: bool = self.suppress_byte_return_x
+                    if not is_word_cond and not is_long_cond:
+                        self.suppress_byte_return_x = True
+                    try:
+                        self.gen_expr(cond)
+                    finally:
+                        self.suppress_byte_return_x = prev_suppress
+                    if is_long_cond:
+                        self.emit("\tLDA MATH0")
+                        self.emit("\tORA MATH0+1")
+                        self.emit("\tORA MATH0+2")
+                        self.emit("\tORA MATH0+3")
+                        self.emit(f"\tBNE {lbl_end}")
+                        self.emit(f"\tJMP {lbl_start}")
+                    elif is_word_cond:
+                        self.used_temps.add("TMP4")
+                        self.emit("\tSTA TMP4")
+                        self.emit("\tTXA")
+                        self.emit("\tORA TMP4")
+                        self.emit(f"\tBNE {lbl_end}")
+                        self.emit(f"\tJMP {lbl_start}")
+                    else:
+                        self.emit(f"\tBNE {lbl_end}")
+                        self.emit(f"\tJMP {lbl_start}")
 
             self.emit(f"{lbl_end}:")
 
@@ -11758,42 +11829,48 @@ class CodeGen:
 
         if is_32bit:
             # 32-bit comparison using MATH0/MATH1
-            # 1. Evaluate right operand into MATH1
-            #    We can use gen_expr directly if it detects 32-bit context, but gen_expr usually puts result in A/X or MATH0.
-            #    safest is to eval right, move to MATH1, then eval left to MATH0.
+            # Optimization: for simple identifiers, load directly to MATH1 without intermediate MATH0 copy
+            right_is_simple_identifier = isinstance(cond.right, Identifier)
             
-            # Optimization: if right is const/simple, load directly to MATH1?
-            # For now, rely on generic RPN helper style loading.
-            
-            # Evaluate right operand
-            self.gen_expr(cond.right)
-            # Result is now in MATH0 (if 32-bit) or A/X (if smaller and promoted?)
-            # Actually gen_expr for LONG puts it in MATH0.
-            # If right is not LONG (e.g. constant), we might need to be careful.
-            
-            # Helper to move result to destination
-            if right_width > 2:
-                # Already in MATH0, move to MATH1
-                self.emit("\tLDA MATH0")
-                self.emit("\tSTA MATH1")
-                self.emit("\tLDA MATH0+1")
-                self.emit("\tSTA MATH1+1")
-                self.emit("\tLDA MATH0+2")
-                self.emit("\tSTA MATH1+2")
-                self.emit("\tLDA MATH0+3")
-                self.emit("\tSTA MATH1+3")
+            if right_is_simple_identifier and right_width > 2:
+                # Load right operand directly to MATH1
+                right_sym = self.current_symtab.lookup(cond.right.name)
+                right_asm = right_sym.asm_name()
+                self.emit(f"\tLDA {right_asm}")
+                self.emit(f"\tSTA MATH1")
+                self.emit(f"\tLDA {right_asm}+1")
+                self.emit(f"\tSTA MATH1+1")
+                self.emit(f"\tLDA {right_asm}+2")
+                self.emit(f"\tSTA MATH1+2")
+                self.emit(f"\tLDA {right_asm}+3")
+                self.emit(f"\tSTA MATH1+3")
             else:
-                # In A/X, promote to MATH1
-                self.emit("\tSTA MATH1")
-                if right_width == 2:
-                    self.emit("\tSTX MATH1+1")
+                # General case: evaluate right operand (goes to MATH0 or A/X)
+                self.gen_expr(cond.right)
+                
+                # Helper to move result to destination
+                if right_width > 2:
+                    # Already in MATH0, move to MATH1
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tSTA MATH1")
+                    self.emit("\tLDA MATH0+1")
+                    self.emit("\tSTA MATH1+1")
+                    self.emit("\tLDA MATH0+2")
+                    self.emit("\tSTA MATH1+2")
+                    self.emit("\tLDA MATH0+3")
+                    self.emit("\tSTA MATH1+3")
                 else:
-                    self.emit("\tLDX #0")
-                    self.emit("\tSTX MATH1+1")
-                # Zero extend upper bytes
-                self.emit("\tLDA #0")
-                self.emit("\tSTA MATH1+2")
-                self.emit("\tSTA MATH1+3")
+                    # In A/X, promote to MATH1
+                    self.emit("\tSTA MATH1")
+                    if right_width == 2:
+                        self.emit("\tSTX MATH1+1")
+                    else:
+                        self.emit("\tLDX #0")
+                        self.emit("\tSTX MATH1+1")
+                    # Zero extend upper bytes
+                    self.emit("\tLDA #0")
+                    self.emit("\tSTA MATH1+2")
+                    self.emit("\tSTA MATH1+3")
 
             # Evaluate left operand (puts result in MATH0 or A/X)
             self.gen_expr(cond.left)
