@@ -127,6 +127,104 @@ can narrow the type (eliminated 2 latent errors introduced by the new isinstance
 
 ---
 
+## Optimisation: eliminate dead JMP and proxy label in relational branches (2026-02-27)
+
+### What was done
+
+Simplified `_emit_relational_branch` (`codegen_expr.py:11808`). The old implementation created
+a `REL_FALSE_PROXY` label and emitted three extra instructions per comparison:
+
+```asm
+; Old pattern (3 extra instructions, 1 always dead):
+BCC lbl_true
+JMP REL_FALSE_PROXY      ; to false
+JMP lbl_true             ; ← DEAD — impl always ends with explicit JMP
+REL_FALSE_PROXY:
+JMP lbl_false
+```
+
+Root cause: `_emit_relational_branch_impl` always ends with an explicit `JMP lbl_false` (all six
+operator paths return after emitting an unconditional JMP), so the fall-through `JMP lbl_true`
+added by the wrapper was never reached. And since `lbl_false` is already accessed via `JMP` in the
+impl (full 16-bit range), the proxy label forwarding was also redundant.
+
+Fix: the wrapper now simply delegates:
+```python
+def _emit_relational_branch(self, …):
+    self._emit_relational_branch_impl(cond, lbl_true=lbl_true, lbl_false=lbl_false)
+```
+
+**Result for the FOR loop bound check** (`my_long < end_val`):
+```asm
+; Before:
+__ZAP_CMP32_DECIDE_11:
+    BCC __ZAP_while_body_9
+    JMP __ZAP_REL_FALSE_PROXY_10   ; indirect
+    JMP __ZAP_while_body_9         ; dead
+__ZAP_REL_FALSE_PROXY_10:
+    JMP __ZAP_endwhile_8
+
+; After:
+__ZAP_CMP32_DECIDE_10:
+    BCC __ZAP_while_body_9
+    JMP __ZAP_endwhile_8
+```
+
+3 instructions eliminated per relational branch. Applies to all comparison operators in all
+control-flow contexts (IF, WHILE, REPEAT-UNTIL, FOR).
+
+### What remains
+- None.
+
+### Verification
+- `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
+
+---
+
+## Optimisation: SWITCH direct compare without temp copy (2026-02-27)
+
+### What was done
+
+In the SWITCH statement codegen (`codegen_expr.py:11185`), when the switch expression is a simple
+scalar identifier (not array, not port, not volatile, no fixed address), the value is now compared
+directly from the source variable — no temporary copy needed.
+
+**Before** (`switch switch_val` where `switch_val` is a LONG):
+```asm
+; 8 LDA/STA to copy switch_val → temp
+LDA _MAIN_SWITCH_VAL   → STA _MAIN___ZAP_SWITCH_VAL_16   (×4 bytes)
+; comparisons read from the temp
+LDA _MAIN___ZAP_SWITCH_VAL_16+3 / CMP #$00 / BNE next
+LDA _MAIN___ZAP_SWITCH_VAL_16+2 / CMP #$01 / BNE next …
+```
+
+**After**:
+```asm
+; no copy — read directly from the switch variable
+LDA _MAIN_SWITCH_VAL+3 / CMP #$00 / BNE next
+LDA _MAIN_SWITCH_VAL+2 / CMP #$01 / BNE next …
+```
+
+Savings: 8 LDA/STA instructions for LONG switch expressions (4 for WORD, 2 for BYTE), plus the
+elimination of the temp variable's BSS allocation.
+
+Applies to:
+- All three data types (BYTE, WORD, LONG)
+- Both literal case values (`case 65536:`) and variable case values (`case some_const:`)
+
+The fallback path (temp copy via `_declare_temp` + `gen_assign`) is retained for complex
+switch expressions that cannot be read directly.
+
+### What remains
+- None.
+
+### Verification
+- `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
+
+---
+
 ## Fix: LONG type bugs in control-flow (2026-02-27)
 
 Root cause investigation and repair of two bugs affecting the LONG (32-bit) type.

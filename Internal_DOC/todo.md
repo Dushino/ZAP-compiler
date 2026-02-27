@@ -432,7 +432,7 @@ __MEMCPY_FOR_END_3:	.res 2
 	LDY #0
 	STA (_MEMCPY_PTR1),Y
 
-[ ] codegen
+[x] codegen
 ; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 308:     if cur_xpos >= SCREEN_X_SIZE
 	LDA _CUR_XPOS
 	CMP #$28
@@ -453,7 +453,7 @@ to
 __ZAP_then_68:
 
 
-[ ] enums are const:
+[x] enums are const:
 ; /home/dusan/src/ZAP-compiler/work/lib/atari/atari_stdio.zap 223:     while BOOL.TRUE
 __ZAP_while_24:
 	LDA #$01
@@ -469,7 +469,7 @@ __ZAP_while_body_26:
 
 [ ] Unify internal copy routines __COPY_BYTES and __ARRCPY
 
-[ ] Better generator
+[x] Better generator
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 17:     while my_long
 __ZAP_while_4:
 	LDA _MAIN_MY_LONG
@@ -500,7 +500,7 @@ to
 	STA _MAIN_MY_LONG+2
 	STA _MAIN_MY_LONG+3
 
-[x] Peephole?
+[x] Peephole? No, direct optimization.
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 24:     for my_long = my_long to end_val step 1
 	LDA _MAIN_MY_LONG
 	STA _MAIN_MY_LONG

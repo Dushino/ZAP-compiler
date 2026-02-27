@@ -11189,9 +11189,24 @@ class CodeGen:
             is_long = expr_t.sem_type.width == 4
             is_word = not is_long and (expr_t.sem_type.base == "WORD" or expr_t.sem_type.is_pointer)
 
-            val_name: str = self.new_label("switch_val")
-            val_sym: Symbol = self._declare_temp(val_name, "LONG" if is_long else ("WORD" if is_word else "BYTE"))
-            self.gen_assign(Identifier(val_name), expr)
+            # Fast path: if the switch expression is a simple scalar identifier,
+            # compare bytes directly from the source variable — no temp copy needed.
+            sw_asm: str
+            if isinstance(expr, Identifier):
+                _sw_id_sym = self.current_symtab.lookup(expr.name)
+                if (not _sw_id_sym.is_array and _sw_id_sym.address is None
+                        and not _sw_id_sym.is_volatile and not _sw_id_sym.is_port):
+                    sw_asm = _sw_id_sym.asm_name()
+                else:
+                    _sw_val_name = self.new_label("switch_val")
+                    _sw_val_sym = self._declare_temp(_sw_val_name, "LONG" if is_long else ("WORD" if is_word else "BYTE"))
+                    self.gen_assign(Identifier(_sw_val_name), expr)
+                    sw_asm = _sw_val_sym.asm_name()
+            else:
+                _sw_val_name = self.new_label("switch_val")
+                _sw_val_sym = self._declare_temp(_sw_val_name, "LONG" if is_long else ("WORD" if is_word else "BYTE"))
+                self.gen_assign(Identifier(_sw_val_name), expr)
+                sw_asm = _sw_val_sym.asm_name()
 
             end_label: str = self.new_label("endswitch")
 
@@ -11218,29 +11233,29 @@ class CodeGen:
                 if isinstance(folded, IntLiteral):
                     val = folded.value & 0xFFFFFFFF
                     if is_long:
-                        self.emit(f"\tLDA {val_sym.asm_name()}+3")
+                        self.emit(f"\tLDA {sw_asm}+3")
                         self.emit(f"\tCMP #${(val >> 24) & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}+2")
+                        self.emit(f"\tLDA {sw_asm}+2")
                         self.emit(f"\tCMP #${(val >> 16) & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tLDA {sw_asm}+1")
                         self.emit(f"\tCMP #${(val >> 8) & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tLDA {sw_asm}")
                         self.emit(f"\tCMP #${val & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                     elif is_word:
-                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tLDA {sw_asm}+1")
                         self.emit(f"\tCMP #${(val >> 8) & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tLDA {sw_asm}")
                         self.emit(f"\tCMP #${val & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                     else:
-                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tLDA {sw_asm}")
                         self.emit(f"\tCMP #${val & 0xFF:02X}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
@@ -11252,29 +11267,29 @@ class CodeGen:
                     self.gen_assign(Identifier(cmp_sym.name), folded)
 
                     if is_long:
-                        self.emit(f"\tLDA {val_sym.asm_name()}+3")
+                        self.emit(f"\tLDA {sw_asm}+3")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}+3")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}+2")
+                        self.emit(f"\tLDA {sw_asm}+2")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}+2")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tLDA {sw_asm}+1")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}+1")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tLDA {sw_asm}")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                     elif is_word:
-                        self.emit(f"\tLDA {val_sym.asm_name()}+1")
+                        self.emit(f"\tLDA {sw_asm}+1")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}+1")
                         self.emit(f"\tBNE {next_label}")
-                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tLDA {sw_asm}")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
                     else:
-                        self.emit(f"\tLDA {val_sym.asm_name()}")
+                        self.emit(f"\tLDA {sw_asm}")
                         self.emit(f"\tCMP {cmp_sym.asm_name()}")
                         self.emit(f"\tBNE {next_label}")
                         self.emit(f"\tJMP {lbl}")
@@ -11806,14 +11821,11 @@ class CodeGen:
             self.emit("\tLDX #0     ; note 6178")
 
     def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
-        """Emit relational test that jumps to lbl_true or lbl_false using only short local branches and absolute JMPs."""
-        lbl_false_proxy: str = self.new_label("REL_FALSE_PROXY")
-        
-        self._emit_relational_branch_impl(cond, lbl_true=lbl_true, lbl_false=lbl_false_proxy)
-        
-        self.emit(f"\tJMP {lbl_true}")
-        self.emit(f"{lbl_false_proxy}:")
-        self.emit(f"\tJMP {lbl_false}")
+        """Emit relational test that jumps to lbl_true or lbl_false.
+        lbl_true is always a nearby forward label (short branches reach it directly).
+        lbl_false is always reached via JMP inside the impl (full 16-bit range).
+        """
+        self._emit_relational_branch_impl(cond, lbl_true=lbl_true, lbl_false=lbl_false)
 
     def _emit_relational_branch_impl(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
         """Internal implementation for _emit_relational_branch."""
