@@ -416,12 +416,6 @@ __MEMCPY_FOR_END_3:	.res 2
 [x] Check ENUM and STRUCT propagation from .module
 
 [x] Check LONG 
-    [ ] arithmetic
-    [ ] assignments 
-    [ ] unary operators
-    [ ] bitwise operations
-    [ ] pointers assignment, dereference
-    [ ] DOCs incl. grammar
 
     
 [x] LDY #0 
@@ -511,16 +505,10 @@ to
 	LDA _MAIN_MY_LONG+3
 	STA _MAIN_MY_LONG+3
 
-[ ] Check for .segment directive, it is probably still there
-        if isinstance(stmt, SegmentDirective):
-            self.emit(f'.segment "{stmt.name}"')
-            return
-
-[ ] Unify generated LDA #$00 and #0
 
 [ ] Auto short branches?
 
-[ ] Group STAs when loading values:
+[x] Group STAs when loading values:
 	LDA #$04
 	STA _MAIN_END_VAL
 	LDA #$00
@@ -537,4 +525,16 @@ to:
 	STA _MAIN_END_VAL+3	
     LDA #$01
 	STA _MAIN_END_VAL+2
+
+
+[ ] Cosmetics in generated code
+
+
+[ ] Check for .segment directive, it is probably still there
+        if isinstance(stmt, SegmentDirective):
+            self.emit(f'.segment "{stmt.name}"')
+            return
+
+
+[ ] Unify generated LDA #$00 and #0
 
