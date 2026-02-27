@@ -144,7 +144,7 @@ class CodeGen:
     
     class RPNNode:
         """Represents a node in RPN evaluation (operand or operator)."""
-        def __init__(self, node_type: str, value: object = None, is_16bit: bool = False, width: int = 0):
+        def __init__(self, node_type: str, value: BinOp | UnOp | str | int | Expr | None = None, is_16bit: bool = False, width: int = 0):
             """Initialize code generation state.
             Stores symbol tables, options, and debug maps.
             """
@@ -529,9 +529,8 @@ class CodeGen:
                     
                     stack[i] = (spill_base, width)
 
-        def get_math_routine_for_op(op: 'BinOp', left_width: int, right_width: int) -> str | None:
+        def get_math_routine_for_op(op, left_width: int, right_width: int) -> str | None:
             """Map binary operator to math routine. Returns routine name or None if not a math op."""
-            from ast_nodes import BinOp
             
             is_32 = left_width > 2 or right_width > 2
             
@@ -807,7 +806,7 @@ class CodeGen:
                         self.math_routines_needed.add("RSHIFT32")
                         eval_stack.append(("MATH0", 4))
                     elif node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
-                        self._gen_bitwise32(node.value)
+                        self._gen_bitwise32(cast(BinOp, node.value))
                         eval_stack.append(("MATH0", 4))
                     else:
                         # Fallback for non-routine 32-bit ops (e.g. comparisons logic for 32-bit?)
@@ -1281,7 +1280,6 @@ class CodeGen:
                      # But my logic below for 8/16 uses MATH0 or AX depending on op.
                      pass 
 
-                from ast_nodes import UnOp
                 if node.value == UnOp.NOT:
                     # Logical NOT: result is 1 if operand is 0, else 0
                     if operand_width > 2:
@@ -2481,6 +2479,7 @@ class CodeGen:
                     intermediate_lines2 = []
                     stx_found = False
                     stx_index = -1
+                    stx_operand: str = ""
                     
                     while j < len(self.code):
                         look_line = self.code[j].strip()
@@ -3037,15 +3036,6 @@ class CodeGen:
             i += 1
         self.code = legalized
 
-    def gen_vars_block(self, procs=None, funcs=None) -> list[str]:
-        """Generate variable declarations into a separate list without altering current code."""
-        saved: list[str] = self.code
-        self.code = []
-        self.gen_vars(procs, funcs, code=saved)
-        vars_block: list[str] = self.code
-        self.code = saved
-        return vars_block
-
     def _declare_temp(self, name: str, base: str = "WORD") -> Symbol:
         """Helper for declare temp.
         Internal helper used during code generation.
@@ -3110,7 +3100,7 @@ class CodeGen:
         Internal helper used during code generation.
         """
         # Ensure runtime helpers and data live in CODE segment
-        self.emit("\n.segment \"CODE\"")
+        self.emit("\n\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
         self._gen_arrcpy_routine()
         self._gen_string_data()
@@ -4249,12 +4239,6 @@ class CodeGen:
             temps.update({self._internal_name_map.get("TMP0", "TMP0"), self._internal_name_map.get("TMP1", "TMP1")})
         return temps
 
-    def gen_vars(self, procs=None, funcs=None, code: list[str] | None = None) -> None:
-        """Generate vars.
-        Internal helper used during code generation.
-        """
-
-
     def assign_zeropage(self, procs=None, funcs=None) -> None:
         """Assign variables to the Zero Page segment before code generation starts."""
         
@@ -4419,8 +4403,8 @@ class CodeGen:
         saved_code = self.code
         self.code = []
 
-        self.emit(".segment \"ZEROPAGE\"")
-        self.emit("\n; System variables")
+        self.emit("\n\n.segment \"ZEROPAGE\"")
+        self.emit("; System variables")
         
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
         sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
@@ -4666,7 +4650,7 @@ class CodeGen:
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
         if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
-            self.emit("\n.segment \"BSS\"")
+            self.emit("\n\n.segment \"BSS\"")
 
             if shared_slots_bss:
                 self.emit("; Shared slots (BSS)")
@@ -4745,9 +4729,15 @@ class CodeGen:
 
         # Find which temps are used across the whole program
         temps_in_use: set[str] = self._detect_temp_usage(code)
+        temp_sizes: dict[str, int] = {
+            self._internal_name_map.get(n, n): 2
+            for n in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5",
+                      "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11",
+                      "TMP12", "TMP13", "TMP14", "TMP15"]
+        }
 
-        self.emit(".segment \"ZEROPAGE\"")
-        self.emit("\n; System variables")
+        self.emit("\n\n.segment \"ZEROPAGE\"")
+        self.emit("; System variables")
         
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
         sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
@@ -4775,6 +4765,10 @@ class CodeGen:
         self.emit("")
 
         # Collect all variables (globals + locals from procs and funcs)
+        shared_slots_zp: dict[str, int] = {}
+        shared_slots_bss: dict[str, int] = {}
+        pointer_scalars: list[Symbol] = []
+        pointer_arrays: list[Symbol] = []
         all_vars: list[Symbol] = list(self.global_symtab)
         if procs:
             for proc in procs:
@@ -4961,11 +4955,14 @@ class CodeGen:
                     if sym.in_zeropage:
                         total_size = sym.get_total_array_size()
                         self.emit(f"{sym.asm_name()}:\t.res {total_size}")
-        
-        
+
+        byte_vars: list[Symbol] = [s for s in all_vars
+                    if not s.is_const and s.address is None
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.base == "BYTE"]
         zp_byte_vars = [s for s in byte_vars if s.in_zeropage]
         bss_byte_vars = [s for s in byte_vars if not s.in_zeropage]
-        
+
         if zp_byte_vars:
             self.emit("\n; Byte variables")
             for sym in zp_byte_vars:
@@ -5031,7 +5028,7 @@ class CodeGen:
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
         if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
-            self.emit("\n.segment \"BSS\"")
+            self.emit("\n\n.segment \"BSS\"")
 
             if shared_slots_bss:
                 self.emit("; Shared slots (BSS)")
@@ -5113,7 +5110,7 @@ class CodeGen:
         """Generate globals header.
         Internal helper used during code generation.
         """
-        self.emit("\n.segment \"CODE\"")
+        self.emit("\n\n.segment \"CODE\"")
         self.emit("\n; Globals initialization")
         self.emit("; ------------------------------") 
                
@@ -5165,7 +5162,6 @@ class CodeGen:
                 val: int = sym.init.expr.value
                 # Check if constant fits in target type
                 self._check_constant_fits(val, sym.type, f"initialization of {sym.name}")
-                val: int = val & 0xFFFF  # Mask after check
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
                     self._emit_store_byte_const(sym, val)
                 elif sym.type.base == "LONG":
@@ -5664,7 +5660,7 @@ class CodeGen:
                 fname, line, col, text = info
                 self.current_stmt_info = (fname, line, col, text)
             display_line = self._map_clean_line_to_orig(fname, line)
-            self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
+            self.emit(f"\n; {fname} {display_line if display_line is not None else line}: {text}")
 
     def emit_src_comment_for_local(self, proc_name: str, var_name: str) -> None:
         """Emit src comment for local.
@@ -5676,7 +5672,7 @@ class CodeGen:
             # Also attach current_stmt_info so subsequent raises have context
             self.current_stmt_info = (fname, line, col, text)
             display_line = self._map_clean_line_to_orig(fname, line)
-            self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
+            self.emit(f"\n; {fname} {display_line if display_line is not None else line}: {text}")
 
     def emit_src_comment_for_global(self, var_name: str) -> None:
         """Emit src comment for global.
@@ -5688,7 +5684,7 @@ class CodeGen:
             # Also attach current_stmt_info so subsequent raises have context
             self.current_stmt_info = (fname, line, col, text)
             display_line = self._map_clean_line_to_orig(fname, line)
-            self.emit(f"; {fname} {display_line if display_line is not None else line}: {text}")
+            self.emit(f"\n; {fname} {display_line if display_line is not None else line}: {text}")
 
     def _map_clean_line_to_orig(self, fname: str, line: int | None) -> int | None:
         """Map clean line to orig.
@@ -8347,9 +8343,8 @@ class CodeGen:
         self.emit("\tLDA MATH1")
         self.emit("\tJSR RSHIFT32")
 
-    def _gen_bitwise32(self, op: 'BinOp') -> None:
+    def _gen_bitwise32(self, op: BinOp) -> None:
         """Generate 32-bit bitwise op inline."""
-        from ast_nodes import BinOp
         # MATH0 = MATH0 op MATH1
         for i in range(4):
             suffix = "" if i == 0 else f"+{i}"
@@ -9151,7 +9146,7 @@ class CodeGen:
             info = self.stmt_src.get(id(expr))
             if info:
                 fname, line, text = info
-                self.emit(f"; {fname} {line}: {text}")
+                self.emit(f"\n; {fname} {line}: {text}")
             # Evaluate and pass arguments to function parameters
             specs: list[tuple[str, int, object, SemType]] | None = self.func_param_specs.get(expr.name)
             if specs is not None:
@@ -10518,7 +10513,7 @@ class CodeGen:
                 fname, line, text = pinfo
             else:
                 fname, line, _col, text = pinfo
-            self.emit(f"; {fname} {line}: {text}")
+            self.emit(f"\n; {fname} {line}: {text}")
         self.emit("; -- Procedure " + proc.ast.name + " --")
         self.emit(f"{self.asm_symbol_name(proc.ast.name)}:")
 

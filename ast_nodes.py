@@ -358,6 +358,7 @@ class UnOp(Enum):
     NOT = "!"
     BNOT = "~"  # Bitwise NOT
     ADDROF = "@"  # Address-of operator
+    NEG = "-"   # Arithmetic negation (unary minus)
 
 
 @dataclass(frozen=True)

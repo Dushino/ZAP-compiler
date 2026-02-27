@@ -35,7 +35,58 @@
 - Modified memory slot generation in `codegen_expr.py` to allow CA65 to successfully link `.res` shared aliased `LONG` memory overlaps.
 
 ## What remains
-- Check for user confirmation on the final state of the repository.
+- None.
 
 ## Known issues
 - None.
+
+---
+
+## Fix: LONG type bugs in control-flow (2026-02-27)
+
+Root cause investigation and repair of two bugs affecting the LONG (32-bit) type.
+
+### What was done
+
+**Bug 1 — `codegen_expr.py:5168`**: Removed the `val & 0xFFFF` mask that was applied before emitting 4-byte LONG initialisers. The mask silently zeroed bytes 2–3 for any constant > 65535. The downstream byte-by-byte emit already masks correctly per-byte; the 16-bit mask was simply wrong for LONG. One line deleted.
+
+**Bug 2 — `compiler_pipeline.py:_predeclare_for_loop_temps`**:
+- Changed `declare_temp(... is_word: bool)` signature to `declare_temp(... type_base: str)` so it can create LONG-typed symbols.
+- Updated `end_is_word` / `step_is_word` callers to compute `max(var_width, expr_width)` and select `"LONG"` / `"WORD"` / `"BYTE"` accordingly — mirroring the logic already present in `codegen_expr.py`'s `_gen_for_const_step` and `_gen_for_general`.
+- Added `RepeatUntilStmt` recursion to `scan_stmts` so FOR loops nested inside REPEAT-UNTIL bodies are also predeclared correctly.
+
+**Test 138**: Created missing `.ref` and `.json` files. All 4 variants (65C02, 65C02+O1, 6502, 6502+O1) now produce `result = 4` as expected. Regression tests 133-long, 134-enum-ops, 136-pointer-math all still pass.
+
+---
+
+## Pylance/Pyright error fixes (2026-02-27)
+
+Fixed all 36 pyright errors in `codegen_expr.py` and 1 in `ast_nodes.py`. No test regressions.
+
+### Changes made
+
+**`codegen_expr.py`**:
+- `RPNNode.__init__` value parameter widened from `BinOp | UnOp | str | int | None` to `BinOp | UnOp | str | int | Expr | None` — `SubscriptExpr`, `FieldAccess`, `DerefExpr`, `CallExpr`, and generic `Expr` nodes are all stored there.
+- Removed `BinOp` type annotation from `op` parameter of nested function `get_math_routine_for_op` (pyright could not resolve it in nested-function scope).
+- Added `stx_operand: str = ""` initialiser before the STX-search loop to prevent "possibly unbound" pyright report when `stx_found` is `False`.
+- Deleted dead stub `gen_vars_block` (3038-3045) — was overridden by the full implementation at line 4388.
+- Deleted dead stub `gen_vars` (4250-4254) — was overridden by the implementation at line 4736.
+- Added missing variable definitions to dead `gen_vars` method (4736+): `temp_sizes`, `shared_slots_zp`, `shared_slots_bss`, `pointer_scalars`, `pointer_arrays`, `byte_vars`.
+
+**`ast_nodes.py`**:
+- Added `NEG = "-"` to `UnOp` enum — `codegen_expr.py` referenced `UnOp.NEG` in two code-generation paths for unary negation; without the enum member pyright reported `reportAttributeAccessIssue`.
+
+### Result
+`pyright codegen_expr.py` reports **0 errors, 0 warnings**. All 124 pass tests and 60 fail tests still pass.
+
+---
+
+## Codebase Architecture Review (2026-02-27)
+
+Read the entire codebase, all documentation, and test suite to produce the architectural summary below. No changes were made to any source files.
+
+### Summary of findings
+- Full compiler pipeline reviewed: tokenizer → parser → sema → codegen → peephole
+- Type system reviewed across all phases (AST TypeNode → SemType → ExprType)
+- Operator processing and code generation strategy documented
+- Test suite: 125 passing tests, 60 negative tests, 4 compilation variants each

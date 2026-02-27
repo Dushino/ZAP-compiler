@@ -500,7 +500,7 @@ to
 	STA _MAIN_MY_LONG+2
 	STA _MAIN_MY_LONG+3
 
-[ ] Peephole
+[ ] Peephole?
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 24:     for my_long = my_long to end_val step 1
 	LDA _MAIN_MY_LONG
 	STA _MAIN_MY_LONG
@@ -510,4 +510,9 @@ to
 	STA _MAIN_MY_LONG+2
 	LDA _MAIN_MY_LONG+3
 	STA _MAIN_MY_LONG+3
+
+[ ] Check for .segment directive, it is probably still there
+        if isinstance(stmt, SegmentDirective):
+            self.emit(f'.segment "{stmt.name}"')
+            return
 

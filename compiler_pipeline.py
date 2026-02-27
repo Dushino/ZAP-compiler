@@ -1344,7 +1344,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
 
 def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry) -> dict[int, set[str]]:
     """Create stable temp names for FOR loop end/step values."""
-    from ast_nodes import ForStmt, IfStmt, WhileStmt, SwitchStmt, IntLiteral
+    from ast_nodes import ForStmt, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, IntLiteral
     from symbols import SemType, Symbol
 
     for_temp_map: dict[int, set[str]] = {}
@@ -1356,14 +1356,14 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
         for_id += 1
         return f"FOR_{base}_{for_id}"
 
-    def declare_temp(local_tbl: SymbolTable, proc_name: str, name: str, is_word: bool) -> None:
+    def declare_temp(local_tbl: SymbolTable, proc_name: str, name: str, type_base: str) -> None:
         """Declare a temp symbol in the local table if absent."""
         key = local_tbl._key(name)
         if key in local_tbl._symbols:
             return
         sym = Symbol(
             name=name,
-            type=SemType("WORD" if is_word else "BYTE", False),
+            type=SemType(type_base, False),
             is_const=False,
             const_value=None,
             is_array=False,
@@ -1388,8 +1388,10 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
                     var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
                     end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
                 )
+                end_width = max(var_t.sem_type.width, end_t.sem_type.width)
+                end_type_base = "LONG" if end_width == 4 else ("WORD" if end_is_word else "BYTE")
                 end_name = next_for_name("END")
-                declare_temp(local_tbl, proc_name, end_name, end_is_word)
+                declare_temp(local_tbl, proc_name, end_name, end_type_base)
 
                 temp_names: set[str] = {end_name}
 
@@ -1399,8 +1401,10 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
                         var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
                         step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
                     )
+                    step_width = max(var_t.sem_type.width, step_t.sem_type.width)
+                    step_type_base = "LONG" if step_width == 4 else ("WORD" if step_is_word else "BYTE")
                     step_name = next_for_name("STEP")
-                    declare_temp(local_tbl, proc_name, step_name, step_is_word)
+                    declare_temp(local_tbl, proc_name, step_name, step_type_base)
                     temp_names.add(step_name)
 
                 for_temp_map[id(st)] = temp_names
@@ -1414,6 +1418,10 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
                 continue
 
             if isinstance(st, WhileStmt):
+                scan_stmts(st.body, tc, local_tbl, proc_name)
+                continue
+
+            if isinstance(st, RepeatUntilStmt):
                 scan_stmts(st.body, tc, local_tbl, proc_name)
                 continue
 
@@ -1814,11 +1822,10 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # Build parameter specs for procedures and functions (name -> [(param, width, default_value)])
     def _build_param_specs_procs(procs):
         """Build procedure parameter specs for code generation."""
-        specs: dict[str, list[tuple[str, int, object]]] = {}
+        specs: dict[str, list[tuple[str, int, object, SemType]]] = {}
         for ap in procs:
-            params: list[tuple[str, int, object]] = []
+            params: list[tuple[str, int, object, SemType]] = []
             for prm in ap.ast.params:
-                from symbols import SemType
                 base_name: str = prm.type.base.upper()
                 is_struct = struct_registry.is_defined(base_name) if struct_registry else False
                 struct_info = struct_registry.lookup(base_name) if is_struct else None
@@ -1834,11 +1841,10 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     def _build_param_specs_funcs(funcs):
         """Build function parameter specs for code generation."""
-        specs: dict[str, list[tuple[str, int, object]]] = {}
+        specs: dict[str, list[tuple[str, int, object, SemType]]] = {}
         for af in funcs:
-            params: list[tuple[str, int, object]] = []
+            params: list[tuple[str, int, object, SemType]] = []
             for prm in af.ast.params:
-                from symbols import SemType
                 base_name: str = prm.type.base.upper()
                 is_struct = struct_registry.is_defined(base_name) if struct_registry else False
                 struct_info = struct_registry.lookup(base_name) if is_struct else None

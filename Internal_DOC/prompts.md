@@ -34,6 +34,7 @@ Fix ############# support completely and consistently across ALL operators: arit
 logical (AND, OR, NOT), and comparison (<, >, =, <=, >=). 
 Every operator must support BYTE, WORD, LONG, pointer and STRUCT and ENUM types.
 Put all your temporary tests into generated_tests directory.
+Put all other temporary files into ptoject temp directory. 
 Do not move on to the next step until the current one is fully fixed and tested.
 
 
