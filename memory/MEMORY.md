@@ -84,6 +84,9 @@
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
 - generated_tests/ — ~50 Python unit tests for focused feature testing
 
+## Code generation optimisations
+- **32-bit direct compare** (`codegen_expr.py:11831`): fast path in `_emit_relational_branch_impl` compares LONG/WORD/BYTE simple identifiers and IntLiterals byte-by-byte directly; saves 14–16 instructions vs old MATH0/MATH1 spill path. Falls back to MATH0/MATH1 for complex expressions.
+
 ## Known fixed bugs
 - `codegen_expr.py` (was ~5168): `val & 0xFFFF` mask before LONG init was removed — it truncated bytes 2-3 for values > 65535
 - `compiler_pipeline.py:_predeclare_for_loop_temps`: `declare_temp` now takes `type_base: str` (was `is_word: bool`); end/step temps declared as LONG when loop var or bound is LONG; `RepeatUntilStmt` added to `scan_stmts` recursion

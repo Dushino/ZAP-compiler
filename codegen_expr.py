@@ -11828,11 +11828,91 @@ class CodeGen:
         is_16bit: bool = not is_32bit and (left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer or right_t.sem_type.is_pointer)
 
         if is_32bit:
+            # --- Fast path: direct 32-bit comparison for simple operands (no MATH0/MATH1) ---
+            # Mirrors the WORD fast path (lines 12032–12185): when both operands are simple
+            # scalar identifiers (or the right operand is an IntLiteral), compare the four
+            # bytes directly — no spill to MATH0/MATH1 needed.
+            if isinstance(cond.left, Identifier):
+                fp32_left_sym = self.current_symtab.lookup(cond.left.name)
+                if (not fp32_left_sym.is_array and fp32_left_sym.address is None
+                        and not fp32_left_sym.is_volatile and not fp32_left_sym.is_port):
+
+                    fp32_r_bytes: list[str] | None = None
+                    if isinstance(cond.right, IntLiteral):
+                        _v32 = cond.right.value
+                        fp32_r_bytes = [
+                            f"#${(_v32 >> 24) & 0xFF:02X}",
+                            f"#${(_v32 >> 16) & 0xFF:02X}",
+                            f"#${(_v32 >>  8) & 0xFF:02X}",
+                            f"#${_v32 & 0xFF:02X}",
+                        ]
+                    elif isinstance(cond.right, Identifier):
+                        fp32_right_sym = self.current_symtab.lookup(cond.right.name)
+                        if (not fp32_right_sym.is_array and fp32_right_sym.address is None
+                                and not fp32_right_sym.is_volatile and not fp32_right_sym.is_port):
+                            _r32 = fp32_right_sym.asm_name()
+                            if right_width == 4:
+                                fp32_r_bytes = [f"{_r32}+3", f"{_r32}+2", f"{_r32}+1", _r32]
+                            elif right_width == 2:
+                                fp32_r_bytes = ["#$00", "#$00", f"{_r32}+1", _r32]
+                            else:
+                                fp32_r_bytes = ["#$00", "#$00", "#$00", _r32]
+
+                    if fp32_r_bytes is not None:
+                        # Build left-side byte load specs [byte3, byte2, byte1, byte0]
+                        _l32 = fp32_left_sym.asm_name()
+                        if left_width == 4:
+                            fp32_l_loads: list[str] = [f"{_l32}+3", f"{_l32}+2", f"{_l32}+1", _l32]
+                        elif left_width == 2:
+                            fp32_l_loads = ["#$00", "#$00", f"{_l32}+1", _l32]
+                        else:
+                            fp32_l_loads = ["#$00", "#$00", "#$00", _l32]
+
+                        if cond.op == BinOp.EQ:
+                            for _bi32 in range(4):
+                                self.emit(f"\tLDA {fp32_l_loads[_bi32]}")
+                                self.emit(f"\tCMP {fp32_r_bytes[_bi32]}")
+                                self.emit(f"\tBNE {lbl_false}")
+                            self.emit(f"\tJMP {lbl_true}")
+                            return
+
+                        if cond.op == BinOp.NE:
+                            for _bi32 in range(4):
+                                self.emit(f"\tLDA {fp32_l_loads[_bi32]}")
+                                self.emit(f"\tCMP {fp32_r_bytes[_bi32]}")
+                                self.emit(f"\tBNE {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                            return
+
+                        # Relational: compare high-to-low; branch to decide on first difference
+                        fp32_lbl_decide: str = self.new_label("CMP32_DECIDE")
+                        for _bi32 in range(3):  # bytes 3, 2, 1
+                            self.emit(f"\tLDA {fp32_l_loads[_bi32]}")
+                            self.emit(f"\tCMP {fp32_r_bytes[_bi32]}")
+                            self.emit(f"\tBNE {fp32_lbl_decide}")
+                        self.emit(f"\tLDA {fp32_l_loads[3]}")  # byte 0 — fall-through sets flags
+                        self.emit(f"\tCMP {fp32_r_bytes[3]}")
+                        self.emit(f"{fp32_lbl_decide}:")
+                        if cond.op == BinOp.LT:
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                        elif cond.op == BinOp.GE:
+                            self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                        elif cond.op == BinOp.GT:
+                            self.emit(f"\tBEQ {lbl_false}")
+                            self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                        elif cond.op == BinOp.LE:
+                            self.emit(f"\tBCC {lbl_true}")
+                            self.emit(f"\tBEQ {lbl_true}")
+                            self.emit(f"\tJMP {lbl_false}")
+                        return
+            # --- End fast path ---
+
             # 32-bit comparison using MATH0/MATH1
             # Optimization: for simple identifiers, load directly to MATH1 without intermediate MATH0 copy
-            right_is_simple_identifier = isinstance(cond.right, Identifier)
-            
-            if right_is_simple_identifier and right_width > 2:
+            if isinstance(cond.right, Identifier) and right_width > 2:
                 # Load right operand directly to MATH1
                 right_sym = self.current_symtab.lookup(cond.right.name)
                 right_asm = right_sym.asm_name()

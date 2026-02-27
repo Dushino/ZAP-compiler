@@ -70,6 +70,63 @@ Audited all user-facing documentation for correctness and completeness regarding
 
 ---
 
+## Optimisation: direct 32-bit comparison without MATH0/MATH1 (2026-02-27)
+
+### What was done
+
+Added a **fast path** inside `_emit_relational_branch_impl` (`codegen_expr.py`) for 32-bit (LONG)
+comparisons where both operands are simple scalar identifiers or the right operand is a compile-time
+`IntLiteral`. Instead of spilling both operands through the MATH0/MATH1 zero-page registers first,
+the four bytes are compared directly:
+
+**Before** (`my_long < end_val`, LONG vs LONG):
+```asm
+; 8 LDA/STA to load end_val → MATH1
+LDA _MAIN_END_VAL   → STA __MATH1  …  (×4 bytes)
+; 8 LDA/STA to load my_long → MATH0
+LDA _MAIN_MY_LONG   → STA __MATH0  …  (×4 bytes)
+; 8 LDA/CMP comparing MATH0 vs MATH1
+LDA __MATH0+3 → CMP __MATH1+3 → BNE decide  …
+```
+
+**After**:
+```asm
+LDA _MAIN_MY_LONG+3 / CMP _MAIN_END_VAL+3 / BNE decide
+LDA _MAIN_MY_LONG+2 / CMP _MAIN_END_VAL+2 / BNE decide
+LDA _MAIN_MY_LONG+1 / CMP _MAIN_END_VAL+1 / BNE decide
+LDA _MAIN_MY_LONG   / CMP _MAIN_END_VAL
+decide: BCC …
+```
+
+**Savings per comparison**: 14–16 instructions for LONG vs LONG; 8–12 for mixed widths.
+
+**Cases covered by the new fast path**:
+
+| Left operand | Right operand | Notes |
+|---|---|---|
+| LONG identifier | LONG identifier | Most common (FOR loop bound check) |
+| LONG identifier | WORD identifier | Right bytes 3,2 = `#$00` |
+| LONG identifier | BYTE identifier | Right bytes 3,2,1 = `#$00` |
+| LONG identifier | IntLiteral | Right bytes from compile-time constant |
+| WORD identifier | LONG identifier | Left bytes 3,2 loaded as `#$00` |
+| BYTE identifier | LONG identifier | Left bytes 3,2,1 loaded as `#$00` |
+
+All six comparison operators (EQ, NE, LT, LE, GT, GE) are handled. The existing MATH0/MATH1
+fallback path is retained unchanged for complex (non-trivial) expressions.
+
+Also tightened the pyright guard for the MATH0/MATH1 fallback: replaced the `bool` flag
+`right_is_simple_identifier` with a direct `isinstance(cond.right, Identifier)` check so pyright
+can narrow the type (eliminated 2 latent errors introduced by the new isinstance checks above).
+
+### What remains
+- None.
+
+### Verification
+- `make tests`: 124/124 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
+
+---
+
 ## Fix: LONG type bugs in control-flow (2026-02-27)
 
 Root cause investigation and repair of two bugs affecting the LONG (32-bit) type.
