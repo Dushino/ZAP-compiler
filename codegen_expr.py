@@ -53,6 +53,7 @@ class CodeGen:
         self.array_literals = {}   # Maps array data tuple to label name
         self.array_id = 0
         self.copy_bytes_needed = False
+        self.copy_bytes16_needed = False
         self.math_routines_needed: set[str] = set()
         self.is_65c02: bool = is_65c02
         self.used_globals: set[str] = used_globals or set()
@@ -3108,6 +3109,7 @@ class CodeGen:
         # Ensure runtime helpers and data live in CODE segment
         self.emit("\n\n.segment \"CODE\"")
         self._gen_copy_bytes_routine()
+        self._gen_copy_bytes16_routine()
         self._gen_string_data()
         self._gen_math_routines()
         self.emit("\n; End of file")
@@ -3137,6 +3139,44 @@ class CodeGen:
         self.emit("COPY_BYTES_DONE:")
         self.emit("\tRTS\n")
     
+    def _gen_copy_bytes16_routine(self) -> None:
+        """16-bit length byte copy routine for arrays larger than 255 bytes."""
+        if not self.copy_bytes16_needed:
+            return
+
+        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3", "TMP4"})
+
+        self.emit("; ------------------------------")
+        self.emit("; 16-bit byte copy routine")
+        self.emit("; Inputs: TMP0/TMP0+1=src, TMP2/TMP2+1=dst, TMP4=count_lo, TMP4+1=count_hi")
+        self.emit("; Clobbers: A, Y, TMP4, TMP4+1")
+        self.emit("COPY_BYTES16:")
+        self.emit("\tLDY #0")
+        self.emit("CB16_OUTER:")
+        self.emit("\tLDA TMP4+1")
+        self.emit("\tBEQ CB16_PARTIAL")
+        self.emit("; Copy one full 256-byte page")
+        self.emit("CB16_PAGE:")
+        self.emit("\tLDA (TMP0),Y")
+        self.emit("\tSTA (TMP2),Y")
+        self.emit("\tINY")
+        self.emit("\tBNE CB16_PAGE")
+        self.emit("\tINC TMP0+1")
+        self.emit("\tINC TMP2+1")
+        self.emit("\tDEC TMP4+1")
+        self.emit("\tJMP CB16_OUTER")
+        self.emit("CB16_PARTIAL:")
+        self.emit("\tLDA TMP4")
+        self.emit("\tBEQ CB16_DONE")
+        self.emit("CB16_PARTIAL_LOOP:")
+        self.emit("\tLDA (TMP0),Y")
+        self.emit("\tSTA (TMP2),Y")
+        self.emit("\tINY")
+        self.emit("\tDEC TMP4")
+        self.emit("\tBNE CB16_PARTIAL_LOOP")
+        self.emit("CB16_DONE:")
+        self.emit("\tRTS\n")
+
     def _gen_string_data(self) -> None:
         """Generate string literal data in code segment"""
         if not self.string_literals and not self.array_literals:
@@ -4183,6 +4223,9 @@ class CodeGen:
 
         if self.copy_bytes_needed:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3")})
+
+        if self.copy_bytes16_needed:
+            temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4")})
 
         if self.math_routines_needed:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4")})
@@ -5300,49 +5343,40 @@ class CodeGen:
                     self.emit(f"\tLDX #0")
                     self.emit(f"\tSTX {dest_var}+{term_offset}+1")
             else:
-                # Use COPY_BYTES routine for larger strings (fits in one page)
+                # Use shared copy routine for larger strings
                 if content not in self.string_literals:
                     self.string_id += 1
                     self.string_literals[content] = f"__STR_DATA_{self.string_id}"
                 str_label = self.string_literals[content]
-                
-                # BYTE arrays: use COPY_BYTES for all sizes > COPY_THRESHOLD
-                if not is_word and str_len <= 255:
-                    self.copy_bytes_needed = True
 
-                    # Set source and destination pointers
+                copy_len: int = str_len * (2 if is_word else 1)
+
+                # Set source and destination pointers (common to all paths below)
+                def _emit_str_ptrs() -> None:
                     self.emit(f"\tLDA #<{str_label}")
                     self.emit(f"\tLDX #>{str_label}")
                     self.emit("\tSTA TMP0")
                     self.emit("\tSTX TMP0+1")
-
                     self.emit(f"\tLDA #<{dest_var}")
                     self.emit(f"\tLDX #>{dest_var}")
                     self.emit("\tSTA TMP2")
                     self.emit("\tSTX TMP2+1")
 
-                    # Copy full array length (str_len includes null terminator)
-                    self.emit(f"\tLDX #{str_len}")
+                if copy_len <= 255:
+                    # Fits in 8-bit count: use COPY_BYTES
+                    self.copy_bytes_needed = True
+                    _emit_str_ptrs()
+                    self.emit(f"\tLDX #{copy_len}")
                     self.emit("\tJSR COPY_BYTES")
                 else:
-                    # WORD arrays or very large arrays: use COPY_BYTES for now
-                    self.copy_bytes_needed = True
-                    
-                    # Set source and destination pointers
-                    self.emit(f"\tLDA #<{str_label}")
-                    self.emit(f"\tLDX #>{str_label}")
-                    self.emit("\tSTA TMP0")
-                    self.emit("\tSTX TMP0+1")
-
-                    self.emit(f"\tLDA #<{dest_var}")        
-                    self.emit(f"\tLDX #>{dest_var}")
-                    self.emit("\tSTA TMP2")
-                    self.emit("\tSTX TMP2+1")
-
-                    # For WORD arrays, we need to copy 2x the number of characters (each char becomes 2 bytes)
-                    copy_len: int = str_len * (2 if is_word else 1)
-                    self.emit(f"\tLDX #{copy_len}") # Fixme: assumes length fits in one byte
-                    self.emit("\tJSR COPY_BYTES")
+                    # Longer than 255 bytes: use 16-bit copy routine
+                    self.copy_bytes16_needed = True
+                    _emit_str_ptrs()
+                    self.emit(f"\tLDA #${copy_len & 0xFF:02X}")
+                    self.emit("\tSTA TMP4")
+                    self.emit(f"\tLDA #${(copy_len >> 8) & 0xFF:02X}")
+                    self.emit("\tSTA TMP4+1")
+                    self.emit("\tJSR COPY_BYTES16")
             return
 
         if isinstance(sym.init, ListInit):
@@ -5430,9 +5464,26 @@ class CodeGen:
                     arr_label = self.array_literals[data_key]
                     elem_size: int = 2 if is_word else 1
                     total_bytes: int = array_len * elem_size
-                    use_shared: bool = total_bytes > COPY_THRESHOLD and total_bytes <= 255
 
-                    if use_shared:
+                    if total_bytes > 255:
+                        # Large struct array: use 16-bit copy routine
+                        self.copy_bytes16_needed = True
+                        self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} elements, {total_bytes} bytes)")
+                        self.emit(f"\tLDA #<{arr_label}")
+                        self.emit(f"\tLDX #>{arr_label}")
+                        self.emit("\tSTA TMP0")
+                        self.emit("\tSTX TMP0+1")
+                        self.emit(f"\tLDA #<{dest_var}")
+                        self.emit(f"\tLDX #>{dest_var}")
+                        self.emit("\tSTA TMP2")
+                        self.emit("\tSTX TMP2+1")
+                        self.emit(f"\tLDA #${total_bytes & 0xFF:02X}")
+                        self.emit("\tSTA TMP4")
+                        self.emit(f"\tLDA #${(total_bytes >> 8) & 0xFF:02X}")
+                        self.emit("\tSTA TMP4+1")
+                        self.emit("\tJSR COPY_BYTES16")
+                    elif total_bytes > COPY_THRESHOLD:
+                        # Medium struct array (9-255 bytes): use shared 8-bit copy routine
                         self.copy_bytes_needed = True
                         self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
                         self.emit(f"\tLDA #<{arr_label}")
@@ -5446,6 +5497,7 @@ class CodeGen:
                         self.emit(f"\tLDX #{total_bytes}")
                         self.emit("\tJSR COPY_BYTES")
                     else:
+                        # Small struct array (3-8 bytes): inline indexed loop
                         self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
                         self.emit(f"\tLDX #0")
                         copy_loop: str = self.new_label("ARR_COPY")
@@ -5499,30 +5551,44 @@ class CodeGen:
                 if data_key not in self.array_literals:
                     self.array_id += 1
                     self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
-                
+
                 arr_label = self.array_literals[data_key]
                 elem_size: int = 2 if is_word else 1
                 total_bytes: int = array_len * elem_size
-                use_shared: bool = total_bytes > COPY_THRESHOLD and total_bytes <= 255
 
-                if use_shared:
-                    # Shared copy routine saves space for larger initializers (<=255 bytes)
-                    self.copy_bytes_needed = True
-                    self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
-                    # Source -> TMP0/TMP0+1
+                if total_bytes > 255:
+                    # Large array: use 16-bit copy routine
+                    self.copy_bytes16_needed = True
+                    self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements, {total_bytes} bytes)")
                     self.emit(f"\tLDA #<{arr_label}")
                     self.emit(f"\tLDX #>{arr_label}")
                     self.emit("\tSTA TMP0")
                     self.emit("\tSTX TMP0+1")
-                    # Dest -> TMP2/TMP2+1
                     self.emit(f"\tLDA #<{dest_var}")
                     self.emit(f"\tLDX #>{dest_var}")
                     self.emit("\tSTA TMP2")
                     self.emit("\tSTX TMP2+1")
-                    # Length in X (<=255)
+                    self.emit(f"\tLDA #${total_bytes & 0xFF:02X}")
+                    self.emit("\tSTA TMP4")
+                    self.emit(f"\tLDA #${(total_bytes >> 8) & 0xFF:02X}")
+                    self.emit("\tSTA TMP4+1")
+                    self.emit("\tJSR COPY_BYTES16")
+                elif total_bytes > COPY_THRESHOLD:
+                    # Medium array (9-255 bytes): use shared 8-bit copy routine
+                    self.copy_bytes_needed = True
+                    self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
+                    self.emit(f"\tLDA #<{arr_label}")
+                    self.emit(f"\tLDX #>{arr_label}")
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+                    self.emit(f"\tLDA #<{dest_var}")
+                    self.emit(f"\tLDX #>{dest_var}")
+                    self.emit("\tSTA TMP2")
+                    self.emit("\tSTX TMP2+1")
                     self.emit(f"\tLDX #{total_bytes}")
                     self.emit("\tJSR COPY_BYTES")
                 else:
+                    # Small array (3-8 bytes): inline indexed loop
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
                     self.emit(f"\tLDX #0")
                     copy_loop: str = self.new_label("ARR_COPY")

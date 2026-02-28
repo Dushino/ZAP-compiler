@@ -530,9 +530,12 @@ to:
             self.emit(f'.segment "{stmt.name}"')
             return
 
+[x] Check arrays init
+
+[ ] Check array copy
+
 [ ] Check array of structs and arrays in struct
 
-[ ] Check arrays init and copy for lenghts 0, $FF
 
 [ ] Auto short branches?
 

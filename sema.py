@@ -518,6 +518,8 @@ class DeclarationAnalyzer:
                     # Const array with ListInit
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
+                        if array_len == 0:
+                            raise SemanticError("Array initializer must have at least one element", line=d.line, col=d.col)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
@@ -642,12 +644,14 @@ class DeclarationAnalyzer:
                     
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
+                        if array_len == 0:
+                            raise SemanticError("Array initializer must have at least one element", line=d.line, col=d.col)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
                             raise SemanticError("Array initializer size mismatch", node=size_expr)
                         raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
-                    
+
                     # Resolve inferred dimensions in array_dims from initializer
                     if array_dims and None in array_dims:
                         # For struct arrays, infer last dimension
@@ -657,6 +661,8 @@ class DeclarationAnalyzer:
                     # Regular (non-struct) array
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
+                        if array_len == 0:
+                            raise SemanticError("Array initializer must have at least one element", line=d.line, col=d.col)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
