@@ -12536,7 +12536,6 @@ class CodeGen:
                     self.emit(f"\tBNE {lbl_else_tmp}")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
                     self.emit(f"\tBEQ {lbl_true}")
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
@@ -12695,12 +12694,9 @@ class CodeGen:
                 sym: Symbol = self.current_symtab.lookup(cond.left.name)
                 asm: str = sym.asm_name()
                 if cond.op == BinOp.EQ:
-                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDA {asm}")
                     self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
                     self.emit(f"\tBEQ {lbl_true}")
-                    self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.NE:
@@ -12780,7 +12776,6 @@ class CodeGen:
                 self.emit(f"\tCMP {cmp_lo}")
                 self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit(f"\tCPX {cmp_hi}")
-                self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit(f"\tBEQ {lbl_true}")
                 self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
@@ -12843,11 +12838,8 @@ class CodeGen:
         else:
             # 8-bit patterns
             if cond.op == BinOp.EQ:
-                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 self.emit(f"\tCMP {cmp_lo}")
-                self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit(f"\tBEQ {lbl_true}")
-                self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.NE:
                 self.emit(f"\tCMP {cmp_lo}")

@@ -546,7 +546,7 @@ to:
 [ ] This is a pre-existing bug — ADC #0A should be ADC #$0A. Let me find the emit location: ${expr ...:02X}
 - check for all datatypes and operations
 
-[ ] replace IF logic:
+[x] replace IF logic:
 ; /home/dusan/src/ZAP-compiler/tests/pass/140-compound-assign/140-compound-assign.zap 56:     if b == 2
 	LDA _MAIN_B
 	CMP #$02
@@ -562,7 +562,7 @@ to
 	LDA _MAIN_B
 	CMP #$02
 	BEQ __ZAP_then_20
-    JMP __ZAP_REL_ELSE_TMP_21
+    JMP __ZAP_REL_ELSE_18
 __ZAP_then_20:
 
 [ ] Check <expr> <comparsion operator> <expression> behavior
