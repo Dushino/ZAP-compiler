@@ -9781,6 +9781,53 @@ class CodeGen:
                             return
                         # BYTE N>1: fall through to generic path (LDA; N×ASL/LSR; STA)
 
+                # var = var & expr / var = var | expr / var = var ^ expr (bitwise in-place)
+                if rhs.op in {BinOp.BAND, BinOp.BOR, BinOp.BXOR} and not sym_lhs.is_port:
+                    # All three ops are commutative: normalise so lhs-side is `self`
+                    if is_self(rhs.left):
+                        bit_rhs: Expr = rhs.right
+                    elif is_self(rhs.right):
+                        bit_rhs = rhs.left
+                    else:
+                        bit_rhs = None  # type: ignore[assignment]
+
+                    if bit_rhs is not None:
+                        op_mnem: str = ("AND" if rhs.op == BinOp.BAND
+                                        else ("ORA" if rhs.op == BinOp.BOR else "EOR"))
+                        # Identity bytes: AND #$FF, OR #$00, EOR #$00 leave the byte unchanged
+                        identity: int = (0xFF if rhs.op == BinOp.BAND else 0x00)
+                        width = 4 if lhs_t.sem_type.base == "LONG" else (2 if is_word else 1)
+
+                        if isinstance(bit_rhs, IntLiteral):
+                            val: int = bit_rhs.value
+                            for _bi in range(width):
+                                _bv: int = (val >> (_bi * 8)) & 0xFF
+                                _addr: str = asm if _bi == 0 else f"{asm}+{_bi}"
+                                if _bv == identity:
+                                    continue  # AND #$FF / OR #$00 / EOR #$00 → no-op
+                                if rhs.op == BinOp.BAND and _bv == 0x00:
+                                    self._stz(_addr)  # AND #$00 clears the byte
+                                else:
+                                    self.emit(f"\tLDA {_addr}")
+                                    self.emit(f"\t{op_mnem} #${_bv:02X}")
+                                    self.emit(f"\tSTA {_addr}")
+                            return
+
+                        if isinstance(bit_rhs, Identifier):
+                            try:
+                                _rhs_sym: Symbol = self.current_symtab.lookup(bit_rhs.name)
+                                if not _rhs_sym.is_array and not _rhs_sym.is_port:
+                                    _rasm: str = _rhs_sym.asm_name()
+                                    for _bi in range(width):
+                                        _la: str = asm if _bi == 0 else f"{asm}+{_bi}"
+                                        _ra: str = _rasm if _bi == 0 else f"{_rasm}+{_bi}"
+                                        self.emit(f"\tLDA {_la}")
+                                        self.emit(f"\t{op_mnem} {_ra}")
+                                        self.emit(f"\tSTA {_la}")
+                                    return
+                            except KeyError:
+                                pass  # fall through to generic RPN path
+
                 def _self_const_fold(expr: Expr) -> tuple[int, int] | None:
                     """Helper for self const fold.
                     Internal helper used during code generation.

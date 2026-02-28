@@ -543,3 +543,51 @@ the result and enables O1 comparison-LDA elimination).
 ### Verification
 - `pyright codegen_expr.py`: 0 errors, 0 warnings.
 - `make tests`: 126/126 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+
+---
+
+## Optimisation: In-place bitwise AND/OR/XOR codegen (2026-02-28)
+
+### What was done
+
+Added a handler in `gen_assign()` for `BinOp.BAND`, `BinOp.BOR`, `BinOp.BXOR` (directly
+after the LSHIFT/RSHIFT handler). Covers `var &= expr`, `var |= expr`, `var ^= expr` where
+the lvalue is a simple identifier.
+
+**Why this matters:** The old generic RPN path generated ~15 instructions for `w &= $00FF`
+(load MATH0, load MATH1, apply BAND16, spill MATH0, store to var). The new handler emits
+`LDA addr; AND/ORA/EOR #byte; STA addr` per byte — at most 3 instructions per byte.
+
+**Smart constant handling:**
+- Identity bytes are silently skipped: `AND #$FF`, `OR #$00`, `EOR #$00` leave the byte
+  unchanged — no instructions emitted for that byte at all.
+- AND #$00 clears the byte → emits `STZ addr` (65C02) or `LDA #$00; STA addr` (6502).
+
+**Variable RHS** (`w &= other_word`): handled when RHS is a simple identifier (non-array,
+non-port) — emits `LDA lhs_byte; AND/ORA/EOR rhs_byte; STA lhs_byte` per byte.
+
+**Scope:** BYTE, WORD, and LONG for both constant and identifier RHS. Commutative property
+is exploited: both `var op= expr` and `var = expr op var` forms are handled.
+
+### Before vs after (`w &= $00FF` on 65C02)
+
+**Before:** 15 instructions (LDA _W; LDX _W+1; AND #$FF; TAY; TXA; AND #$00; TAX; TYA;
+STA MATH0; STX MATH0+1; LDA MATH0; LDX MATH0+1; STA _W; STX _W+1; …)
+
+**After:**
+```asm
+STZ _MAIN_W+1   ; AND #$FF (identity) skipped; AND #$00 → STZ
+```
+1 instruction total.
+
+**Other examples:**
+| Expression | Before | After |
+|---|---|---|
+| `w &= $00FF` (65C02) | 15 instr | 1 instr |
+| `w \|= $0300` | 15 instr | 3 instr |
+| `w ^= $FFFF` | 15 instr | 6 instr |
+| `l &= $FFFFFF00` (65C02) | ~23 instr | 4 instr |
+
+### Verification
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
+- `make tests`: 126/126 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.

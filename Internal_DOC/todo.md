@@ -525,12 +525,6 @@ to:
 	STA _MAIN_END_VAL+2
 
 
-[ ] Cosmetics in generated code
-    [ ] Unify generated LDA #$00 and #0
-    [ ] Empty lines
-    [ ] Double -- MAIN
-
-
 [x] Check for .segment directive, it is probably still there
         if isinstance(stmt, SegmentDirective):
             self.emit(f'.segment "{stmt.name}"')
@@ -545,11 +539,6 @@ to:
 [x] Syntax sugar = compound assignent
 <var> <operator>= <expr>
 
-[ ] Check expressions evaluation for assign and other occurences to be the same
-
-[ ] Check for variable uninitialized for all types
-
-[ ] Remove compiler's debug messages
 
 [ ] Add cmdline parameters for CODE, BSS, DATA segment names SEGC, SEGB, SEGD?
 
@@ -575,3 +564,22 @@ to
 	BEQ __ZAP_then_20
     JMP __ZAP_REL_ELSE_TMP_21
 __ZAP_then_20:
+
+[ ] Check <expr> <comparsion operator> <expression> behavior
+
+
+Closure tasks
+[ ] Cosmetics in generated code
+    [ ] Unify generated LDA #$00 and #0
+    [ ] Empty lines
+    [ ] Double -- MAIN
+
+
+[ ] Change -O1 option: Default is peephole optimization on, if -O - no peephole optimizations.
+
+[ ] Check expressions evaluation for assign and other occurences to be the same
+
+[ ] Check for variable uninitialized for all types
+
+[ ] Remove compiler's debug messages
+
