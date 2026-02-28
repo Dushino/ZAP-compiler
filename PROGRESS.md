@@ -487,3 +487,59 @@ This manifested as `w <<= 1` (16-bit left shift) storing the wrong high byte und
 ### Verification
 - `pyright token_types.py tokenizer.py parser.py codegen_expr.py`: 0 errors, 0 warnings.
 - `make tests`: 126/126 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+
+---
+
+## Optimisation: In-place shift codegen for BYTE/WORD/LONG (2026-02-28)
+
+### What was done
+
+Added a new handler in `gen_assign()` (`codegen_expr.py` ~line 9721) that detects
+`var = var << N` / `var = var >> N` (constant-count compound shifts on a simple identifier
+lvalue) and emits read-modify-write memory instructions directly, avoiding the previous
+copy-through-TMP0/MATH0 path.
+
+Also fixed the existing `BinOp.MUL`/`BinOp.DIV` power-of-2 WORD handler to use the same
+direct-memory approach (previously went through `_gen_lshift(True, "A", N)` → TMP0).
+
+**BYTE N=1:**
+```
+; before:  LDA _B; ASL; STA _B  (3 instructions)
+; after:   ASL _B                (1 instruction)
+```
+BYTE N>1: unchanged (accumulator path `LDA; N×ASL; STA` is still optimal because A holds
+the result and enables O1 comparison-LDA elimination).
+
+**WORD `<<= N` / `>>= N`:**
+```
+; before:  LDA; LDX; STA TMP0; STX TMP0+1; N×(ASL TMP0; ROL TMP0+1); LDA; LDX; STA; STX  (12+ instr)
+; after:   N × (ASL addr; ROL addr+1)   e.g. 2 instructions for N=1
+```
+
+**LONG `<<= N` / `>>= N`, N ≤ 4:**
+```
+; before:  MATH1 setup (5 instr) + MATH0 load (8) + JSR + writeback (8) = 23 instructions
+; after:   N × (ASL addr; ROL addr+1; ROL addr+2; ROL addr+3) = 4 instructions for N=1
+```
+
+**LONG `<<= N` / `>>= N`, N ≥ 5:** MATH0 load + JSR + writeback = 17 instructions
+(saves the 5-instruction MATH1 setup that the old path required).
+
+**MUL/DIV WORD fix** (`w *= 2`, `w /= 2`): same improvement as WORD shift.
+
+### Instruction count reductions
+
+| Operation | Before (default) | After |
+|---|---|---|
+| `b <<= 1` | 3 | 1 |
+| `b >>= 1` | 3 | 1 |
+| `w <<= 1` | 14 | 2 |
+| `w >>= 1` | 14 | 2 |
+| `w *= 2` | 14 | 2 |
+| `l <<= 1` | 23 | 4 |
+| `l >>= 1` | 23 | 4 |
+| `l <<= 5` | 23 | 17 |
+
+### Verification
+- `pyright codegen_expr.py`: 0 errors, 0 warnings.
+- `make tests`: 126/126 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.

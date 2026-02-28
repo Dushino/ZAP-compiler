@@ -494,7 +494,7 @@ to
 	STA _MAIN_MY_LONG+2
 	STA _MAIN_MY_LONG+3
 
-[x] Peephole? No, direct optimization.
+[x] Peephole? No, generator optimization.
 ; C:\Users\dusan.holub\src\ZAP-compiler\tests\pass\138-long-control-flow\138-long-control-flow.zap 24:     for my_long = my_long to end_val step 1
 	LDA _MAIN_MY_LONG
 	STA _MAIN_MY_LONG
@@ -542,7 +542,7 @@ to:
 
 [ ] Auto short branches?
 
-[ ] Syntax sugar = compound assignent
+[x] Syntax sugar = compound assignent
 <var> <operator>= <expr>
 
 [ ] Check expressions evaluation for assign and other occurences to be the same
@@ -557,4 +557,21 @@ to:
 [ ] This is a pre-existing bug — ADC #0A should be ADC #$0A. Let me find the emit location: ${expr ...:02X}
 - check for all datatypes and operations
 
+[ ] replace IF logic:
+; /home/dusan/src/ZAP-compiler/tests/pass/140-compound-assign/140-compound-assign.zap 56:     if b == 2
+	LDA _MAIN_B
+	CMP #$02
+	BNE __ZAP_REL_ELSE_TMP_21
+	BEQ __ZAP_then_20
+__ZAP_REL_ELSE_TMP_21:
+	JMP __ZAP_else_18
+__ZAP_then_20:
 
+to
+
+; /home/dusan/src/ZAP-compiler/tests/pass/140-compound-assign/140-compound-assign.zap 56:     if b == 2
+	LDA _MAIN_B
+	CMP #$02
+	BEQ __ZAP_then_20
+    JMP __ZAP_REL_ELSE_TMP_21
+__ZAP_then_20:

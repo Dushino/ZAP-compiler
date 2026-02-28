@@ -9685,14 +9685,14 @@ class CodeGen:
                                     self._gen_rshift(False, "A", shift_amount)
                                 self.emit(f"\tSTA {asm}")
                             elif width == 2:
-                                self.emit(f"\tLDA {asm}")
-                                self.emit(f"\tLDX {asm}+1")
-                                if rhs.op == BinOp.MUL:
-                                    self._gen_lshift(True, "A", shift_amount)
-                                else:
-                                    self._gen_rshift(True, "A", shift_amount)
-                                self.emit(f"\tSTA {asm}")
-                                self.emit(f"\tSTX {asm}+1")
+                                # Direct in-place shift on memory (avoids TMP0 copy)
+                                for _ in range(shift_amount):
+                                    if rhs.op == BinOp.MUL:
+                                        self.emit(f"\tASL {asm}")
+                                        self.emit(f"\tROL {asm}+1")
+                                    else:
+                                        self.emit(f"\tLSR {asm}+1")
+                                        self.emit(f"\tROR {asm}")
                             elif width == 4:
                                 self.emit(f"\tLDA {asm}")
                                 self.emit(f"\tSTA MATH0")
@@ -9718,6 +9718,68 @@ class CodeGen:
                                 self.emit(f"\tLDA MATH0+3")
                                 self.emit(f"\tSTA {asm}+3")
                             return
+
+                # var = var << N / var = var >> N (constant-count in-place shift)
+                if rhs.op in {BinOp.LSHIFT, BinOp.RSHIFT} and is_self(rhs.left) and isinstance(rhs.right, IntLiteral):
+                    shift_n = rhs.right.value
+                    if shift_n > 0 and not sym_lhs.is_port:
+                        width = 4 if lhs_t.sem_type.base == "LONG" else (2 if is_word else 1)
+                        is_left = rhs.op == BinOp.LSHIFT
+                        if width == 1 and shift_n == 1:
+                            # BYTE N=1: single read-modify-write instruction
+                            self.emit(f"\t{'ASL' if is_left else 'LSR'} {asm}")
+                            return
+                        elif width == 2:
+                            # WORD: N × (ASL lo; ROL hi) or N × (LSR hi; ROR lo)
+                            for _ in range(shift_n):
+                                if is_left:
+                                    self.emit(f"\tASL {asm}")
+                                    self.emit(f"\tROL {asm}+1")
+                                else:
+                                    self.emit(f"\tLSR {asm}+1")
+                                    self.emit(f"\tROR {asm}")
+                            return
+                        elif width == 4 and shift_n <= 4:
+                            # LONG small N: inline unroll directly on memory
+                            for _ in range(shift_n):
+                                if is_left:
+                                    self.emit(f"\tASL {asm}")
+                                    self.emit(f"\tROL {asm}+1")
+                                    self.emit(f"\tROL {asm}+2")
+                                    self.emit(f"\tROL {asm}+3")
+                                else:
+                                    self.emit(f"\tLSR {asm}+3")
+                                    self.emit(f"\tROR {asm}+2")
+                                    self.emit(f"\tROR {asm}+1")
+                                    self.emit(f"\tROR {asm}")
+                            return
+                        elif width == 4:
+                            # LONG large N: load MATH0, JSR, writeback (no MATH1 overhead)
+                            self.emit(f"\tLDA {asm}")
+                            self.emit(f"\tSTA MATH0")
+                            self.emit(f"\tLDA {asm}+1")
+                            self.emit(f"\tSTA MATH0+1")
+                            self.emit(f"\tLDA {asm}+2")
+                            self.emit(f"\tSTA MATH0+2")
+                            self.emit(f"\tLDA {asm}+3")
+                            self.emit(f"\tSTA MATH0+3")
+                            self.emit(f"\tLDA #{shift_n}")
+                            if is_left:
+                                self.math_routines_needed.add("LSHIFT32")
+                                self.emit("\tJSR LSHIFT32")
+                            else:
+                                self.math_routines_needed.add("RSHIFT32")
+                                self.emit("\tJSR RSHIFT32")
+                            self.emit(f"\tLDA MATH0")
+                            self.emit(f"\tSTA {asm}")
+                            self.emit(f"\tLDA MATH0+1")
+                            self.emit(f"\tSTA {asm}+1")
+                            self.emit(f"\tLDA MATH0+2")
+                            self.emit(f"\tSTA {asm}+2")
+                            self.emit(f"\tLDA MATH0+3")
+                            self.emit(f"\tSTA {asm}+3")
+                            return
+                        # BYTE N>1: fall through to generic path (LDA; N×ASL/LSR; STA)
 
                 def _self_const_fold(expr: Expr) -> tuple[int, int] | None:
                     """Helper for self const fold.
