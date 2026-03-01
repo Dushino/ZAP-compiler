@@ -36,7 +36,7 @@ base_type       ::= "byte" | "word" | "long" | STRUCT_NAME ;
 (* ============ DECLARATIONS ============ *)
 declaration     ::= [ type_modifier { type_modifier } ] type declarator_list [ decl_modifiers ] ;
 
-type_modifier   ::= "const" | "static" | "port" ;
+type_modifier   ::= "const" | "static" ;
 
 decl_modifiers  ::= { decl_modifier } ;
 decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" ;
@@ -210,15 +210,10 @@ expr_list       ::= expression { "," expression } ;
    Type Modifiers:
    - CONST: Compile-time constant values (all types: byte, word, long, pointers, arrays, structs)
    - STATIC: Local variables that retain value between procedure calls (locals only)
-   - PORT: Hardware port-mapped variables (globals only, requires @ address, no init)
-   
+
    Type Modifier Rules:
-   - Can be combined: CONST and STATIC cannot be used together
+   - CONST and STATIC cannot be used together
    - STATIC requires initializer and @ address specification (local variables only)
-   - PORT requires @ address, no initializer, cannot be on arrays or pointers
-   - Cannot combine CONST with STATIC
-   - Cannot combine CONST with PORT
-   - Cannot combine STATIC with PORT
 
    General Notes:
    - All identifiers are case-insensitive internally (converted to uppercase)
@@ -243,7 +238,7 @@ expr_list       ::= expression { "," expression } ;
    - STRUCT ARRAYS: Arrays of structs with full initialization and field access support
    - COMPOUND ASSIGNMENT: lhs op= expr is syntax sugar for lhs = lhs op expr (all arithmetic and bitwise ops)
    - STATIC VARIABLES: Local variables that persist across procedure calls
-   - PORT VARIABLES: Hardware port-mapped variables (e.g., PORT byte POKEY_AUDF1 @$D200)
+   - PORT VARIABLES: Hardware port-mapped variables declared with #PORT declaration modifier (e.g., byte POKEY_AUDF1 @$D200 #PORT); use #RD and #WR to restrict access direction
    - DECLARATION MODIFIERS: Trailing modifiers may be attached to top-level declarations, procedures, and functions. Supported modifiers include `#KEEP` (prevent dead-code elimination), `#NOEXPORT` (do not export from a module), `#EXPORT` (force export from non-module file), and `#PORT` / `#RD` / `#WR` (port-related modifiers). Modifiers may be combined and are case-insensitive.
    - ELSEIF SUPPORT: Multiple conditional branches (if-elseif-elseif-else-endif)
    - CONTINUE STATEMENT: Skip to next loop iteration in for/while loops

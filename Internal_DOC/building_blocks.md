@@ -9,7 +9,7 @@
 
 - [x] GAP-01: FOR loop terminator — `grammar.ebnf` says `next <ident>`; actual parser uses `end`; `KEYWORDS` does not contain `next`. Fix grammar.ebnf.
 
-- [ ] GAP-02: `port` as TYPEMOD keyword — grammar lists `port` as a type modifier but tokenizer `TYPEMOD` set only has `{"const", "static"}`. Ports use `#PORT #RD #WR` declaration modifiers. Fix grammar.ebnf.
+- [x] GAP-02: `port` as TYPEMOD keyword — grammar lists `port` as a type modifier but tokenizer `TYPEMOD` set only has `{"const", "static"}`. Ports use `#PORT #RD #WR` declaration modifiers. Fix grammar.ebnf.
 
 - [ ] GAP-03: Arrays of structs — verify completeness: field access (`arr[i].field`), multi-dim indexing, list-init, runtime copy (`dst = src`). Flagged open in `todo.md`.
 
@@ -46,7 +46,7 @@
 ## Documentation Bugs (fix in grammar.ebnf / DOC/)
 
 - [x] DOC-01: `grammar.ebnf` FOR loop: replace `"next" IDENT` with `"end"`.
-- [ ] DOC-02: `grammar.ebnf` type_modifier: remove `"port"` from the production (ports use `#PORT` declmod).
+- [x] DOC-02: `grammar.ebnf` type_modifier: remove `"port"` from the production (ports use `#PORT` declmod).
 - [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD.
 - [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
 - [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `SIZEOF` to primary expression as built-in calls.
