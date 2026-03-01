@@ -1633,6 +1633,8 @@ proc array_example()
 end
 ```
 
+**Index type**: Any integer type (`byte`, `word`, `long`) may be used as an array index. Only the low bytes needed for address calculation are used — no runtime bounds check is performed (same as `word`-to-`byte` truncation). For `long` indices, only the low 16 bits are used; values ≥ 65536 wrap silently. This matches how WORD indices work with BYTE-sized arrays.
+
 ### Array Address-Of Operator
 
 Get the address of an array or array element using the `@` operator:

@@ -57,7 +57,10 @@
     - Pass test: `152-for-loop-types` (12 checks, expected result $0C). All 4 variants pass.
     - Compiler bug fixed: `_predeclare_for_loop_temps` in `compiler_pipeline.py` now mirrors codegen: FOR_END temp only when end is not an Identifier; FOR_STEP temp only when step is neither IntLiteral nor Identifier. Previously always created both → counter mismatch with codegen → wrong type for predeclared temps → slot aliasing conflicts and LONG=BYTE assignment bug.
 
-- [ ] GAP-09: Multi-dim array >= 256 bytes total — COPY_BYTES16 path. Covered by `141`, `142`, `143`. Verify for arrays-of-structs and word arrays at boundary sizes (255, 256, 257 bytes).
+- [x] GAP-09: Multi-dim array >= 256 bytes total — COPY_BYTES16 path. Covered by `141`, `142`, `143`. Verify for arrays-of-structs and word arrays at boundary sizes (255, 256, 257 bytes).
+    - Verified: byte[255]=COPY_BYTES max, byte[257]=COPY_BYTES16; word[127]=254B COPY_BYTES, word[129]=258B COPY_BYTES16; Pair[127]=254B struct COPY_BYTES, Pair[128]=256B struct COPY_BYTES16 exact boundary, Pair[129]=258B struct COPY_BYTES16.
+    - Pass test: `153-array-init-boundary` (14 checks, expected result $0E). All 4 variants pass.
+    - LONG array index: any integer type accepted as subscript; only low bytes used for address calculation; no warning (by design). Documented in `DOC/ZAP_LANGUAGE_REFERENCE.md`.
 
 - [ ] GAP-10: Struct-returning function + assignment to struct field chain — e.g. `s.field = myfunc().field`. Needs explicit test.
 
