@@ -831,10 +831,12 @@ ZAP provides a few compiler built-ins that look like function calls but are hand
 
 Extract the low or high byte of a value.
 
-- Accepts any numeric expression (`byte`, `word`, or pointer).
+- Accepts any numeric expression (`byte`, `word`, `long`, or pointer).
 - Returns a `byte`.
 - For `byte` expressions, `high()` returns `0`.
+- For `long` expressions: `low()` returns byte 0 (the least-significant byte), `high()` returns byte 1.
 - Works in constant expressions (e.g., array sizes, addresses, const initializers).
+- Works on struct fields, array elements, and dereferenced pointers.
 
 Examples:
 
@@ -845,6 +847,38 @@ byte hi = high(addr)    ; $12
 
 byte b = 7
 byte h = high(b)        ; 0
+
+long n = $12345678
+byte lo = low(n)        ; $78  — byte 0 (lowest)
+byte hi = high(n)       ; $56  — byte 1
+```
+
+#### loww(expr) / highw(expr)
+
+Extract the low or high **word** (16-bit half) of a `long` value.
+
+- Accepts a `long` expression only (compile error on `byte` or `word`).
+- Returns a `word`: `loww()` returns bits 0–15 (bytes 0-1), `highw()` returns bits 16–31 (bytes 2-3).
+- Works in constant expressions.
+- Can be combined with `low()`/`high()` to extract any individual byte of a `long`:
+
+| Expression | Result for `$12345678` |
+|---|---|
+| `low(n)`          | `$78` — byte 0 |
+| `high(n)`         | `$56` — byte 1 |
+| `loww(n)`         | `$5678` — bytes 0-1 |
+| `highw(n)`        | `$1234` — bytes 2-3 |
+| `low(highw(n))`   | `$34` — byte 2 |
+| `high(highw(n))`  | `$12` — byte 3 |
+
+```zap
+long  varL = $12345678
+word  varW
+byte  varB
+
+varW = highw(varL)      ; varW = $1234
+varB = high(varW)       ; varB = $12  (byte 3 of varL)
+varB = high(highw(varL)); varB = $12  (same, inline chain)
 ```
 
 #### sizeof(StructName)

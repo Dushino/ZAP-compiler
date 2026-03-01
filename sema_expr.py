@@ -334,7 +334,7 @@ class ExprTypeChecker:
         # funkce
         if isinstance(expr, CallExpr):
             name_upper = expr.name.upper()
-            if name_upper in {"LOW", "HIGH", "SIZEOF"}:
+            if name_upper in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
                 if len(expr.args) != 1 or expr.args[0] is None:
                     raise SemanticError(f"{name_upper}() expects exactly one argument", node=expr)
 
@@ -356,8 +356,15 @@ class ExprTypeChecker:
                         raise SemanticError("SIZEOF expects a struct type", node=expr)
                     return ExprType(SemType("WORD", False), ExprKind.VALUE)
 
-                # LOW/HIGH
-                arg_t: ExprType = self.check(arg, read_check_enabled=read_check_enabled)
+                # LOWW / HIGHW — return low/high WORD of a LONG
+                if name_upper in {"LOWW", "HIGHW"}:
+                    arg_t: ExprType = self.check(arg, read_check_enabled=read_check_enabled)
+                    if arg_t.sem_type.base.upper() != "LONG" or arg_t.sem_type.is_pointer:
+                        raise SemanticError(f"{name_upper}() requires a LONG argument", node=expr)
+                    return ExprType(SemType("WORD", False), ExprKind.VALUE)
+
+                # LOW/HIGH — return one byte of a scalar/pointer value
+                arg_t = self.check(arg, read_check_enabled=read_check_enabled)
                 if arg_t.sem_type.is_struct and not arg_t.sem_type.is_pointer:
                     raise SemanticError("LOW/HIGH not supported for struct values", node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)

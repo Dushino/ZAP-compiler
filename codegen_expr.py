@@ -7744,7 +7744,7 @@ class CodeGen:
             from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, FieldAccess
             # Detect explicit calls
             if isinstance(e, CallExpr):
-                return e.name.upper() not in {"LOW", "HIGH", "SIZEOF"}
+                return e.name.upper() not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}
             # Detect nested math operations that call runtime routines (MUL/DIV/MOD)
             if isinstance(e, BinaryExpr):
                 if e.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
@@ -9132,7 +9132,7 @@ class CodeGen:
         Internal helper used during code generation.
         """
         name_upper = expr.name.upper()
-        if name_upper not in {"LOW", "HIGH", "SIZEOF"}:
+        if name_upper not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
             return False
 
         if len(expr.args) != 1 or expr.args[0] is None:
@@ -9198,6 +9198,30 @@ class CodeGen:
             # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
                 self.emit("\tLDX #0     ; widen byte builtin")
+
+        elif name_upper == "LOWW":
+            # LOWW(longExpr) → low WORD (bytes 0-1) in A (low) / X (high)
+            if isinstance(arg, Identifier):
+                sym: Symbol = self.current_symtab.lookup(arg.name)
+                self.emit(f"\tLDA {sym.asm_name()}")
+                self.emit(f"\tLDX {sym.asm_name()}+1")
+            elif isinstance(arg, IntLiteral):
+                self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
+                self.emit(f"\tLDX #${(arg.value >> 8) & 0xFF:02X}")
+            else:
+                self._raise_error("LOWW() requires a LONG variable or literal argument")
+
+        elif name_upper == "HIGHW":
+            # HIGHW(longExpr) → high WORD (bytes 2-3) in A (low) / X (high)
+            if isinstance(arg, Identifier):
+                sym = self.current_symtab.lookup(arg.name)
+                self.emit(f"\tLDA {sym.asm_name()}+2")
+                self.emit(f"\tLDX {sym.asm_name()}+3")
+            elif isinstance(arg, IntLiteral):
+                self.emit(f"\tLDA #${(arg.value >> 16) & 0xFF:02X}")
+                self.emit(f"\tLDX #${(arg.value >> 24) & 0xFF:02X}")
+            else:
+                self._raise_error("HIGHW() requires a LONG variable or literal argument")
 
         return True
 

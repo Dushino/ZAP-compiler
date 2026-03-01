@@ -69,7 +69,7 @@ def eval_const_expr(expr, symtab=None, struct_registry=None):
             raise SemanticError("Unsupported operation in constant expression", node=expr)
     if isinstance(expr, CallExpr):
         name_upper = expr.name.upper()
-        if name_upper in {"LOW", "HIGH", "SIZEOF"}:
+        if name_upper in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
             if len(expr.args) != 1 or expr.args[0] is None:
                 raise SemanticError(f"{name_upper}() expects exactly one argument", node=expr)
             arg = expr.args[0]
@@ -85,7 +85,12 @@ def eval_const_expr(expr, symtab=None, struct_registry=None):
             value = eval_const_expr(arg, symtab, struct_registry)
             if name_upper == "LOW":
                 return value & 0xFF
-            return (value >> 8) & 0xFF
+            if name_upper == "HIGH":
+                return (value >> 8) & 0xFF
+            if name_upper == "LOWW":
+                return value & 0xFFFF
+            # HIGHW
+            return (value >> 16) & 0xFFFF
         raise SemanticError("Constant expression required", node=expr)
 
     raise SemanticError("Constant expression required", node=expr)

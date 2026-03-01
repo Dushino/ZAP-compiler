@@ -34,7 +34,7 @@ def _walk_expr(expr, ctx, global_symtab):
         return
 
     if isinstance(expr, CallExpr):
-        if expr.name.upper() not in {"LOW", "HIGH", "SIZEOF"}:
+        if expr.name.upper() not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
             ctx["func_calls"].add(expr.name)
         for a in expr.args:
             _walk_expr(a, ctx, global_symtab)

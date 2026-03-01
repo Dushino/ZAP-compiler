@@ -76,23 +76,11 @@
 - [x] GAP-13: Const struct passed directly as function argument `fn({1, 2})` — tested in `157` (7 checks). Covers: byte-only struct, word-only struct, mixed byte+word, zero field, inline in condition, and nested struct literal `{tag, {x, y}}`.
 
 - [x] GAP-14: PORT struct with all field access patterns — tested in `158` (4 checks). Covers: field inheriting struct-level `#PORT` (both rd+wr), `#RD`-only read, `#WR`-only write, explicit `#RD #WR`. Fail tests 129/130/131 cover rejection of #RD without PORT, write-to-readonly, read-from-writeonly. Documented in language reference under "Port Structs" in the Structs chapter.
+
 - [x] GAP-15: `SIZEOF()` on pointer-to-struct vs the struct itself — tested in `159` (5 checks). Covers: type name (Small=2, Large=5), struct-typed variable (sv=2), pointer-to-struct (lptr→Large=5, unambiguous vs pointer size 2), struct with LONG field (WithLong=6: 1+4+1). Bug fixed: `sema.py` struct field width had no LONG case → error. Fix: `elif field_type == "LONG": elem_width = 4`. Also fixed `StructFieldInfo.width` in `symbols.py`. Note: LONG struct field R/W codegen not yet implemented (future GAP).
 
 
-- [ ] GAP-16: `LOW()` / `HIGH()` edge cases — verify on: struct field (`LOW(s.field)`), array element (`HIGH(arr[i])`), deref expression (`LOW(ptr^)`), long variable (should return low/high of full 4-byte value? see below.). Codegen handles identifiers and IntLiteral; complex args use `gen_expr()` fallback.
-For LONG variable, LOW should return lowest byte, HIGH should return second lowest byte.
-Add LOWW() and HIGHW() to be used on LONG variables returning lower / higher WORD. 
-Add tests for checking LOWW and HIGHW, include also this kind of test:
-LONG varL
-WORD varW
-BYTE varB
-
-varL = $12345678
-varW = HIGHW(varL)
-varB = HIGH(varlW)
-varB = HIGHW(HIGH(varL))
-
-Check documentation and add what is missing.
+- [x] GAP-16: `LOW()` / `HIGH()` edge cases + new `LOWW()` / `HIGHW()` — tested in `160` (11 checks). LOW/HIGH verified on: LONG variable (byte0/byte1), WORD struct field (FieldAccess fallback + TXA path), WORD array element (SubscriptExpr path), dereferenced WORD pointer (gen_expr fallback). New builtins LOWW(LONG)→WORD and HIGHW(LONG)→WORD implemented. Chain composition verified: `high(highw(n))` = byte3. Added to: `sema_expr.py`, `sema.py` (const eval), `codegen_expr.py` (Identifier + IntLiteral), `compiler_pipeline.py`. Documentation updated (low/high now shows LONG examples; loww/highw section added with byte-extraction table).
 
 - [ ] GAP-17: Auto short branches — JMP → BXX where branch target is within ±127 bytes. Not implemented. Open todo item; deferred.
 
@@ -100,8 +88,10 @@ Check documentation and add what is missing.
 
 - [ ] GAP-19 Verify all pass tests which are testing datatypes to include BYTE, WORD, LONG, and pointer. Add missing datatype into apropriate test or create new tests. 
 
-- [ ] GAP-20 FIx GAP-15 for LONG variables
-LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md.
+- [ ] GAP-20 FIx GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof().
+
+
+
 
 ---
 
