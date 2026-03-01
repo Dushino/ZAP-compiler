@@ -13,6 +13,16 @@
 
 byte result @40000 = 0
 
+func byte Func1(byte a, byte b)
+    return a + b
+end
+
+
+proc Proc1(word x, word y)
+
+end
+
+
 proc main()
     ; All declarations first
     byte src_b4[4] = {1, 2, 3, 4}
@@ -44,6 +54,7 @@ proc main()
     long dst_l4[4]
     byte src_md[2][5] = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
     byte dst_md[2][5]
+    byte bbb
 
     ; --- 1-2. BYTE small (4 bytes) ---
     dst_b4 = src_b4
@@ -98,4 +109,7 @@ proc main()
     if dst_md[1][4] == 20
         result = result + 1     ; 12
     end
+
+    bbb = Func1(0, 0)     ; Call to ensure Func1 is included in the binary
+    Proc1(0, 0)     ; Call to ensure Proc1 is included in
 end

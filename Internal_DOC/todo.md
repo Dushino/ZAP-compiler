@@ -536,14 +536,13 @@ to:
 
 [ ] Check array of structs and arrays in struct
 
-
 [ ] Auto short branches?
 
 [x] Syntax sugar = compound assignent
 <var> <operator>= <expr>
 
 
-[ ] Add cmdline parameters for CODE, BSS, DATA segment names SEGC, SEGB, SEGD?
+[x] Add cmdline parameters for CODE, BSS, DATA segment names SEGC, SEGB, SEGD
 
 
 [ ] This is a pre-existing bug — ADC #0A should be ADC #$0A. Let me find the emit location: ${expr ...:02X}

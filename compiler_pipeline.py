@@ -264,6 +264,16 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
     return pruned_procs, pruned_funcs, referenced_globals, removed_procs
 
 
+import re as _re
+_SOURCE_COMMENT_RE: _re.Pattern[str] = _re.compile(r'^;\s+\S+\.zap\s+\d+:')
+_STRIP_MARKERS: frozenset[str] = frozenset({"; __ZAPC_FOOTER_BLOCK__"})
+
+
+def _is_source_comment(ln: str) -> bool:
+    """Return True if ln is a source-path comment emitted by gen_proc()."""
+    return bool(_SOURCE_COMMENT_RE.match(ln))
+
+
 def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS") -> list[str]:
     """Compact and reformat assembly output for readability."""
     flat: list[str] = []
@@ -274,22 +284,51 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
         else:
             flat.extend(parts)
 
+    # Change 1: strip internal ; ZAP_EXPORTS comment from final output
+    flat = [ln for ln in flat if not ln.strip().startswith("; ZAP_EXPORTS")]
+
     compact = [ln for ln in flat if ln.strip() != ""]
 
     def is_block_start(ln: str) -> bool:
         """Check whether a line starts a new assembly block."""
+        stripped = ln.strip()
         return (
-            ln.startswith("; -- Procedure ") or
-            ln.startswith("; -- Function ") or
-            ln.startswith(f'.segment "{seg_zp}"') or
-            ln.startswith(f'.segment "{seg_bss}"')
+            stripped.startswith("; -- Procedure ") or   # procedures
+            stripped.startswith("; -- Function ") or    # functions
+            stripped.startswith(".segment ") or          # Change 2: all .segment directives
+            stripped in _STRIP_MARKERS                   # Change 3: footer routine markers
         )
 
     out: list[str] = []
     for ln in compact:
+        stripped = ln.strip()
+
+        # Change 3: footer block marker — insert 2 blank lines then discard the marker
+        if stripped in _STRIP_MARKERS:
+            if out:
+                out.append("")
+                out.append("")
+            continue
+
+        is_proc_or_func = (
+            ln.startswith("; -- Procedure ") or
+            ln.startswith("; -- Function ")
+        )
+
         if is_block_start(ln) and out:
-            out.append("")
-            out.append("")
+            # Change 4: if the last emitted line is a source-path comment and we're
+            # about to open a procedure/function block, move the comment to sit
+            # directly above the header (after the 2 blank lines).
+            if is_proc_or_func and _is_source_comment(out[-1]):
+                src_comment = out.pop()
+                out.append("")
+                out.append("")
+                out.append(src_comment)
+                # No extra blanks — the comment now immediately precedes the header
+            else:
+                out.append("")
+                out.append("")
+
         out.append(ln)
     return out
 

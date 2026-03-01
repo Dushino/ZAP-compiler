@@ -3124,6 +3124,7 @@ class CodeGen:
 
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
 
+        self.emit("; __ZAPC_FOOTER_BLOCK__")
         self.emit("; ------------------------------")
         self.emit("; Shared byte copy routine")
         self.emit("; Inputs: TMP0/TMP0+1=src, TMP2/TMP2+1=dst, X=len (1..255), Y=0")
@@ -3149,6 +3150,7 @@ class CodeGen:
 
         self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3", "TMP4"})
 
+        self.emit("; __ZAPC_FOOTER_BLOCK__")
         self.emit("; ------------------------------")
         self.emit("; 16-bit byte copy routine")
         self.emit("; Inputs: TMP0/TMP0+1=src, TMP2/TMP2+1=dst, TMP4=count_lo, TMP4+1=count_hi")
@@ -3185,6 +3187,7 @@ class CodeGen:
         if not self.string_literals and not self.array_literals:
             return
         
+        self.emit("; __ZAPC_FOOTER_BLOCK__")
         self.emit("; ------------------------------")
         self.emit("; Constant Data")
         self.emit("; ------------------------------")
@@ -4204,6 +4207,7 @@ class CodeGen:
             ("RSHIFT32", emit_rshift32),
         ]
 
+        self.emit("; __ZAPC_FOOTER_BLOCK__")
         self.emit("; ------------------------------")
         self.emit("; Math Runtime Routines")
         self.emit("; ------------------------------")
