@@ -11,7 +11,13 @@
 
 - [x] GAP-02: `port` as TYPEMOD keyword — grammar lists `port` as a type modifier but tokenizer `TYPEMOD` set only has `{"const", "static"}`. Ports use `#PORT #RD #WR` declaration modifiers. Fix grammar.ebnf.
 
-- [ ] GAP-03: Arrays of structs — verify completeness: field access (`arr[i].field`), multi-dim indexing, list-init, runtime copy (`dst = src`). Flagged open in `todo.md`.
+- [x] GAP-03: Arrays of structs — verify completeness: field access (`arr[i].field`), multi-dim indexing, list-init, runtime copy (`dst = src`). Flagged open in `todo.md`.
+  - Covered by test `146-struct-array` (all 4 variants pass).
+  - Constant-index and variable-index field read/write: ✓
+  - List-init with nested braces `{{1,2},{3,4}}`: ✓
+  - For-loop iteration over struct array: ✓
+  - Multi-dim `arr[i].array_field[j]` (const and var index): ✓
+  - Runtime copy `dst = src` for struct arrays: NOT supported (compiler raises error; use a loop instead).
 
 - [ ] GAP-04: Arrays inside struct fields — verify: declaration, initialization, access (`s.arr[i]`), copy. Flagged open in `todo.md`.
 
@@ -164,7 +170,7 @@
 - [x] const struct
 - [x] struct assignment (copy)
 - [x] struct-returning function
-- [ ] array of structs — init, access, copy
+- [x] array of structs — init (list-init), access (const+var index, multi-dim); copy via loop only (dst=src not supported)
 - [ ] struct with array field — init, access
 
 ### Enums

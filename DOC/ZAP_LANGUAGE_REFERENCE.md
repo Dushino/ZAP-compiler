@@ -1691,6 +1691,17 @@ proc update_enemies()
 end
 ```
 
+**Note:** Whole struct-array copy (`dst = src`) is **not supported**. The compiler will reject it with an error. To copy a struct array, use a for loop:
+
+```zap
+Enemy src[3] = {{ 10, 20, 100 }, { 30, 40, 80 }, { 50, 60, 120 }}
+Enemy dst[3]
+byte i
+for i = 0 to 3
+    dst[i] = src[i]     ; copies one struct element at a time
+end
+```
+
 ### Struct Address-Of Operator
 
 Get the address of a struct or struct field using `@`:

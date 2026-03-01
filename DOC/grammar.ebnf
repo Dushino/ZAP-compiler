@@ -235,7 +235,10 @@ expr_list       ::= expression { "," expression } ;
    - CONST STRUCT FIELDS: Cannot assign to fields of const structs at runtime
    - CONST SUPPORT: All types (byte, word, pointers, arrays, structs) support const initialization
    - BITWISE OPERATORS: & (AND), | (OR), ^ (XOR) for bit manipulation
-   - STRUCT ARRAYS: Arrays of structs with full initialization and field access support
+   - STRUCT ARRAYS: Arrays of structs support list-init (e.g., Point pts[3] = {{1,2},{3,4},{5,6}}),
+     constant and variable element index, field access (arr[i].field), and multi-dim access
+     (arr[i].array_field[j]). Whole-array copy (dst = src) is NOT supported for struct arrays;
+     use a for loop to copy elements individually.
    - COMPOUND ASSIGNMENT: lhs op= expr is syntax sugar for lhs = lhs op expr (all arithmetic and bitwise ops)
    - STATIC VARIABLES: Local variables that persist across procedure calls
    - PORT VARIABLES: Hardware port-mapped variables declared with #PORT declaration modifier (e.g., byte POKEY_AUDF1 @$D200 #PORT); use #RD and #WR to restrict access direction
