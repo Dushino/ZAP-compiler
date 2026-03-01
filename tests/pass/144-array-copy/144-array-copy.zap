@@ -110,6 +110,6 @@ proc main()
         result = result + 1     ; 12
     end
 
-    bbb = Func1(0, 0)     ; Call to ensure Func1 is included in the binary
+    Func1(0, 0)     ; Call to ensure Func1 is included in the binary
     Proc1(0, 0)     ; Call to ensure Proc1 is included in
 end

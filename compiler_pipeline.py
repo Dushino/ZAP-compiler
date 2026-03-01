@@ -67,7 +67,11 @@ def _walk_stmt(stmt, ctx, global_symtab):
     )
 
     if isinstance(stmt, CallStmt):
+        # Parser emits CallStmt for both proc calls and func calls used as
+        # statements (return value discarded). Add to both sets so prune_unused
+        # finds functions that are only called this way.
         ctx["proc_calls"].add(stmt.name)
+        ctx["func_calls"].add(stmt.name)
         for a in stmt.args:
             _walk_expr(a, ctx, global_symtab)
         return
