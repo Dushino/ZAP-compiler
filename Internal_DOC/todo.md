@@ -567,10 +567,11 @@ to
     JMP __ZAP_REL_ELSE_18
 __ZAP_then_20:
 
+
 [ ] Check building blocks
     [ ] Check expressions evaluation for assign and other occurences to be the same
     [ ] Check for variable uninitialized for all types
-    [ ] Check for not used FUNC return value
+    [x] Check for not used FUNC return value
 
 
 Closure tasks
@@ -580,8 +581,341 @@ Closure tasks
     [x] Double -- MAIN
 
 
-[ ] Change -O1 option: Default is peephole optimization on, if -O - no peephole optimizations.
+[ ] Change -O1 option: Default is peephole optimization on, if -O no peephole optimizations.
 
 
 [ ] Remove compiler's debug messages
 
+
+-------------------------------------------------------------------------
+ZAP! Building Blocks — Complete Reference List
+Below is every building block grouped by category, cross-referenced with implementation files. Items marked [!] have known gaps, discrepancies, or are flagged as partially tested in the codebase.
+
+1. LEXICAL ELEMENTS
+1.1 Comments
+Form	Example
+Line comment	; this is a comment
+Block comment	/* multi line */
+1.2 Integer Literals
+Form	Example	Notes
+Decimal	255, 65535	
+Hex ($)	$FF, $1A2B	ca65 style
+Hex (0x)	0xFF, 0x1A2B	C style
+Binary (%)	%10110011	
+Binary (0b)	0b10110011	C style
+Character literal	'A', '\n'	Converted to integer
+Two-char word literal	'a''b'	Low='a', High='b'; combines into one WORD
+1.3 String Literals
+"..." — NUL-terminated at codegen; stored in ROM, pointer is a byte^
+
+String escape sequences inside "..." and '...':
+
+Escape	Meaning
+\n \t \r \a \b \f \v \0	Standard C escapes
+\" \' \\	Quote and backslash
+\xHH	Hex byte (1–2 hex digits)
+\OOO	Octal byte (1–3 octal digits)
+\bBBBBBBBB	Binary byte (1–8 binary digits)
+1.4 Identifiers
+Start: letter [a-zA-Z]; continue: [a-zA-Z0-9_]
+Leading _ is prohibited (reserved for compiler-generated names)
+Case-insensitive (internally uppercased); string literals are case-sensitive
+2. TYPES
+2.1 Base Types
+Type	Width	Range
+byte	1 byte	0–255
+word	2 bytes	0–65535
+long	4 bytes	0–4,294,967,295
+<StructName>	struct_info.size	N/A
+2.2 Pointer Types
+<type>^ — 2-byte address. Syntax: byte^, word^, long^, MyStruct^.
+
+Both orderings accepted: byte^ ptr and byte ptr^ (same meaning).
+
+2.3 Type Modifiers (Prefix Keywords)
+Modifier	Where	Effect
+const	Global or local	Compile-time constant; no writeable storage allocated
+static	Local only	Persists between calls; must have initializer
+port	Global only [!] — actually via #PORT declmod	Hardware port-mapped; requires @addr, no initializer
+[!] port as a keyword modifier is listed in grammar but the tokenizer/parser does not include "port" in TYPEMOD. Port variables are actually declared with #PORT #RD #WR declaration modifiers.
+
+3. DECLARATIONS
+3.1 Global Variable Declaration
+
+[const|static] <type>[^] <name> [<array_spec>] [@<addr>] [= <init>] [<declmods>]
+Multiple declarators separated by , on same declaration line.
+
+3.2 Local Variable Declaration
+Must appear before the first statement in the proc/func body.
+
+Same syntax minus declaration modifiers.
+
+3.3 Array Specification
+Form	Meaning
+arr[N]	1D array, N elements
+arr[]	1D array, size inferred from initializer
+arr[N][M]	2D array
+arr[N][M][P]	3D (multi-dim supported)
+3.4 Fixed-Address Specification
+@<expr> — constant address (decimal, hex, any literal), e.g. byte x @$D400.
+
+3.5 Initializers
+Form	Applies to	Example
+= <expr>	Scalar	byte x = 42
+= "<string>"	byte[] only	byte msg[] = "Hello"
+= { e, e, … }	Arrays, structs	byte arr[3] = {1, 2, 3}
+= { {…}, {…} }	Nested (multi-dim / struct arrays)	byte m[2][3] = {{1,2,3},{4,5,6}}
+Trailing comma	Any list	{1, 2, 3,} — allowed
+3.6 Declaration Modifiers (Trailing #...)
+Modifier	Effect
+#KEEP	Prevent dead-code elimination
+#NOEXPORT	Do not export from .module file
+#EXPORT	Force export even from non-module file
+#PORT	Mark as hardware port-mapped
+#RD	Port is readable
+#WR	Port is write-only
+4. STRUCT DEFINITIONS
+
+struct <Name> [#PORT [#RD] [#WR]] [#NOEXPORT|#EXPORT]
+    <type>[^] <field> [<array_spec>] [@<addr>] [#PORT [#RD] [#WR]]
+    ...
+end
+Fields: any scalar type, pointer, or array; fixed address optional per field
+Port modifiers cascade from struct level to fields unless overridden per-field
+Struct instances: MyStruct s1, MyStruct s1 @$C000, const MyStruct s1 = {…}
+Arrays of structs: MyStruct arr[N]
+Struct pointers: MyStruct^ ptr
+[!] Check array of structs and arrays in struct — flagged as incomplete in todo.md
+5. ENUM DEFINITIONS
+
+enum [byte|word] <Name>
+    ITEM_A [= <expr>]
+    ITEM_B
+    ...
+end
+Default base: byte; explicit: enum word MyEnum
+Items without = auto-increment from previous value
+Access forms: both MyEnum.ITEM_A (qualified) and bare ITEM_A (unqualified, backward-compat)
+Enums are desugared to const symbols by EnumAnalyzer before codegen; treated as IntLiteral after constsubst
+6. EXPRESSIONS
+6.1 Primary Expressions (highest precedence)
+Form	AST Node	Notes
+<integer>	IntLiteral	0–255 → BYTE; 256–65535 → WORD; >65535 → LONG
+"<string>"	StringLiteral	Yields byte^ (pointer to ROM data)
+<ident>	Identifier	Variable, const, enum member
+<ident>(args)	CallExpr	Function call (returns value)
+<ident>[<expr>]	SubscriptExpr	Array subscript
+<ident>.<field>	FieldAccess	Struct field access
+<ident>^	DerefExpr	Pointer dereference
+<ident>^.<field>	FieldAccess(DerefExpr)	Deref + field access
+{ e, e, … }	StructLiteral	Struct literal (inline init for func args)
+(expr)	—	Parenthesized; overrides precedence
+6.2 Unary Operators (right-associative, applied to primary)
+Operator	AST	Meaning
+-	UnOp.NEG	Arithmetic negation (unary minus)
+!	UnOp.NOT	Logical NOT; result 0 or 1
+~	UnOp.BNOT	Bitwise NOT (complement all bits)
+@	UnOp.ADDROF	Address-of; result is word (16-bit address)
+6.3 Binary Operators (precedence low → high)
+Precedence	Operators	BinOp enum	Notes
+1 (lowest)	||	LOR	Logical OR; short-circuit
+2	&&	LAND	Logical AND; short-circuit
+3	== !=	EQ NE	Equality
+4	< > <= >=	LT GT LE GE	Relational
+5	|	BOR	Bitwise OR
+6	^	BXOR	Bitwise XOR
+7	&	BAND	Bitwise AND
+8	+ -	ADD SUB	Additive
+9 (highest)	* / %	MUL DIV MOD	Multiplicative
+Note on ^: the tokenizer/parser must disambiguate ^ (binary XOR) from ^ (postfix dereference). Rule: if the next token is an identifier or number on the same line, it is treated as binary XOR; otherwise as postfix dereference.
+
+6.4 Type Promotion Rules
+Either operand is pointer → result is WORD
+Either operand is LONG → result is LONG
+Either operand is WORD → result is WORD
+Otherwise → BYTE
+6.5 Pointer Arithmetic (special semantic rules)
+Expression	Result	Notes
+ptr + int / int + ptr	ptr type	Offsets by int * sizeof(element)
+ptr - int	ptr type	Offsets back
+ptr - ptr	WORD	Element-count distance
+ptr + ptr, ptr * …, ptr / …	Error	Rejected at sema
+6.6 Built-in Pseudo-Functions (handled in codegen, not real calls)
+Function	Argument	Returns	Notes
+LOW(x)	any WORD/pointer/identifier	BYTE low byte	
+HIGH(x)	any WORD/pointer/identifier	BYTE high byte	Returns 0 for BYTE
+SIZEOF(T)	struct name or instance	WORD byte count	Structs only
+7. STATEMENTS
+7.1 Assignment
+
+<lvalue> = <expr>
+7.2 Compound Assignment (parse-time sugar → desugared to lvalue = lvalue op expr)
+Operator		Operator	
++=	add	-=	subtract
+*=	multiply	/=	divide
+%=	modulo	&=	bitwise AND
+|=	bitwise OR	^=	bitwise XOR
+<<=	left shift	>>=	right shift
+7.3 Procedure Call Statement
+
+<name>(<args>)
+Arguments: comma-separated expressions
+Empty argument slot (skipped default param): proc(1, , 3) — comma with nothing between
+7.4 IF Statement
+
+if <cond>
+    <stmts>
+[elseif <cond>
+    <stmts>]
+[else
+    <stmts>]
+end
+Any number of elseif branches
+Truthiness for LONG: all 4 bytes are OR-ed
+7.5 WHILE Loop
+
+while <cond>
+    <stmts>
+end
+7.6 REPEAT-UNTIL Loop
+
+repeat
+    <stmts>
+until <cond>
+Body always executes at least once; exits when condition is true.
+
+7.7 FOR Loop
+
+for <var> = <start> to <end> [step <step>]
+    <stmts>
+end
+var must be a declared variable (byte, word, or long)
+Default step is 1 if omitted
+[!] Grammar.ebnf incorrectly shows next <ident> as terminator; actual implementation uses end (KEYWORDS does not include next)
+7.8 SWITCH Statement
+
+switch <expr>
+case <val>
+    <stmts>
+case <val>
+    <stmts>
+default
+    <stmts>
+end
+expr can be BYTE, WORD, or LONG
+Multiple case labels can stack (no body between them → same body)
+default is optional; must come after at least one case or be the only clause
+7.9 BREAK
+
+break
+Exits the nearest enclosing while, repeat, for, or switch.
+
+7.10 CONTINUE
+
+continue
+Skips to next iteration of the nearest enclosing while, repeat, or for.
+
+7.11 RETURN
+
+return [<expr>]    ; in proc: no expr; in func: expr required
+7.12 Inline Assembly
+
+asm
+    <ca65 assembly lines>
+    .segment "CODE"     ; .segment is valid inside asm...end only
+end
+Entire block treated verbatim; ZAP syntax is not parsed inside
+ZAP variable names accessible as _PROCNAME_VARNAME (globals) / __VARNAME (generated)
+7.13 Compile-time Directives (valid in statement context)
+Directive	Effect
+.error "msg"	Abort compilation with error message
+.warning "msg"	Emit warning, continue
+.info "msg"	Emit informational message
+8. L-VALUES (Assignable Locations)
+Form	Example
+Simple variable	x
+Array element	arr[i] or arr[i][j]
+Struct field	s.field
+Pointer dereference	ptr^
+Deref + field	ptr^.field
+Array element field	arr[i].field
+9. PROCEDURES
+
+proc <name>([<params>]) [#KEEP] [#NOEXPORT] [#EXPORT]
+    [<local_decls>]
+    [<stmts>]
+end
+No return value
+Parameters and locals declared at the top of the body (locals before first statement)
+Early exit: return with no expression
+10. FUNCTIONS
+
+func <type>[^] <name>([<params>]) [#KEEP] [#NOEXPORT] [#EXPORT]
+    [<local_decls>]
+    [<stmts>]
+    return <expr>
+end
+Return type: byte, word, long, <StructName>, or any pointer type
+For struct-returning functions: compiler generates __RETBUF_FUNCNAME global BSS buffer; caller copies from it
+11. PARAMETERS
+
+[const] <type>[^] <name> [= <default_expr>]    ; scalar param
+[const] <type>[^] <name>[]                     ; array param (passed as pointer)
+Any number of parameters
+Parameters with defaults must come after required parameters
+Skipping a default argument in a call: proc(1, , 3) (empty slot = use default)
+Passing convention (up to 2 byte-wide params): may go through A and X registers; otherwise via global _PROCNAME_PARAM variables
+12. MODULE SYSTEM
+
+.module "modname" [#NOEXPORT]   ; Mark this file as a module
+.include "filename"             ; Include another file
+Module constructors: proc CTOR() #KEEP #NOEXPORT — run at program init
+#NOEXPORT on a symbol or proc/func: not visible outside the module
+#EXPORT on a symbol in a non-module file: force export
+13. PREPROCESSOR DIRECTIVES
+
+.define SYM [value]
+.undef SYM
+.ifdef SYM
+.ifndef SYM
+.else
+.endif
+.include "file.zap"
+.incbin "file.bin"
+.error "message"
+.warning "message"
+.info "message"
+14. PROGRAM STRUCTURE (Top Level)
+Valid top-level items (in any order):
+
+Preprocessor directives
+.module / .include declarations
+Variable/const declarations (global scope)
+struct definitions
+enum definitions
+proc definitions
+func definitions
+Every program must have a proc main().
+
+15. KNOWN GAPS / ITEMS TO VERIFY
+The following are explicitly flagged as incomplete, untested, or discrepant between documentation and implementation:
+
+#	Issue	Status
+1	for loop terminator: grammar.ebnf says next <ident>; parser/tokenizer uses end	Grammar bug — docs wrong
+2	port as a TYPEMOD keyword in grammar: not in tokenizer's TYPEMOD set; ports use #PORT declmod instead	Grammar/doc discrepancy
+3	Array of structs — completeness of field access, multi-dim indexing, init, copy	Flagged in todo.md
+4	Arrays inside struct fields — completeness	Flagged in todo.md
+5	Expression evaluation consistency: assign vs other expression contexts	Flagged in todo.md
+6	Uninitialized variable behavior for all types	Flagged in todo.md
+7	switch with no default clause	Not explicitly tested as negative case
+8	LONG as for loop variable / bounds / step	Tested in 138-long-control-flow
+9	Multi-dim array >= 256 bytes total (COPY_BYTES16 path)	Tested in 141, 142, 143
+10	Struct-returning function + assignment to struct field chain	Needs explicit test
+11	repeat/until with break and continue	Partially tested in 117
+12	continue inside switch (should affect enclosing loop, not switch)	Not explicitly tested
+13	Const struct passed directly as function argument: fn({1, 2})	Was flagged, marked [x] done
+14	PORT struct with all field access patterns (#RD, #WR, mixed)	Flagged, some tests exist
+15	sizeof() on a pointer-to-struct vs the struct itself	Needs verification
+16	LOW() / HIGH() on struct field, array element, deref expression	Codegen handles some; edge cases unclear
+17	Auto short branches (long JMP → short BXX where range allows)	Open todo item, not implemented
+This list covers every building block derived from the grammar, tokenizer, parser, and codegen. Items 1–17 in the gap table are the candidates for completeness/correctness testing.
