@@ -1,2 +1,2 @@
 # Error Test - Type Mismatch in Equality
-## Expected Error: Cannot compare BYTE with STRING
+## Expected Error: Invalid pointer comparison

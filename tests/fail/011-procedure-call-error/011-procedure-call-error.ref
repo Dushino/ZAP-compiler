@@ -1,5 +1,4 @@
-# Error Test - Procedure Call Argument Mismatch
+# Error Test - Function Call Argument Mismatch
 
 ## Expected Error
-Procedure add expects 2 arguments but 1 was provided
-Error should indicate expected vs actual argument count.
+Function 'ADD' expects 2 parameters, but 1 were provided

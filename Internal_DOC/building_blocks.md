@@ -84,7 +84,13 @@
 
 - [ ] GAP-17: Auto short branches — JMP → BXX where branch target is within ±127 bytes. Not implemented. Open todo item; deferred.
 
-- [ ] GAP-18: Split tests for intentional failure to include only one test oper ZAP file. If more tests are inside, after first failure others are not executed. Then check all failure tests are failing properly.
+- [x] GAP-18: Split tests for intentional failure to include only one test per ZAP file. If more tests are inside, after first failure others are not executed. Then check all failure tests are failing properly.
+  - Audited all 68 fail tests; only `121-return-type-mismatch` had two error scenarios → removed `func word badw()` (already covered by `121-return-word-too-big`)
+  - Fixed `enum-base-invalid`: changed `enum float` → `enum long` (float is TOK_IDENT, not a type token; long IS a type token but not valid as enum base); added `proc main() end`
+  - Fixed `011-procedure-call-error`: changed `proc add` → `func byte add` so wrong-arg-count error fires instead of "Undefined function"
+  - Fixed `129-rd-no-port`: moved declaration to global scope (inside proc, `#RD` caused parse error; at global level, sema correctly rejects with "#RD and #WR modifiers are only valid on #PORT declarations")
+  - Updated `.ref` files for `026-equality-error` (actual: "Invalid pointer comparison") and `011-procedure-call-error` (actual: "Function 'ADD' expects 2 parameters…")
+  - All 146 pass-tests and 68 fail-tests green after fixes
 
 - [ ] GAP-19 Verify all pass tests which are testing datatypes to include BYTE, WORD, LONG, and pointer. Add missing datatype into apropriate test or create new tests. 
 

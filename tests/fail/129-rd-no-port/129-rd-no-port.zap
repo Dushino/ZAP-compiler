@@ -1,3 +1,4 @@
+byte x @40000 #RD  ; #RD without #PORT should be a semantic error
+
 proc main()
-    byte x #RD = 0 ; #RD without #PORT should be error
 end

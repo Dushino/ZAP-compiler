@@ -1,4 +1,4 @@
 # Error Test - Invalid enum base type
 
 ## Expected Error
-Enum base type 'float' is not supported
+Enum base type 'LONG' is not supported
