@@ -112,7 +112,7 @@ repeat_stmt     ::= "repeat" { statement } "until" expression ;
 for_stmt        ::= "for" IDENT "=" expression "to" expression
                     [ "step" expression ]
                     { statement }
-                    "next" IDENT ;
+                    "end" ;
 
 break_stmt      ::= "break" ;
 
@@ -228,7 +228,7 @@ expr_list       ::= expression { "," expression } ;
    - Fixed-address variables use @ specifier in declaration (e.g., byte x @$2000)
    - ADDRESS-OF operator: @ prefix in expressions gets variable address (e.g., @var, @array[i], @struct.field)
    - Procedures end with END, functions end with END (implicit return)
-   - FOR loops require NEXT statement with loop variable
+   - FOR loops terminate with END
    - WHILE loops terminate with END
    - Binary \b escape sequences must have at least one binary digit following
    - IF statements use IF-ELSEIF-ELSE-END structure (ELSEIF/ELSE optional)
