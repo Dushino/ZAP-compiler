@@ -1369,7 +1369,8 @@ class Parser:
                             else:
                                 args.append(self.parse_expr())
                     self.expect(TOK_RBRACE)
-                    return CallExpr(name, args, line=name_line, col=name_col)
+                    node = CallExpr(name, args, line=name_line, col=name_col)
+                    continue  # allow postfix .field / [idx] on call result
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
                     br_line: int = self.cur.line
                     br_col: int = self.cur.col

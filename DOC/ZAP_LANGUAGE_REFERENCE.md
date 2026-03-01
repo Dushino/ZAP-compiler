@@ -1965,6 +1965,49 @@ proc combine_points()
 end
 ```
 
+#### Field access on function call result
+
+A single field can be read directly from the return value of a struct-returning function, without first storing the whole struct:
+
+```zap
+func Point make_point(byte px, byte py)
+    Point p
+    p.x = px
+    p.y = py
+    return p
+end
+
+proc use_fields()
+    ; Read a field directly from the call result
+    byte bx = make_point(10, 20).x      ; bx = 10
+    byte by = make_point(10, 20).y      ; by = 20
+
+    ; Assign to a struct field from a call result field
+    Point dest
+    dest.x = make_point(3, 4).x        ; dest.x = 3
+    dest.y = make_point(3, 4).y        ; dest.y = 4
+
+    ; Works with word fields too
+    ; (struct with word wx, word wy)
+    word w = make_wvec(100, 200).wx    ; w = 100
+end
+```
+
+The call is evaluated each time: `make_point(10, 20).x` and `make_point(10, 20).y` each emit a separate `JSR`. To read multiple fields from a single call, declare the struct variable with a call initializer at the top of the proc (declarations must precede statements):
+
+```zap
+proc use_fields()
+    Point tmp = make_point(10, 20)  ; single call — declaration with call initializer
+    byte bx                         ; other declarations...
+
+    ; now use tmp.x and tmp.y without calling again
+    bx = tmp.x                      ; bx = 10
+    ; ...
+end
+```
+
+Note: ZAP declarations must appear before any executable statements in the proc body. `Point tmp = make_point(10, 20)` is valid only at the top of the proc, not after statements.
+
 ### Pointers to Structs
 
 Create pointers to struct types:

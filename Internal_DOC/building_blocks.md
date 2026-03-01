@@ -62,7 +62,12 @@
     - Pass test: `153-array-init-boundary` (14 checks, expected result $0E). All 4 variants pass.
     - LONG array index: any integer type accepted as subscript; only low bytes used for address calculation; no warning (by design). Documented in `DOC/ZAP_LANGUAGE_REFERENCE.md`.
 
-- [ ] GAP-10: Struct-returning function + assignment to struct field chain — e.g. `s.field = myfunc().field`. Needs explicit test.
+- [x] GAP-10: Struct-returning function + assignment to struct field chain — e.g. `s.field = myfunc().field`. Needs explicit test.
+    - Two bugs fixed:
+      1. `parser.py` line 1372: `return CallExpr(...)` prevented postfix loop from continuing → `.field` after a call was never parsed. Fixed by `node = CallExpr(...); continue`.
+      2. `codegen_expr.py:_gen_field_access()`: `elif isinstance(expr.object, CallExpr):` case was missing. Added handler: emit JSR, then load field directly from static return buffer (`__RETBUF_funcname + field_offset`).
+    - Verified: byte field offset 0, byte field offset 1, word field offset 0, word field offset 2; direct variable and struct field assignment targets.
+    - Pass test: `154-struct-func-field-access` (8 checks, expected result $08). All 4 variants pass.
 
 - [ ] GAP-11: REPEAT/UNTIL with BREAK and CONTINUE — partially tested in `117`. Verify break exits repeat, continue goes to until-condition, and nesting with for/while works correctly.
 
@@ -77,6 +82,9 @@
 - [ ] GAP-16: `LOW()` / `HIGH()` edge cases — verify on: struct field (`LOW(s.field)`), array element (`HIGH(arr[i])`), deref expression (`LOW(ptr^)`), long variable (should return low/high of full 4-byte value?). Codegen handles identifiers and IntLiteral; complex args use `gen_expr()` fallback.
 
 - [ ] GAP-17: Auto short branches — JMP → BXX where branch target is within ±127 bytes. Not implemented. Open todo item; deferred.
+
+- [ ] GAP-18: Split tests for intentional failure to include only one test oper ZAP file. If more tests are inside, after first failure others are not executed. Then check all failure tests are failing properly.
+
 
 ---
 

@@ -5312,6 +5312,39 @@ class CodeGen:
                             self.emit(f"\tSTA {dest_asm}+1")
                         return
 
+            # Special case: struct variable initialized from function call returning struct
+            # e.g. Point p = make_point(1, 2) — mirrors the gen_assign path (~line 9507)
+            if sym.type.is_struct and not sym.type.is_pointer and isinstance(sym.init.expr, CallExpr):
+                call_init: CallExpr = cast(CallExpr, sym.init.expr)
+                ret_buf_init = self.func_return_buffers.get(call_init.name)
+                if ret_buf_init is None:
+                    self._raise_error(f"Function '{call_init.name}' does not return a struct")
+                asm_ret_init, ret_info_init = ret_buf_init
+                specs_init = self.func_param_specs.get(call_init.name)
+                if specs_init is not None:
+                    self._emit_call_args(call_init.name, call_init.args, specs_init)
+                self.emit(f"\tJSR {self.asm_symbol_name(call_init.name)}")
+                self.emit(f"\tLDA #<{asm_ret_init}")
+                self.emit("\tSTA TMP0")
+                self.emit(f"\tLDA #>{asm_ret_init}")
+                self.emit("\tSTA TMP0+1")
+                self.emit(f"\tLDA #<{sym.asm_name()}")
+                self.emit("\tSTA TMP2")
+                self.emit(f"\tLDA #>{sym.asm_name()}")
+                self.emit("\tSTA TMP2+1")
+                if ret_info_init.size > 255:
+                    self.copy_bytes16_needed = True
+                    self.emit(f"\tLDA #${ret_info_init.size & 0xFF:02X}")
+                    self.emit("\tSTA TMP4")
+                    self.emit(f"\tLDA #${(ret_info_init.size >> 8) & 0xFF:02X}")
+                    self.emit("\tSTA TMP4+1")
+                    self.emit("\tJSR COPY_BYTES16")
+                else:
+                    self.copy_bytes_needed = True
+                    self.emit(f"\tLDX #${ret_info_init.size:02X}")
+                    self.emit("\tJSR COPY_BYTES")
+                return
+
             # Fallback: general expression (non-const)
             # Set assignment target type context for optimizations
             prev_assign_type: SemType | None = self.assign_target_type
@@ -6839,9 +6872,33 @@ class CodeGen:
                             self.emit("\tLDX #$00     ; note 3801")
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
+            elif isinstance(expr.object, CallExpr):
+                # Function call returning struct: myfunc().field
+                # The return buffer is at a static address; call the function and read field directly.
+                call_expr: CallExpr = expr.object
+                specs = self.func_param_specs.get(call_expr.name)
+                if specs is not None:
+                    self._emit_call_args(call_expr.name, call_expr.args, specs)
+                self.emit(f"\tJSR {self.asm_symbol_name(call_expr.name)}")
+                ret_buf = self.func_return_buffers.get(call_expr.name)
+                if ret_buf is None:
+                    self._raise_error(f"Function '{call_expr.name}' does not return a struct")
+                asm_ret, _ret_info = ret_buf
+                # Load field directly from static return buffer
+                field_asm: str = asm_ret if field_offset == 0 else f"{asm_ret}+{field_offset}"
+                self.emit(f"\tLDA {field_asm}")
+                if field_width == 2:
+                    self.emit(f"\tLDX {field_asm}+1")
+                else:
+                    target_is_byte: None | bool = (self.assign_target_type and
+                                    hasattr(self.assign_target_type, 'base') and
+                                    self.assign_target_type.base == "BYTE" and
+                                    not getattr(self.assign_target_type, 'is_pointer', False))
+                    if not target_is_byte:
+                        self.emit("\tLDX #$00     ; note myfunc().field")
             else:
                 self._raise_error("Direct field access only supported on struct variables or array elements")
-        
+
         # If storing field (not load_only), RHS should be in TMP2/TMP2+1
         if not load_only:
             if expr.is_deref:
@@ -10542,13 +10599,28 @@ class CodeGen:
             return
 
         if isinstance(lhs, FieldAccess):
-            # Save RHS value to temps before field access calculation
+            # Fast path: non-deref FieldAccess with simple variable base (or nested chain to Identifier).
+            # A/X already hold the RHS value; emit STA/STX directly, bypassing the TMP2 round-trip
+            # and the pointless field-load inside _gen_field_access(load_only=False).
+            if not lhs.is_deref:
+                total_offset_fp, base_expr_fp = self._calculate_nested_field_offset(lhs)
+                if isinstance(base_expr_fp, Identifier):
+                    field_width_fp: int = 2 if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer else 1
+                    sym_fp: Symbol = self.current_symtab.lookup(base_expr_fp.name)
+                    base_asm_fp: str = sym_fp.asm_name()
+                    field_asm_fp: str = base_asm_fp if total_offset_fp == 0 else f"{base_asm_fp}+{total_offset_fp}"
+                    self.emit(f"\tSTA {field_asm_fp}")
+                    if field_width_fp == 2:
+                        self.emit(f"\tSTX {field_asm_fp}+1")
+                    return
+
+            # General path: deref or SubscriptExpr base — need TMP2 to hold RHS while address is computed.
             self.emit("\tSTA TMP2")
             # Only save high byte if RHS is not BYTE (or if we don't know the type)
             # For BYTE RHS, X is either 0 or undefined, and we don't need it for BYTE field assignment
             if rhs_t.sem_type.base == "WORD" or rhs_t.sem_type.is_pointer:
                 self.emit("\tSTX TMP2+1")
-            
+
             # Set assignment target type to the field type for optimizations
             # This helps skip unnecessary LDX #0 when the field is BYTE
             prev_assign_type: SemType | None = self.assign_target_type
@@ -11122,13 +11194,29 @@ class CodeGen:
             elif reg_case in {"byte0", "two_bytes"} and reg_a_index is not None:
                 if reg_case == "two_bytes" and reg_x_index is not None:
                     arg_x = next(a for i, _, _, _, a in resolved if i == reg_x_index)
-                    prev_suppress: bool = self.suppress_byte_return_x
-                    self.suppress_byte_return_x = True
-                    try:
-                        self.gen_expr(arg_x)
-                    finally:
-                        self.suppress_byte_return_x = prev_suppress
-                    self.emit("\tTAX")
+                    # Fast path: load X directly without going through A
+                    if isinstance(arg_x, IntLiteral):
+                        self.emit(f"\tLDX #${arg_x.value & 0xFF:02X}")
+                    elif isinstance(arg_x, Identifier):
+                        _ax_sym: Symbol = self.current_symtab.lookup(arg_x.name)
+                        if _ax_sym.type.base == "BYTE" and not _ax_sym.type.is_pointer and not _ax_sym.is_array:
+                            self.emit(f"\tLDX {_ax_sym.asm_name()}")
+                        else:
+                            prev_suppress: bool = self.suppress_byte_return_x
+                            self.suppress_byte_return_x = True
+                            try:
+                                self.gen_expr(arg_x)
+                            finally:
+                                self.suppress_byte_return_x = prev_suppress
+                            self.emit("\tTAX")
+                    else:
+                        prev_suppress = self.suppress_byte_return_x
+                        self.suppress_byte_return_x = True
+                        try:
+                            self.gen_expr(arg_x)
+                        finally:
+                            self.suppress_byte_return_x = prev_suppress
+                        self.emit("\tTAX")
                 arg_a = next(a for i, _, _, _, a in resolved if i == reg_a_index)
                 prev_suppress = self.suppress_byte_return_x
                 self.suppress_byte_return_x = True
