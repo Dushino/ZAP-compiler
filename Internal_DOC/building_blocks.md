@@ -27,7 +27,11 @@
   - For-loop over array field: ✓
   - Struct copy (`dst = src`) correctly copies array field contents: ✓
 
-- [ ] GAP-05: Expression evaluation consistency — verify that the same expression produces identical code when used in: assignment RHS, proc/func call arg, if/while condition, for bounds, switch expr, return expr. Flagged open in `todo.md`.
+- [x] GAP-05: Expression evaluation consistency — verify that the same expression produces identical code when used in: assignment RHS, proc/func call arg, if/while condition, for bounds, switch expr, return expr. Flagged open in `todo.md`.
+  - Covered by test `148-expr-context` (all 4 variants pass).
+  - Expressions `val+5` and `val*2-2` (both = 12, val=7) verified in all contexts: ✓
+  - Assignment RHS, if condition, while condition, for upper bound,
+    for start+end bounds, func call arg, return expr, switch expr: all correct.
 
 - [ ] GAP-06: Uninitialized variable behavior — verify error or defined behavior for all types (byte, word, long, pointer, array, struct) when declared without an initializer in all contexts (global, local, static). Flagged open in `todo.md`.
 
