@@ -1,7 +1,7 @@
 # ZAP! Compiler — Progress & Status
 
 **Current version**: 0.2.0
-**Test suite**: 129 pass-tests · 61 fail-tests · all passing
+**Test suite**: 131 pass-tests · 62 fail-tests · all passing
 
 ---
 
@@ -25,8 +25,10 @@
 | Array `ListInit` initializer `{v0, v1, …}` | Done |
 | Array `StringInit` initializer `"string"` | Done |
 | Large array initialization (> 255 bytes) via `COPY_BYTES16` | Done |
+| Array-to-array copy (`dst = src`) for BYTE, WORD, LONG, and multi-dim arrays | Done |
 | Structs with field offsets, nested structs | Done |
 | Struct `#port` / field `#rd` / `#wr` modifiers | Done |
+| Struct copy: const → var, var → var, function-return → var | Done |
 | Enum declarations with `EnumName.Member` qualified access | Done |
 | `proc` declarations with default parameters | Done |
 | `func` declarations with return types and default parameters | Done |
@@ -63,6 +65,7 @@
 | `-D NAME` command-line defines | Done |
 | `-I path` include search path | Done |
 | CPU symbols (`_6502` / `_65C02`) auto-defined based on target | Done |
+| `-SEGZ/-SEGB/-SEGC` configurable segment names | Done |
 
 ### Code Generation & Optimization
 
@@ -78,6 +81,7 @@
 | Dead code elimination within proc/func bodies | Done |
 | Unused proc/func/global pruning | Done |
 | Zero page priority allocation for hot locals | Done |
+| Liveness-based variable slot sharing (reduces BSS/ZP usage) | Done |
 | Jump threading | Done |
 | Unused label removal | Done |
 | `COPY_BYTES` (≤ 255 bytes) and `COPY_BYTES16` (> 255 bytes) runtime routines | Done |
@@ -117,7 +121,7 @@ make tests
 
 **Running a single test:**
 ```bash
-make test pass/141-large-byte-array-init
+make test pass/144-array-copy
 ```
 
 Each pass-test directory contains:
@@ -131,10 +135,15 @@ Each pass-test directory contains:
 
 | Bug | Fix |
 |---|---|
-| Arrays with ≥ 256 bytes used 8-bit copy count → infinite loop | Added `COPY_BYTES16` routine and 3-way size split |
+| Arrays with ≥ 256 bytes used 8-bit copy count → infinite loop at program start | Added `COPY_BYTES16` routine and 3-way size split in array initialization |
 | `ADC #0A` emitted instead of `ADC #$0A` (ca65 rejects bare decimal) | Added `$` prefix in all hex emit paths |
-| Empty array inferred from `arr[] = {}` silently produced `.res 0` | `sema.py` now raises error for zero-length ListInit |
+| Empty array inferred from `arr[] = {}` silently produced `.res 0` | `sema.py` now raises error for zero-length `ListInit` |
 | Peephole incorrectly eliminated `LDX` when intervening instruction modified the tracked address | Added `_modifies_memory_operand()` check before elimination |
+| `_gen_string_copy()` (array var→var copy) was BYTE-only and used deprecated `array_len` field → multi-dim arrays silently copied 0 bytes | Fixed: use `get_total_array_size()`; 2-way COPY_BYTES / COPY_BYTES16 split |
+| Array copy condition in `gen_assign()` checked `lhs_t.sem_type.is_pointer`, which is always `True` for bare array identifiers → WORD and LONG array copies fell through to scalar codegen | Fixed: check `lhs_sym.type.is_struct` on the `Symbol` object instead |
+| var→var struct copy had no handler → fell through to scalar codegen, producing wrong code | Added explicit COPY_BYTES/COPY_BYTES16 dispatch path in `gen_assign()` |
+| `_gen_const_struct_copy()` and struct-from-function-return used 8-bit `LDX #size` → overflow for structs > 255 bytes | Fixed: 2-way COPY_BYTES / COPY_BYTES16 split based on struct size |
+| Struct-returning function return buffers (`__RETBUF_FUNCNAME`) were added to `global_symtab` before `prune_unused()`, which then removed them as unreferenced | Fixed: generate RETBUF symbols after `prune_unused()` in `compiler_pipeline.py` |
 
 ---
 
@@ -146,7 +155,5 @@ Each pass-test directory contains:
 | VS Code: "Build: ZAP: Compile current file" command palette hotkey review | Low |
 | Auto short-branch generation (replace `JMP` with `BRA`/`Bxx` where range allows) | Medium |
 | Unify cosmetics in generated code (mixed `#$00` vs `#0`, extra blank lines) | Low |
-| `-O` flag to disable peephole (currently `-O1` enables it; no way to disable in a build) | Low |
-| Check array-of-structs and struct-containing-arrays initialization edge cases | Medium |
-| Verify array copy (non-init) for large arrays | Medium |
+| Const struct literals with word/long fields store values as bytes — field widths not respected | Medium |
 | Tutorial examples and expanded language reference | Low |

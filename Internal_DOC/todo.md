@@ -532,7 +532,7 @@ to:
 
 [x] Check arrays init
 
-[ ] Check array copy
+[x] Check array copy
 
 [ ] Check array of structs and arrays in struct
 
@@ -568,7 +568,7 @@ to
     JMP __ZAP_REL_ELSE_18
 __ZAP_then_20:
 
-[ ] Check <expr> <comparsion operator> <expression> behavior
+[ ] Check building blocks
 
 
 Closure tasks

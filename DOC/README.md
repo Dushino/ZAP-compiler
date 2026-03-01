@@ -142,6 +142,30 @@ python compiler.py program.zap -D DEBUG -D PLATFORM_ATARI -o program.s
 
 This allows conditional compilation for different platforms, debug/release builds, or feature toggles.
 
+#### `-SEGZ <name>`
+Overrides the name of the **zero-page** segment (default: `ZEROPAGE`). Use this when your linker configuration uses a different segment name for zero-page variables.
+
+**Example:**
+```bash
+python compiler.py program.zap -SEGZ ZP -o program.s
+```
+
+#### `-SEGB <name>`
+Overrides the name of the **BSS** segment (default: `BSS`). Use this when your linker configuration uses a different segment name for uninitialized data.
+
+**Example:**
+```bash
+python compiler.py program.zap -SEGB VARS -o program.s
+```
+
+#### `-SEGC <name>`
+Overrides the name of the **code** segment (default: `CODE`). Use this when your linker configuration uses a different segment name for executable code.
+
+**Example:**
+```bash
+python compiler.py program.zap -SEGC PROG -o program.s
+```
+
 ### Combining Options
 
 All options can be combined as needed:
@@ -155,6 +179,9 @@ python compiler.py app.zap -D DEBUG -D VERBOSE -o app_debug.s
 
 # WDC 65C02 with peepholes and platform symbol
 python compiler.py program.zap --peepholes -D SBC_PLATFORM -o program.s
+
+# Custom segment names for a non-standard linker config
+python compiler.py program.zap -SEGZ ZP -SEGB VARS -SEGC PROG -o program.s
 ```
 
 ### Usage Examples
@@ -178,6 +205,9 @@ zapc app.zap -D SBC --peepholes -o app_sbc.s
 
 # Debug build with verbose output
 zapc app.zap -D DEBUG -D VERBOSE -o app_debug.s
+
+# Custom segment names
+zapc app.zap -SEGZ ZP -SEGB VARS -SEGC PROG -o app.s
 ```
 
 ### Module constructors example

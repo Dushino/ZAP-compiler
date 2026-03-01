@@ -78,8 +78,8 @@
 - Segments: .segment "name"
 
 ## Test suite
-- tests/pass/ — 125 positive tests (numbered 001–136)
-- tests/fail/ — 60 negative tests (error detection)
+- tests/pass/ — 131 positive tests (numbered 001–145)
+- tests/fail/ — 62 negative tests (error detection)
 - Each positive test: 4 variants (65C02, 65C02+O1, 6502, 6502+O1)
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
 - generated_tests/ — ~50 Python unit tests for focused feature testing
@@ -92,6 +92,15 @@
 
 ## Refactoring
 - **`__ARRCPY` unified into `__COPY_BYTES`** (`codegen_expr.py`): deleted `_gen_arrcpy_routine()`, `arrcpy_needed` flag, `"ARRCPY"` name-map entry; converted both former callers (`_gen_string_copy` and `gen_local_var_init` StringInit BYTE path) to `copy_bytes_needed=True` + `LDX #count` + `JSR COPY_BYTES`. Unified convention: TMP0=src, TMP2=dst, X=count (0..255), clobbers A/X/Y only (TMP3 no longer consumed).
+
+## Array copy / struct copy bugs fixed (2026-02-28)
+- **`_gen_string_copy` (array var→var copy)**: was BYTE-only, used deprecated `array_len` (0 for multi-dim), truncated count with 8-bit LDX. Fixed: use `get_total_array_size()`, 2-way split (>255→COPY_BYTES16, else COPY_BYTES).
+- **`gen_assign()` array dispatch**: condition used `lhs_t.sem_type.is_pointer` which is ALWAYS True for bare array identifiers (sema returns is_pointer=True for ADDR kind). Fixed: use `lhs_sym.type.is_struct` instead (the symbol's own type).
+- **`_gen_const_struct_copy` and struct-from-function return**: 8-bit LDX overflow for structs >255 bytes. Fixed: 2-way split (>255→COPY_BYTES16, else COPY_BYTES).
+- **var→var struct copy (Group C)**: no handler existed; fell to scalar codegen. Added explicit COPY_BYTES/COPY_BYTES16 path.
+- **struct-array assignment (Group D)**: was silently generating wrong code. Added `_raise_error` guard.
+- **RETBUF (struct-returning func return buffer)**: symbols added to global_symtab BEFORE `prune_unused()`, which then removed them. Fixed: move RETBUF generation to AFTER `prune_unused()` in `compiler_pipeline.py`.
+- **Bare array identifier ExprType**: `sema_expr.py:50-61` — for `sym.is_array`, always returns `is_pointer=True` in ExprType (correct for ADDR kind). All array copy code must check `sym.type.is_struct` (Symbol's own type), NOT `lhs_t.sem_type.is_struct`.
 
 ## Known fixed bugs
 - `codegen_expr.py` (was ~5168): `val & 0xFFFF` mask before LONG init was removed — it truncated bytes 2-3 for values > 65535
