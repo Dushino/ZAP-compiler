@@ -69,7 +69,7 @@
     - Verified: byte field offset 0, byte field offset 1, word field offset 0, word field offset 2; direct variable and struct field assignment targets.
     - Pass test: `154-struct-func-field-access` (8 checks, expected result $08). All 4 variants pass.
 
-- [ ] GAP-11: REPEAT/UNTIL with BREAK and CONTINUE — partially tested in `117`. Verify break exits repeat, continue goes to until-condition, and nesting with for/while works correctly.
+- [x] GAP-11: REPEAT/UNTIL with BREAK and CONTINUE — tested in `155` (9 checks). break exits repeat; continue jumps to until-condition (skipping code after it); break/continue in nested while-inside-repeat and repeat-inside-while correctly targets the innermost loop only.
 
 - [ ] GAP-12: CONTINUE inside SWITCH — should skip to next iteration of the *enclosing loop*, not affect the switch. No explicit test.
 

@@ -9,6 +9,9 @@
       "Bash(awk *)",
       "Bash(ls *)",
       "Bash(make *)"
+    ],
+    "additionalDirectories": [
+      "/home/dusan/src/ZAP-compiler/tests/pass"
     ]
   }
 }

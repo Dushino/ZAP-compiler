@@ -1137,6 +1137,36 @@ proc repeat_example()
 end
 ```
 
+`break` exits the loop immediately. `continue` skips the rest of the body and **jumps directly to the `until`-condition** (not back to the top of the body):
+
+```zap
+proc repeat_break_continue()
+    byte i = 0
+
+    ; break: stop early before condition is reached
+    repeat
+        i = i + 1
+        if i == 3
+            break           ; exits loop; i stays 3, not 10
+        end
+    until i == 10
+
+    ; continue: jump to the until-condition, skipping code below it
+    byte j = 0
+    byte cnt = 0
+    repeat
+        j = j + 1
+        if j == 2
+            continue        ; skips cnt++ and re-evaluates until j==4
+        end
+        cnt = cnt + 1       ; runs on j=1,3,4 but NOT j=2
+    until j == 4
+    ; result: cnt == 3 (not 4), j == 4
+end
+```
+
+**Note:** `break` and `continue` inside nested loops always target the **innermost** enclosing loop. A `break` inside a `while` nested in a `repeat` exits the `while` only; the `repeat` keeps running.
+
 ### for Loop
 
 ```zap
@@ -1293,6 +1323,8 @@ end
 
 ### break Statement
 
+Exits the nearest enclosing loop (`while`, `for`, `repeat-until`) or `switch`. When loops are nested, `break` exits only the innermost one.
+
 ```zap
 proc break_example()
     ; In while loop
@@ -1303,7 +1335,7 @@ proc break_example()
             break
         endif
     end
-    
+
     ; In for loop
     byte i
     for i = 0 to 255
@@ -1311,6 +1343,59 @@ proc break_example()
             break
         endif
     end
+
+    ; In repeat-until loop
+    byte k = 0
+    repeat
+        k = k + 1
+        if k == 3
+            break       ; exits loop; k stays 3, not 10
+        end
+    until k == 10
+end
+```
+
+### continue Statement
+
+Skips the remainder of the current loop body and moves to the **next iteration**:
+
+- In `while` and `for`: jumps back to the loop condition check.
+- In `repeat-until`: jumps directly to the `until`-condition (not back to the body start).
+
+When loops are nested, `continue` affects only the **innermost** enclosing loop.
+
+```zap
+proc continue_example()
+    ; In while loop: skip even numbers
+    byte i = 0
+    byte sum = 0
+    while i < 10
+        i = i + 1
+        if i & 1 == 0
+            continue    ; skip even i — jumps back to while condition
+        end
+        sum = sum + i   ; only odd i values accumulated
+    end
+
+    ; In for loop: skip multiples of 3
+    for i = 1 to 10
+        if i % 3 == 0
+            continue    ; skip — jumps back to for condition
+        end
+        sum = sum + i
+    end
+
+    ; In repeat-until: continue jumps to until-condition
+    byte j = 0
+    byte cnt = 0
+    repeat
+        j = j + 1
+        if j == 2
+            continue    ; jumps to [until j == 5], skipping cnt++
+        end
+        cnt = cnt + 1
+    until j == 5
+    ; cnt == 4 (j=1,3,4,5 each hit cnt++; j=2 was skipped)
 end
 ```
 
