@@ -36,7 +36,7 @@ class CodeGen:
     loop_stack = []
     internal_label_prefix = "__ZAP_"
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, func_return_buffers: dict[str, tuple[str, StructInfo]] | None = None, system_temp_slots: dict[str, str] | None = None) -> None:
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, func_return_buffers: dict[str, tuple[str, StructInfo]] | None = None, system_temp_slots: dict[str, str] | None = None, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> None:
         """Initialize code generation state.
         Stores symbol tables, options, and debug maps.
         """
@@ -59,6 +59,9 @@ class CodeGen:
         self.used_globals: set[str] = used_globals or set()
         self.used_temps: set[str] = set()
         self.command_line: str | None = command_line
+        self.seg_zp: str = seg_zp
+        self.seg_bss: str = seg_bss
+        self.seg_code: str = seg_code
         self.math_stack_depth: int = 0
         self.system_temp_slots: dict[str, str] = system_temp_slots or {}  # Maps temp name to shared slot
         
@@ -3107,7 +3110,7 @@ class CodeGen:
         Internal helper used during code generation.
         """
         # Ensure runtime helpers and data live in CODE segment
-        self.emit("\n\n.segment \"CODE\"")
+        self.emit(f"\n\n.segment \"{self.seg_code}\"")
         self._gen_copy_bytes_routine()
         self._gen_copy_bytes16_routine()
         self._gen_string_data()
@@ -3213,37 +3216,31 @@ class CodeGen:
         self.emit("")
     
     def _gen_string_copy(self, dst_sym, src_sym) -> None:
-        """Generate code to call COPY_BYTES subroutine for byte-array assignment.
+        """Generate code to copy a source array into a destination array.
 
-        Sets TMP0/TMP2 to src/dst addresses, X to byte count, then JSR COPY_BYTES.
+        Uses COPY_BYTES (≤255 bytes) or COPY_BYTES16 (>255 bytes).
+        Sets TMP0/TMP2 to src/dst addresses; count in X (8-bit) or TMP4/TMP4+1 (16-bit).
+        Supports BYTE, WORD, and LONG arrays.
         """
-        self.copy_bytes_needed = True
-        
         src_asm = src_sym.asm_name()
         dst_asm = dst_sym.asm_name()
-        dst_len = dst_sym.array_len or 0
-        
+        total_bytes: int = dst_sym.get_total_array_size()
+        if total_bytes == 0:
+            self._raise_error(f"Cannot copy array '{dst_sym.name}': size is unknown")
+
         # Set up source address in TMP0
         if src_sym.address is not None:
-            # Fixed address - load as immediate
             addr = src_sym.address
             self.emit(f"\tLDA #${addr & 0xFF:02X}")
             self.emit("\tSTA TMP0")
             self.emit(f"\tLDA #${(addr >> 8) & 0xFF:02X}")
             self.emit("\tSTA TMP0+1")
         else:
-            # Variable - address is the variable itself (for arrays in ZP or data)
-            self.emit(f"\tLDA #$00")  # Low byte of source address
-            self.emit("\tSTA TMP0")
-            self.emit(f"\tLDA #$00")  # High byte
-            self.emit("\tSTA TMP0+1")
-            # Actually, for simple arrays, just use the variable name as pointer
-            # Load address of source array
             self.emit(f"\tLDA #<{src_asm}")
             self.emit("\tSTA TMP0")
             self.emit(f"\tLDA #>{src_asm}")
             self.emit("\tSTA TMP0+1")
-        
+
         # Set up destination address in TMP2
         if dst_sym.address is not None:
             addr = dst_sym.address
@@ -3256,15 +3253,19 @@ class CodeGen:
             self.emit("\tSTA TMP2")
             self.emit(f"\tLDA #>{dst_asm}")
             self.emit("\tSTA TMP2+1")
-        
-        # Set copy length in X (full array length)
-        if dst_len > 0:
-            self.emit(f"\tLDX #${dst_len:02X}")
-        else:
-            # No length limit known; copy up to 255 bytes
-            self.emit("\tLDX #$FF")
 
-        self.emit("\tJSR COPY_BYTES")
+        # Choose copy routine based on total bytes
+        if total_bytes > 255:
+            self.copy_bytes16_needed = True
+            self.emit(f"\tLDA #${total_bytes & 0xFF:02X}")
+            self.emit("\tSTA TMP4")
+            self.emit(f"\tLDA #${(total_bytes >> 8) & 0xFF:02X}")
+            self.emit("\tSTA TMP4+1")
+            self.emit("\tJSR COPY_BYTES16")
+        else:
+            self.copy_bytes_needed = True
+            self.emit(f"\tLDX #${total_bytes:02X}")
+            self.emit("\tJSR COPY_BYTES")
 
     def _extract_const_values_from_listinit(self, init_list, flat_values: list[int]) -> None:
         """Extract const values from a ListInit, handling nested struct literals.
@@ -3393,25 +3394,31 @@ class CodeGen:
             self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
         arr_label = self.array_literals[data_key]
         
-        # Generate code to copy struct bytes using COPY_BYTES routine
-        self.copy_bytes_needed = True
-        
         # Set up source address (ROM data) in TMP0
         self.emit(f"\tLDA #<{arr_label}")
         self.emit("\tSTA TMP0")
         self.emit(f"\tLDA #>{arr_label}")
         self.emit("\tSTA TMP0+1")
-        
+
         # Set up destination address in TMP2
         dst_asm = dst_sym.asm_name()
         self.emit(f"\tLDA #<{dst_asm}")
         self.emit("\tSTA TMP2")
         self.emit(f"\tLDA #>{dst_asm}")
         self.emit("\tSTA TMP2+1")
-        
-        # Set copy length in X (number of bytes = struct size)
-        self.emit(f"\tLDX #${struct_size:02X}")
-        self.emit("\tJSR COPY_BYTES")
+
+        # Choose copy routine based on struct size
+        if struct_size > 255:
+            self.copy_bytes16_needed = True
+            self.emit(f"\tLDA #${struct_size & 0xFF:02X}")
+            self.emit("\tSTA TMP4")
+            self.emit(f"\tLDA #${(struct_size >> 8) & 0xFF:02X}")
+            self.emit("\tSTA TMP4+1")
+            self.emit("\tJSR COPY_BYTES16")
+        else:
+            self.copy_bytes_needed = True
+            self.emit(f"\tLDX #${struct_size:02X}")
+            self.emit("\tJSR COPY_BYTES")
 
     
     def _gen_math_routines(self) -> None:
@@ -4402,9 +4409,9 @@ class CodeGen:
         saved_code = self.code
         self.code = []
 
-        self.emit("\n\n.segment \"ZEROPAGE\"")
+        self.emit(f"\n\n.segment \"{self.seg_zp}\"")
         self.emit("; System variables")
-        
+
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
         sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
         for temp_name, temp_size in sys_temp_names:
@@ -4649,7 +4656,7 @@ class CodeGen:
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
         if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
-            self.emit("\n\n.segment \"BSS\"")
+            self.emit(f"\n\n.segment \"{self.seg_bss}\"")
 
             if shared_slots_bss:
                 self.emit("; Shared slots (BSS)")
@@ -4735,7 +4742,7 @@ class CodeGen:
                       "TMP12", "TMP13", "TMP14", "TMP15"]
         }
 
-        self.emit("\n\n.segment \"ZEROPAGE\"")
+        self.emit(f"\n\n.segment \"{self.seg_zp}\"")
         self.emit("; System variables")
         
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
@@ -5027,7 +5034,7 @@ class CodeGen:
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
         if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
-            self.emit("\n\n.segment \"BSS\"")
+            self.emit(f"\n\n.segment \"{self.seg_bss}\"")
 
             if shared_slots_bss:
                 self.emit("; Shared slots (BSS)")
@@ -5109,7 +5116,7 @@ class CodeGen:
         """Generate globals header.
         Internal helper used during code generation.
         """
-        self.emit("\n\n.segment \"CODE\"")
+        self.emit(f"\n\n.segment \"{self.seg_code}\"")
         self.emit("\n; Globals initialization")
         self.emit("; ------------------------------") 
                
@@ -9483,7 +9490,6 @@ class CodeGen:
             if specs is not None:
                 self._emit_call_args(rhs.name, rhs.args, specs)
             self.emit(f"\tJSR {self.asm_symbol_name(rhs.name)}")
-            self.copy_bytes_needed = True
             self.emit(f"\tLDA #<{asm_ret}")
             self.emit("\tSTA TMP0")
             self.emit(f"\tLDA #>{asm_ret}")
@@ -9492,30 +9498,77 @@ class CodeGen:
             self.emit("\tSTA TMP2")
             self.emit(f"\tLDA #>{sym.asm_name()}")
             self.emit("\tSTA TMP2+1")
-            self.emit(f"\tLDX #${ret_info.size:02X}")
-            self.emit("\tJSR COPY_BYTES")
+            if ret_info.size > 255:
+                self.copy_bytes16_needed = True
+                self.emit(f"\tLDA #${ret_info.size & 0xFF:02X}")
+                self.emit("\tSTA TMP4")
+                self.emit(f"\tLDA #${(ret_info.size >> 8) & 0xFF:02X}")
+                self.emit("\tSTA TMP4+1")
+                self.emit("\tJSR COPY_BYTES16")
+            else:
+                self.copy_bytes_needed = True
+                self.emit(f"\tLDX #${ret_info.size:02X}")
+                self.emit("\tJSR COPY_BYTES")
             return
 
         rhs_t: ExprType = self.tc_check(rhs)
 
-        # Special case: array-to-array assignment (string copy)
-        # str3 = str2 -> copy str2 content into str3 until NUL or max length
+        # Special case: array-to-array assignment and struct assignment
         if isinstance(lhs, Identifier) and isinstance(rhs, Identifier):
             lhs_sym: Symbol = self.current_symtab.lookup(lhs.name)
             rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
-            
-            if lhs_sym.is_array and rhs_sym.is_array and \
-               lhs_t.sem_type.base == "BYTE" and rhs_t.sem_type.base == "BYTE":
-                # This is a byte array to byte array copy
+
+            # Guard: array-of-struct assignment is not supported
+            if lhs_sym.is_array and rhs_sym.is_array and lhs_sym.type.is_struct:
+                self._raise_error(
+                    "Array-of-struct assignment is not supported; use a loop or pointer copy"
+                )
+
+            # Array-to-array copy (BYTE, WORD, or LONG)
+            # Note: bare array identifiers always have is_pointer=True in ExprType,
+            # so check the symbol's own type instead.
+            if lhs_sym.is_array and rhs_sym.is_array and not lhs_sym.type.is_struct:
                 self._gen_string_copy(lhs_sym, rhs_sym)
                 return
-            
-            # Special case: const struct to struct assignment (struct copy)
-            # p = ORIG -> copy const struct data into p
+
+            # Non-const struct variable to struct variable copy
+            if not lhs_sym.is_array and not rhs_sym.is_array and \
+               lhs_t.sem_type.is_struct and rhs_t.sem_type.is_struct and \
+               not rhs_sym.is_const:
+                if lhs_t.sem_type.base.upper() != rhs_t.sem_type.base.upper():
+                    self._raise_error(
+                        f"Struct type mismatch: cannot assign '{rhs_t.sem_type.base}' to '{lhs_t.sem_type.base}'"
+                    )
+                struct_info = lhs_t.sem_type.struct_info
+                if struct_info is None:
+                    self._raise_error(f"Cannot determine struct type for '{lhs_sym.name}'")
+                src_asm = rhs_sym.asm_name()
+                dst_asm_c = lhs_sym.asm_name()
+                self.emit(f"\tLDA #<{src_asm}")
+                self.emit("\tSTA TMP0")
+                self.emit(f"\tLDA #>{src_asm}")
+                self.emit("\tSTA TMP0+1")
+                self.emit(f"\tLDA #<{dst_asm_c}")
+                self.emit("\tSTA TMP2")
+                self.emit(f"\tLDA #>{dst_asm_c}")
+                self.emit("\tSTA TMP2+1")
+                if struct_info.size > 255:
+                    self.copy_bytes16_needed = True
+                    self.emit(f"\tLDA #${struct_info.size & 0xFF:02X}")
+                    self.emit("\tSTA TMP4")
+                    self.emit(f"\tLDA #${(struct_info.size >> 8) & 0xFF:02X}")
+                    self.emit("\tSTA TMP4+1")
+                    self.emit("\tJSR COPY_BYTES16")
+                else:
+                    self.copy_bytes_needed = True
+                    self.emit(f"\tLDX #${struct_info.size:02X}")
+                    self.emit("\tJSR COPY_BYTES")
+                return
+
+            # Const struct to struct variable copy
             if not lhs_sym.is_array and not rhs_sym.is_array and \
                lhs_t.sem_type.is_struct and rhs_t.sem_type.is_struct and \
                rhs_sym.is_const and rhs_sym.init and isinstance(rhs_sym.init, ListInit):
-                # Copy const struct bytes to lhs
                 self._gen_const_struct_copy(lhs_sym, rhs_sym)
                 return
 

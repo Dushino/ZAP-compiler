@@ -264,7 +264,7 @@ def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
     return pruned_procs, pruned_funcs, referenced_globals, removed_procs
 
 
-def _format_assembly(lines: list[str]) -> list[str]:
+def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS") -> list[str]:
     """Compact and reformat assembly output for readability."""
     flat: list[str] = []
     for line in lines:
@@ -281,8 +281,8 @@ def _format_assembly(lines: list[str]) -> list[str]:
         return (
             ln.startswith("; -- Procedure ") or
             ln.startswith("; -- Function ") or
-            ln.startswith('.segment "ZEROPAGE"') or
-            ln.startswith('.segment "BSS"')
+            ln.startswith(f'.segment "{seg_zp}"') or
+            ln.startswith(f'.segment "{seg_bss}"')
         )
 
     out: list[str] = []
@@ -1613,7 +1613,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             sym.zp_priority = -1  # Mark as "not allocated to ZP"
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:
     """Run the full compile pipeline from AST to assembly output."""
     # --- symbol tables ---
     global_symtab = SymbolTable()
@@ -1777,7 +1777,16 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 raise RuntimeError(f"Internal compiler error: Func analyzer returned None for function '{p.name}'")
             analyzed_funcs.append(af)
 
-    # Add generated return buffers for struct-returning functions
+    # --- codegen ---
+    # reuse func_table from analysis (already has all functions registered)
+    tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
+    pruned_procs, pruned_funcs, used_globals, removed_procs = prune_unused(
+        program, analyzed_procs, analyzed_funcs, global_symtab
+    )
+    analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
+
+    # Add generated return buffers for struct-returning functions.
+    # Must be done AFTER prune_unused so these generated globals are not pruned.
     func_return_buffers: dict[str, tuple[str, StructInfo]] = {}
     for af in analyzed_funcs:
         ret_sem = af.ret_type
@@ -1809,14 +1818,6 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                 pass
             sym = global_symtab.lookup(buf_name)
             func_return_buffers[af.ast.name] = (sym.asm_name(), ret_sem.struct_info)
-
-    # --- codegen ---   
-    # reuse func_table from analysis (already has all functions registered)
-    tc = ExprTypeChecker(global_symtab, func_table, struct_registry)
-    pruned_procs, pruned_funcs, used_globals, removed_procs = prune_unused(
-        program, analyzed_procs, analyzed_funcs, global_symtab
-    )
-    analyzed_procs, analyzed_funcs = pruned_procs, pruned_funcs
 
     # Build parameter specs for procedures and functions (name -> [(param, width, default_value)])
     def _build_param_specs_procs(procs):
@@ -1873,6 +1874,9 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         struct_registry=struct_registry,
         func_return_buffers=func_return_buffers,
         system_temp_slots={},  # Will be updated after liveness analysis
+        seg_zp=seg_zp,
+        seg_bss=seg_bss,
+        seg_code=seg_code,
     )
     # Recompute exports to reflect pruned (removed) procs/funcs and globals
     original_exports = set(getattr(program, 'exports', set()) or set())
@@ -2003,7 +2007,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # Insert vars in front of the first CODE segment to keep ZP symbols ahead of use
     try:
-        code_start = next(i for i, ln in enumerate(cg.code) if ln.strip().startswith('.segment "CODE"'))
+        code_start = next(i for i, ln in enumerate(cg.code) if ln.strip().startswith(f'.segment "{seg_code}"'))
     except StopIteration:
         code_start = 0
     cg.code = cg.code[:code_start] + vars_block + cg.code[code_start:]
@@ -2015,6 +2019,6 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # Apply peephole optimizations only when explicitly enabled
     if enable_peephole:
         cg.peephole_optimize()
-    cg.code = _format_assembly(cg.code)
+    cg.code = _format_assembly(cg.code, seg_zp=seg_zp, seg_bss=seg_bss)
     return "\n".join(cg.code)
 

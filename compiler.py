@@ -9,7 +9,7 @@ import sys
 from version import __version__
 from typing import Optional, Set, List
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:
     """Compile ZAP source text to assembly output."""
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
@@ -26,7 +26,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         parser = Parser(src, filename="<input.zap>")
         parser_filename = getattr(parser, "filename", None)
         program = parser.parse_program()
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code)
 
     except CompileError as e:
         if e.line is not None:
@@ -41,7 +41,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         return ""
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:
     """Compile a source file with module resolution enabled."""
     try:
         # Get base directory for resolving includes
@@ -54,7 +54,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         program, defined_symbols = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code)
     
     except CompileError as e:
         # If we have the parsed/linked program available, attempt to remap the
@@ -148,6 +148,9 @@ if __name__ == "__main__":
         predefined_symbols = set()
         include_dirs = []
         enable_peephole = False
+        seg_zp = "ZEROPAGE"
+        seg_bss = "BSS"
+        seg_code = "CODE"
 
         # Simple CLI parsing to support -6502, -o <file>, -D <symbol>, and -I <directory>
         i = 0
@@ -189,6 +192,27 @@ if __name__ == "__main__":
                 enable_peephole = True
                 i += 1
                 continue
+            if a == "-SEGZ":
+                if i + 1 >= len(args):
+                    print("<cli>:1:1: error: -SEGZ requires a segment name", file=sys.stderr)
+                    sys.exit(1)
+                seg_zp = args[i + 1]
+                i += 2
+                continue
+            if a == "-SEGB":
+                if i + 1 >= len(args):
+                    print("<cli>:1:1: error: -SEGB requires a segment name", file=sys.stderr)
+                    sys.exit(1)
+                seg_bss = args[i + 1]
+                i += 2
+                continue
+            if a == "-SEGC":
+                if i + 1 >= len(args):
+                    print("<cli>:1:1: error: -SEGC requires a segment name", file=sys.stderr)
+                    sys.exit(1)
+                seg_code = args[i + 1]
+                i += 2
+                continue
             # First non-option is the source file
             if src_file is None:
                 src_file = a
@@ -214,6 +238,9 @@ if __name__ == "__main__":
             command_line=command_line,
             include_dirs=include_dirs,
             enable_peephole=enable_peephole,
+            seg_zp=seg_zp,
+            seg_bss=seg_bss,
+            seg_code=seg_code,
         )
 
         # Write to file if requested, else print to stdout
