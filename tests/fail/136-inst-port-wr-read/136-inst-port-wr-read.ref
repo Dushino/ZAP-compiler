@@ -1,0 +1,4 @@
+# Error Test - instance #PORT #WR: read from unqualified field
+
+## Expected Error
+Read from write-only port

@@ -75,11 +75,24 @@
 
 - [x] GAP-13: Const struct passed directly as function argument `fn({1, 2})` — tested in `157` (7 checks). Covers: byte-only struct, word-only struct, mixed byte+word, zero field, inline in condition, and nested struct literal `{tag, {x, y}}`.
 
-- [ ] GAP-14: PORT struct with all field access patterns — `#PORT` struct, `#RD`-only field read, `#WR`-only field write, mixed `#RD #WR`, field without modifier inheriting struct-level defaults. Some tests exist; verify completeness.
+- [x] GAP-14: PORT struct with all field access patterns — tested in `158` (4 checks). Covers: field inheriting struct-level `#PORT` (both rd+wr), `#RD`-only read, `#WR`-only write, explicit `#RD #WR`. Fail tests 129/130/131 cover rejection of #RD without PORT, write-to-readonly, read-from-writeonly. Documented in language reference under "Port Structs" in the Structs chapter.
 
 - [ ] GAP-15: `SIZEOF()` on pointer-to-struct vs the struct itself — e.g. `SIZEOF(MyStruct)` vs `SIZEOF(ptr_to_struct)`. Verify correct size returned in both cases.
 
 - [ ] GAP-16: `LOW()` / `HIGH()` edge cases — verify on: struct field (`LOW(s.field)`), array element (`HIGH(arr[i])`), deref expression (`LOW(ptr^)`), long variable (should return low/high of full 4-byte value?). Codegen handles identifiers and IntLiteral; complex args use `gen_expr()` fallback.
+For LONG variable, LOW should return lowest byte, HIGH should return second lowest byte.
+Add LOWW() and HIGHW() to be used on LONG variables returning lower / higher WORD. 
+Add tests for checking LOWW and HIGHW, include also this kind of test:
+LONG varL
+WORD varW
+BYTE varB
+
+varL = $12345678
+varW = HIGHW(varL)
+varB = HIGH(varlW)
+varB = HIGHW(HIGH(varL))
+
+Check documentation and add what is missing.
 
 - [ ] GAP-17: Auto short branches — JMP → BXX where branch target is within ±127 bytes. Not implemented. Open todo item; deferred.
 

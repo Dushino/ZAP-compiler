@@ -251,6 +251,7 @@ byte DATA_PORT @$D201 #PORT #WR      ; write-only port
 Use cases:
 - Represent memory-mapped or I/O ports in platform-specific library modules.
 - Document hardware access permissions with `#RD`/`#WR` so semantic checks can catch misuse.
+- For devices with multiple registers, declare a `struct #PORT` and use field-level `#RD`/`#WR`. See **Port Structs** in the Structs chapter.
 
 Examples:
 
@@ -2161,6 +2162,84 @@ end
 ```
 
 ---
+
+### Port Structs (#PORT struct with field-level #RD / #WR)
+
+A struct type can be declared with `#PORT` to model a memory-mapped hardware device where each field corresponds to a hardware register. Field-level `#RD` and `#WR` modifiers control read/write access per field, and a field with no modifier inherits the struct-level default.
+
+```zap
+struct VIA #PORT
+    byte ORB            ; no modifier → inherits struct-level: both read and write
+    byte ORA    #RD     ; read-only field (write is a compile error)
+    byte CTRL   #WR     ; write-only field (read is a compile error)
+    byte STATUS #RD #WR ; explicit both read and write
+end
+
+VIA VIA1 @$9C00 #PORT   ; instance at fixed hardware address
+```
+
+**Field modifier rules:**
+
+| Field declaration | Read allowed | Write allowed |
+|---|---|---|
+| `byte F`          | yes (inherits struct `#PORT` default — both) | yes |
+| `byte F #RD`      | yes | **no** — compile error |
+| `byte F #WR`      | **no** — compile error | yes |
+| `byte F #RD #WR`  | yes | yes |
+
+**Accessing fields:**
+
+```zap
+proc use_via()
+    byte v = VIA1.ORA       ; ok — #RD field: read allowed
+    VIA1.CTRL = $FF         ; ok — #WR field: write allowed
+    VIA1.ORB  = $01         ; ok — inherited default: both allowed
+    v = VIA1.ORB            ; ok — read also allowed
+    ; VIA1.ORA = 1          ; ERROR: write to read-only port
+    ; v = VIA1.CTRL         ; ERROR: read from write-only port
+end
+```
+
+**Struct-level `#PORT` with direction defaults:**
+
+A struct can also carry `#RD` or `#WR` at the struct level to set the default for all unqualified fields:
+
+```zap
+struct ReadOnlyChip #PORT #RD
+    byte STATUS         ; inherits #RD → read-only
+    byte DATA   #RD #WR ; overrides to both
+end
+```
+
+**Instance declaration and direction override:**
+
+When the struct type already carries `#PORT`, the instance inherits port semantics automatically — the `#PORT` modifier on the instance is optional. You can additionally place `#RD` or `#WR` on the instance to override the direction for all fields that have no explicit field-level modifier:
+
+| Instance declaration | Unqualified field direction |
+|---|---|
+| `MyPort P @addr`            | both read and write (inherits struct default) |
+| `MyPort P @addr #PORT`      | both read and write (same — explicit is redundant) |
+| `MyPort P @addr #PORT #RD`  | read-only (unqualified fields become read-only) |
+| `MyPort P @addr #PORT #WR`  | write-only (unqualified fields become write-only) |
+
+Field-level modifiers (`#RD`, `#WR`, `#RD #WR`) always override the instance direction:
+
+```zap
+struct Mixed #PORT
+    byte DATA           ; no modifier — takes direction from instance
+    byte REG  #WR       ; explicit #WR — always writable regardless of instance
+end
+
+Mixed P1 @$A000 #PORT #RD   ; P1 is read-only overall
+; P1.DATA = 1              ; ERROR: DATA falls back to instance #RD — not writable
+; P1.REG  = 1              ; OK:   REG has explicit #WR — overrides instance direction
+```
+
+**Constraint summary:**
+- `#PORT` on the instance variable is optional when the struct type already declares `#PORT`; including it adds redundant validation checks (address required, no array, no pointer, no initializer).
+- The instance variable must have an explicit `@address`.
+- Port variables cannot have initializers.
+- `#RD` and `#WR` on an instance variable require `#PORT` on the same declaration; using them without `#PORT` is a compile error.
 
 ## Pointers
 
