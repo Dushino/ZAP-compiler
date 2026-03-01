@@ -1009,7 +1009,8 @@ end
 3.  **Fall-through**: ZAP! `switch` statements have **C-like fall-through behavior**. If a `case` block does not end with `break`, execution continues into the next `case` block.
 4.  **Default**: The `default` block executes if no case matches. It is optional.
 5.  **Break**: The `break` statement exits the `switch` structure.
-6.  **One-time dispatch**: The switch expression is evaluated once before any case body runs. Modifying the switch variable inside a case body does not cause a different case to be selected.
+6.  **Continue**: The `continue` statement inside a `switch` is **not** a switch operation — it targets the nearest *enclosing loop* and jumps to its next iteration. This lets you skip the rest of the current loop iteration from inside a switch case.
+7.  **One-time dispatch**: The switch expression is evaluated once before any case body runs. Modifying the switch variable inside a case body does not cause a different case to be selected.
 
 **Example with Break (No Fall-through):**
 
@@ -1100,6 +1101,25 @@ switch var
         break
 end
 ; cnt is 2
+```
+
+**`continue` inside `switch`:** When a `switch` is nested inside a loop, `continue` inside a `case` body skips the rest of the **current loop iteration** — not a switch operation. The `switch` itself has no concept of "next case"; only `break` exits it.
+
+```zap
+proc continue_in_switch()
+    byte i = 0
+    byte cnt = 0
+
+    while i < 5
+        i = i + 1
+        switch i
+        case 3
+            continue    ; skip cnt++ for i==3; jumps to while condition check
+        end
+        cnt = cnt + 1   ; runs for i=1,2,4,5 — skipped when i==3
+    end
+    ; cnt == 4
+end
 ```
 
 ### while Loop
@@ -1377,10 +1397,12 @@ proc continue_example()
         sum = sum + i   ; only odd i values accumulated
     end
 
-    ; In for loop: skip multiples of 3
+    ; In for loop: continue jumps to the for condition check,
+    ; which SKIPS the step increment for that iteration.
+    ; Avoid continue in for loops unless the step is handled manually before continue.
     for i = 1 to 10
         if i % 3 == 0
-            continue    ; skip — jumps back to for condition
+            continue    ; jumps to condition check — step increment is skipped!
         end
         sum = sum + i
     end

@@ -71,7 +71,7 @@
 
 - [x] GAP-11: REPEAT/UNTIL with BREAK and CONTINUE — tested in `155` (9 checks). break exits repeat; continue jumps to until-condition (skipping code after it); break/continue in nested while-inside-repeat and repeat-inside-while correctly targets the innermost loop only.
 
-- [ ] GAP-12: CONTINUE inside SWITCH — should skip to next iteration of the *enclosing loop*, not affect the switch. No explicit test.
+- [x] GAP-12: CONTINUE inside SWITCH — tested in `156` (4 checks: while+switch and repeat+switch). continue in a switch case correctly targets the enclosing loop's next iteration. Documented in language reference (switch Key Features #6, continue statement section).
 
 - [ ] GAP-13: Const struct passed directly as function argument `fn({1, 2})` — marked done in `todo.md`. Verify with a dedicated test if not already covered.
 
