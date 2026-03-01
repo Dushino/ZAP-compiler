@@ -1646,28 +1646,53 @@ end
 
 #### Struct Literals as Call Arguments
 
-You can pass a struct literal directly to a PROC or FUNC parameter that expects a struct value. The literal is copied into the parameter storage before the call.
+You can pass a struct literal directly to a `proc` or `func` parameter that expects a struct value. The literal is copied into the parameter storage before the call.
 
 ```zap
-struct MyStruct
-    byte a
-    byte b
-    byte c
+struct Pair
+    byte x
+    byte y
 end
 
-func byte mytest(MyStruct arg)
-    return arg.a + arg.b + arg.c
+struct WPair
+    word wx
+    word wy
+end
+
+struct Nested
+    byte tag
+    Pair p
+end
+
+func byte add_pair(Pair p)
+    return p.x + p.y
+end
+
+func word add_wpair(WPair p)
+    return p.wx + p.wy
+end
+
+func byte nested_sum(Nested n)
+    return n.tag + n.p.x + n.p.y
 end
 
 proc main()
-    byte result = mytest({ 1, 2, 3 })
+    byte a = add_pair({10, 20})         ; byte struct literal → a = 30
+    word b = add_wpair({300, 400})      ; word struct literal → b = 700
+    byte c = nested_sum({1, {10, 20}})  ; nested struct literal → c = 31
+
+    ; struct literal can appear inline in any expression
+    if add_pair({3, 4}) == 7
+        ; ...
+    end
 end
 ```
 
 Notes:
-- The literal must match the struct size (byte-for-byte).
-- For in-place updates, pass a pointer (`MyStruct ^`) instead.
-```
+- The literal values must correspond to the struct fields in declaration order.
+- Each value is assigned to the matching field: `byte` fields take byte values, `word` fields take word values.
+- Nested struct fields use a nested literal `{outer_field, {inner_field, ...}}`.
+- For in-place updates, pass a pointer (`Pair ^`) instead.
 
 ### Recursive Calls
 

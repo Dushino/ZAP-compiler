@@ -73,7 +73,7 @@
 
 - [x] GAP-12: CONTINUE inside SWITCH — tested in `156` (4 checks: while+switch and repeat+switch). continue in a switch case correctly targets the enclosing loop's next iteration. Documented in language reference (switch Key Features #6, continue statement section).
 
-- [ ] GAP-13: Const struct passed directly as function argument `fn({1, 2})` — marked done in `todo.md`. Verify with a dedicated test if not already covered.
+- [x] GAP-13: Const struct passed directly as function argument `fn({1, 2})` — tested in `157` (7 checks). Covers: byte-only struct, word-only struct, mixed byte+word, zero field, inline in condition, and nested struct literal `{tag, {x, y}}`.
 
 - [ ] GAP-14: PORT struct with all field access patterns — `#PORT` struct, `#RD`-only field read, `#WR`-only field write, mixed `#RD #WR`, field without modifier inheriting struct-level defaults. Some tests exist; verify completeness.
 
@@ -85,6 +85,9 @@
 
 - [ ] GAP-18: Split tests for intentional failure to include only one test oper ZAP file. If more tests are inside, after first failure others are not executed. Then check all failure tests are failing properly.
 
+- [ ] GAP-19 Verify all pass tests which are testing datatypes to include BYTE, WORD, LONG, and pointer. Add missing datatype into apropriate test or create new tests. 
+
+
 
 ---
 
@@ -95,6 +98,8 @@
 - [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD.
 - [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
 - [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `SIZEOF` to primary expression as built-in calls.
+- [ ] DOC-06 Verify that all examples in DOC directory are of correct syntax and compiles to desired result. If needed, include your temporary tests into generated_tests direcotry.
+
 
 ---
 

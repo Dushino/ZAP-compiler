@@ -8,7 +8,8 @@
       "Bash(grep *)",
       "Bash(awk *)",
       "Bash(ls *)",
-      "Bash(make *)"
+      "Bash(make *)",
+      "Bash(sed *)"
     ],
     "additionalDirectories": [
       "/home/dusan/src/ZAP-compiler/tests/pass"
