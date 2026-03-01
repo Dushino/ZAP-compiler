@@ -1046,6 +1046,26 @@ end
 ; Result: If x is 1, y becomes 2.
 ```
 
+**Example without `default` (no match → continues normally):**
+
+```zap
+byte x = 7
+byte hit = 0
+
+switch x
+    case 1
+        hit = 1
+        break
+    case 2
+        hit = 2
+        break
+end
+; x is 7, no case matches, no default → hit stays 0
+; Execution continues here normally
+```
+
+When no case matches and there is no `default`, the entire switch body is skipped and execution resumes at the statement after `end`.
+
 ### while Loop
 
 ```zap

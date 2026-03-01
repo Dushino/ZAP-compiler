@@ -41,7 +41,10 @@
   - **Global (all types)**: Allowed. `.res N` in BSS — linker zeroes at program startup.
   - All verified by pass test `149-uninit-vars` (12 checks, all 4 variants pass).
 
-- [ ] GAP-07: SWITCH with no `default` clause — verify compiles and runs correctly (falls through to end with no match). No negative test exists.
+- [x] GAP-07: SWITCH with no `default` clause — verify compiles and runs correctly (falls through to end with no match). No negative test exists.
+  - Covered by pass test `150-switch-no-default` (all 4 variants pass).
+  - Verified: byte/word/long switch with no default; matching case runs; non-matching skips entire body and continues; stacked cases (no match → skip); fall-through without default (no match → cnt=0).
+  - `ZAP_LANGUAGE_REFERENCE.md` already stated `default` is optional; added no-default example.
 
 - [ ] GAP-08: LONG as FOR loop variable / bounds / step — covered by `138-long-control-flow`. Verify all edge cases: step > 1, step computed from expression, bounds at LONG boundary.
 
