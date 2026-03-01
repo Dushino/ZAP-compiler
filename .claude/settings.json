@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python compiler.py *)",
+      "Bash(ca65 *)",
+      "Bash(ld65 *)",
+      "Bash(6502_simulator *)"
+    ]
+  }
+}

@@ -1170,6 +1170,8 @@ end
 **Semantics:** The `to` bound is exclusive (C-like). With a positive step, the loop runs while `i < end`. With a negative step, it runs while `i > end`.
 To include a specific last value, set `to` one step past it (e.g., `for i = 0 to 10` includes 9 with step 1; `for i = 0 to 110 step 10` includes 100).
 
+**Data types:** The loop variable may be `byte`, `word`, `long`, or a pointer (`byte^`, `word^`). The `to` bound and `step` are widened to match the loop variable type.
+
 **LONG bounds:** The loop variable, `to`-bound, and `step` may all be `long`. The compiler allocates 4-byte temporaries for the bounds automatically.
 
 ```zap
@@ -1181,6 +1183,61 @@ proc long_for_example()
     for i = start_val to end_val step 1
         ; Iterates 4 times: i = 65536, 65537, 65538, 65539
     end
+end
+```
+
+**Expression bounds and variable step:** Both the `to` bound and the `step` may be runtime expressions or variables, not just constants.
+
+```zap
+proc expr_bounds_example()
+    byte i
+    byte a = 2
+    byte b = 5
+    word w
+    word ws = 5
+
+    ; Bounds from compound expressions
+    for i = a + 1 to b * 2     ; start=3, end=10, runs 7 times
+        ; i = 3, 4, 5, 6, 7, 8, 9
+    end
+
+    ; Step from a variable (general path)
+    for w = 0 to 20 step ws    ; ws=5, runs 4 times
+        ; w = 0, 5, 10, 15
+    end
+end
+```
+
+**Pointer as loop variable:** A pointer variable can be used as the loop variable to iterate over memory addresses.
+
+```zap
+proc pointer_loop_example()
+    byte arr[4]
+    byte^ ptr
+
+    ; ptr iterates over arr[0]..arr[3] addresses
+    for ptr = @arr[0] to @arr[0] + 4
+        ptr^ = 1           ; Write 1 to each element
+    end
+    ; arr is now [1, 1, 1, 1]
+end
+```
+
+**Dereferenced pointer as end bound:** A dereferenced pointer (`ptr^`) may appear in the `to` expression.
+
+```zap
+proc deref_end_example()
+    byte target = 6
+    byte^ ptr
+    byte i
+    byte cnt
+
+    ptr = @target           ; ptr points to target (= 6)
+    cnt = 0
+    for i = 0 to ptr^       ; end = *ptr = 6, runs 6 times
+        cnt = cnt + 1        ; i = 0, 1, 2, 3, 4, 5
+    end
+    ; cnt == 6
 end
 ```
 

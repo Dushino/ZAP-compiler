@@ -1389,7 +1389,7 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
 
 def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry) -> dict[int, set[str]]:
     """Create stable temp names for FOR loop end/step values."""
-    from ast_nodes import ForStmt, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, IntLiteral
+    from ast_nodes import ForStmt, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, IntLiteral, Identifier
     from symbols import SemType, Symbol
 
     for_temp_map: dict[int, set[str]] = {}
@@ -1427,20 +1427,26 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
             if isinstance(st, ForStmt):
                 step_expr = st.step if st.step is not None else IntLiteral(1)
 
-                end_t = tc.check(st.end)
                 var_t = tc.check(st.var)
-                end_is_word = (
-                    var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
-                    end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
-                )
-                end_width = max(var_t.sem_type.width, end_t.sem_type.width)
-                end_type_base = "LONG" if end_width == 4 else ("WORD" if end_is_word else "BYTE")
-                end_name = next_for_name("END")
-                declare_temp(local_tbl, proc_name, end_name, end_type_base)
+                temp_names: set[str] = set()
 
-                temp_names: set[str] = {end_name}
+                # Mirror codegen: FOR_END temp only when end is not a simple Identifier
+                # (_gen_for_const_step and _gen_for_general both skip the temp for Identifier ends)
+                if not isinstance(st.end, Identifier):
+                    end_t = tc.check(st.end)
+                    end_is_word = (
+                        var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
+                        end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
+                    )
+                    end_width = max(var_t.sem_type.width, end_t.sem_type.width)
+                    end_type_base = "LONG" if end_width == 4 else ("WORD" if end_is_word else "BYTE")
+                    end_name = next_for_name("END")
+                    declare_temp(local_tbl, proc_name, end_name, end_type_base)
+                    temp_names.add(end_name)
 
-                if not isinstance(step_expr, IntLiteral):
+                # Mirror codegen: FOR_STEP temp only when step is neither IntLiteral nor Identifier
+                # (_gen_for_general uses Identifier steps directly; IntLiteral uses _gen_for_const_step)
+                if not isinstance(step_expr, IntLiteral) and not isinstance(step_expr, Identifier):
                     step_t = tc.check(step_expr)
                     step_is_word = (
                         var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or

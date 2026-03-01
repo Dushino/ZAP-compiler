@@ -52,7 +52,10 @@
     - Modified value is retained after switch ends.
     - Documented in `ZAP_LANGUAGE_REFERENCE.md` under Key Feature 6 and new examples.
 
-- [ ] GAP-08: LONG as FOR loop variable / bounds / step — covered by `138-long-control-flow`. Verify all edge cases: step > 1, step computed from expression, bounds at LONG boundary.
+- [x] GAP-08: FOR loop — all data types, step variants, expression bounds, pointer loop var, deref end bound.
+    - Verified: BYTE/WORD/LONG loop vars; step from literal >1, step from variable; bounds crossing BYTE/WORD boundaries; bounds from compound expressions; pointer as loop variable iterating over array; dereferenced pointer as end bound.
+    - Pass test: `152-for-loop-types` (12 checks, expected result $0C). All 4 variants pass.
+    - Compiler bug fixed: `_predeclare_for_loop_temps` in `compiler_pipeline.py` now mirrors codegen: FOR_END temp only when end is not an Identifier; FOR_STEP temp only when step is neither IntLiteral nor Identifier. Previously always created both → counter mismatch with codegen → wrong type for predeclared temps → slot aliasing conflicts and LONG=BYTE assignment bug.
 
 - [ ] GAP-09: Multi-dim array >= 256 bytes total — COPY_BYTES16 path. Covered by `141`, `142`, `143`. Verify for arrays-of-structs and word arrays at boundary sizes (255, 256, 257 bytes).
 
