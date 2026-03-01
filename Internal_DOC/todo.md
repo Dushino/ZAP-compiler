@@ -568,11 +568,17 @@ to
 __ZAP_then_20:
 
 
-[ ] Check building blocks
-    [ ] Check expressions evaluation for assign and other occurences to be the same
-    [ ] Check for variable uninitialized for all types
+
+[x] Check building blocks
+    [x] Check expressions evaluation for assign and other occurences to be the same
+    [x] Check for variable uninitialized for all types
     [x] Check for not used FUNC return value
 
+[ ] loop variables check
+    - scalars
+    - pointers
+    - true / false expressions
+    
 
 Closure tasks
 [ ] Cosmetics in generated code

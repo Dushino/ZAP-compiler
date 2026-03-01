@@ -555,12 +555,22 @@ proc example(byte flag)
 end
 ```
 
-**Key points:**
-- Local variables must be initialized before use
-- `const` variables, fixed-address variables, and parameters are always considered initialized
-- FOR loop variables are initialized by the loop
-- Struct variables are always considered initialized (limitation)
-- Taking the address (`@`) of a variable doesn't require it to be initialized
+**Behavior by type and context:**
+
+| Type | Global | Local scalar | Local array | Local struct | Static local |
+|------|--------|-------------|-------------|-------------|--------------|
+| byte / word / long | Zero (BSS) | **Compile error** if read before write | Zero on first call (BSS) | — | **Compile error** (initializer required) |
+| pointer (byte^) | Zero/null (BSS) | **Compile error** if read before write | — | — | **Compile error** |
+| array (byte[N], word[N]) | Zero (BSS) | — | Zero on first call (BSS) | — | **Compile error** |
+| struct | Zero (BSS) | — | — | Zero on first call (BSS) | **Compile error** |
+
+Additional rules:
+- `const` variables, fixed-address (`@addr`) variables, and parameters are always considered initialized.
+- FOR loop variables are initialized by the loop start expression.
+- **Local arrays** are not checked by definite-assignment analysis — the array base identifier is always considered valid. Individual elements may read as zero on the first call (BSS), but retain their values on subsequent calls.
+- **Local structs** are always considered initialized by the compiler (a known limitation). Fields read as zero on the first call (BSS), but retain values on subsequent calls.
+- **Static local** variables always require an explicit initializer — `static byte x` without `= value` is a compile error.
+- Taking the address (`@`) of a variable does not require it to be initialized.
 
 For complete details on the analysis rules, control flow handling, and limitations, see [Safety Features](ADVANCED_TOPICS.md#safety-features).
 

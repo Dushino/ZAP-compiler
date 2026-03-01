@@ -33,7 +33,13 @@
   - Assignment RHS, if condition, while condition, for upper bound,
     for start+end bounds, func call arg, return expr, switch expr: all correct.
 
-- [ ] GAP-06: Uninitialized variable behavior — verify error or defined behavior for all types (byte, word, long, pointer, array, struct) when declared without an initializer in all contexts (global, local, static). Flagged open in `todo.md`.
+- [x] GAP-06: Uninitialized variable behavior — verify error or defined behavior for all types (byte, word, long, pointer, array, struct) when declared without an initializer in all contexts (global, local, static). Flagged open in `todo.md`.
+  - **Local scalars (byte/word/long/pointer)**: REJECTED at sema — `sema_proc.py` / `sema_func.py` definite-assignment analysis raises "Use of uninitialized variable". Covered by fail tests `uninit-byte-local`, `uninit-word-local`, `uninit-long-local`, `uninit-pointer-local`.
+  - **Static local**: REJECTED — "STATIC variable must have an initializer" (`sema.py`).
+  - **Local arrays**: Allowed (sema skips array base in definite-assignment check). Zero on first call (BSS).
+  - **Local structs**: Allowed (sema always considers structs initialized). Zero on first call (BSS).
+  - **Global (all types)**: Allowed. `.res N` in BSS — linker zeroes at program startup.
+  - All verified by pass test `149-uninit-vars` (12 checks, all 4 variants pass).
 
 - [ ] GAP-07: SWITCH with no `default` clause — verify compiles and runs correctly (falls through to end with no match). No negative test exists.
 
