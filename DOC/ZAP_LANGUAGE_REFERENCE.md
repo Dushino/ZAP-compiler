@@ -1661,6 +1661,62 @@ proc struct_fields()
 end
 ```
 
+### Array Fields
+
+A struct field can itself be an array. When initializing such a struct, the array field requires its own nested braces inside the struct initializer — the outer braces belong to the struct, the inner braces belong to the array field:
+
+```zap
+struct Palette
+    byte color[4]
+end
+
+struct Track
+    word note[3]
+end
+
+; CORRECT — outer {} = struct init, inner {} = array field init
+Palette sky = {{ 10, 20, 30, 40 }}
+
+; WRONG — the compiler rejects this (1 field but 4 values)
+; Palette sky = { 10, 20, 30, 40 }   ; ERROR
+
+; Access uses s.field[index] with constant or variable index
+proc use_palette()
+    Palette pal = {{ 1, 2, 3, 4 }}
+    byte i = 2
+
+    pal.color[0] = 100          ; constant-index write
+    byte v = pal.color[0]       ; constant-index read
+
+    pal.color[i] = 55           ; variable-index write
+    byte u = pal.color[i]       ; variable-index read
+
+    ; Loop over an array field
+    byte sum = 0
+    byte j
+    for j = 0 to 4
+        sum = sum + pal.color[j]
+    end
+
+    ; Struct copy also copies array fields
+    Palette dst
+    dst = pal                   ; copies all 4 bytes of color[]
+end
+```
+
+Word array fields work the same way, with element offsets scaled automatically:
+
+```zap
+proc use_track()
+    Track t = {{ 440, 880, 1760 }}
+    word w = 0
+    t.note[0] = 500
+    byte k = 1
+    t.note[k] = 1000
+    w = t.note[k]               ; w == 1000
+end
+```
+
 ### Struct Arrays
 
 Arrays of structs are fully supported with initialization:

@@ -19,7 +19,13 @@
   - Multi-dim `arr[i].array_field[j]` (const and var index): ✓
   - Runtime copy `dst = src` for struct arrays: NOT supported (compiler raises error; use a loop instead).
 
-- [ ] GAP-04: Arrays inside struct fields — verify: declaration, initialization, access (`s.arr[i]`), copy. Flagged open in `todo.md`.
+- [x] GAP-04: Arrays inside struct fields — verify: declaration, initialization, access (`s.arr[i]`), copy. Flagged open in `todo.md`.
+  - Covered by test `147-struct-array-field` (all 4 variants pass).
+  - Declaration `byte data[4]` / `word vals[3]` inside struct: ✓
+  - List-init with nested braces `{{1,2,3,4}}` (outer = struct, inner = array field): ✓
+  - Constant-index and variable-index access for byte and word array fields: ✓
+  - For-loop over array field: ✓
+  - Struct copy (`dst = src`) correctly copies array field contents: ✓
 
 - [ ] GAP-05: Expression evaluation consistency — verify that the same expression produces identical code when used in: assignment RHS, proc/func call arg, if/while condition, for bounds, switch expr, return expr. Flagged open in `todo.md`.
 
@@ -171,7 +177,7 @@
 - [x] struct assignment (copy)
 - [x] struct-returning function
 - [x] array of structs — init (list-init), access (const+var index, multi-dim); copy via loop only (dst=src not supported)
-- [ ] struct with array field — init, access
+- [x] struct with array field — init (nested braces), access (const+var index, byte+word), copy
 
 ### Enums
 - [x] enum byte (auto-increment)
