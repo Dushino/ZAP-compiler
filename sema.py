@@ -153,6 +153,8 @@ class StructAnalyzer:
                 elem_width = 1
             elif field_type == "WORD":
                 elem_width = 2
+            elif field_type == "LONG":
+                elem_width = 4
             elif field_type in self.registry._structs:
                 # Nested struct type
                 nested_struct: StructInfo = self.registry._structs[field_type]

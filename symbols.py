@@ -27,6 +27,8 @@ class StructFieldInfo:
             elem_width = 1
         elif self.base_type == "word":
             elem_width = 2
+        elif self.base_type == "long":
+            elem_width = 4
         else:
             # For struct types, will be calculated by StructRegistry
             elem_width = 0  # Will be looked up

@@ -9,10 +9,17 @@
       "Bash(awk *)",
       "Bash(ls *)",
       "Bash(make *)",
-      "Bash(sed *)"
+      "Bash(sed *)",
+      "Bash(python3 compiler.py tests/pass/159-sizeof/159-sizeof.zap)",
+      "Bash(xxd tests/pass/159-sizeof/159-sizeof.ref)",
+      "Bash(xxd tests/pass/159-sizeof/159-sizeof_default.txt)"
     ],
     "additionalDirectories": [
-      "/home/dusan/src/ZAP-compiler/tests/pass"
+      "/home/dusan/src/ZAP-compiler/tests/pass",
+      "/home/dusan/src/ZAP-compiler/tests/fail",
+      "/home/dusan/src/ZAP-compiler/tests/pass",
+      "/home/dusan/src/ZAP-compiler/DOC",
+      "/home/dusan/src/ZAP-compiler/memory"
     ]
   }
 }
