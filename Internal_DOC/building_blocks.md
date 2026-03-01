@@ -45,6 +45,12 @@
   - Covered by pass test `150-switch-no-default` (all 4 variants pass).
   - Verified: byte/word/long switch with no default; matching case runs; non-matching skips entire body and continues; stacked cases (no match → skip); fall-through without default (no match → cnt=0).
   - `ZAP_LANGUAGE_REFERENCE.md` already stated `default` is optional; added no-default example.
+  - Additional: switch variable mutation behavior (pass test `151-switch-var-mutation`):
+    - Dispatch table is evaluated **once** before any case body runs (fast path reads variable address directly).
+    - Modifying switch var inside case 1 with `break` → case 2 NOT executed (dispatch already chose case 1).
+    - Modifying switch var inside case 1 without `break` → case 2 IS reached by fall-through (sequential code, not re-dispatch).
+    - Modified value is retained after switch ends.
+    - Documented in `ZAP_LANGUAGE_REFERENCE.md` under Key Feature 6 and new examples.
 
 - [ ] GAP-08: LONG as FOR loop variable / bounds / step — covered by `138-long-control-flow`. Verify all edge cases: step > 1, step computed from expression, bounds at LONG boundary.
 

@@ -1009,6 +1009,7 @@ end
 3.  **Fall-through**: ZAP! `switch` statements have **C-like fall-through behavior**. If a `case` block does not end with `break`, execution continues into the next `case` block.
 4.  **Default**: The `default` block executes if no case matches. It is optional.
 5.  **Break**: The `break` statement exits the `switch` structure.
+6.  **One-time dispatch**: The switch expression is evaluated once before any case body runs. Modifying the switch variable inside a case body does not cause a different case to be selected.
 
 **Example with Break (No Fall-through):**
 
@@ -1065,6 +1066,41 @@ end
 ```
 
 When no case matches and there is no `default`, the entire switch body is skipped and execution resumes at the statement after `end`.
+
+**Variable mutation inside a case body:**
+
+The switch expression is evaluated **once** before any case body runs. All case comparisons (the dispatch table) are resolved at that point. Modifying the switch variable inside a case body has no effect on which case was selected:
+
+```zap
+byte var = 1
+
+switch var
+    case 1
+        var = 2         ; changes var, but dispatch already matched case 1
+        break           ; exits switch — case 2 is NOT executed
+    case 2
+        ; This does NOT run, even though var is now 2.
+        ; The dispatch already chose case 1 before this body ran.
+end
+; var is 2 here (modification is retained after the switch)
+```
+
+Fall-through is sequential code flow, **not** a re-evaluation of the dispatch. If `case 1` falls through (no `break`) into `case 2`, `case 2`'s body runs because the code is physically next — not because the variable's new value matches `case 2`:
+
+```zap
+byte var = 1
+byte cnt = 0
+
+switch var
+    case 1
+        var = 2         ; modifies var
+        cnt = cnt + 1   ; cnt = 1
+    case 2              ; reached by FALL-THROUGH (no break above)
+        cnt = cnt + 1   ; cnt = 2 — not because var == 2
+        break
+end
+; cnt is 2
+```
 
 ### while Loop
 
