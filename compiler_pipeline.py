@@ -330,6 +330,9 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
                 out.append("")
 
         out.append(ln)
+
+    # Normalize bare #0 immediate to #$00 for consistent hex formatting
+    out = [_re.sub(r'#0\b', '#$00', ln) for ln in out]
     return out
 
 

@@ -545,7 +545,7 @@ to:
 [x] Add cmdline parameters for CODE, BSS, DATA segment names SEGC, SEGB, SEGD
 
 
-[ ] This is a pre-existing bug — ADC #0A should be ADC #$0A. Let me find the emit location: ${expr ...:02X}
+[x] This is a pre-existing bug — ADC #0A should be ADC #$0A. Let me find the emit location: ${expr ...:02X}
 - check for all datatypes and operations
 
 [x] replace IF logic:
@@ -568,20 +568,20 @@ to
 __ZAP_then_20:
 
 [ ] Check building blocks
+    [ ] Check expressions evaluation for assign and other occurences to be the same
+    [ ] Check for variable uninitialized for all types
+    [ ] Check for not used FUNC return value
 
 
 Closure tasks
 [ ] Cosmetics in generated code
-    [ ] Unify generated LDA #$00 and #0
-    [ ] Empty lines
-    [ ] Double -- MAIN
+    [x] Unify generated LDA #$00 and #0
+    [x] Empty lines
+    [x] Double -- MAIN
 
 
 [ ] Change -O1 option: Default is peephole optimization on, if -O - no peephole optimizations.
 
-[ ] Check expressions evaluation for assign and other occurences to be the same
-
-[ ] Check for variable uninitialized for all types
 
 [ ] Remove compiler's debug messages
 

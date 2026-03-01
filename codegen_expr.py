@@ -6128,9 +6128,9 @@ class CodeGen:
             # Optimized approach: load each byte sequentially, avoiding TXA move
             if compile_time_offset == 0:
                 # No offset needed, load base address directly
-                self.emit(f"\tLDA #{sym.address:02X}" if sym.address else f"\tLDA #<{sym.asm_name()}")
+                self.emit(f"\tLDA #${sym.address:02X}" if sym.address else f"\tLDA #<{sym.asm_name()}")
                 self.emit("\tSTA TMP0")
-                self.emit(f"\tLDA #{(sym.address >> 8) & 0xFF:02X}" if sym.address else f"\tLDA #>{sym.asm_name()}")
+                self.emit(f"\tLDA #${(sym.address >> 8) & 0xFF:02X}" if sym.address else f"\tLDA #>{sym.asm_name()}")
                 self.emit("\tSTA TMP0+1")
             else:
                 # Add compile-time offset: load low byte, add offset, store; then high byte with carry
