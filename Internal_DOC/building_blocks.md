@@ -105,6 +105,7 @@
 
 - [x] GAP-21 Check code generated for IF - ELSE, WHILE, FOR, REPEAT for short branches.
 
+- [ ] GAP-22 Null pointer checks - how to implement compare pointer with NULL? Must compare pointer and WORD.
 
 ---
 

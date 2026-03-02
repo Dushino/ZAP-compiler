@@ -384,7 +384,21 @@ func byte gets(const byte ^buffer, const byte max_len)
                 return ch
 
             case ATARI_KEY_BACKSPACE
-                ; TODO: implement backspace
+                ; TODO: test
+                ; 0123456789
+                ; pos = 5, cur_xpos = 5, bufp points to '5'
+                ; max_len = 10
+                if pos > 0
+                    ; screen
+                    cur_xpos = cur_xpos - 1
+                    curptr = curptr - 1                    
+                    memcpy(curptr, curptr + 1, max_len - pos - 1)   ; shift the rest of the line left
+                    curptr[max_len - 1] = 1
+                    ; buffer
+                    bufp = bufp - 1
+                    pos = pos - 1
+                    memcpy(bufp, bufp + 1, max_len - pos - 1)   ; shift the rest of the buffer left
+                end
                 break
 
             case ATARI_KEY_DELETE
@@ -440,9 +454,9 @@ end
     set FD error code
 */
 proc set_fderror(FILE^ file, byte error_code) #NOEXPORT
-    if file != NULL
-        file^.error = error_code
-    end
+    ;if file != NULL
+    ;    file^.error = error_code
+    ;end
 end
 
 
@@ -454,9 +468,9 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     fd = NULL
 
     ; TODO: implement file opening  
-    if fd == NULL        
-        return 0
-    end
+    ;if fd == NULL        
+    ;    return 0
+    ;end
     
     set_fderror(fd, ERRNO.ENODEV)
     
@@ -469,9 +483,9 @@ end
 */
 func ERRNO fclose(FILE^ fd)
     ; TODO: implement file closing  
-    if fd == NULL
-        return ERRNO.EBADF
-    end
+    ;if fd == NULL
+    ;    return ERRNO.EBADF
+   ; end
     set_fderror(fd, ERRNO.ENODEV)
     return fd^.error
 end
@@ -482,9 +496,9 @@ end
 */
 func ERRNO ferror(FILE^ fd)
     ; TODO: implement error checking  
-    if fd == NULL
-        return ERRNO.EBADF
-    end 
+    ;if fd == NULL
+    ;    return ERRNO.EBADF
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return fd^.error
 end
@@ -495,9 +509,9 @@ end
 */
 func BOOL feof(FILE^ fd)
     ; TODO: implement end of file checking  
-    if fd == NULL
-        return BOOL.TRUE
-    end     
+    ;if fd == NULL
+    ;    return BOOL.TRUE
+    ;end     
     
     set_fderror(fd, ERRNO.ENODEV)
     fd^.eof = BOOL.TRUE
@@ -510,9 +524,9 @@ end
 */
 func ERRNO rename(FILE^ fd, const byte ^oldname, const byte ^newname)
     ; TODO: implement file renaming  
-    if fd == NULL
-        return ERRNO.EBADF
-    end 
+    ;if fd == NULL
+    ;    return ERRNO.EBADF
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return fd^.error
 end
@@ -523,9 +537,9 @@ end
 */
 func ERRNO remove(byte^ filename)
     ; TODO: implement file removal  
-    if filename == NULL
-        return ERRNO.EBADF
-    end 
+    ;if filename == NULL
+    ;    return ERRNO.EBADF
+    ;end 
     
     return ERRNO.ENODEV
 end
@@ -536,9 +550,9 @@ end
 */
 func ERRNO fseek(FILE^ fd, long offset, byte whence)
     ; TODO: implement file seeking  
-    if fd == NULL
-        return ERRNO.EBADF
-    end
+    ;if fd == NULL
+    ;    return ERRNO.EBADF
+    ;end
     set_fderror(fd, ERRNO.ENODEV)
     return fd^.error
 end
@@ -549,9 +563,9 @@ end
 */
 func long ftell(FILE^ fd)
     ; TODO: implement file position telling  
-    if fd == NULL
-        return 0
-    end 
+    ;if fd == NULL
+    ;    return 0
+    ;end 
     return 0
 end
 
@@ -561,9 +575,9 @@ end
 */
 func word fread(FILE^ fd, byte ^buffer, word size, word count)
     ; TODO: implement file reading  
-    if fd == NULL
-        return 0
-    end 
+    ;if fd == NULL
+    ;    return 0
+    ;end 
     return 0
 end
 
@@ -573,9 +587,9 @@ end
 */
 func word fwrite(FILE^ fd, byte ^buffer, word size, word count)
     ; TODO: implement file writing  
-    if fd == NULL
-        return 0
-    end 
+    ;if fd == NULL
+    ;    return 0
+    ;end 
     return 0
 end
 
@@ -585,9 +599,9 @@ end
 */
 func byte fgetc(FILE^ fd)
     ; TODO: implement file reading  
-    if fd == NULL        
-        return 0
-    end 
+    ;if fd == NULL        
+    ;    return 0
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
@@ -598,9 +612,9 @@ end
 */
 func byte fputc(FILE^ fd, byte ch)
     ; TODO: implement file writing  
-    if fd == NULL
-        return 0
-    end 
+    ;if fd == NULL
+    ;    return 0
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
@@ -612,9 +626,9 @@ end
 func byte fprintf(FILE^ fd, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
     ; TODO: implement file writing  
-    if fd == NULL
-        return 0
-    end 
+    ;if fd == NULL
+    ;    return 0
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
@@ -625,9 +639,9 @@ end
 */
 func byte fputs(FILE^ fd, const byte ^str)
     ; TODO: implement file writing  
-    if fd == NULL
-        return 0    
-    end 
+    ;if fd == NULL
+    ;    return 0    
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return 0    
 end
@@ -639,9 +653,9 @@ end
 func byte fscanf(FILE^ fd, const byte ^format, word arg1 = 0, 
                 word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
     ; TODO: implement file reading  
-    if fd == NULL
-        return 0
-    end 
+    ;if fd == NULL
+    ;    return 0
+    ;end 
     set_fderror(fd, ERRNO.ENODEV)
     return 0
 end
