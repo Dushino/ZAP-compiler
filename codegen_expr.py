@@ -6818,7 +6818,12 @@ class CodeGen:
             return
         
         field_offset: int = field_info.offset
-        field_width: int = 2 if field_info.is_pointer or field_info.base_type == "WORD" else 1
+        if field_info.is_pointer or field_info.base_type == "WORD":
+            field_width: int = 2
+        elif field_info.base_type == "LONG":
+            field_width = 4
+        else:
+            field_width = 1
         
         if expr.is_deref:
             # ptr^.field - expr.object should be a DerefExpr(pointer)
