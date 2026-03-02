@@ -92,11 +92,16 @@
   - Updated `.ref` files for `026-equality-error` (actual: "Invalid pointer comparison") and `011-procedure-call-error` (actual: "Function 'ADD' expects 2 parameters…")
   - All 146 pass-tests and 68 fail-tests green after fixes
 
-- [ ] GAP-19 Verify all pass tests which are testing datatypes to include BYTE, WORD, LONG, and pointer. Add missing datatype into apropriate test or create new tests. 
+- [x] GAP-19 Verify all pass tests which are testing datatypes to include BYTE, WORD, LONG, and pointer. Add missing datatype into apropriate test or create new tests.
+  - Audited all 148 pass tests. Early tests (001-120) mostly BYTE-only; LONG covered by dedicated tests (133, 138, 140, 152).
+  - LONG gaps filled → new test `161-long-bitwise-cmp` (11 checks: &, |, ^, ~, %, ==, !=, <, <=, >, >=).
+  - Pointer deref gaps filled → new test `162-pointer-deref-types` (7 checks: byte^/word^ write+read, step-by-N with correct element-stride scaling).
+  - Two codegen bugs found and documented (NOT yet fixed; tracked separately):
+    1. `long^` pointer assignment: `lptr = @var` overwrites loaded address with __MATH0 garbage before STA.
+    2. LONG array list-init: copy loop counts elements (not bytes) → only first N bytes of N-element LONG array initialized.
+  - All 148 pass-tests and 68 fail-tests green.
 
-- [ ] GAP-20 FIx GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof().
-
-
+- [ ] GAP-20 Fix GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof(). Also check shortpaths already implemented for WORD. Prepare analysis and wait for my approval.
 
 
 ---
@@ -107,8 +112,8 @@
 - [x] DOC-02: `grammar.ebnf` type_modifier: remove `"port"` from the production (ports use `#PORT` declmod).
 - [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD.
 - [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
-- [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `SIZEOF` to primary expression as built-in calls.
-- [ ] DOC-06 Verify that all examples in DOC directory are of correct syntax and compiles to desired result. If needed, include your temporary tests into generated_tests direcotry.
+- [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls.
+- [ ] DOC-06 Verify that all examples in DOC directory have correct syntax and compiles to desired result. If needed, include your temporary tests into generated_tests directory.
 
 
 ---
@@ -171,7 +176,7 @@
 - [x] Pointer arithmetic ptr+int, ptr-int, ptr-ptr
 - [x] LOW() HIGH() on simple identifier
 - [x] SIZEOF() on struct name
-- [ ] LOW() HIGH() on complex expression
+- [ ] LOW() HIGH() LOWW() HIGHW() on complex expression
 - [ ] SIZEOF() on struct instance (not name)
 - [ ] Two-char char literal 'a''b'
 
@@ -199,7 +204,7 @@
 - [x] return (in proc, no expr)
 - [x] return (in func, with expr)
 - [x] asm...end inline assembly
-- [x] .error .warning .info directives
+- [x] .error .warning .info directives. .error goes to failed tests.
 
 ### Procedures & Functions
 - [x] proc with no params
@@ -213,7 +218,7 @@
 - [x] array param (type name[])
 - [x] const param
 - [ ] skipped default arg in call proc(1,,3)
-- [x] #KEEP #NOEXPORT #EXPORT on proc/func
+- [x] #KEEP #NOEXPORT #EXPORT on proc/func - create failed tests when necessary
 
 ### Structs
 - [x] struct scalar fields
