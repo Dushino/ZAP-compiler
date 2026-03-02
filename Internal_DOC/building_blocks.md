@@ -96,12 +96,14 @@
   - Audited all 148 pass tests. Early tests (001-120) mostly BYTE-only; LONG covered by dedicated tests (133, 138, 140, 152).
   - LONG gaps filled → new test `161-long-bitwise-cmp` (11 checks: &, |, ^, ~, %, ==, !=, <, <=, >, >=).
   - Pointer deref gaps filled → new test `162-pointer-deref-types` (7 checks: byte^/word^ write+read, step-by-N with correct element-stride scaling).
-  - Two codegen bugs found and documented (NOT yet fixed; tracked separately):
-    1. `long^` pointer assignment: `lptr = @var` overwrites loaded address with __MATH0 garbage before STA.
-    2. LONG array list-init: copy loop counts elements (not bytes) → only first N bytes of N-element LONG array initialized.
-  - All 148 pass-tests and 68 fail-tests green.
+  - **All bugs fixed + new test `163-long-ptr-and-array-init` (8 checks)**: long^ assign+write+read, long^ step (stride=4), LONG const arrays (1/2/3/10/64 elements), non-const LONG array.
+  - Bug fixes: `_calculate_element_width` LONG→4; `ptr_elem_size` LONG→4 in gen_expr; scale LONG→4 in 3 gen_assign pointer-arith paths; `_gen_subscript` direct/load/store paths for LONG; ZP fast-path deref write for LONG; `array_literals` key from bool→str ("BYTE"/"WORD"/"LONG"); ROM emitter handles "LONG" (4-byte LE).
+  - `136-pointer-math.ref` updated (ptr_long low byte 0x45→0x48: correct stride=4 behavior).
+  - All 149 pass-tests and 68 fail-tests green.
 
 - [ ] GAP-20 Fix GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof(). Also check shortpaths already implemented for WORD. Prepare analysis and wait for my approval.
+
+- [ ] GAP-21 Check code generated for IF - ELSE, WHILE, FOR, REPEAT for short branches.
 
 
 ---

@@ -3200,14 +3200,21 @@ class CodeGen:
             self.emit(f"\t.byte " + ", ".join(f"${b:02X}" for b in ascii_bytes) + ", 0")
         
         # Generate array data
-        for (data_tuple, is_word), label in self.array_literals.items():
+        for (data_tuple, data_type), label in self.array_literals.items():
             self.emit(f"{label}:")
-            if is_word:
+            if data_type == "WORD":
                 # WORD array - emit as .word directives
                 self.emit(f"\t.word " + ", ".join(f"${val:04X}" for val in data_tuple))
+            elif data_type == "LONG":
+                # LONG array - emit each element as 4 bytes in little-endian order
+                byte_values: list[int] = []
+                for val in data_tuple:
+                    for j in range(4):
+                        byte_values.append((val >> (8 * j)) & 0xFF)
+                self.emit(f"\t.byte " + ", ".join(f"${v:02X}" for v in byte_values))
             else:
                 # BYTE array - emit as .byte directives
-                byte_values: list[int] = []
+                byte_values = []
                 for val in data_tuple:
                     if val > 0xFF:
                         byte_values.append(val & 0xFF)
@@ -3391,12 +3398,12 @@ class CodeGen:
         self._extract_const_values_from_listinit(src_const_sym.init, values)
         
         # Generate ROM data label for this struct
-        data_key = (tuple(values), False)
+        data_key = (tuple(values), "BYTE")
         if data_key not in self.array_literals:
             self.array_id += 1
             self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
         arr_label = self.array_literals[data_key]
-        
+
         # Set up source address (ROM data) in TMP0
         self.emit(f"\tLDA #<{arr_label}")
         self.emit("\tSTA TMP0")
@@ -5500,11 +5507,11 @@ class CodeGen:
                             self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
                 else:
                     # Use loop for longer arrays
-                    data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
+                    data_key: tuple[tuple[int, ...], str] = (tuple(values), "WORD" if is_word else "BYTE")
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
-                    
+
                     arr_label = self.array_literals[data_key]
                     elem_size: int = 2 if is_word else 1
                     total_bytes: int = array_len * elem_size
@@ -5562,42 +5569,91 @@ class CodeGen:
             is_const_array: bool = all(isinstance(ex, IntLiteral) for ex in sym.init.values)
             
             if not is_const_array:
-                # Non-constant values - use old method
+                # Non-constant values - evaluate each element and store
                 for i, ex in enumerate(sym.init.values):
-                    self.gen_expr(ex)
-                    elem_offset: int = i * 2 if (sym.type.base == "WORD" or sym.type.is_pointer) else i
-                    self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
-                    if sym.type.base == "WORD" or sym.type.is_pointer:
-                        self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
+                    asm_name: str = sym.asm_name()
+                    if sym.type.base == "LONG" and not sym.type.is_pointer:
+                        elem_offset: int = i * 4
+                        if isinstance(ex, IntLiteral):
+                            # IntLiteral: emit 4 bytes directly (gen_expr doesn't load LONG literals into MATH0)
+                            val: int = ex.value
+                            last_lda: int = -1
+                            for j in range(4):
+                                byte_val: int = (val >> (8 * j)) & 0xFF
+                                if byte_val == 0 and self.is_65c02:
+                                    self.emit(f"\tSTZ {asm_name}+{elem_offset + j}")
+                                    last_lda = -1
+                                elif byte_val != last_lda:
+                                    self.emit(f"\tLDA #${byte_val:02X}")
+                                    self.emit(f"\tSTA {asm_name}+{elem_offset + j}")
+                                    last_lda = byte_val
+                                else:
+                                    self.emit(f"\tSTA {asm_name}+{elem_offset + j}")
+                        else:
+                            # Expression: result in MATH0 after gen_expr
+                            self.gen_expr(ex)
+                            self.emit(f"\tLDA MATH0")
+                            self.emit(f"\tSTA {asm_name}+{elem_offset}")
+                            self.emit(f"\tLDA MATH0+1")
+                            self.emit(f"\tSTA {asm_name}+{elem_offset + 1}")
+                            self.emit(f"\tLDA MATH0+2")
+                            self.emit(f"\tSTA {asm_name}+{elem_offset + 2}")
+                            self.emit(f"\tLDA MATH0+3")
+                            self.emit(f"\tSTA {asm_name}+{elem_offset + 3}")
+                    else:
+                        self.gen_expr(ex)
+                        elem_offset = i * 2 if (sym.type.base == "WORD" or sym.type.is_pointer) else i
+                        self.emit(f"\tSTA {asm_name}+{elem_offset}")
+                        if sym.type.base == "WORD" or sym.type.is_pointer:
+                            self.emit(f"\tSTX {asm_name}+{elem_offset + 1}")
                 return
-            
+
             # Constant array - optimize with loop copy
             # Type narrowing: we've verified all elements are IntLiteral above
             values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
             array_len: int = len(values)
-            is_word: bool = sym.type.base == "WORD" or sym.type.is_pointer
+            is_long: bool = sym.type.base == "LONG" and not sym.type.is_pointer
+            is_word: bool = (sym.type.base == "WORD" or sym.type.is_pointer) and not is_long
             dest_var: str = sym.asm_name()
             COPY_THRESHOLD = 8  # bytes; above this, call shared copy to save space
-            
+
             # For very short arrays (1-2 elements), inline is better
             if array_len <= 2:
                 # Inline for very short arrays
                 for i, ex in enumerate(sym.init.values):
-                    self.gen_expr(ex)
-                    elem_offset: int = i * 2 if is_word else i
-                    self.emit(f"\tSTA {dest_var}+{elem_offset}")
-                    if is_word:
-                        self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
+                    if is_long:
+                        assert isinstance(ex, IntLiteral)
+                        val = ex.value
+                        elem_offset = i * 4
+                        last_lda = -1
+                        for j in range(4):
+                            byte_val = (val >> (8 * j)) & 0xFF
+                            if byte_val == 0 and self.is_65c02:
+                                self.emit(f"\tSTZ {dest_var}+{elem_offset + j}")
+                                last_lda = -1
+                            elif byte_val != last_lda:
+                                self.emit(f"\tLDA #${byte_val:02X}")
+                                self.emit(f"\tSTA {dest_var}+{elem_offset + j}")
+                                last_lda = byte_val
+                            else:
+                                self.emit(f"\tSTA {dest_var}+{elem_offset + j}")
+                    else:
+                        self.gen_expr(ex)
+                        elem_offset = i * 2 if is_word else i
+                        self.emit(f"\tSTA {dest_var}+{elem_offset}")
+                        if is_word:
+                            self.emit(f"\tSTX {dest_var}+{elem_offset + 1}")
             else:
                 # Use loop for longer arrays
                 # Create unique key for this array data
-                data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
+                data_type_key: str = "LONG" if is_long else ("WORD" if is_word else "BYTE")
+                data_key: tuple[tuple[int, ...], str] = (tuple(values), data_type_key)
                 if data_key not in self.array_literals:
                     self.array_id += 1
                     self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
 
                 arr_label = self.array_literals[data_key]
-                elem_size: int = 2 if is_word else 1
+                elem_size: int = 4 if is_long else (2 if is_word else 1)
                 total_bytes: int = array_len * elem_size
 
                 if total_bytes > 255:
@@ -5620,7 +5676,7 @@ class CodeGen:
                 elif total_bytes > COPY_THRESHOLD:
                     # Medium array (9-255 bytes): use shared 8-bit copy routine
                     self.copy_bytes_needed = True
-                    self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
+                    self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements, {total_bytes} bytes)")
                     self.emit(f"\tLDA #<{arr_label}")
                     self.emit(f"\tLDX #>{arr_label}")
                     self.emit("\tSTA TMP0")
@@ -5632,7 +5688,7 @@ class CodeGen:
                     self.emit(f"\tLDX #{total_bytes}")
                     self.emit("\tJSR COPY_BYTES")
                 else:
-                    # Small array (3-8 bytes): inline indexed loop
+                    # Small array (3-8 bytes, BYTE/WORD only — LONG arrays with 3+ elems always > 8 bytes)
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
                     self.emit(f"\tLDX #0")
                     copy_loop: str = self.new_label("ARR_COPY")
@@ -5824,6 +5880,15 @@ class CodeGen:
         # Set X = high byte when needed; skip for byte-return ABI in return context
         if t.sem_type.base == "WORD" or t.sem_type.is_pointer:
             self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
+        elif t.sem_type.base == "LONG":
+            # LONG literal: load all 4 bytes into MATH0 (LONG convention)
+            self.emit("\tSTA MATH0")
+            self.emit(f"\tLDA #${(val >> 8) & 0xFF:02X}")
+            self.emit("\tSTA MATH0+1")
+            self.emit(f"\tLDA #${(val >> 16) & 0xFF:02X}")
+            self.emit("\tSTA MATH0+2")
+            self.emit(f"\tLDA #${(val >> 24) & 0xFF:02X}")
+            self.emit("\tSTA MATH0+3")
         elif not self.suppress_byte_return_x:
             # Skip clearing X when assigning to a BYTE target
             target_is_byte: None | bool = (self.assign_target_type and
@@ -5858,8 +5923,10 @@ class CodeGen:
                 # Const arrays: get address of ROM data
                 if sym.init and isinstance(sym.init, ListInit):
                     values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    is_word: bool = sym.type.base == "WORD"
-                    data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
+                    _is_long_arr: bool = sym.type.base == "LONG" and not sym.type.is_pointer
+                    _is_word_arr: bool = sym.type.base == "WORD" and not _is_long_arr
+                    _arr_dtype: str = "LONG" if _is_long_arr else ("WORD" if _is_word_arr else "BYTE")
+                    data_key: tuple[tuple[int, ...], str] = (tuple(values), _arr_dtype)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
@@ -5870,7 +5937,7 @@ class CodeGen:
                     if sym.type.base != "BYTE":
                         self._raise_error("String init only supported for byte arrays")
                     values = [ord(ch) for ch in sym.init.value] + [0]
-                    data_key = (tuple(values), False)
+                    data_key = (tuple(values), "BYTE")
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
@@ -5884,7 +5951,7 @@ class CodeGen:
             if sym.type.is_struct:
                 if sym.init and isinstance(sym.init, ListInit):
                     values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    data_key = (tuple(values), False)
+                    data_key = (tuple(values), "BYTE")
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
@@ -6017,7 +6084,24 @@ class CodeGen:
             if (ptr_sym.type.is_pointer and ptr_sym.address is None and not ptr_sym.is_array
                 and ptr_sym.in_zeropage):
                 ptr_asm: str = ptr_sym.asm_name()
-                if t.sem_type.base == "WORD":
+                if t.sem_type.base == "LONG":
+                    # Load 4 bytes into MATH0 via indexed indirect
+                    if self.is_65c02:
+                        self.emit(f"\tLDA ({ptr_asm})")
+                    else:
+                        self.emit("\tLDY #0")
+                        self.emit(f"\tLDA ({ptr_asm}),Y")
+                    self.emit("\tSTA MATH0")
+                    self.emit("\tLDY #1")
+                    self.emit(f"\tLDA ({ptr_asm}),Y")
+                    self.emit("\tSTA MATH0+1")
+                    self.emit("\tLDY #2")
+                    self.emit(f"\tLDA ({ptr_asm}),Y")
+                    self.emit("\tSTA MATH0+2")
+                    self.emit("\tLDY #3")
+                    self.emit(f"\tLDA ({ptr_asm}),Y")
+                    self.emit("\tSTA MATH0+3")
+                elif t.sem_type.base == "WORD":
                     # Load high byte first, then low (saves stack ops)
                     self.emit("\tLDY #1")
                     self.emit(f"\tLDA ({ptr_asm}),Y")
@@ -6042,8 +6126,22 @@ class CodeGen:
         self.emit("\tSTA TMP0")
         self.emit("\tSTX TMP0+1")
 
-        # 3) načti LOW/HIGH byte
-        if t.sem_type.base == "WORD":
+        # 3) načti LOW/HIGH byte(s)
+        if t.sem_type.base == "LONG":
+            # Load 4 bytes into MATH0
+            self.emit("\tLDY #0")
+            self.emit("\tLDA (TMP0),Y")
+            self.emit("\tSTA MATH0")
+            self.emit("\tINY")
+            self.emit("\tLDA (TMP0),Y")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tINY")
+            self.emit("\tLDA (TMP0),Y")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tINY")
+            self.emit("\tLDA (TMP0),Y")
+            self.emit("\tSTA MATH0+3")
+        elif t.sem_type.base == "WORD":
             # Load high byte first, then low (saves stack ops)
             self.emit("\tLDY #1")
             self.emit("\tLDA (TMP0),Y")
@@ -6116,6 +6214,9 @@ class CodeGen:
         # Native WORD type
         if sym.type.base == "WORD":
             return 2
+        # Native LONG type
+        if sym.type.base == "LONG":
+            return 4
         # Default BYTE
         return 1
 
@@ -6344,6 +6445,16 @@ class CodeGen:
                 if sym.type.base == "BYTE" and not sym.type.is_pointer:
                     # BYTE element: simple load
                     self.emit(f"\tLDA {arr_addr}+{offset}")
+                elif sym.type.base == "LONG" and not sym.type.is_pointer:
+                    # LONG element: load 4 bytes into MATH0
+                    self.emit(f"\tLDA {arr_addr}+{offset}")
+                    self.emit("\tSTA MATH0")
+                    self.emit(f"\tLDA {arr_addr}+{offset+1}")
+                    self.emit("\tSTA MATH0+1")
+                    self.emit(f"\tLDA {arr_addr}+{offset+2}")
+                    self.emit("\tSTA MATH0+2")
+                    self.emit(f"\tLDA {arr_addr}+{offset+3}")
+                    self.emit("\tSTA MATH0+3")
                 else:
                     # WORD element: load both bytes
                     self.emit(f"\tLDA {arr_addr}+{offset}")
@@ -6364,8 +6475,8 @@ class CodeGen:
                 # Generate the ARRAY_DATA label from the const values
                 if sym.init and isinstance(sym.init, ListInit):
                     values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
-                    is_word: bool = sym.type.base == "WORD"
-                    data_key: tuple[tuple[int, ...], bool] = (tuple(values), is_word)
+                    dtype: str = sym.type.base  # "BYTE", "WORD", or "LONG"
+                    data_key: tuple[tuple[int, ...], str] = (tuple(values), dtype)
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
@@ -6374,7 +6485,7 @@ class CodeGen:
                     if sym.type.base != "BYTE":
                         self._raise_error("String init only supported for byte arrays")
                     values = [ord(ch) for ch in sym.init.value] + [0]
-                    data_key = (tuple(values), False)
+                    data_key = (tuple(values), "BYTE")
                     if data_key not in self.array_literals:
                         self.array_id += 1
                         self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
@@ -6513,7 +6624,21 @@ class CodeGen:
             return
 
         if load_only:
-            if element_width == 2:
+            if element_width == 4:
+                # LONG element: load 4 bytes into MATH0
+                self.emit("\tLDY #0")
+                self.emit("\tLDA (TMP0),Y")
+                self.emit("\tSTA MATH0")
+                self.emit("\tINY")
+                self.emit("\tLDA (TMP0),Y")
+                self.emit("\tSTA MATH0+1")
+                self.emit("\tINY")
+                self.emit("\tLDA (TMP0),Y")
+                self.emit("\tSTA MATH0+2")
+                self.emit("\tINY")
+                self.emit("\tLDA (TMP0),Y")
+                self.emit("\tSTA MATH0+3")
+            elif element_width == 2:
                 self.emit("\tLDY #1")
                 self.emit("\tLDA (TMP0),Y")
                 self.emit("\tTAX")  # X = high byte
@@ -6530,22 +6655,37 @@ class CodeGen:
                     need_x = False
                 elif self.assign_target_type:
                     if hasattr(self.assign_target_type, 'base'):
-                        if (self.assign_target_type.base == "BYTE" and 
+                        if (self.assign_target_type.base == "BYTE" and
                             not getattr(self.assign_target_type, 'is_pointer', False)):
                             need_x = False
                 if need_x:
                     self.emit("\tLDX #0     ; note 3499")
         else:
-            # RHS value in TMP2/TMP2+1 (saved before calling this method)
-            self.emit("\tLDA TMP2")
-            if element_width == 2:
+            # RHS value in TMP2/TMP2+1 for BYTE/WORD; in MATH0 for LONG
+            if element_width == 4:
+                # LONG store: write 4 bytes from MATH0 via (TMP0),Y
                 self.emit("\tLDY #0")
+                self.emit("\tLDA MATH0")
                 self.emit("\tSTA (TMP0),Y")
                 self.emit("\tINY")
-                self.emit("\tLDA TMP2+1")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tSTA (TMP0),Y")
+                self.emit("\tINY")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tSTA (TMP0),Y")
+                self.emit("\tINY")
+                self.emit("\tLDA MATH0+3")
                 self.emit("\tSTA (TMP0),Y")
             else:
-                self._emit_indirect_store_zero("TMP0")
+                self.emit("\tLDA TMP2")
+                if element_width == 2:
+                    self.emit("\tLDY #0")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA TMP2+1")
+                    self.emit("\tSTA (TMP0),Y")
+                else:
+                    self._emit_indirect_store_zero("TMP0")
 
     def _calculate_nested_field_offset(self, expr: FieldAccess) -> tuple:
         """Calculate total offset for potentially nested field access.
@@ -7540,11 +7680,15 @@ class CodeGen:
         if left_is_ptr:
             if left_t.sem_type.is_struct and left_t.sem_type.struct_info:
                 ptr_elem_size: int = left_t.sem_type.struct_info.size
+            elif left_t.sem_type.base == "LONG":
+                ptr_elem_size: int = 4
             else:
                 ptr_elem_size: int = 2 if left_t.sem_type.base == "WORD" else 1
         elif right_is_ptr:
             if right_t.sem_type.is_struct and right_t.sem_type.struct_info:
                 ptr_elem_size: int = right_t.sem_type.struct_info.size
+            elif right_t.sem_type.base == "LONG":
+                ptr_elem_size: int = 4
             else:
                 ptr_elem_size: int = 2 if right_t.sem_type.base == "WORD" else 1
 
@@ -9773,12 +9917,13 @@ class CodeGen:
 
                     if k is not None:
                         # For pointer arithmetic, scale by element size
-                        # WORD pointers move by 2 bytes per element, BYTE pointers by 1
-                        # Struct pointers move by struct size
+                        # LONG pointers move by 4, WORD by 2, BYTE by 1, struct by size
                         scale = 1
                         if lhs_t.sem_type.is_pointer:
                             if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
                                 scale: int = lhs_t.sem_type.struct_info.size
+                            elif lhs_t.sem_type.base == "LONG":
+                                scale = 4
                             elif lhs_t.sem_type.base == "WORD":
                                 scale = 2
                         total_inc: int = k * scale
@@ -9818,12 +9963,13 @@ class CodeGen:
                 if rhs.op == BinOp.SUB and is_self(rhs.left) and k_right is not None:
                     k = k_right
                     # For pointer arithmetic, scale by element size
-                    # WORD pointers move by 2 bytes per element, BYTE pointers by 1
-                    # Struct pointers move by struct size
+                    # LONG pointers move by 4, WORD by 2, BYTE by 1, struct by size
                     scale = 1
                     if lhs_t.sem_type.is_pointer:
                         if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
                             scale: int = lhs_t.sem_type.struct_info.size
+                        elif lhs_t.sem_type.base == "LONG":
+                            scale = 4
                         elif lhs_t.sem_type.base == "WORD":
                             scale = 2
                     total_dec: int = k * scale
@@ -10117,6 +10263,8 @@ class CodeGen:
                         if lhs_t.sem_type.is_pointer:
                             if lhs_t.sem_type.is_struct and lhs_t.sem_type.struct_info:
                                 scale = lhs_t.sem_type.struct_info.size
+                            elif lhs_t.sem_type.base == "LONG":
+                                scale = 4
                             elif lhs_t.sem_type.base == "WORD":
                                 scale = 2
                         total: int = (imm_val * scale) & 0xFFFF
@@ -10379,7 +10527,21 @@ class CodeGen:
                 self.gen_expr(rhs)
                 
                 # 2. Store to dereferenced pointer directly (no TMP0 needed)
-                if lhs_t.sem_type.base == "WORD":
+                if lhs_t.sem_type.base == "LONG":
+                    # LONG: RHS result is in MATH0; store all 4 bytes
+                    self.emit("\tLDY #0")
+                    self.emit("\tLDA MATH0")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA MATH0+1")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA MATH0+2")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA MATH0+3")
+                    self.emit(f"\tSTA ({ptr_addr}),Y")
+                elif lhs_t.sem_type.base == "WORD":
                     # Save high byte (X), but low byte (A) is ready to store
                     self.emit("\tSTX TMP2+1")
                     self.emit("\tLDY #0")
@@ -10394,7 +10556,7 @@ class CodeGen:
                     else:
                         self.emit("\tLDY #0")
                         self.emit(f"\tSTA ({ptr_addr}),Y")
-                    
+
                 return
 
         # OPTIMIZATION: Dereferenced subscript of ZEROPAGE pointer array
@@ -10568,7 +10730,7 @@ class CodeGen:
             asm: str = sym.asm_name()
             if sym.type.base == "BYTE" and not sym.type.is_pointer:
                 self.emit(f"\tSTA {asm}")
-            elif sym.type.base == "LONG":
+            elif sym.type.base == "LONG" and not sym.type.is_pointer:
                 # Expect result in MATH0
                 self.emit(f"\tLDA MATH0")
                 self.emit(f"\tSTA {asm}")
@@ -10587,31 +10749,50 @@ class CodeGen:
         if isinstance(lhs, DerefExpr):
             # This should not be reached if the optimization above triggered
             # But kept as fallback for complex pointer expressions
-            # 1️⃣ ulož RHS hodnotu
-            self.emit("\tSTA TMP2")
-            # Only save X if we're storing a WORD; for BYTE we only need the low byte
-            if lhs_t.sem_type.base == "WORD":
-                self.emit("\tSTX TMP2+1")
-
-            # 2️⃣ vygeneruj adresu pointeru
-            self.gen_expr(lhs.pointer)
-
-            self.emit("\tSTA TMP0")
-            self.emit("\tSTX TMP0+1")
-
-            # 3️⃣ zápis LOW byte
-            self.emit("\tLDA TMP2")
-            if lhs_t.sem_type.base == "WORD":
+            if lhs_t.sem_type.base == "LONG":
+                # LONG deref write: RHS in MATH0; generate pointer address, then write 4 bytes
+                # gen_expr for a simple pointer identifier doesn't clobber MATH0
+                self.gen_expr(lhs.pointer)
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+                self.emit("\tLDA MATH0")
                 self.emit("\tLDY #0")
                 self.emit("\tSTA (TMP0),Y")
-            else:
-                self._emit_indirect_store_zero("TMP0")
-
-            # 4️⃣ Write high byte only if LHS target is WORD
-            if lhs_t.sem_type.base == "WORD":
+                self.emit("\tLDA MATH0+1")
                 self.emit("\tINY")
-                self.emit("\tLDA TMP2+1")
                 self.emit("\tSTA (TMP0),Y")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tINY")
+                self.emit("\tSTA (TMP0),Y")
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tINY")
+                self.emit("\tSTA (TMP0),Y")
+            else:
+                # 1️⃣ ulož RHS hodnotu
+                self.emit("\tSTA TMP2")
+                # Only save X if we're storing a WORD; for BYTE we only need the low byte
+                if lhs_t.sem_type.base == "WORD":
+                    self.emit("\tSTX TMP2+1")
+
+                # 2️⃣ vygeneruj adresu pointeru
+                self.gen_expr(lhs.pointer)
+
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+
+                # 3️⃣ zápis LOW byte
+                self.emit("\tLDA TMP2")
+                if lhs_t.sem_type.base == "WORD":
+                    self.emit("\tLDY #0")
+                    self.emit("\tSTA (TMP0),Y")
+                else:
+                    self._emit_indirect_store_zero("TMP0")
+
+                # 4️⃣ Write high byte only if LHS target is WORD
+                if lhs_t.sem_type.base == "WORD":
+                    self.emit("\tINY")
+                    self.emit("\tLDA TMP2+1")
+                    self.emit("\tSTA (TMP0),Y")
             return
 
         if isinstance(lhs, SubscriptExpr):
