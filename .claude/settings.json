@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python compiler.py *)",
+      "Bash(python3 compiler.py *)",
       "Bash(ca65 *)",
       "Bash(ld65 *)",
       "Bash(6502_simulator *)",
@@ -10,9 +10,7 @@
       "Bash(ls *)",
       "Bash(make *)",
       "Bash(sed *)",
-      "Bash(python3 compiler.py tests/pass/159-sizeof/159-sizeof.zap)",
-      "Bash(xxd tests/pass/159-sizeof/159-sizeof.ref)",
-      "Bash(xxd tests/pass/159-sizeof/159-sizeof_default.txt)"
+      "Bash(xxd tests/pass/*)"
     ],
     "additionalDirectories": [
       "/home/dusan/src/ZAP-compiler/tests/pass",

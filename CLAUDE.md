@@ -16,3 +16,6 @@
 - If you are unsure about any git operation, refuse to perform it.
 - Always prioritize safety over speed.
 - When in doubt, ask the user.  
+
+# Compact instructions
+- When you are using compact, please focus on test output and code changes
