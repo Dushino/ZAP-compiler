@@ -103,7 +103,7 @@
 
 - [ ] GAP-20 Fix GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof(). Also check shortpaths already implemented for WORD. Prepare analysis and wait for my approval.
 
-- [ ] GAP-21 Check code generated for IF - ELSE, WHILE, FOR, REPEAT for short branches.
+- [x] GAP-21 Check code generated for IF - ELSE, WHILE, FOR, REPEAT for short branches.
 
 
 ---
