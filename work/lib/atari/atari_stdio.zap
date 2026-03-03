@@ -367,7 +367,8 @@ func byte gets(const byte ^buffer, const byte max_len)
     byte  ch             ; read character
     byte  pos = 0        ; buffer position
     byte ^bufp           ; current character pointer in buffer
-    
+    byte i, j
+    byte ^tmpp
 
     ; read characters from keyboard until newline
     bufp = buffer
@@ -384,25 +385,68 @@ func byte gets(const byte ^buffer, const byte max_len)
                 return ch
 
             case ATARI_KEY_BACKSPACE
-                ; TODO: test
-                ; 0123456789
-                ; pos = 5, cur_xpos = 5, bufp points to '5'
-                ; max_len = 10
                 if pos > 0
+                    pos = pos - 1
                     ; screen
                     cur_xpos = cur_xpos - 1
                     curptr = curptr - 1                    
-                    memcpy(curptr, curptr + 1, max_len - pos - 1)   ; shift the rest of the line left
-                    curptr[max_len - 1] = 1
+                    i = pos
+                    tmpp = curptr
+                    while i < max_len
+                        tmpp = tmpp + 1
+                        ch = tmpp^
+                        tmpp = tmpp - 1
+                        tmpp^ = ch
+                        tmpp = tmpp + 1
+                        i = i + 1
+                    end
+                    tmpp^ = 0
+
                     ; buffer
                     bufp = bufp - 1
-                    pos = pos - 1
-                    memcpy(bufp, bufp + 1, max_len - pos - 1)   ; shift the rest of the buffer left
+                    i = pos
+                    tmpp = bufp
+                    while i < max_len
+                        tmpp = tmpp + 1
+                        ch = tmpp^
+                        tmpp = tmpp - 1
+                        tmpp^ = ch
+                        tmpp = tmpp + 1
+                        i = i + 1
+                    end
+                    tmpp^ = ' '
                 end
                 break
 
             case ATARI_KEY_DELETE
-                ; TODO: implement delete
+                if pos < max_len
+                    ; screen
+                    i = pos
+                    tmpp = curptr
+                    while i < max_len
+                        tmpp = tmpp + 1
+                        ch = tmpp^
+                        tmpp = tmpp - 1
+                        tmpp^ = ch
+                        tmpp = tmpp + 1
+                        i = i + 1
+                    end
+                    tmpp^ = 0
+
+                    ; buffer
+                    i = pos
+                    tmpp = bufp
+                    while i < max_len
+                        tmpp = tmpp + 1
+                        ch = tmpp^
+                        tmpp = tmpp - 1
+                        tmpp^ = ch
+                        tmpp = tmpp + 1
+                        i = i + 1
+                    end
+                    tmpp = tmpp - 1
+                    tmpp^ = ' '
+                end
                 break
             
             case ATARI_KEY_LEFT
@@ -428,13 +472,13 @@ func byte gets(const byte ^buffer, const byte max_len)
                 break
 
             default
-                if pos == max_len
-                    ; screen
-                    curptr^ = ascii_to_screen(ch)
+                ; screen
+                curptr^ = ascii_to_screen(ch)
 
-                    ; buffer
-                    bufp^ = ch                
-                else
+                ; buffer
+                bufp^ = ch                
+
+                if pos < max_len - 1
                     ; screen
                     putchar(ch)   ; echo the character back to the screen
                     ; buffer

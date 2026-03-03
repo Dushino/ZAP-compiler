@@ -41,7 +41,7 @@ proc main()
     end
     inbuf[15] = 0
 
-    ch = gets(inbuf, 15)    
+    ch = gets(inbuf, 8)    
     puts("\n\t1\t123\t1234\t12345\t123456\n")
     putchar('>')
     puts(inbuf)
