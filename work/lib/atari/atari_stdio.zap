@@ -386,33 +386,33 @@ func byte gets(const byte ^buffer, const byte max_len)
 
             case ATARI_KEY_BACKSPACE
                 if pos > 0
-                    pos = pos - 1
+                    pos -= 1
                     ; screen
-                    cur_xpos = cur_xpos - 1
-                    curptr = curptr - 1                    
+                    cur_xpos -= 1
+                    curptr -= 1                    
                     i = pos
                     tmpp = curptr
                     while i < max_len
-                        tmpp = tmpp + 1
+                        tmpp += 1
                         ch = tmpp^
-                        tmpp = tmpp - 1
+                        tmpp -= 1
                         tmpp^ = ch
-                        tmpp = tmpp + 1
-                        i = i + 1
+                        tmpp += 1
+                        i += 1
                     end
                     tmpp^ = 0
 
                     ; buffer
-                    bufp = bufp - 1
+                    bufp -= 1
                     i = pos
                     tmpp = bufp
                     while i < max_len
-                        tmpp = tmpp + 1
+                        tmpp += 1
                         ch = tmpp^
-                        tmpp = tmpp - 1
+                        tmpp -= 1
                         tmpp^ = ch
-                        tmpp = tmpp + 1
-                        i = i + 1
+                        tmpp += 1
+                        i += 1
                     end
                     tmpp^ = ' '
                 end
@@ -424,12 +424,12 @@ func byte gets(const byte ^buffer, const byte max_len)
                     i = pos
                     tmpp = curptr
                     while i < max_len
-                        tmpp = tmpp + 1
+                        tmpp += 1
                         ch = tmpp^
-                        tmpp = tmpp - 1
+                        tmpp -= 1
                         tmpp^ = ch
-                        tmpp = tmpp + 1
-                        i = i + 1
+                        tmpp += 1
+                        i += 1
                     end
                     tmpp^ = 0
 
@@ -437,14 +437,14 @@ func byte gets(const byte ^buffer, const byte max_len)
                     i = pos
                     tmpp = bufp
                     while i < max_len
-                        tmpp = tmpp + 1
+                        tmpp += 1
                         ch = tmpp^
-                        tmpp = tmpp - 1
+                        tmpp -= 1
                         tmpp^ = ch
-                        tmpp = tmpp + 1
-                        i = i + 1
+                        tmpp += 1
+                        i += 1
                     end
-                    tmpp = tmpp - 1
+                    tmpp -= 1
                     tmpp^ = ' '
                 end
                 break
@@ -452,22 +452,22 @@ func byte gets(const byte ^buffer, const byte max_len)
             case ATARI_KEY_LEFT
                 if pos > 0
                     ; screen
-                    cur_xpos = cur_xpos - 1
-                    curptr = curptr - 1                    
+                    cur_xpos -= 1
+                    curptr -= 1                    
                     ; buffer
-                    bufp = bufp - 1
-                    pos = pos - 1
+                    bufp -= 1
+                    pos -= 1
                 end
                 break
 
             case ATARI_KEY_RIGHT
                 if (cur_xpos < SCREEN_X_SIZE - 1) && (pos < max_len - 1)
                     ; screen
-                    cur_xpos = cur_xpos + 1
-                    curptr = curptr + 1                    
+                    cur_xpos += 1
+                    curptr += 1                    
                     ; buffer
-                    bufp = bufp + 1
-                    pos = pos + 1
+                    bufp += 1
+                    pos += 1
                 end
                 break
 
@@ -483,8 +483,8 @@ func byte gets(const byte ^buffer, const byte max_len)
                     putchar(ch)   ; echo the character back to the screen
                     ; buffer
                     bufp^ = ch                
-                    bufp = bufp + 1
-                    pos = pos + 1
+                    bufp += 1
+                    pos += 1
                 end
                 break                
         end
