@@ -6865,7 +6865,20 @@ class CodeGen:
             if load_only:
                 if field_offset == 0:
                     # Field at offset 0: just load directly
-                    if field_width == 2:
+                    if field_width == 4:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+1")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+2")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+3")
+                    elif field_width == 2:
                         self.emit("\tLDY #1")
                         self.emit("\tLDA (TMP0),Y")
                         self.emit("\tTAX")
@@ -6876,7 +6889,20 @@ class CodeGen:
                         self.emit("\tLDA (TMP0),Y")
                 else:
                     # Field at offset > 0, address is already in TMP0
-                    if field_width == 2:
+                    if field_width == 4:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+1")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+2")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+3")
+                    elif field_width == 2:
                         self.emit("\tLDY #1")
                         self.emit("\tLDA (TMP0),Y")
                         self.emit("\tTAX")
@@ -6900,19 +6926,28 @@ class CodeGen:
                     field_asm: str = f"{base_asm}+{field_offset}"
                 
                 # Load field value
-                self.emit(f"\tLDA {field_asm}")
-                
-                if field_width == 2:
-                    self.emit(f"\tLDX {field_asm}+1")
+                if field_width == 4:
+                    self.emit(f"\tLDA {field_asm}")
+                    self.emit(f"\tSTA MATH0")
+                    self.emit(f"\tLDA {field_asm}+1")
+                    self.emit(f"\tSTA MATH0+1")
+                    self.emit(f"\tLDA {field_asm}+2")
+                    self.emit(f"\tSTA MATH0+2")
+                    self.emit(f"\tLDA {field_asm}+3")
+                    self.emit(f"\tSTA MATH0+3")
                 else:
-                    # BYTE field -> X = 0
-                    # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
-                    target_is_byte: None | bool = (self.assign_target_type and 
-                                    hasattr(self.assign_target_type, 'base') and
-                                    self.assign_target_type.base == "BYTE" and 
-                                    not getattr(self.assign_target_type, 'is_pointer', False))
-                    if not target_is_byte:
-                        self.emit("\tLDX #$00     ; note 3721")
+                    self.emit(f"\tLDA {field_asm}")
+                    if field_width == 2:
+                        self.emit(f"\tLDX {field_asm}+1")
+                    else:
+                        # BYTE field -> X = 0
+                        # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
+                        target_is_byte: None | bool = (self.assign_target_type and
+                                        hasattr(self.assign_target_type, 'base') and
+                                        self.assign_target_type.base == "BYTE" and
+                                        not getattr(self.assign_target_type, 'is_pointer', False))
+                        if not target_is_byte:
+                            self.emit("\tLDX #$00     ; note 3721")
                     
             elif isinstance(expr.object, SubscriptExpr):
                 # Array subscript: Point arr[i]; arr[i].x = ...
@@ -6930,8 +6965,21 @@ class CodeGen:
                     self.emit(f"\tINC TMP0+1")
                     self.emit(f"{carry_lbl}:")
                 
-                # 3) Load field value via indirect addressing
-                if field_width == 2:
+                # 3) Load field value via indirect addressing (LONG only when reading)
+                if field_width == 4 and load_only:
+                    self.emit("\tLDY #$00")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0+1")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0+2")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0+3")
+                elif field_width == 2:
                     self.emit("\tLDY #1")
                     self.emit("\tLDA (TMP0),Y")
                     self.emit("\tTAX")
@@ -6942,9 +6990,9 @@ class CodeGen:
                     self.emit("\tLDA (TMP0),Y")
                     # BYTE field -> X = 0
                     # Optimization: skip LDX #$00 if assignment target is BYTE
-                    target_is_byte: None | bool = (self.assign_target_type and 
+                    target_is_byte: None | bool = (self.assign_target_type and
                                     hasattr(self.assign_target_type, 'base') and
-                                    self.assign_target_type.base == "BYTE" and 
+                                    self.assign_target_type.base == "BYTE" and
                                     not getattr(self.assign_target_type, 'is_pointer', False))
                     if not target_is_byte:
                         self.emit("\tLDX #$00     ; note 3749")
@@ -6967,20 +7015,29 @@ class CodeGen:
                     if total_offset > 0:
                         field_asm: str = f"{base_asm}+{total_offset}"
                     
-                    self.emit(f"\tLDA {field_asm}")
-                    
-                    if field_width == 2:
-                        self.emit(f"\tLDX {field_asm}+1")
-                    else:
-                        # BYTE field -> X = 0
-                        # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
-                        target_is_byte: None | bool = (self.assign_target_type and 
-                                        hasattr(self.assign_target_type, 'base') and
-                                        self.assign_target_type.base == "BYTE" and 
-                                        not getattr(self.assign_target_type, 'is_pointer', False))
-                        if not target_is_byte:
-                            self.emit("\tLDX #$00     ; note 3774")
-                        
+                    if field_width == 4 and load_only:
+                        self.emit(f"\tLDA {field_asm}")
+                        self.emit(f"\tSTA MATH0")
+                        self.emit(f"\tLDA {field_asm}+1")
+                        self.emit(f"\tSTA MATH0+1")
+                        self.emit(f"\tLDA {field_asm}+2")
+                        self.emit(f"\tSTA MATH0+2")
+                        self.emit(f"\tLDA {field_asm}+3")
+                        self.emit(f"\tSTA MATH0+3")
+                    elif field_width != 4:
+                        self.emit(f"\tLDA {field_asm}")
+                        if field_width == 2:
+                            self.emit(f"\tLDX {field_asm}+1")
+                        else:
+                            # BYTE field -> X = 0
+                            # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
+                            target_is_byte: None | bool = (self.assign_target_type and
+                                            hasattr(self.assign_target_type, 'base') and
+                                            self.assign_target_type.base == "BYTE" and
+                                            not getattr(self.assign_target_type, 'is_pointer', False))
+                            if not target_is_byte:
+                                self.emit("\tLDX #$00     ; note 3774")
+
                 elif isinstance(base_expr, SubscriptExpr):
                     # Array subscript case: arr[i].field1.field2.x
                     self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
@@ -6996,25 +7053,38 @@ class CodeGen:
                         self.emit(f"\tINC TMP0+1")
                         self.emit(f"{carry_lbl}:")
                     
-                    # Load field value via indirect addressing
-                    self.emit("\tLDY #$00")
-                    self.emit("\tLDA (TMP0),Y")
-                    
-                    if field_width == 2:
-                        self.emit("\tPHA")
+                    # Load field value via indirect addressing (LONG only when reading)
+                    if field_width == 4 and load_only:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0")
                         self.emit("\tINY")
                         self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tTAX")
-                        self.emit("\tPLA")
-                    else:
-                        # BYTE field -> X = 0
-                        # Optimization: skip LDX #$00 if assignment target is BYTE
-                        target_is_byte: None | bool = (self.assign_target_type and 
-                                        hasattr(self.assign_target_type, 'base') and
-                                        self.assign_target_type.base == "BYTE" and 
-                                        not getattr(self.assign_target_type, 'is_pointer', False))
-                        if not target_is_byte:
-                            self.emit("\tLDX #$00     ; note 3801")
+                        self.emit("\tSTA MATH0+1")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+2")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+3")
+                    elif field_width != 4:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tLDA (TMP0),Y")
+                        if field_width == 2:
+                            self.emit("\tPHA")
+                            self.emit("\tINY")
+                            self.emit("\tLDA (TMP0),Y")
+                            self.emit("\tTAX")
+                            self.emit("\tPLA")
+                        else:
+                            # BYTE field -> X = 0
+                            # Optimization: skip LDX #$00 if assignment target is BYTE
+                            target_is_byte: None | bool = (self.assign_target_type and
+                                            hasattr(self.assign_target_type, 'base') and
+                                            self.assign_target_type.base == "BYTE" and
+                                            not getattr(self.assign_target_type, 'is_pointer', False))
+                            if not target_is_byte:
+                                self.emit("\tLDX #$00     ; note 3801")
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
             elif isinstance(expr.object, CallExpr):
@@ -7031,16 +7101,73 @@ class CodeGen:
                 asm_ret, _ret_info = ret_buf
                 # Load field directly from static return buffer
                 field_asm: str = asm_ret if field_offset == 0 else f"{asm_ret}+{field_offset}"
-                self.emit(f"\tLDA {field_asm}")
-                if field_width == 2:
-                    self.emit(f"\tLDX {field_asm}+1")
+                if field_width == 4:
+                    self.emit(f"\tLDA {field_asm}")
+                    self.emit(f"\tSTA MATH0")
+                    self.emit(f"\tLDA {field_asm}+1")
+                    self.emit(f"\tSTA MATH0+1")
+                    self.emit(f"\tLDA {field_asm}+2")
+                    self.emit(f"\tSTA MATH0+2")
+                    self.emit(f"\tLDA {field_asm}+3")
+                    self.emit(f"\tSTA MATH0+3")
                 else:
-                    target_is_byte: None | bool = (self.assign_target_type and
-                                    hasattr(self.assign_target_type, 'base') and
-                                    self.assign_target_type.base == "BYTE" and
-                                    not getattr(self.assign_target_type, 'is_pointer', False))
-                    if not target_is_byte:
-                        self.emit("\tLDX #$00     ; note myfunc().field")
+                    self.emit(f"\tLDA {field_asm}")
+                    if field_width == 2:
+                        self.emit(f"\tLDX {field_asm}+1")
+                    else:
+                        target_is_byte: None | bool = (self.assign_target_type and
+                                        hasattr(self.assign_target_type, 'base') and
+                                        self.assign_target_type.base == "BYTE" and
+                                        not getattr(self.assign_target_type, 'is_pointer', False))
+                        if not target_is_byte:
+                            self.emit("\tLDX #$00     ; note myfunc().field")
+            elif isinstance(expr.object, DerefExpr):
+                # fptr^.field parsed as FieldAccess(is_deref=False, object=DerefExpr(fptr))
+                # Happens when parser creates DerefExpr separately, then FieldAccess wraps it.
+                # Treat like is_deref=True: load the pointer into TMP0.
+                deref_expr: DerefExpr = expr.object
+                if isinstance(deref_expr.pointer, Identifier):
+                    ptr_name: str = deref_expr.pointer.name
+                    sym: Symbol = self.current_symtab.lookup(ptr_name)
+                    ptr_asm: str = sym.asm_name()
+                    self.emit(f"\tLDA {ptr_asm}")
+                    self.emit(f"\tLDX {ptr_asm}+1")
+                else:
+                    self.gen_expr(deref_expr.pointer)
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+                if field_offset > 0:
+                    self.emit(f"\tLDA #${field_offset:02X}")
+                    self.emit("\tCLC")
+                    self.emit("\tADC TMP0")
+                    self.emit("\tSTA TMP0")
+                    carry_lbl = self._internal_label(f"NOCARRY_FIELD_DEREF2_{id(expr)}")
+                    self.emit(f"\tBCC {carry_lbl}")
+                    self.emit("\tINC TMP0+1")
+                    self.emit(f"{carry_lbl}:")
+                if load_only:
+                    if field_width == 4:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+1")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+2")
+                        self.emit("\tINY")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tSTA MATH0+3")
+                    elif field_width == 2:
+                        self.emit("\tLDY #1")
+                        self.emit("\tLDA (TMP0),Y")
+                        self.emit("\tTAX")
+                        self.emit("\tDEY")
+                        self.emit("\tLDA (TMP0),Y")
+                    else:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tLDA (TMP0),Y")
             else:
                 self._raise_error("Direct field access only supported on struct variables or array elements")
 
@@ -7048,42 +7175,79 @@ class CodeGen:
         if not load_only:
             if expr.is_deref:
                 # Store through pointer (TMP0 already has address)
-                self.emit("\tLDA TMP2")
-                if field_width == 2:
+                if field_width == 4:
+                    self.emit("\tLDA MATH0")
                     self.emit("\tLDY #$00")
                     self.emit("\tSTA (TMP0),Y")
-                else:
-                    self._emit_indirect_store_zero("TMP0")
-                
-                if field_width == 2:
+                    self.emit("\tLDA MATH0+1")
                     self.emit("\tINY")
-                    self.emit("\tLDA TMP2+1")
                     self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tLDA MATH0+2")
+                    self.emit("\tINY")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tLDA MATH0+3")
+                    self.emit("\tINY")
+                    self.emit("\tSTA (TMP0),Y")
+                else:
+                    self.emit("\tLDA TMP2")
+                    if field_width == 2:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tSTA (TMP0),Y")
+                    else:
+                        self._emit_indirect_store_zero("TMP0")
+
+                    if field_width == 2:
+                        self.emit("\tINY")
+                        self.emit("\tLDA TMP2+1")
+                        self.emit("\tSTA (TMP0),Y")
             elif isinstance(expr.object, Identifier):
                 # Direct store to simple variable
                 sym: Symbol = self.current_symtab.lookup(expr.object.name)
                 base_asm: str = sym.asm_name()
                 field_asm: str = base_asm if field_offset == 0 else f"{base_asm}+{field_offset}"
-                
-                self.emit(f"\tLDA TMP2")
-                self.emit(f"\tSTA {field_asm}")
-                
-                if field_width == 2:
-                    self.emit(f"\tLDA TMP2+1")
+
+                if field_width == 4:
+                    self.emit(f"\tLDA MATH0")
+                    self.emit(f"\tSTA {field_asm}")
+                    self.emit(f"\tLDA MATH0+1")
                     self.emit(f"\tSTA {field_asm}+1")
+                    self.emit(f"\tLDA MATH0+2")
+                    self.emit(f"\tSTA {field_asm}+2")
+                    self.emit(f"\tLDA MATH0+3")
+                    self.emit(f"\tSTA {field_asm}+3")
+                else:
+                    self.emit(f"\tLDA TMP2")
+                    self.emit(f"\tSTA {field_asm}")
+                    if field_width == 2:
+                        self.emit(f"\tLDA TMP2+1")
+                        self.emit(f"\tSTA {field_asm}+1")
             elif isinstance(expr.object, SubscriptExpr):
                 # Direct store to array element (TMP0 already has address)
-                self.emit(f"\tLDA TMP2")
-                if field_width == 2:
-                    self.emit("\tLDY #$00")
+                if field_width == 4:
+                    self.emit(f"\tLDA MATH0")
+                    self.emit(f"\tLDY #$00")
+                    self.emit(f"\tSTA (TMP0),Y")
+                    self.emit(f"\tLDA MATH0+1")
+                    self.emit(f"\tINY")
+                    self.emit(f"\tSTA (TMP0),Y")
+                    self.emit(f"\tLDA MATH0+2")
+                    self.emit(f"\tINY")
+                    self.emit(f"\tSTA (TMP0),Y")
+                    self.emit(f"\tLDA MATH0+3")
+                    self.emit(f"\tINY")
                     self.emit(f"\tSTA (TMP0),Y")
                 else:
-                    self._emit_indirect_store_zero("TMP0")
-                
-                if field_width == 2:
-                    self.emit(f"\tINY")
-                    self.emit(f"\tLDA TMP2+1")
-                    self.emit(f"\tSTA (TMP0),Y")
+                    self.emit(f"\tLDA TMP2")
+                    if field_width == 2:
+                        self.emit("\tLDY #$00")
+                        self.emit(f"\tSTA (TMP0),Y")
+                    else:
+                        self._emit_indirect_store_zero("TMP0")
+
+                    if field_width == 2:
+                        self.emit(f"\tINY")
+                        self.emit(f"\tLDA TMP2+1")
+                        self.emit(f"\tSTA (TMP0),Y")
             elif isinstance(expr.object, FieldAccess):
                 # Nested field access store: obj.field1.field2... = value
                 # Calculate total offset by traversing the entire chain
@@ -7097,18 +7261,27 @@ class CodeGen:
                     sym: Symbol = self.current_symtab.lookup(base_expr.name)
                     base_asm: str = sym.asm_name()
                     field_asm: str = base_asm if total_offset == 0 else f"{base_asm}+{total_offset}"
-                    
-                    self.emit(f"\tLDA TMP2")
-                    self.emit(f"\tSTA {field_asm}")
-                    
-                    if field_width == 2:
-                        self.emit(f"\tLDA TMP2+1")
+
+                    if field_width == 4:
+                        self.emit(f"\tLDA MATH0")
+                        self.emit(f"\tSTA {field_asm}")
+                        self.emit(f"\tLDA MATH0+1")
                         self.emit(f"\tSTA {field_asm}+1")
-                        
+                        self.emit(f"\tLDA MATH0+2")
+                        self.emit(f"\tSTA {field_asm}+2")
+                        self.emit(f"\tLDA MATH0+3")
+                        self.emit(f"\tSTA {field_asm}+3")
+                    else:
+                        self.emit(f"\tLDA TMP2")
+                        self.emit(f"\tSTA {field_asm}")
+                        if field_width == 2:
+                            self.emit(f"\tLDA TMP2+1")
+                            self.emit(f"\tSTA {field_asm}+1")
+
                 elif isinstance(base_expr, SubscriptExpr):
                     # Array subscript case: arr[i].field1.field2... = value
                     self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
-                    
+
                     # Add total offset to address
                     if total_offset > 0:
                         self.emit(f"\tCLC")
@@ -7119,18 +7292,56 @@ class CodeGen:
                         self.emit(f"\tBCC {carry_lbl}")
                         self.emit(f"\tINC TMP0+1")
                         self.emit(f"{carry_lbl}:")
-                    
+
                     # Store field value via indirect addressing
-                    self.emit("\tLDY #$00")
-                    self.emit(f"\tLDA TMP2")
-                    self.emit(f"\tSTA (TMP0),Y")
-                    
-                    if field_width == 2:
-                        self.emit(f"\tINY")
-                        self.emit(f"\tLDA TMP2+1")
+                    if field_width == 4:
+                        self.emit(f"\tLDA MATH0")
+                        self.emit(f"\tLDY #$00")
                         self.emit(f"\tSTA (TMP0),Y")
+                        self.emit(f"\tLDA MATH0+1")
+                        self.emit(f"\tINY")
+                        self.emit(f"\tSTA (TMP0),Y")
+                        self.emit(f"\tLDA MATH0+2")
+                        self.emit(f"\tINY")
+                        self.emit(f"\tSTA (TMP0),Y")
+                        self.emit(f"\tLDA MATH0+3")
+                        self.emit(f"\tINY")
+                        self.emit(f"\tSTA (TMP0),Y")
+                    else:
+                        self.emit("\tLDY #$00")
+                        self.emit(f"\tLDA TMP2")
+                        self.emit(f"\tSTA (TMP0),Y")
+                        if field_width == 2:
+                            self.emit(f"\tINY")
+                            self.emit(f"\tLDA TMP2+1")
+                            self.emit(f"\tSTA (TMP0),Y")
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
+            elif isinstance(expr.object, DerefExpr):
+                # ptr^.field store: TMP0 set up by DerefExpr case in load section above
+                if field_width == 4:
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tLDY #$00")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tLDA MATH0+1")
+                    self.emit("\tINY")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tLDA MATH0+2")
+                    self.emit("\tINY")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tLDA MATH0+3")
+                    self.emit("\tINY")
+                    self.emit("\tSTA (TMP0),Y")
+                else:
+                    self.emit("\tLDA TMP2")
+                    if field_width == 2:
+                        self.emit("\tLDY #$00")
+                        self.emit("\tSTA (TMP0),Y")
+                        self.emit("\tINY")
+                        self.emit("\tLDA TMP2+1")
+                        self.emit("\tSTA (TMP0),Y")
+                    else:
+                        self._emit_indirect_store_zero("TMP0")
 
     def _collect_array_subscript_chain(self, expr: BinaryExpr) -> list | None:
         """
@@ -10815,21 +11026,34 @@ class CodeGen:
             if not lhs.is_deref:
                 total_offset_fp, base_expr_fp = self._calculate_nested_field_offset(lhs)
                 if isinstance(base_expr_fp, Identifier):
-                    field_width_fp: int = 2 if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer else 1
                     sym_fp: Symbol = self.current_symtab.lookup(base_expr_fp.name)
                     base_asm_fp: str = sym_fp.asm_name()
                     field_asm_fp: str = base_asm_fp if total_offset_fp == 0 else f"{base_asm_fp}+{total_offset_fp}"
-                    self.emit(f"\tSTA {field_asm_fp}")
-                    if field_width_fp == 2:
-                        self.emit(f"\tSTX {field_asm_fp}+1")
+                    if lhs_t.sem_type.base == "LONG":
+                        # LONG fast path: RHS in MATH0 → store 4 bytes directly
+                        self.emit(f"\tLDA MATH0")
+                        self.emit(f"\tSTA {field_asm_fp}")
+                        self.emit(f"\tLDA MATH0+1")
+                        self.emit(f"\tSTA {field_asm_fp}+1")
+                        self.emit(f"\tLDA MATH0+2")
+                        self.emit(f"\tSTA {field_asm_fp}+2")
+                        self.emit(f"\tLDA MATH0+3")
+                        self.emit(f"\tSTA {field_asm_fp}+3")
+                    else:
+                        field_width_fp: int = 2 if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer else 1
+                        self.emit(f"\tSTA {field_asm_fp}")
+                        if field_width_fp == 2:
+                            self.emit(f"\tSTX {field_asm_fp}+1")
                     return
 
             # General path: deref or SubscriptExpr base — need TMP2 to hold RHS while address is computed.
-            self.emit("\tSTA TMP2")
-            # Only save high byte if RHS is not BYTE (or if we don't know the type)
-            # For BYTE RHS, X is either 0 or undefined, and we don't need it for BYTE field assignment
-            if rhs_t.sem_type.base == "WORD" or rhs_t.sem_type.is_pointer:
-                self.emit("\tSTX TMP2+1")
+            # For LONG, RHS is already in MATH0 (4 bytes); no A/X staging into TMP2 needed.
+            if lhs_t.sem_type.base != "LONG":
+                self.emit("\tSTA TMP2")
+                # Only save high byte if RHS is not BYTE (or if we don't know the type)
+                # For BYTE RHS, X is either 0 or undefined, and we don't need it for BYTE field assignment
+                if rhs_t.sem_type.base == "WORD" or rhs_t.sem_type.is_pointer:
+                    self.emit("\tSTX TMP2+1")
 
             # Set assignment target type to the field type for optimizations
             # This helps skip unnecessary LDX #$00 when the field is BYTE
@@ -11371,6 +11595,19 @@ class CodeGen:
                 finally:
                     self.suppress_byte_return_x = prev_suppress
                 self.emit(f"\tSTA {asm}")
+                continue
+
+            if width == 4:
+                # LONG parameter: gen_expr puts result in MATH0 (4 bytes)
+                self.gen_expr(arg)
+                self.emit(f"\tLDA MATH0")
+                self.emit(f"\tSTA {asm}")
+                self.emit(f"\tLDA MATH0+1")
+                self.emit(f"\tSTA {asm}+1")
+                self.emit(f"\tLDA MATH0+2")
+                self.emit(f"\tSTA {asm}+2")
+                self.emit(f"\tLDA MATH0+3")
+                self.emit(f"\tSTA {asm}+3")
                 continue
 
             prev_force: bool = self.force_word_result

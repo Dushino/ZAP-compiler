@@ -10,7 +10,7 @@
       "Bash(ls *)",
       "Bash(make *)",
       "Bash(sed *)",
-      "Bash(xxd tests/pass/*)"
+      "Bash(xxd tests/pass/*)"      
     ],
     "additionalDirectories": [
       "/home/dusan/src/ZAP-compiler/tests/pass",

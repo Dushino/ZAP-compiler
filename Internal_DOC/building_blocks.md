@@ -101,11 +101,23 @@
   - `136-pointer-math.ref` updated (ptr_long low byte 0x45→0x48: correct stride=4 behavior).
   - All 149 pass-tests and 68 fail-tests green.
 
-- [ ] GAP-20 Fix GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof(). Also check shortpaths already implemented for WORD. Prepare analysis and wait for my approval.
+- [x] GAP-20 Fix GAP-15 for LONG variables. LONG struct field read/write codegen (_gen_field_access line 6681 field_width only handles 1 and 2 bytes). LONG field access in structs is future work — noted in building_blocks.md. Implement what is missing for full coverage of LONG  type including sizeof(). Also check shortpaths already implemented for WORD. Prepare analysis and wait for my approval.
+  - Implemented all 13 missing paths in `_gen_field_access`: L1-L6 (loads) and S1-S7 (stores + gen_assign fast-path).
+  - Additional bugs found and fixed: (a) LONG store overwrite: SubscriptExpr/nested-FieldAccess load sections were emitting MATH0-clobbering loads even during stores; guarded with `field_width == 4 and load_only`. (b) DerefExpr case missing in non-is_deref branch — added `elif isinstance(expr.object, DerefExpr)` for both load and store. (c) LONG argument passing in `_emit_call_args` — only stored 2 bytes; added `if width == 4:` case to copy all 4 MATH0 bytes to parameter slot.
+  - New test `164-struct-long-field` (6 checks): direct ident.field, arr[i].field, ptr^.field (DerefExpr), nested FieldAccess→Identifier, nested FieldAccess→SubscriptExpr, myfunc().field.
+  - All 4 variants (65C02, 65C02 -O1, 6502, 6502 -O1) pass with result=6 ($06).
 
 - [x] GAP-21 Check code generated for IF - ELSE, WHILE, FOR, REPEAT for short branches.
 
-- [ ] GAP-22 Null pointer checks - how to implement compare pointer with NULL? Must compare pointer and WORD.
+- [ ] GAP-22 Null pointer checks - WORD and pointers must be considered compatible to allow NULL pointer checks and set.
+
+- [ ] GAP-23 Error generating ASM when FOR i = pos to max_len - 2
+
+- [ ] GAP-24 Check if pointer dereferenciang via array index is working for all types.
+
+- [ ] GAP-25 (pointer + 1)^ = 0 does not work.
+
+- [ ] GAP-26 Check if four-char character literal `'a''b''c''d'` forms LONG
 
 ---
 
@@ -113,10 +125,10 @@
 
 - [x] DOC-01: `grammar.ebnf` FOR loop: replace `"next" IDENT` with `"end"`.
 - [x] DOC-02: `grammar.ebnf` type_modifier: remove `"port"` from the production (ports use `#PORT` declmod).
-- [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD.
+- [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD and four-char character literal form `'a''b''c''d'`
 - [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
 - [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls.
-- [ ] DOC-06 Verify that all examples in DOC directory have correct syntax and compiles to desired result. If needed, include your temporary tests into generated_tests directory.
+- [ ] DOC-06 Verify that all examples in DOC directory files have correct syntax and compiles to desired result. If needed, include your temporary tests into generated_tests directory.
 
 
 ---

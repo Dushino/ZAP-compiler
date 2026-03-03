@@ -1,5 +1,38 @@
 # Progress Tracker
 
+---
+
+## GAP-20: LONG struct field read/write codegen (2026-03-03)
+
+### What was done
+
+Implemented full LONG (32-bit) struct field read/write support in `codegen_expr.py`.
+
+**Load paths (L1-L6)** in `_gen_field_access`:
+- L1: `ptr^.field` (is_deref=True) via 4-byte (TMP0),Y indirect load into MATH0
+- L2: `ident.field` (Identifier base) via 4-byte direct load into MATH0
+- L3: `arr[i].field` (SubscriptExpr base) via 4-byte (TMP0),Y indirect load into MATH0
+- L4: nested `obj.f1.f2` (FieldAccess→Identifier) via 4-byte direct load
+- L5: nested `arr[i].f1.f2` (FieldAccess→SubscriptExpr) via 4-byte indirect load
+- L6: `myfunc().field` (CallExpr base) via 4-byte direct load from return buffer
+
+**Store paths (S1-S7)** in `_gen_field_access` + `gen_assign`:
+- S1: fast path in `gen_assign` — direct Identifier.field LONG store from MATH0 (returns early)
+- S2: staging fix — skip TMP2 staging for LONG (MATH0 already has value)
+- S3-S7: mirror of L1-L5 store directions (MATH0 → field via direct or indirect addressing)
+
+**Additional bugs found and fixed**:
+- **LONG store MATH0 overwrite**: In non-is_deref branch, SubscriptExpr and nested FieldAccess load sections were emitting LONG loads (clobbering MATH0) even during store operations. Fixed with `field_width == 4 and load_only` guard.
+- **DerefExpr case missing**: `FieldAccess(is_deref=False, object=DerefExpr)` reached the error else-branch. Added `elif isinstance(expr.object, DerefExpr)` in both load and store sections.
+- **LONG argument passing**: `_emit_call_args` used `STA asm; STX asm+1` for all non-1-byte args, truncating LONG to 2 bytes. Added `if width == 4:` case copying all 4 MATH0 bytes to parameter slot.
+
+**Test**: `tests/pass/164-struct-long-field/` — 6 checks, all 4 variants (65C02, 65C02 -O1, 6502, 6502 -O1) pass with result=$06.
+
+### What remains
+- GAP-22, GAP-23, GAP-24, GAP-25 (see building_blocks.md).
+
+---
+
 ## What was done
 - Initialized tracking documents (`task.md` and `PROGRESS.md`).
 - Reviewed project root directory and `README.md`.
