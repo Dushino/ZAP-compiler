@@ -1598,7 +1598,7 @@ class CodeGen:
         if self.is_65c02:
             self.emit(f"\tSTA ({ptr})")
         else:
-            self.emit("\tLDY #0")
+            self.emit("\tLDY #$00")
             self.emit(f"\tSTA ({ptr}),Y")
 
     def _math_stack_push(self, width: int) -> None:
@@ -1627,10 +1627,10 @@ class CodeGen:
              if width == 2:
                  self.emit(f"\tSTX MATH_STACK+{offset+1}")
              else:
-                 self.emit(f"\tLDX #0")
+                 self.emit(f"\tLDX #$00")
                  self.emit(f"\tSTX MATH_STACK+{offset+1}")
              # Zero extend
-             self.emit(f"\tLDX #0") 
+             self.emit(f"\tLDX #$00") 
              self.emit(f"\tSTX MATH_STACK+{offset+2}")
              self.emit(f"\tSTX MATH_STACK+{offset+3}")
 
@@ -1971,8 +1971,8 @@ class CodeGen:
         - Remove redundant LDA after STA to same location (when A still contains the value)
         - Tail call optimization: JSR followed by RTS -> JMP (saves stack operations)
         - Remove duplicate consecutive comment lines
-        - 65c02: Replace LDX #0; STA addr; STX addr+1 with STA addr; STZ addr+1
-        - Remove redundant LDX #0 when X is immediately overwritten by TAX
+        - 65c02: Replace LDX #$00; STA addr; STX addr+1 with STA addr; STZ addr+1
+        - Remove redundant LDX #$00 when X is immediately overwritten by TAX
         - Remove redundant LDX #imm before another LDX immediate
         - Remove blank line immediately before RTS
         - Remove conditional branch to next label (no-op)
@@ -2352,7 +2352,7 @@ class CodeGen:
 
             # Rule D: LDX #$00 immediately before JSR __MUL8_A / __DIV8_A / __MOD8_A
             # These 8-bit routines don't use X as input; X is overwritten internally.
-            if cur_instr in ("LDX #0", "LDX #$0", "LDX #$00"):
+            if cur_instr in ("LDX #$00", "LDX #$00", "LDX #$00") and self.is_65c02:
                 nxt_op, nxt_target, found = _peek_next_real(i + 1)
                 if found and nxt_op == "JSR" and nxt_target in _8BIT_ROUTINES_NO_X:
                     i += 1
@@ -2443,13 +2443,13 @@ class CodeGen:
                     continue
 
 
-            # 65c02: Replace LDX #0; STA addr; STX addr+1 → STA addr; STZ addr+1
+            # 65c02: Replace LDX #$00; STA addr; STX addr+1 → STA addr; STZ addr+1
 
 
 
             # Strip inline comments to check instruction
             instr_part = line_stripped.split(';')[0].strip().upper()
-            if self.is_65c02 and (instr_part == "LDX #0" or instr_part == "LDX #$0" or instr_part == "LDX #$00"):
+            if self.is_65c02 and (instr_part == "LDX #$00" or instr_part == "LDX #$00" or instr_part == "LDX #$00"):
                 # Look ahead for STA instruction
                 j = i + 1
                 sta_found = False
@@ -2520,7 +2520,7 @@ class CodeGen:
                         break
                     
                     if stx_found and not _operand_is_port(sta_operand) and not _operand_is_port(stx_operand):
-                        # Replace pattern: skip LDX #0, emit STA, replace STX with STZ
+                        # Replace pattern: skip LDX #$00, emit STA, replace STX with STZ
                         # Emit intermediate lines between LDX and STA
                         for idx in intermediate_lines:
                             optimized.append(self.code[idx])
@@ -2535,8 +2535,8 @@ class CodeGen:
                         i = stx_index + 1
                         continue
 
-            # Remove redundant LDX #0 when X is overwritten by TAX soon after
-            if instr_part in {"LDX #0", "LDX #$0", "LDX #$00"}:
+            # Remove redundant LDX #$00 when X is overwritten by TAX soon after
+            if instr_part in {"LDX #$00", "LDX #$00", "LDX #$00"}:
                 j = i + 1
                 found_tax = False
                 while j < len(self.code):
@@ -2572,7 +2572,7 @@ class CodeGen:
             # no longer exists.
             pass
 
-            # Replace LDX #0; CLC; ADC TMP0; STA TMP0; TXA -> CLC; ADC TMP0; STA TMP0; LDA #0
+            # Replace LDX #$00; CLC; ADC TMP0; STA TMP0; TXA -> CLC; ADC TMP0; STA TMP0; LDA #$00
             if i + 4 < len(self.code):
                 l1 = self.code[i].strip()
                 l2 = self.code[i + 1].strip()
@@ -2584,13 +2584,13 @@ class CodeGen:
                 l3_u = l3.split(';')[0].strip().upper()
                 l4_u = l4.split(';')[0].strip().upper()
                 l5_u = l5.split(';')[0].strip().upper()
-                if (l1_u in {"LDX #0", "LDX #$0", "LDX #$00"} and l2_u == "CLC" and
+                if (l1_u in {"LDX #$00", "LDX #$00", "LDX #$00"} and l2_u == "CLC" and
                         l3_u == "ADC TMP0" and l4_u == "STA TMP0" and l5_u == "TXA"):
                     optimized.append(self.code[i + 1])
                     optimized.append(self.code[i + 2])
                     optimized.append(self.code[i + 3])
                     indent = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
-                    optimized.append(f"{indent}LDA #0\n")
+                    optimized.append(f"{indent}LDA #$00\n")
                     i += 5
                     continue
 
@@ -2694,8 +2694,8 @@ class CodeGen:
                         i += 3
                         continue
 
-            # Remove redundant LDX #0 before accumulator shift/rotate
-            if instr_part in {"LDX #0", "LDX #$0", "LDX #$00"}:
+            # Remove redundant LDX #$00 before accumulator shift/rotate
+            if instr_part in {"LDX #$00", "LDX #$00", "LDX #$00"}:
                 j = i + 1
                 removed_ldx = False
                 while j < len(self.code):
@@ -3131,8 +3131,8 @@ class CodeGen:
         self.emit("; Clobbers: A, X, Y")
         self.emit("; Note: length must fit in one page; longer copies stay inline")
         self.emit("COPY_BYTES:")
-        self.emit("\tLDY #0")
-        self.emit("\tCPX #0")        
+        self.emit("\tLDY #$00")
+        self.emit("\tCPX #$00")        
         self.emit("\tBEQ COPY_BYTES_DONE")
         self.emit("COPY_BYTES_LOOP:")
         self.emit("\tLDA (TMP0),Y")
@@ -3156,7 +3156,7 @@ class CodeGen:
         self.emit("; Inputs: TMP0/TMP0+1=src, TMP2/TMP2+1=dst, TMP4=count_lo, TMP4+1=count_hi")
         self.emit("; Clobbers: A, Y, TMP4, TMP4+1")
         self.emit("COPY_BYTES16:")
-        self.emit("\tLDY #0")
+        self.emit("\tLDY #$00")
         self.emit("CB16_OUTER:")
         self.emit("\tLDA TMP4+1")
         self.emit("\tBEQ CB16_PARTIAL")
@@ -4145,7 +4145,7 @@ class CodeGen:
         def emit_lshift32() -> None:
             self.emit("; LSHIFT32: MATH0 = MATH0 << A")
             self.emit("LSHIFT32:")
-            self.emit("\tCMP #0")
+            self.emit("\tCMP #$00")
             self.emit("\tBEQ LSHIFT32_EXIT")
             self.emit("\tTAY")
             self.emit("LSHIFT32_LOOP:")
@@ -4161,7 +4161,7 @@ class CodeGen:
         def emit_rshift32() -> None:
             self.emit("; RSHIFT32: MATH0 = MATH0 >> A (Unsigned)")
             self.emit("RSHIFT32:")
-            self.emit("\tCMP #0")
+            self.emit("\tCMP #$00")
             self.emit("\tBEQ RSHIFT32_EXIT")
             self.emit("\tTAY")
             self.emit("RSHIFT32_LOOP:")
@@ -5384,14 +5384,14 @@ class CodeGen:
                     self.emit(f"\tLDA #${ch:02X}")
                     self.emit(f"\tSTA {dest_var}+{elem_offset}")
                     if is_word:
-                        self.emit(f"\tLDX #0")
+                        self.emit(f"\tLDX #$00")
                         self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
                 # Add null terminator
                 term_offset: int = len(content) * (2 if is_word else 1)
-                self.emit(f"\tLDA #0")
+                self.emit(f"\tLDA #$00")
                 self.emit(f"\tSTA {dest_var}+{term_offset}")
                 if is_word:
-                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tLDX #$00")
                     self.emit(f"\tSTX {dest_var}+{term_offset}+1")
             else:
                 # Use shared copy routine for larger strings
@@ -5550,7 +5550,7 @@ class CodeGen:
                     else:
                         # Small struct array (3-8 bytes): inline indexed loop
                         self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
-                        self.emit(f"\tLDX #0")
+                        self.emit(f"\tLDX #$00")
                         copy_loop: str = self.new_label("ARR_COPY")
                         self.emit(f"{copy_loop}:")
                         self.emit(f"\tLDA {arr_label},X")
@@ -5690,7 +5690,7 @@ class CodeGen:
                 else:
                     # Small array (3-8 bytes, BYTE/WORD only — LONG arrays with 3+ elems always > 8 bytes)
                     self.emit(f"\t; Copy array [{', '.join(str(v) for v in values[:5])}{'...' if len(values) > 5 else ''}] ({array_len} elements)")
-                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tLDX #$00")
                     copy_loop: str = self.new_label("ARR_COPY")
                     self.emit(f"{copy_loop}:")
                     self.emit(f"\tLDA {arr_label},X")
@@ -6008,13 +6008,13 @@ class CodeGen:
             self.emit(f"\tLDX {asm}+1")
         else:
             # BYTE → X = 0
-            # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
+            # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
             target_is_byte: None | bool = (self.assign_target_type and 
                             hasattr(self.assign_target_type, 'base') and
                             self.assign_target_type.base == "BYTE" and 
                             not getattr(self.assign_target_type, 'is_pointer', False))
             if not target_is_byte and not self.suppress_byte_return_x:
-                self.emit("\tLDX #0     ; note 3056")
+                self.emit("\tLDX #$00   ; note 3056")
 
     def _is_zeropage_pointer_array_subscript(self, expr) -> tuple[bool, Symbol | None, int]:
         """Check if expr is SubscriptExpr of a ZEROPAGE pointer array with BYTE index.
@@ -6089,7 +6089,7 @@ class CodeGen:
                     if self.is_65c02:
                         self.emit(f"\tLDA ({ptr_asm})")
                     else:
-                        self.emit("\tLDY #0")
+                        self.emit("\tLDY #$00")
                         self.emit(f"\tLDA ({ptr_asm}),Y")
                     self.emit("\tSTA MATH0")
                     self.emit("\tLDY #1")
@@ -6115,7 +6115,7 @@ class CodeGen:
                     if self.is_65c02:
                         self.emit(f"\tLDA ({ptr_asm})")
                     else:
-                        self.emit("\tLDY #0")
+                        self.emit("\tLDY #$00")
                         self.emit(f"\tLDA ({ptr_asm}),Y")
                 return
 
@@ -6129,7 +6129,7 @@ class CodeGen:
         # 3) načti LOW/HIGH byte(s)
         if t.sem_type.base == "LONG":
             # Load 4 bytes into MATH0
-            self.emit("\tLDY #0")
+            self.emit("\tLDY #$00")
             self.emit("\tLDA (TMP0),Y")
             self.emit("\tSTA MATH0")
             self.emit("\tINY")
@@ -6149,7 +6149,7 @@ class CodeGen:
             self.emit("\tDEY")
             self.emit("\tLDA (TMP0),Y")
         else:
-            self.emit("\tLDY #0")
+            self.emit("\tLDY #$00")
             self.emit("\tLDA (TMP0),Y")
 
     def _collect_subscript_indices(self, expr: SubscriptExpr) -> tuple:
@@ -6289,7 +6289,7 @@ class CodeGen:
                     self.emit("\tDEY")
                     self.emit("\tLDA (TMP0),Y")
                 else:
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tLDA (TMP0),Y")
                     # For BYTE element, only set X if final target is not BYTE
                     # If target is BYTE, we only need the low byte in A
@@ -6300,13 +6300,13 @@ class CodeGen:
                                 not getattr(self.assign_target_type, 'is_pointer', False)):
                                 need_x = False
                     if need_x:
-                        self.emit("\tLDX #0     ; note 3322")
-                        self.emit("\tLDX #0     ; note 3211")
+                        self.emit("\tLDX #$00     ; note 3322")
+                        self.emit("\tLDX #$00     ; note 3211")
             else:
                 # Store RHS value (in TMP2/TMP2+1)
                 self.emit("\tLDA TMP2")
                 if element_width == 2:
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tSTA (TMP0),Y")
                     self.emit("\tINY")
                     self.emit("\tLDA TMP2+1")
@@ -6319,7 +6319,7 @@ class CodeGen:
         # Note: RHS value is already in TMP2/TMP2+1 (saved by gen_assign before calling this method)
         
         # Calculate total offset for address: TMP4/TMP4+1 will accumulate
-        self.emit("\tLDA #0")
+        self.emit("\tLDA #$00")
         self.emit("\tSTA TMP4")
         self.emit("\tSTA TMP4+1")
         
@@ -6331,27 +6331,27 @@ class CodeGen:
             # Multiply index by stride
             if stride_val == 1:
                 # No multiplication needed - A already has index
-                self.emit("\tLDX #0     ; note 3212; note 3239")  # Clear high byte
+                self.emit("\tLDX #$00     ; note 3212; note 3239")  # Clear high byte
             elif stride_val == 2:
                 # Multiply by 2: ASL
                 self.emit("\tASL")
-                self.emit("\tLDX #0     ; note 3243")
+                self.emit("\tLDX #$00     ; note 3243")
             elif stride_val & (stride_val - 1) == 0:
                 # Power of 2: use bit shifts
                 shifts = (stride_val - 1).bit_length()  # log2(stride_val)
                 for _ in range(shifts):
                     self.emit("\tASL")
-                self.emit("\tLDX #0     ; note 3249")
+                self.emit("\tLDX #$00     ; note 3249")
             else:
                 # General multiplication (non-power-of-2)
                 # Save A (index) to a temporary (use TMP5 to avoid conflicts)
                 self.emit("\tSTA TMP5")
                 
                 # Multiply TMP5 * stride -> A:X using repeated addition
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSTA TMP3")  # TMP3 = result low byte
-                # self.emit("\tLDA #0") # Fixme: ### already cleared above
-                self.emit("\tLDX #0     ; note 3259")   # X = result high byte
+                # self.emit("\tLDA #$00") # Fixme: ### already cleared above
+                self.emit("\tLDX #$00     ; note 3259")   # X = result high byte
                 
                 for _ in range(stride_val):
                     self.emit("\tCLC")
@@ -6401,14 +6401,14 @@ class CodeGen:
                 self.emit("\tDEY")
                 self.emit("\tLDA (TMP0),Y")
             else:
-                self.emit("\tLDY #0")
+                self.emit("\tLDY #$00")
                 self.emit("\tLDA (TMP0),Y")
-                self.emit("\tLDX #0     ; note 3311")
+                self.emit("\tLDX #$00     ; note 3311")
         else:
             # Store RHS value (in TMP2/TMP2+1)
             self.emit("\tLDA TMP2")
             if element_width == 2:
-                self.emit("\tLDY #0")
+                self.emit("\tLDY #$00")
                 self.emit("\tSTA (TMP0),Y")
                 self.emit("\tINY")
                 self.emit("\tLDA TMP2+1")
@@ -6511,7 +6511,7 @@ class CodeGen:
                                     not getattr(self.assign_target_type, 'is_pointer', False)):
                                     need_x = False
                         if need_x:
-                            self.emit("\tLDX #0     ; note 3499")
+                            self.emit("\tLDX #$00     ; note 3499")
                         return
 
                 if arr_label is None:
@@ -6581,14 +6581,14 @@ class CodeGen:
                 self.emit(f"\tBCC {carry_lbl}")
                 self.emit(f"{carry_lbl}:")
                 # For indices that fit in a byte, X should be 0 after ASL
-                self.emit("\tLDX #0    ; note 3438")
+                self.emit("\tLDX #$00    ; note 3438")
             else:
                 # General case: multiply by width using addition loop
                 # Index is in A, multiply by width
                 self.emit("\tSTA TMP3")  # Save index to TMP3
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSTA TMP4")  # TMP4 = result (low byte)
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSTA TMP4+1")  # TMP4+1 = result (high byte)
                 
                 # Multiply: TMP4 = TMP3 * width
@@ -6607,7 +6607,7 @@ class CodeGen:
                 self.emit("\tLDA TMP4")
                 self.emit("\tLDX TMP4+1")
         else:
-            self.emit("\tLDX #0     ; note 3464")  # BYTE element, X = 0
+            self.emit("\tLDX #$00     ; note 3464")  # BYTE element, X = 0
         
         # Now A/X contains (scaled) index, add to base address in TMP0
         self.emit("\tCLC")
@@ -6626,7 +6626,7 @@ class CodeGen:
         if load_only:
             if element_width == 4:
                 # LONG element: load 4 bytes into MATH0
-                self.emit("\tLDY #0")
+                self.emit("\tLDY #$00")
                 self.emit("\tLDA (TMP0),Y")
                 self.emit("\tSTA MATH0")
                 self.emit("\tINY")
@@ -6645,7 +6645,7 @@ class CodeGen:
                 self.emit("\tDEY")
                 self.emit("\tLDA (TMP0),Y")
             else:
-                self.emit("\tLDY #0")
+                self.emit("\tLDY #$00")
                 self.emit("\tLDA (TMP0),Y")
                 # For BYTE element, only set X if final target is not BYTE
                 # If target is BYTE, we only need the low byte in A
@@ -6659,12 +6659,12 @@ class CodeGen:
                             not getattr(self.assign_target_type, 'is_pointer', False)):
                             need_x = False
                 if need_x:
-                    self.emit("\tLDX #0     ; note 3499")
+                    self.emit("\tLDX #$00     ; note 3499")
         else:
             # RHS value in TMP2/TMP2+1 for BYTE/WORD; in MATH0 for LONG
             if element_width == 4:
                 # LONG store: write 4 bytes from MATH0 via (TMP0),Y
-                self.emit("\tLDY #0")
+                self.emit("\tLDY #$00")
                 self.emit("\tLDA MATH0")
                 self.emit("\tSTA (TMP0),Y")
                 self.emit("\tINY")
@@ -6679,7 +6679,7 @@ class CodeGen:
             else:
                 self.emit("\tLDA TMP2")
                 if element_width == 2:
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tSTA (TMP0),Y")
                     self.emit("\tINY")
                     self.emit("\tLDA TMP2+1")
@@ -6872,7 +6872,7 @@ class CodeGen:
                         self.emit("\tDEY")
                         self.emit("\tLDA (TMP0),Y")
                     else:
-                        self.emit("\tLDY #0")
+                        self.emit("\tLDY #$00")
                         self.emit("\tLDA (TMP0),Y")
                 else:
                     # Field at offset > 0, address is already in TMP0
@@ -6883,7 +6883,7 @@ class CodeGen:
                         self.emit("\tDEY")
                         self.emit("\tLDA (TMP0),Y")
                     else:
-                        self.emit("\tLDY #0")
+                        self.emit("\tLDY #$00")
                         self.emit("\tLDA (TMP0),Y")
         else:
             # obj.field - direct field access
@@ -6906,13 +6906,13 @@ class CodeGen:
                     self.emit(f"\tLDX {field_asm}+1")
                 else:
                     # BYTE field -> X = 0
-                    # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
+                    # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
                     target_is_byte: None | bool = (self.assign_target_type and 
                                     hasattr(self.assign_target_type, 'base') and
                                     self.assign_target_type.base == "BYTE" and 
                                     not getattr(self.assign_target_type, 'is_pointer', False))
                     if not target_is_byte:
-                        self.emit("\tLDX #0     ; note 3721")
+                        self.emit("\tLDX #$00     ; note 3721")
                     
             elif isinstance(expr.object, SubscriptExpr):
                 # Array subscript: Point arr[i]; arr[i].x = ...
@@ -6938,10 +6938,10 @@ class CodeGen:
                     self.emit("\tDEY")
                     self.emit("\tLDA (TMP0),Y")
                 else:
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tLDA (TMP0),Y")
                     # BYTE field -> X = 0
-                    # Optimization: skip LDX #0 if assignment target is BYTE
+                    # Optimization: skip LDX #$00 if assignment target is BYTE
                     target_is_byte: None | bool = (self.assign_target_type and 
                                     hasattr(self.assign_target_type, 'base') and
                                     self.assign_target_type.base == "BYTE" and 
@@ -6973,7 +6973,7 @@ class CodeGen:
                         self.emit(f"\tLDX {field_asm}+1")
                     else:
                         # BYTE field -> X = 0
-                        # Optimization: skip LDX #0 if assignment target is BYTE (no need to set high byte)
+                        # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
                         target_is_byte: None | bool = (self.assign_target_type and 
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and 
@@ -6997,7 +6997,7 @@ class CodeGen:
                         self.emit(f"{carry_lbl}:")
                     
                     # Load field value via indirect addressing
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tLDA (TMP0),Y")
                     
                     if field_width == 2:
@@ -7008,7 +7008,7 @@ class CodeGen:
                         self.emit("\tPLA")
                     else:
                         # BYTE field -> X = 0
-                        # Optimization: skip LDX #0 if assignment target is BYTE
+                        # Optimization: skip LDX #$00 if assignment target is BYTE
                         target_is_byte: None | bool = (self.assign_target_type and 
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and 
@@ -7050,7 +7050,7 @@ class CodeGen:
                 # Store through pointer (TMP0 already has address)
                 self.emit("\tLDA TMP2")
                 if field_width == 2:
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tSTA (TMP0),Y")
                 else:
                     self._emit_indirect_store_zero("TMP0")
@@ -7075,7 +7075,7 @@ class CodeGen:
                 # Direct store to array element (TMP0 already has address)
                 self.emit(f"\tLDA TMP2")
                 if field_width == 2:
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit(f"\tSTA (TMP0),Y")
                 else:
                     self._emit_indirect_store_zero("TMP0")
@@ -7121,7 +7121,7 @@ class CodeGen:
                         self.emit(f"{carry_lbl}:")
                     
                     # Store field value via indirect addressing
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit(f"\tLDA TMP2")
                     self.emit(f"\tSTA (TMP0),Y")
                     
@@ -7214,7 +7214,7 @@ class CodeGen:
         
         For BYTE arrays:
           8-bit result: LDA arr[0]; CLC; ADC arr[1]; ...
-          16-bit result: LDA arr[0]; LDX #0; CLC; ADC arr[1]; (with carry to X)
+          16-bit result: LDA arr[0]; LDX #$00; CLC; ADC arr[1]; (with carry to X)
         
         For WORD arrays (16-bit elements):
           Uses TMP1/TMP2 to accumulate: accumulation strategy
@@ -7261,7 +7261,7 @@ class CodeGen:
             self.emit(f"\tLDA {arr_addr}+{idx0_val}")
             if result_is_16bit:
                 # For 16-bit result from BYTE elements, initialize high byte to 0
-                self.emit("\tLDX #0     ; note 3994")
+                self.emit("\tLDX #$00     ; note 3994")
         
         # Process remaining elements
         for idx, (op, _, idx_val) in enumerate(chain[1:], 1):
@@ -7427,7 +7427,7 @@ class CodeGen:
                 self.emit(f"\tLDA {sym.asm_name()}+1")
                 self.emit(f"\tSTA __MATH0+1")
             else:
-                self.emit(f"\tLDX #0")
+                self.emit(f"\tLDX #$00")
                 self.emit(f"\tSTX __MATH0+1")
         elif isinstance(first_expr, IntLiteral):
             val = first_expr.value & 0xFF
@@ -7438,7 +7438,7 @@ class CodeGen:
                 self.emit(f"\tLDA #${val_hi:02X}")
                 self.emit(f"\tSTA __MATH0+1")
             else:
-                self.emit(f"\tLDX #0")
+                self.emit(f"\tLDX #$00")
                 self.emit(f"\tSTX __MATH0+1")
         else:
             # Complex expression (including FieldAccess) - generate and store
@@ -7462,7 +7462,7 @@ class CodeGen:
                     self.emit(f"\tLDA {sym.asm_name()}+1")
                     self.emit(f"\tSTA __MATH1+1")
                 else:
-                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tLDX #$00")
                     self.emit(f"\tSTX __MATH1+1")
             elif isinstance(operand, IntLiteral):
                 val = operand.value & 0xFF
@@ -7473,7 +7473,7 @@ class CodeGen:
                     self.emit(f"\tLDA #${val_hi:02X}")
                     self.emit(f"\tSTA __MATH1+1")
                 else:
-                    self.emit(f"\tLDX #0")
+                    self.emit(f"\tLDX #$00")
                     self.emit(f"\tSTX __MATH1+1")
             else:
                 # Complex expression (including FieldAccess) - generate and store
@@ -8300,7 +8300,7 @@ class CodeGen:
             else:
                 # General case: multiply by ptr_elem_size
                 self.emit("\tSTA TMP3")  # Save offset
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSTA TMP4")
                 # Multiply TMP3 by ptr_elem_size
                 for i in range(ptr_elem_size - 1):
@@ -8342,7 +8342,7 @@ class CodeGen:
                     self.emit("\tCLC")
                     self.emit(f"\tADC {left_tmp}")     # Add low bytes
                     self.emit("\tTAY")
-                    self.emit("\tLDA #0")       # High byte is 0
+                    self.emit("\tLDA #$00")       # High byte is 0
                     self.emit(f"\tADC {left_tmp}+1")   # Add high bytes with carry
                     self.emit("\tTAX")
                     self.emit("\tTYA")
@@ -8991,18 +8991,18 @@ class CodeGen:
                 # A/X contains val. Use TMP for storage.
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSEC")
                 self.emit("\tSBC TMP0")
                 self.emit("\tTAY")
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSBC TMP0+1")
                 self.emit("\tTAX")
                 self.emit("\tTYA")
             else:
                 # 8-bit negation (0 - val)
                 self.emit("\tSTA TMP0")
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSEC")
                 self.emit("\tSBC TMP0")
     
@@ -9245,11 +9245,11 @@ class CodeGen:
 
             # false
             self.emit(f"{lbl_false}:")
-            self.emit("\tLDA #0")
+            self.emit("\tLDA #$00")
 
             self.emit(f"{lbl_end}:")
             if self.force_word_result:
-                self.emit("\tLDX #0     ; note 5044")   # X = result high byte
+                self.emit("\tLDX #$00     ; note 5044")   # X = result high byte
             return
 
     def _sizeof_struct_arg(self, arg: Expr) -> int:
@@ -9314,12 +9314,12 @@ class CodeGen:
                 self.gen_expr(arg)
             # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
-                self.emit("\tLDX #0     ; widen byte builtin")
+                self.emit("\tLDX #$00     ; widen byte builtin")
         elif name_upper == "HIGH":
             # For HIGH(), directly load the high byte
             if arg_t.sem_type.base == "BYTE" and not arg_t.sem_type.is_pointer:
                 # Byte value has no high byte, return 0
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
             else:
                 # Load the high byte directly without loading the low byte first
                 # This requires special handling for different expression types
@@ -9346,7 +9346,7 @@ class CodeGen:
                     self.emit("\tTXA")
             # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
-                self.emit("\tLDX #0     ; widen byte builtin")
+                self.emit("\tLDX #$00     ; widen byte builtin")
 
         elif name_upper == "LOWW":
             # LOWW(longExpr) → low WORD (bytes 0-1) in A (low) / X (high)
@@ -9417,7 +9417,7 @@ class CodeGen:
             # Caller-side widening: only clear X when a byte result is used in word context
             ret_t: ExprType = self.tc_check(expr)
             if ret_t.sem_type.base == "BYTE" and not ret_t.sem_type.is_pointer and self.force_word_result:
-                self.emit("\tLDX #0     ; widen byte call result")
+                self.emit("\tLDX #$00     ; widen byte call result")
 
         elif isinstance(expr, BinaryExpr):
             # Conservative TMP usage check before generating potentially large expressions
@@ -9660,7 +9660,7 @@ class CodeGen:
                     elif element_width == 2:
                         # WORD elements: address = arr_addr + index * 2
                         self.emit(f"\tASL A")  # Multiply index by 2
-                        self.emit("\tLDX #0")
+                        self.emit("\tLDX #$00")
                         carry_lbl: str = self.new_label("ARR_CARRY")
                         self.emit(f"\tBCC {carry_lbl}")
                         self.emit("\tINX")
@@ -9680,7 +9680,7 @@ class CodeGen:
                     # Store RHS value from TMP2 to calculated address
                     self.emit(f"\tLDA TMP2")
                     if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
-                        self.emit(f"\tLDY #0")
+                        self.emit(f"\tLDY #$00")
                         self.emit(f"\tSTA (TMP0),Y")
                         self.emit(f"\tINY")
                         self.emit(f"\tLDA TMP2+1")
@@ -10515,7 +10515,7 @@ class CodeGen:
         #         if isinstance(rhs, IntLiteral) and lhs_t.sem_type.base == "BYTE":
         #             val = rhs.value & 0xFF
         #             self.emit(f"\tLDA #${val:02X}")
-        #             self.emit("\tLDY #0")
+        #             self.emit("\tLDY #$00")
         #             self.emit(f"\tSTA ({ptr_sym.asm_name()}),Y")
         #             return
 
@@ -10534,7 +10534,7 @@ class CodeGen:
                 # 2. Store to dereferenced pointer directly (no TMP0 needed)
                 if lhs_t.sem_type.base == "LONG":
                     # LONG: RHS result is in MATH0; store all 4 bytes
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tLDA MATH0")
                     self.emit(f"\tSTA ({ptr_addr}),Y")
                     self.emit("\tINY")
@@ -10549,7 +10549,7 @@ class CodeGen:
                 elif lhs_t.sem_type.base == "WORD":
                     # Save high byte (X), but low byte (A) is ready to store
                     self.emit("\tSTX TMP2+1")
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit(f"\tSTA ({ptr_addr}),Y")
                     self.emit("\tINY")
                     self.emit("\tLDA TMP2+1")
@@ -10559,7 +10559,7 @@ class CodeGen:
                     if self.is_65c02:
                         self.emit(f"\tSTA ({ptr_addr})")
                     else:
-                        self.emit("\tLDY #0")
+                        self.emit("\tLDY #$00")
                         self.emit(f"\tSTA ({ptr_addr}),Y")
 
                 return
@@ -10721,9 +10721,9 @@ class CodeGen:
         if (rhs_t.sem_type.base == "BYTE" and not rhs_t.sem_type.is_pointer and
             lhs_t.sem_type.base == "WORD" and not is_arith and not is_simple_rhs):
             if self.is_65c02:
-                self.emit("\tLDX #0     ; note 5677")  # Clear X for BYTE to WORD conversion
+                self.emit("\tLDX #$00     ; note 5677")  # Clear X for BYTE to WORD conversion
             else:
-                self.emit("\tLDX #0     ; note 5679")
+                self.emit("\tLDX #$00     ; note 5679")
 
         if isinstance(lhs, Identifier):
 
@@ -10761,7 +10761,7 @@ class CodeGen:
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
                 self.emit("\tLDA MATH0")
-                self.emit("\tLDY #0")
+                self.emit("\tLDY #$00")
                 self.emit("\tSTA (TMP0),Y")
                 self.emit("\tLDA MATH0+1")
                 self.emit("\tINY")
@@ -10788,7 +10788,7 @@ class CodeGen:
                 # 3️⃣ zápis LOW byte
                 self.emit("\tLDA TMP2")
                 if lhs_t.sem_type.base == "WORD":
-                    self.emit("\tLDY #0")
+                    self.emit("\tLDY #$00")
                     self.emit("\tSTA (TMP0),Y")
                 else:
                     self._emit_indirect_store_zero("TMP0")
@@ -10832,7 +10832,7 @@ class CodeGen:
                 self.emit("\tSTX TMP2+1")
 
             # Set assignment target type to the field type for optimizations
-            # This helps skip unnecessary LDX #0 when the field is BYTE
+            # This helps skip unnecessary LDX #$00 when the field is BYTE
             prev_assign_type: SemType | None = self.assign_target_type
             self.assign_target_type = lhs_t.sem_type
             try:
@@ -12193,7 +12193,7 @@ class CodeGen:
             self.gen_expr(expr.right)
             # Ensure high byte is well-defined in 16-bit context
             if is_16bit and right_t.sem_type.base != "WORD" and not right_t.sem_type.is_pointer:
-                self.emit("\tLDX #0     ; note 6088")
+                self.emit("\tLDX #$00     ; note 6088")
             self.emit("\tSTA TMP0")
             if is_16bit:      # Fixme: ? Je to spravne? Nechybi tady and right_t.sem_type.base != "WORD":
                 self.emit("\tSTX TMP0+1")
@@ -12202,7 +12202,7 @@ class CodeGen:
             self.gen_expr(expr.left)
             # Ensure left high byte is well-defined in 16-bit context
             if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
-                self.emit("\tLDX #0     ; note 6097")
+                self.emit("\tLDX #$00     ; note 6097")
 
             cmp_operand = "TMP0"
 
@@ -12277,7 +12277,7 @@ class CodeGen:
                 self.emit(f"\tBEQ {lbl_true}")
 
         # false
-        self.emit("\tLDA #0")
+        self.emit("\tLDA #$00")
         self.emit(f"\tJMP {lbl_end}")
 
         # true
@@ -12286,7 +12286,7 @@ class CodeGen:
 
         self.emit(f"{lbl_end}:")
         if self.force_word_result:
-            self.emit("\tLDX #0     ; note 6178")
+            self.emit("\tLDX #$00     ; note 6178")
 
     def _emit_relational_branch(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
         """Emit relational test that jumps to lbl_true or lbl_false.
@@ -12425,10 +12425,10 @@ class CodeGen:
                     if right_width == 2:
                         self.emit("\tSTX MATH1+1")
                     else:
-                        self.emit("\tLDX #0")
+                        self.emit("\tLDX #$00")
                         self.emit("\tSTX MATH1+1")
                     # Zero extend upper bytes
-                    self.emit("\tLDA #0")
+                    self.emit("\tLDA #$00")
                     self.emit("\tSTA MATH1+2")
                     self.emit("\tSTA MATH1+3")
 
@@ -12441,10 +12441,10 @@ class CodeGen:
                 if left_width == 2:
                     self.emit("\tSTX MATH0+1")
                 else:
-                    self.emit("\tLDX #0")
+                    self.emit("\tLDX #$00")
                     self.emit("\tSTX MATH0+1")
                 # Zero extend upper bytes
-                self.emit("\tLDA #0")
+                self.emit("\tLDA #$00")
                 self.emit("\tSTA MATH0+2")
                 self.emit("\tSTA MATH0+3")
 
@@ -12549,7 +12549,7 @@ class CodeGen:
                 self.suppress_byte_return_x = prev_suppress
             if is_16bit:
                 if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
-                    self.emit("\tLDX #0     ; note 7054")
+                    self.emit("\tLDX #$00     ; note 7054")
                 if cond.op in {BinOp.EQ, BinOp.LE}:
                     self.emit("\tCPX #$00")
                     self.emit(f"\tBNE {lbl_false}")
@@ -12616,7 +12616,7 @@ class CodeGen:
                             Internal helper used during code generation.
                             """
                             if left_hi_immediate:
-                                self.emit("\tLDX #0     ; note 7054")
+                                self.emit("\tLDX #$00     ; note 7054")
                             else:
                                 self.emit(f"\tLDX {left_hi}")
 
@@ -12747,7 +12747,7 @@ class CodeGen:
                 # Load left side into A/X
                 self.gen_expr(cond.left)
                 if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
-                    self.emit("\tLDX #0     ; note 7054")
+                    self.emit("\tLDX #$00     ; note 7054")
 
                 if cond.op == BinOp.EQ:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
@@ -12828,14 +12828,14 @@ class CodeGen:
                 self.gen_expr(cond.right)
                 if right_sym.type.base != "WORD" and not right_sym.type.is_pointer:
                     # Ensure high byte defined
-                    self.emit("\tLDX #0     ; fast 16-bit compare setup")
+                    self.emit("\tLDX #$00     ; fast 16-bit compare setup")
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
 
                 # Load left into A/X for comparison
                 self.gen_expr(cond.left)
                 if left_sym.type.base != "WORD" and not left_sym.type.is_pointer:
-                    self.emit("\tLDX #0     ; fast 16-bit compare setup")
+                    self.emit("\tLDX #$00     ; fast 16-bit compare setup")
 
                 # Now do op-specific branching using TMP0 as right value
                 if cond.op == BinOp.EQ:
@@ -12976,7 +12976,7 @@ class CodeGen:
                         # Load left side into A/X
                         self.gen_expr(cond.left)
                         if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
-                            self.emit("\tLDX #0     ; note 7036")
+                            self.emit("\tLDX #$00     ; note 7036")
 
                         if cond.op == BinOp.EQ:
                             lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
@@ -13158,15 +13158,15 @@ class CodeGen:
             # Evaluate left into A/X
             self.gen_expr(cond.left)
             if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
-                self.emit("\tLDX #0     ; note 6311")
+                self.emit("\tLDX #$00     ; note 6311")
         else:
             # Try simple byte operand optimization for 8-bit compares
             cmp_operand: str | None = simple_byte_operand(cond.right)
             
             if cmp_operand is not None:
                 # Left operand only; right is accessed directly in CMP
-                # Optimize: if left is also simple BYTE, load it directly without gen_expr to avoid unnecessary LDX #0
-                # This avoids the unneeded "LDX #0" that would normally follow "LDA byte_var" (optimization at 6321)
+                # Optimize: if left is also simple BYTE, load it directly without gen_expr to avoid unnecessary LDX #$00
+                # This avoids the unneeded "LDX #$00" that would normally follow "LDA byte_var" (optimization at 6321)
                 left_operand: str | None = simple_byte_operand(cond.left)
                 if left_operand is not None:
                     self.emit(f"\tLDA {left_operand}")
@@ -13178,13 +13178,13 @@ class CodeGen:
                 # Evaluate right into TMP0/(TMP0+1)
                 self.gen_expr(cond.right)
                 if is_16bit and right_t.sem_type.base != "WORD" and not right_t.sem_type.is_pointer:
-                    self.emit("\tLDX #0     ; note 6317")
+                    self.emit("\tLDX #$00     ; note 6317")
                 self.emit("\tSTA TMP0")
                 if is_16bit:
                     self.emit("\tSTX TMP0+1") # This was `self.emit("\tSTX                # left")`
                 self.gen_expr(cond.left)
                 if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
-                    self.emit("\tLDX #0     ; note 6323")
+                    self.emit("\tLDX #$00     ; note 6323")
                 
                 cmp_operand = "TMP0"
                 cmp_lo = "TMP0"
