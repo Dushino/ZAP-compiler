@@ -187,10 +187,10 @@
 found
 - [x] String literal "..."
 - [x] String escapes \n \t \r \0 \\ \" etc.
-- [ ] String escape \xHH — verify
-- [ ] String escape \OOO (octal) — verify
-- [ ] String escape \bBBBBBBBB (binary) — verify
-- [ ] Check documentation for explicit statement that escapes can be used for BYTE values only, multibyte entry is not supported. 
+- [x] String escape \xHH — verified (1-2 hex digits, 0-255, error on invalid/overflow)
+- [x] String escape \OOO (octal) — verified (1-3 octal digits, 0-377, error on overflow)
+- [x] String escape \bBBBBBBBB (binary) — verified (1-8 binary digits, 0-255)
+- [x] Check documentation for explicit statement that escapes can be used for BYTE values only, multibyte entry is not supported. (added to ZAP_LANGUAGE_REFERENCE.md)
 
 ### Types & Declarations
 - [x] byte / word / long scalar

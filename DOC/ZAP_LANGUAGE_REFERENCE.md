@@ -153,12 +153,14 @@ Quote and Backslash:
 - `\\` - Backslash
 
 Numeric Escape Sequences:
-- `\xHH` - Hexadecimal byte (two hex digits: 0-9, a-f, A-F)
-  - Example: `\xFF` (255), `\x41` (65/'A'), `\x00` (0)
+- `\xHH` - Hexadecimal byte (1-2 hex digits: 0-9, a-f, A-F)
+  - Example: `\xFF` (255), `\x41` (65/'A'), `\x0` (0)
 - `\OOO` - Octal byte (1-3 octal digits: 0-7)
   - Example: `\377` (255), `\101` (65/'A'), `\0` (0)
 - `\bBBBBBBBB` - Binary byte (1-8 binary digits: 0-1)
   - Example: `\b11111111` (255), `\b01000001` (65/'A'), `\b00000000` (0)
+
+All numeric escapes produce a single **BYTE** value (0-255). Multibyte escape sequences are not supported — each escape encodes exactly one byte.
 
 Examples:
 
