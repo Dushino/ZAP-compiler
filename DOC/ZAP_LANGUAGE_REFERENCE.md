@@ -125,7 +125,8 @@ long mask = $FFFFFFFF
 
 ### Character Literals
 
-Character literals are written with single quotes and are converted to their ASCII numeric values:
+Character literals are written with single quotes and are converted to their ASCII numeric values.
+A character literal always produces a **BYTE** value. Multi-character literals are not supported.
 
 ```zap
 byte c = 'A'        ; Character literal (value 65)

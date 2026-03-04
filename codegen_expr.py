@@ -6139,11 +6139,34 @@ class CodeGen:
                 return
 
         # 1) vygeneruj adresu pointeru → A/X
+        # For LONG targets, save MATH1 to stack since gen_expr may
+        # clobber it via ADD16_AX (breaks LONG comparisons)
+        _save_math1: bool = (t.sem_type.base == "LONG")
+        if _save_math1:
+            self.emit("\tLDA MATH1")
+            self.emit("\tPHA")
+            self.emit("\tLDA MATH1+1")
+            self.emit("\tPHA")
+            self.emit("\tLDA MATH1+2")
+            self.emit("\tPHA")
+            self.emit("\tLDA MATH1+3")
+            self.emit("\tPHA")
+
         self.gen_expr(expr.pointer)
 
         # 2) ulož adresu (word temp uses contiguous bytes)
         self.emit("\tSTA TMP0")
         self.emit("\tSTX TMP0+1")
+
+        if _save_math1:
+            self.emit("\tPLA")
+            self.emit("\tSTA MATH1+3")
+            self.emit("\tPLA")
+            self.emit("\tSTA MATH1+2")
+            self.emit("\tPLA")
+            self.emit("\tSTA MATH1+1")
+            self.emit("\tPLA")
+            self.emit("\tSTA MATH1")
 
         # 3) načti LOW/HIGH byte(s)
         if t.sem_type.base == "LONG":
@@ -11006,21 +11029,29 @@ class CodeGen:
             # This should not be reached if the optimization above triggered
             # But kept as fallback for complex pointer expressions
             if lhs_t.sem_type.base == "LONG":
-                # LONG deref write: RHS in MATH0; generate pointer address, then write 4 bytes
-                # gen_expr for a simple pointer identifier doesn't clobber MATH0
+                # LONG deref write: RHS in MATH0; save to TMP2/TMP3 before
+                # computing pointer address (gen_expr clobbers MATH0 via ADD16)
+                self.emit("\tLDA MATH0")
+                self.emit("\tSTA TMP2")
+                self.emit("\tLDA MATH0+1")
+                self.emit("\tSTA TMP2+1")
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tSTA TMP3")
+                self.emit("\tLDA MATH0+3")
+                self.emit("\tSTA TMP3+1")
                 self.gen_expr(lhs.pointer)
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
-                self.emit("\tLDA MATH0")
+                self.emit("\tLDA TMP2")
                 self.emit("\tLDY #$00")
                 self.emit("\tSTA (TMP0),Y")
-                self.emit("\tLDA MATH0+1")
+                self.emit("\tLDA TMP2+1")
                 self.emit("\tINY")
                 self.emit("\tSTA (TMP0),Y")
-                self.emit("\tLDA MATH0+2")
+                self.emit("\tLDA TMP3")
                 self.emit("\tINY")
                 self.emit("\tSTA (TMP0),Y")
-                self.emit("\tLDA MATH0+3")
+                self.emit("\tLDA TMP3+1")
                 self.emit("\tINY")
                 self.emit("\tSTA (TMP0),Y")
             else:

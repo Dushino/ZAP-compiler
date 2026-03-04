@@ -135,7 +135,16 @@
   - New fail test `const-deref-write-error` — verifies rejection of `(@const + N)^ = val`.
   - Documented in `ZAP_LANGUAGE_REFERENCE.md` — "Parenthesized Pointer Dereference" section.
 
-- [ ] GAP-26 Check if four-char character literal `'a''b''c''d'` forms LONG
+- [x] GAP-26 Check if four-char character literal `'a''b''c''d'` forms LONG
+  - Four-char literal was never supported.
+  - Two-char literal `'a''b'` → WORD was supported via a heuristic in `parse_factor()` that combined any two consecutive 0-255 values. Removed due to risk of accidental merging (e.g. typo `byte a = 10 byte b = 20` on one line could silently produce a WORD).
+  - Only single-char literal `'x'` → BYTE is now supported. Use `$hex` for WORD/LONG values.
+  - Fix: removed two-char combining code from `parser.py:parse_factor()`.
+  - Test `090-char-word` rewritten to use `$hex` instead of `'a''b'`.
+  - Also fixed simulation failures in tests 166 and 167 (LONG pointer deref through complex `(expr)^` expressions):
+    - Bug 1: LONG write via `(ptr+N)^ = value` — RHS value in MATH0 was clobbered by pointer address computation. Fixed by saving RHS to TMP2/TMP3 before computing address.
+    - Bug 2: LONG read via `(ptr+N)^` in comparisons — expected value in MATH1 was clobbered by `__ADD16_AX` during pointer computation. Fixed by save/restore of MATH1 via hardware stack in `_gen_deref`.
+  - All 153 pass-tests and 69 fail-tests pass (all 4 variants).
 
 
 ---
@@ -144,7 +153,7 @@
 
 - [x] DOC-01: `grammar.ebnf` FOR loop: replace `"next" IDENT` with `"end"`.
 - [x] DOC-02: `grammar.ebnf` type_modifier: remove `"port"` from the production (ports use `#PORT` declmod).
-- [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD and four-char character literal form `'a''b''c''d'`
+- [x] DOC-03: `grammar.ebnf` NOTES: two-char `'a''b'` → WORD and four-char `'a''b''c''d'` → LONG — REJECTED. Multi-char literals removed entirely (GAP-26). Only single-char `'x'` → BYTE supported.
 - [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
 - [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls.
 - [ ] DOC-06 Goal is to verify that all examples in files in DOC directory files have correct syntax and compiles to desired result. Solution is to copy all examples into separate directory "examples" - one example in one file with .zap extension. Every example must be possible to compile with ZAP compiler without errors. After debug, update examples in .md files too and addd filename to each example in .md and zap file header.
@@ -160,13 +169,14 @@
 - [x] Hex $xx / 0xXX
 - [x] Binary %... / 0b...
 - [x] Character literal 'x'
-- [ ] Two-char word literal 'a''b' — no dedicated test found
-- [ ] Four-char LONG literar 'a''b''c''d'  — no dedicated test found
+
+found
 - [x] String literal "..."
 - [x] String escapes \n \t \r \0 \\ \" etc.
 - [ ] String escape \xHH — verify
 - [ ] String escape \OOO (octal) — verify
 - [ ] String escape \bBBBBBBBB (binary) — verify
+- [ ] Check documentation for explicit statement that escapes can be used for BYTE values only, multibyte entry is not supported. 
 
 ### Types & Declarations
 - [x] byte / word / long scalar
@@ -213,7 +223,7 @@
 - [x] SIZEOF() on struct name
 - [ ] LOW() HIGH() LOWW() HIGHW() on complex expressions
 - [ ] SIZEOF() on struct instance (not name)
-- [ ] Multiple-char char literals 'a''b' for WORd and 'a''b''c''d' for LONG.
+
 
 ### Statements
 - [x] assignment
@@ -290,3 +300,9 @@
 - [x] .include / .incbin
 - [x] .error / .warning / .info
 - [ ] .undef — verify behavior
+
+### Cosmetics
+- [ ] Remove compiler debug messages
+- [ ] Check documentation inside of compiler code
+- [ ] Implement hotkey for compiler run on current ZAP file
+

@@ -33,7 +33,19 @@
       "Bash(xargs grep \"\\\\^.*=\")",
       "Bash(python compiler.py /tmp/tg25.zap -o /dev/null)",
       "Bash(python compiler.py tests/pass/167-paren-deref-assign/167-paren-deref-assign.zap -o /dev/null)",
-      "Bash(python compiler.py tests/fail/const-deref-write-error/const-deref-write-error.zap -o /dev/null)"
+      "Bash(python compiler.py tests/fail/const-deref-write-error/const-deref-write-error.zap -o /dev/null)",
+      "Bash(python compiler.py tests/pass/166-ptr-array-index/166-ptr-array-index.zap -o /tmp/test166.asm)",
+      "Bash(python compiler.py tests/pass/167-paren-deref-assign/167-paren-deref-assign.zap -o /tmp/test167.asm)",
+      "Bash(python compiler.py tests/pass/166-ptr-array-index/166-ptr-array-index.zap -o test166.asm)",
+      "Bash(python compiler.py tests/pass/167-paren-deref-assign/167-paren-deref-assign.zap -o test167.asm)",
+      "Bash(cmd.exe /c \"make.bat test tests\\\\pass\\\\167-paren-deref-assign\")",
+      "Bash(cmd.exe /c \"make.bat test tests\\\\pass\\\\166-ptr-array-index\")",
+      "Bash(./6502_simulator.exe --cpu 65c02 --config tests/pass/167-paren-deref-assign/167-paren-deref-assign.json --verbose --dump-file tests/pass/167-paren-deref-assign/167-paren-deref-assign_default.txt tests/pass/167-paren-deref-assign/167-paren-deref-assign_default.com)",
+      "Bash(6502_simulator.exe --cpu 65c02 --config tests/pass/167-paren-deref-assign/167-paren-deref-assign.json --verbose --dump-file tests/pass/167-paren-deref-assign/167-paren-deref-assign_default.txt tests/pass/167-paren-deref-assign/167-paren-deref-assign_default.com)",
+      "Bash(cmd.exe /c \"make.bat tests\")",
+      "Bash(cmd.exe /c \"make.bat tests > tests_output.log 2>&1\")",
+      "Bash(/c/Windows/System32/cmd.exe //c \"make.bat tests\")",
+      "Bash(/c/Windows/System32/cmd.exe //c \"c:\\\\Users\\\\dusan.holub\\\\src\\\\ZAP-compiler\\\\make.bat tests\")"
     ]
   }
 }
