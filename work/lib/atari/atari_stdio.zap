@@ -370,11 +370,6 @@ func byte gets(const byte ^buffer, const byte max_len)
     byte i, j
     byte ^tmpp
 
-
-    FOR i = pos to max_len - 2
-        putchar('*')
-    end
-
     ; read characters from keyboard until newline
     bufp = buffer
     while BOOL.TRUE

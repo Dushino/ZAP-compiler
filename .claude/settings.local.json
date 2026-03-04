@@ -19,7 +19,16 @@
       "Bash(done)",
       "Bash(python compiler.py work/test_stdio.zap -o /tmp/test_stdio_gen.s)",
       "Bash(python compiler.py work/test_stdio.zap -o work/test_stdio_gen.s)",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "Bash(python compiler.py tests/pass/166-ptr-array-index/166-ptr-array-index.zap -o /tmp/test166.s)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python run_tests.py tests/pass/166-ptr-array-index/)",
+      "Bash(./make.bat tests)",
+      "Bash(cmd //c \"make.bat tests\")",
+      "Bash(cmd /c \"make.bat tests 2>&1\")",
+      "Bash(cmd /c \"call make.bat tests\")",
+      "Bash(powershell -Command \"cmd /c ''make.bat tests''\")",
+      "Bash(powershell -Command \"cmd /c ''.\\\\make.bat tests''\")"
     ]
   }
 }

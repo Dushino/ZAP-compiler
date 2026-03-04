@@ -9300,48 +9300,39 @@ class CodeGen:
                 self.emit("\tTAX")            # High byte to X
                 self.emit("\tLDA TMP1")       # Low byte to A
             else:
-                # Multiply index by element size
-                self.emit(f"\tLDA #<{label}")
-                self.emit("\tSTA TMP1")
-                self.emit(f"\tLDA #>{label}")
-                self.emit("\tSTA TMP2")
-                
-                # Multiply TMP0 by elem_size
-                self.emit(f"\tLDA #<{elem_size}")
-                self.emit(f"\tLDX #>{elem_size}")
-                self.emit("\tSTX TMP3")       # Save high byte of size
-                self.emit(f"\tLDA TMP0")
-                self.emit(f"\tMULTIPLY_ADDRESS_{self.for_id}")
-                # Result would be in TMP4:TMP5, but we need to use available temp space
-                # For now, emit code to add result to base address
-                
-                # Simplified: use runtime multiply helper if available
-                # For MVP: just handle simple cases (elem_size = 1, 2, 4)
+                # Multiply index by element size (index is 8-bit in TMP0)
                 if elem_size == 2:
-                    # Multiply by 2 = shift left
-                    self.emit("\tASL TMP0")
-                    self.emit("\tLDA #<{label}")
+                    # index * 2: shift left, track carry in TMP1 (high byte of offset)
+                    self.emit("\tASL TMP0")         # TMP0 = (index*2) & $FF, C = bit7
+                    self.emit("\tLDA #$00")
+                    self.emit("\tROL A")            # A = high byte of (index*2)
+                    self.emit("\tSTA TMP1")         # TMP1 = high byte of offset
+                    self.emit(f"\tLDA #<{label}")
                     self.emit("\tCLC")
-                    self.emit("\tADC TMP0")
-                    self.emit("\tSTA TMP1")
+                    self.emit("\tADC TMP0")         # A = base_lo + offset_lo
+                    self.emit("\tSTA TMP0")         # save low byte of result
                     self.emit(f"\tLDA #>{label}")
-                    self.emit("\tADC #$00")
-                    self.emit("\tTAX")
-                    self.emit("\tLDA TMP1")
+                    self.emit("\tADC TMP1")         # A = base_hi + offset_hi + carry
+                    self.emit("\tTAX")              # X = high byte of address
+                    self.emit("\tLDA TMP0")         # A = low byte of address
                 elif elem_size == 4:
-                    # Multiply by 4 = shift left twice
-                    self.emit("\tASL TMP0")
-                    self.emit("\tASL TMP0")
-                    self.emit("\tLDA #<{label}")
+                    # index * 4: shift left twice, accumulate carries in TMP1
+                    self.emit("\tASL TMP0")         # TMP0 = (index*2) & $FF, C = bit7
+                    self.emit("\tLDA #$00")
+                    self.emit("\tROL A")            # A = carry from first shift
+                    self.emit("\tASL TMP0")         # TMP0 = (index*4) & $FF, C = bit7 of (index*2)
+                    self.emit("\tROL A")            # A = high byte of (index*4)
+                    self.emit("\tSTA TMP1")         # TMP1 = high byte of offset
+                    self.emit(f"\tLDA #<{label}")
                     self.emit("\tCLC")
-                    self.emit("\tADC TMP0")
-                    self.emit("\tSTA TMP1")
+                    self.emit("\tADC TMP0")         # A = base_lo + offset_lo
+                    self.emit("\tSTA TMP0")         # save low byte of result
                     self.emit(f"\tLDA #>{label}")
-                    self.emit("\tADC #$00")
-                    self.emit("\tTAX")
-                    self.emit("\tLDA TMP1")
+                    self.emit("\tADC TMP1")         # A = base_hi + offset_hi + carry
+                    self.emit("\tTAX")              # X = high byte of address
+                    self.emit("\tLDA TMP0")         # A = low byte of address
                 else:
-                    raise SemanticError(f"Element size {elem_size} not yet supported for address-of", node=getattr(self, 'current_expr', None))
+                    raise SemanticError(f"Element size {elem_size} not yet supported for @array[index]", node=getattr(self, 'current_expr', None))
         
         elif isinstance(operand, FieldAccess):
             # Struct field: base address + field offset

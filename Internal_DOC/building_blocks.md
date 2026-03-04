@@ -120,7 +120,11 @@
   - Root cause: `_predeclare_for_loop_temps()` counted FOR_END IDs in procs-then-funcs order, but `CodeGen._gen_for_const_step/general` counted in source-declaration order → mismatched names → undefined symbol.
   - Fix: added `_get_for_temp_name(stmt, base)` in `codegen_expr.py` that looks up the pre-declared name from `for_temp_map[id(stmt)]` instead of calling `new_for_var()`. Set `cg.for_temp_map = for_temp_map` in `compiler_pipeline.py`.
 
-- [ ] GAP-24 Check if pointer dereferenciang via array index is working for all types.
+- [x] GAP-24 Check if pointer dereferencing via array index is working for all types.
+  - Tested `ptr = @arr` + `ptr += N` pattern for BYTE, WORD, LONG (already in tests 162/163), STRUCT (2-byte), and ENUM (word) — all work correctly. Stride scaling: BYTE=1, WORD=2, LONG=4, STRUCT=sizeof, ENUM=base width.
+  - Tested `ptr = @arr[N]` (address-of-element) syntax for BYTE, WORD, LONG, STRUCT — all work after bugfix.
+  - Fixed `_gen_address_of` in `codegen_expr.py`: removed dead code (stale MULTIPLY_ADDRESS macro emit), fixed missing f-string prefix on LDA instructions for elem_size 2 and 4, added proper carry tracking for large-index correctness.
+  - New test `166-ptr-array-index` — 8 checks (LONG +=2, STRUCT +=1, STRUCT +=2, ENUM +=1, @barr[2], @warr[2], @larr[2], @sarr[1]), result=$FF, all pass.
 
 - [ ] GAP-25 (pointer + 1)^ = 0 does not work.
 
@@ -136,7 +140,7 @@
 - [ ] DOC-03: `grammar.ebnf` NOTES: add two-char character literal form `'a''b'` → WORD and four-char character literal form `'a''b''c''d'`
 - [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
 - [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls.
-- [ ] DOC-06 Verify that all examples in DOC directory files have correct syntax and compiles to desired result. If needed, include your temporary tests into generated_tests directory.
+- [ ] DOC-06 Goal is to verify that all examples in files in DOC directory files have correct syntax and compiles to desired result. Solution is to copy all examples into separate directory "examples" - one example in one file with .zap extension. Every example must be possible to compile with ZAP compiler without errors. After debug, update examples in .md files too and addd filename to each example in .md and zap file header.
 
 
 ---

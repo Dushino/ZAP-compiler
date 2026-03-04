@@ -42,10 +42,13 @@ proc main()
     inbuf[15] = 0
 
     ch = gets(inbuf, 8)    
-    puts("\n\t1\t123\t1234\t12345\t123456\n")
-    putchar('>')
+    
+
+    ;puts("\n\t1\t123\t1234\t12345\t123456\n")
+    putchar('\n')
+    ;putchar('>')
     puts(inbuf)
-    putchar('<')
+    ;putchar('<')
     
     ; COLOR4 = COLOR_MEDIUM_GREEN + 4
 end
