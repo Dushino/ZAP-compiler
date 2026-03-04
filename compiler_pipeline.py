@@ -2023,6 +2023,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # Predeclare for-loop temps so liveness can track them safely
     for_temp_map = _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry)
+    # Give CodeGen the map so _get_for_temp_name uses the same IDs as the pre-declarations
+    cg.for_temp_map = for_temp_map
 
     # Liveness-based local sharing (after DCE updates)
     system_temp_slots = share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map=for_temp_map)

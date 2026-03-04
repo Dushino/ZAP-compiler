@@ -116,13 +116,16 @@
   - Assignment `ptr = NULL` already worked (no change needed).
   - New test `165-null-ptr` — 4 checks, result=$0F, all 4 variants pass.
 
-- [ ] GAP-23 Error generating ASM when FOR i = pos to max_len - 2
+- [x] GAP-23 Error generating ASM when FOR i = pos to max_len - 2
+  - Root cause: `_predeclare_for_loop_temps()` counted FOR_END IDs in procs-then-funcs order, but `CodeGen._gen_for_const_step/general` counted in source-declaration order → mismatched names → undefined symbol.
+  - Fix: added `_get_for_temp_name(stmt, base)` in `codegen_expr.py` that looks up the pre-declared name from `for_temp_map[id(stmt)]` instead of calling `new_for_var()`. Set `cg.for_temp_map = for_temp_map` in `compiler_pipeline.py`.
 
 - [ ] GAP-24 Check if pointer dereferenciang via array index is working for all types.
 
 - [ ] GAP-25 (pointer + 1)^ = 0 does not work.
 
 - [ ] GAP-26 Check if four-char character literal `'a''b''c''d'` forms LONG
+
 
 ---
 

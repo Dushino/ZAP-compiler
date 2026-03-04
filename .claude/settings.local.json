@@ -16,7 +16,10 @@
       "Bash(for f in tests/fail/026-equality-error tests/fail/004-word-pointers-error tests/fail/013-comparison-operators-error)",
       "Bash(do)",
       "Bash(python compiler.py \"$f/\"*.zap -o /tmp/fail_test.s)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(python compiler.py work/test_stdio.zap -o /tmp/test_stdio_gen.s)",
+      "Bash(python compiler.py work/test_stdio.zap -o work/test_stdio_gen.s)",
+      "Bash(echo \"Exit: $?\")"
     ]
   }
 }

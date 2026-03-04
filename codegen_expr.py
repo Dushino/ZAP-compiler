@@ -48,6 +48,8 @@ class CodeGen:
         self.struct_registry: StructRegistry = struct_registry or StructRegistry()
         self.code: list[str] = []
         self.for_id = 0
+        # Map id(ForStmt) -> set[str] of pre-declared temp names; set by compiler_pipeline
+        self.for_temp_map: dict[int, set[str]] | None = None
         self.string_literals = {}  # Maps string content to label name
         self.string_id = 0
         self.array_literals = {}   # Maps array data tuple to label name
@@ -1501,6 +1503,23 @@ class CodeGen:
         """
         self.for_id += 1
         return f"FOR_{base}_{self.for_id}"
+
+    def _get_for_temp_name(self, stmt, base: str) -> str:
+        """Return the pre-declared FOR-loop temp name for this statement.
+
+        Looks up the name from for_temp_map (pre-declared by compiler_pipeline
+        in _predeclare_for_loop_temps) to ensure the name matches the one used
+        for slot allocation.  Falls back to new_for_var() when the map is absent
+        or has no entry for this statement (e.g. during isolated testing).
+        """
+        if self.for_temp_map is not None:
+            temp_names = self.for_temp_map.get(id(stmt))
+            if temp_names:
+                prefix = f"FOR_{base}_"
+                for n in temp_names:
+                    if n.startswith(prefix):
+                        return n
+        return self.new_for_var(base)
 
     def asm_symbol_name(self, name: str) -> str:
         """Helper for asm symbol name.
@@ -11079,7 +11098,7 @@ class CodeGen:
             end_var = stmt.end
         else:
             # end: create temporary only if end is complex expression
-            end_name: str = self.new_for_var("END")
+            end_name: str = self._get_for_temp_name(stmt, "END")
             end_t: ExprType = self.tc_check(stmt.end)
             var_t: ExprType = self.tc_check(stmt.var)
             end_is_word: bool = (
@@ -11129,7 +11148,7 @@ class CodeGen:
         if isinstance(stmt.end, Identifier):
             end_var = stmt.end
         else:
-            end_name: str = self.new_for_var("END")
+            end_name: str = self._get_for_temp_name(stmt, "END")
             end_is_word: bool = (
                 var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
                 end_t.sem_type.base == "WORD" or end_t.sem_type.is_pointer
@@ -11146,7 +11165,7 @@ class CodeGen:
         if isinstance(stmt.step, Identifier):
             step_var = stmt.step
         elif stmt.step is not None:
-            step_name: str = self.new_for_var("STEP")
+            step_name: str = self._get_for_temp_name(stmt, "STEP")
             step_is_word: bool = (
                 var_t.sem_type.base == "WORD" or var_t.sem_type.is_pointer or
                 step_t.sem_type.base == "WORD" or step_t.sem_type.is_pointer
