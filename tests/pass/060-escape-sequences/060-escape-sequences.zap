@@ -5,7 +5,7 @@ proc main()
     ; Local variables must be declared first
     byte tab = '\t'
     byte newline = '\n'
-    byte cr = '\r'
+    byte null = '\0'
     byte str[4] = "\n\t\\"
 
     ; Test char literals

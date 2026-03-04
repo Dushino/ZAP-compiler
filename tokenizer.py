@@ -5,7 +5,7 @@ from typing import Optional
 from token_types import *
 from errors import TokenizerError
 
-ESCAPES: dict[str, str]         = {"n":"\n","t":"\t","r":"\r","\"":"\"","'":"'","\\":"\\","a":"\a","b":"\b","f":"\f","v":"\v","0":"\0"}
+ESCAPES: dict[str, str]         = {"n":"\n","t":"\t","\"":"\"","'":"'","\\":"\\","0":"\0"}
 KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
                    "if","else", "elseif", "end", 
                    "for", "to", "step",
@@ -90,9 +90,9 @@ class Tokenizer:
 
     def _process_escape_sequence(self) -> str:
         """Process escape sequence and return the character.
-        
+
         Supported escape sequences:
-        - \\n, \\t, \\r, \\a, \\f, \\v - standard control chars
+        - \\n, \\t - control chars
         - \\0 - null byte
         - \\" - double quote
         - \\' - single quote
@@ -100,14 +100,12 @@ class Tokenizer:
         - \\xHH - hex byte (e.g., \\xFF)
         - \\OOO - octal byte (e.g., \\377 for 255)
         - \\bBBBBBBBB - binary byte (e.g., \\b11111111 for 255)
-        
-        NOTE: Binary \\b prefix is checked BEFORE \\b backspace escape to allow binary literals
         """
         esc: str | None = self._peek()
         if esc is None:
             raise TokenizerError("Unexpected EOF in escape sequence", line=self.line, col=self.col)
-        
-        # Binary escape: \bBBBBBBBB (1-8 binary digits) - CHECK BEFORE ESCAPES to avoid conflict with \b backspace
+
+        # Binary escape: \bBBBBBBBB (1-8 binary digits)
         if esc == 'b' and self._peek(1) in ('0', '1'):
             self._advance(1)
             binary_digits: str = ""

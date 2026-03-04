@@ -143,13 +143,8 @@ byte binary_65 = '\b01000001' ; Binary escape (value 65, same as 'A')
 **Character Escapes** (in character and string literals):
 
 Standard Control Characters:
-- `\n` - Newline (10)
-- `\t` - Tab (9)
-- `\r` - Carriage return (13)
-- `\a` - Bell/Alert (7)
-- `\b` - Backspace (8)
-- `\f` - Form feed (12)
-- `\v` - Vertical tab (11)
+- `\n` - CRLF
+- `\t` - Tab (4 columns)
 - `\0` - Null byte (0)
 
 Quote and Backslash:

@@ -32,13 +32,6 @@ tests = [
     ('x = "\\b11111111"', "\xFF", "binary 255"),
     ('x = "\\b01000001"', "A", "binary 65 (letter A)"),
     
-    # Additional standard escapes
-    ('x = "bell\\a"', "bell\a", "bell"),
-    ('x = "\\b"', "\b", "backspace"),
-    ('x = "\\f"', "\f", "form feed"),
-    ('x = "\\v"', "\v", "vertical tab"),
-    ('x = "\\r"', "\r", "carriage return"),
-    
     # Character literals with escapes
     ("x = '\\0'", 0, "char null"),
     ("x = '\\x41'", ord('A'), "char hex A"),
@@ -67,7 +60,7 @@ for code, expected, description in tests:
                 break
         
         if token is None:
-            print(f"✗ {description}: No token found")
+            print(f"FAIL {description}: No token found")
             failed += 1
             continue
         
@@ -79,19 +72,41 @@ for code, expected, description in tests:
             expected_val = expected
         
         if actual == expected_val:
-            print(f"✓ {description}")
+            print(f"PASS {description}")
             passed += 1
         else:
             if isinstance(actual, str):
-                print(f"✗ {description}: expected {repr(expected_val)}, got {repr(actual)}")
+                print(f"FAIL {description}: expected {repr(expected_val)}, got {repr(actual)}")
             else:
-                print(f"✗ {description}: expected {expected_val}, got {actual}")
+                print(f"FAIL {description}: expected {expected_val}, got {actual}")
             failed += 1
     except Exception as e:
-        print(f"✗ {description}: {e}")
+        print(f"FAIL {description}: {e}")
         failed += 1
+
+# Removed escapes - these should now raise errors
+removed_escapes = [
+    ('x = "\\a"', "\\a (bell)"),
+    ('x = "\\r"', "\\r (carriage return)"),
+    ('x = "\\f"', "\\f (form feed)"),
+    ('x = "\\v"', "\\v (vertical tab)"),
+]
+
+print()
+print("--- Removed escape sequences (should error) ---")
+for code, description in removed_escapes:
+    try:
+        tokenizer = Tokenizer(code)
+        tokenizer.tokenize()
+        print(f"FAIL {description}: should have raised error but did not")
+        failed += 1
+    except Exception:
+        print(f"PASS {description}: correctly rejected")
+        passed += 1
+
+total = len(tests) + len(removed_escapes)
 
 print()
 print("=" * 70)
-print(f"RESULTS: {passed}/{len(tests)} tests passed")
+print(f"RESULTS: {passed}/{total} tests passed")
 print("=" * 70)

@@ -41,27 +41,7 @@ proc main()
     end
     inbuf[15] = 0
 
-    ch = gets(inbuf, 8)    
-    ptr = inbuf
-    ; (ptr + 2)^ = 'X'    ; change 3rd char to 'X'    
-
-    ;puts("\n\t1\t123\t1234\t12345\t123456\n")
-    putchar('\n')
-    ;putchar('>')
-    puts(inbuf)
-    ;putchar('<')
-
-    switch ch
-        case ATARI_KEY_RETURN
-            puts("Input OK!\n")
-            break
-
-        case ATARI_KEY_ESCAPE
-            puts("ESC!\n")
-
-        default
-            puts("Input OK!\n")
-    end
+    puts("1234567891\\2\'\n3\"45\0qwer")
     
     ; COLOR4 = COLOR_MEDIUM_GREEN + 4
 end

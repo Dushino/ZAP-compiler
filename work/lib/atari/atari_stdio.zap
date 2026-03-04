@@ -222,8 +222,8 @@ func byte getcblink()
         ; cursor on
         cursor_on()
         i = 0
-        while i < 4
-            delay(5)
+        while i < 20
+            delay(1)
             if KBHIT != 255
                 cursor_off()
                 return getchar()
@@ -234,8 +234,8 @@ func byte getcblink()
         ; cursor off
         cursor_off()
         i = 0
-        while i < 4
-            delay(5)
+        while i < 20
+            delay(1)
             if KBHIT != 255
                 return getchar()                
             end
@@ -250,17 +250,19 @@ end
     crlf - move cursor to the beginning of the next line, scroll screen if needed
 */
 proc crlf()
-
     cur_xpos = 0
+    curptr = vlstart[cur_ypos]
+
     if cur_ypos < SCREEN_Y_SIZE - 1
         cur_ypos = cur_ypos + 1
+        curptr = vlstart[cur_ypos] + cur_xpos
     else
         ; scroll screen up
         memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
         ; clear last line
         memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
+        curptr = vlstart[SCREEN_Y_SIZE - 1] + cur_xpos
     end
-    curptr = vlstart[cur_ypos]
 end
 
 
@@ -292,14 +294,18 @@ end
 proc putchar(byte ch)
 
     switch ch
-        case 10         ; newline
+        case '\n'       ; newline
             crlf()
             return
 
         case '\t'       ; tab
             repeat
                 putchar(' ')
-            until (cur_xpos & $03) == 0
+            until (cur_xpos & $03) == 3
+            return
+
+        case '\0'       ; backspace
+            putbkspc()
             return
     end
 
