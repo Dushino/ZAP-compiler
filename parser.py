@@ -1043,9 +1043,42 @@ class Parser:
 
 
     def parse_lvalue(self) -> Identifier | SubscriptExpr | FieldAccess | DerefExpr:
-        """Parse an assignable expression (identifier, subscript, field, deref)."""
+        """Parse an assignable expression (identifier, subscript, field, deref).
+
+        Supports:
+          identifier, identifier[i], identifier^, identifier^.field,
+          identifier.field, and (expr)^ for complex pointer dereference.
+        """
+        if self.cur.type == TOK_LBRACE:
+            # (expr)^ syntax — parenthesized expression followed by dereference
+            paren_line: int = self.cur.line
+            paren_col: int = self.cur.col
+            self.advance()  # consume (
+            inner = self.parse_expr()
+            if self.cur.type != TOK_RBRACE:
+                self.error("Expected ')' after expression")
+            self.advance()  # consume )
+            # Option A: REQUIRE ^ immediately after (expr)
+            if not ((self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^")):
+                self.error("Expected '^' after parenthesized expression in assignment target")
+            deref_line: int = self.cur.line
+            deref_col: int = self.cur.col
+            self.advance()  # consume ^
+            node = DerefExpr(inner, line=deref_line, col=deref_col)
+            # Allow .field after (expr)^ for struct pointer arithmetic
+            if self.cur.type == TOK_OP and self.cur.value == ".":
+                self.advance()
+                if self.cur.type != TOK_IDENT:
+                    self.error("Expected field name after '.'")
+                field_name: str = self.cur.value
+                field_line: int = self.cur.line
+                field_col: int = self.cur.col
+                self.advance()
+                node = FieldAccess(node, field_name, is_deref=True, line=field_line, col=field_col)
+            return node
+
         if self.cur.type != TOK_IDENT:
-            self.error("Expected identifier")
+            self.error("Expected identifier or '(' in assignment target")
 
         name_line: int = self.cur.line
         name_col: int = self.cur.col
@@ -1351,7 +1384,9 @@ class Parser:
 
             while True:
                 # function call as expression: ident(...)
-                if self.cur.type == TOK_LBRACE:
+                # '(' must be on the same line as the identifier to avoid
+                # consuming a '(' that starts a new statement (e.g. (ptr+1)^ = val)
+                if self.cur.type == TOK_LBRACE and self.cur.line == name_line:
                     # parse argument list
                     self.advance()
                     args = []
@@ -1456,6 +1491,31 @@ class Parser:
             self.advance()
             node = self.parse_expr()
             self.expect(TOK_RBRACE)
+            # Check for postfix ^ (dereference) after parenthesized expression
+            # Distinguishes (ptr+1)^ (deref) from (a) ^ b (XOR):
+            #   - deref: ^ is followed by non-value token (., =, ==, !=, etc.) or EOL
+            #   - XOR:   ^ is followed by a value token (ident, number, @, etc.) on same line
+            if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
+                nxt: Token | None = self._peek_next()
+                is_xor: bool = (nxt is not None and
+                    (nxt.type in (TOK_IDENT, TOK_NUMBER, TOK_AT) or
+                     (nxt.type == TOK_OP and nxt.value in ("~", "@", "("))) and
+                    nxt.line == self.cur.line)
+                if not is_xor:
+                    deref_line: int = self.cur.line
+                    deref_col: int = self.cur.col
+                    self.advance()  # consume ^
+                    node = DerefExpr(node, line=deref_line, col=deref_col)
+                    # Allow .field after (expr)^
+                    if self.cur.type == TOK_OP and self.cur.value == ".":
+                        self.advance()
+                        if self.cur.type != TOK_IDENT:
+                            self.error("Expected field name after '.'")
+                        field_name: str = self.cur.value
+                        field_line: int = self.cur.line
+                        field_col: int = self.cur.col
+                        self.advance()
+                        node = FieldAccess(node, field_name, is_deref=True, line=field_line, col=field_col)
             return node
 
         self.error(f"Expected expression, got {self._readable_token(self.cur.type, self.cur.value)}")

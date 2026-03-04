@@ -126,7 +126,14 @@
   - Fixed `_gen_address_of` in `codegen_expr.py`: removed dead code (stale MULTIPLY_ADDRESS macro emit), fixed missing f-string prefix on LDA instructions for elem_size 2 and 4, added proper carry tracking for large-index correctness.
   - New test `166-ptr-array-index` — 8 checks (LONG +=2, STRUCT +=1, STRUCT +=2, ENUM +=1, @barr[2], @warr[2], @larr[2], @sarr[1]), result=$FF, all pass.
 
-- [ ] GAP-25 (pointer + 1)^ = 0 does not work.
+- [x] GAP-25 (pointer + 1)^ = 0 does not work.
+  - Root cause: `parse_lvalue()` required an identifier as the first token; `(` was rejected. Also, `parse_factor()` greedily consumed `(` on the next line as a function call argument (no line-break check).
+  - Parser fixes in `parser.py`: (1) Added `(expr)^` branch in `parse_lvalue()` — parse parenthesized expression, require `^`, allow `.field` after. (2) Added same-line check for function call `(` in `parse_factor()` to prevent cross-line greedy consumption. (3) Added `(expr)^` dereference detection in `parse_factor()` for read context (distinguishes from XOR by checking if `^` is followed by a value token).
+  - Codegen: const guard added in `gen_assign` — rejects `(@const_arr + N)^ = val` with "Cannot write through pointer to const". Port #WR checks cannot apply to `(expr)^` (documented).
+  - Pointer stride scaling works correctly for all types: BYTE=1, WORD=2, LONG=4, STRUCT=sizeof.
+  - New test `167-paren-deref-assign` — 8 checks (BYTE/WORD/LONG write, BYTE/WORD/LONG read, STRUCT field write, compound assign), result=$FF.
+  - New fail test `const-deref-write-error` — verifies rejection of `(@const + N)^ = val`.
+  - Documented in `ZAP_LANGUAGE_REFERENCE.md` — "Parenthesized Pointer Dereference" section.
 
 - [ ] GAP-26 Check if four-char character literal `'a''b''c''d'` forms LONG
 
@@ -154,6 +161,7 @@
 - [x] Binary %... / 0b...
 - [x] Character literal 'x'
 - [ ] Two-char word literal 'a''b' — no dedicated test found
+- [ ] Four-char LONG literar 'a''b''c''d'  — no dedicated test found
 - [x] String literal "..."
 - [x] String escapes \n \t \r \0 \\ \" etc.
 - [ ] String escape \xHH — verify
@@ -203,9 +211,9 @@
 - [x] Pointer arithmetic ptr+int, ptr-int, ptr-ptr
 - [x] LOW() HIGH() on simple identifier
 - [x] SIZEOF() on struct name
-- [ ] LOW() HIGH() LOWW() HIGHW() on complex expression
+- [ ] LOW() HIGH() LOWW() HIGHW() on complex expressions
 - [ ] SIZEOF() on struct instance (not name)
-- [ ] Two-char char literal 'a''b'
+- [ ] Multiple-char char literals 'a''b' for WORd and 'a''b''c''d' for LONG.
 
 ### Statements
 - [x] assignment

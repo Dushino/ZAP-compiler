@@ -42,7 +42,8 @@ proc main()
     inbuf[15] = 0
 
     ch = gets(inbuf, 8)    
-    
+    ptr = inbuf
+    ; (ptr + 2)^ = 'X'    ; change 3rd char to 'X'    
 
     ;puts("\n\t1\t123\t1234\t12345\t123456\n")
     putchar('\n')

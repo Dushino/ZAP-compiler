@@ -2342,6 +2342,53 @@ end
 **Unsupported Math Operations**:
 - `PTR + PTR`, multiplying pointers, dividing pointers, and all bitwise operations (`&`, `|`, `^`, `<<`, `>>`) on pointers are explicitly bounded by the semantic checker and will cause a compilation error.
 
+### Parenthesized Pointer Dereference
+
+You can dereference the result of pointer arithmetic directly using `(expr)^` syntax:
+
+```zap
+byte arr[5] = {10, 20, 30, 40, 50}
+byte ^ptr = @arr
+
+; Write to arr[2] via computed pointer
+(ptr + 2)^ = 99         ; arr[2] is now 99
+
+; Read from computed pointer
+byte val = (ptr + 3)^   ; val = 40
+
+; Stride scaling works for all pointer types
+word warr[3] = {$1111, $2222, $3333}
+word ^wptr = @warr
+(wptr + 1)^ = $ABCD     ; warr[1] = $ABCD (advances 2 bytes)
+
+long larr[3] = {$11111111, $22222222, $33333333}
+long ^lptr = @larr
+(lptr + 1)^ = $DEADBEEF ; larr[1] = $DEADBEEF (advances 4 bytes)
+
+; Struct field access via computed pointer
+struct Point
+    byte x
+    byte y
+end
+Point pts[3] = {{1,2}, {3,4}, {5,6}}
+Point ^sptr = @pts
+(sptr + 1)^.x = 99      ; pts[1].x = 99 (advances sizeof(Point) bytes)
+
+; Compound assignment also works
+(ptr + 1)^ += 5         ; arr[1] = arr[1] + 5
+```
+
+**Rules:**
+- The `^` is required immediately after `(expr)` — `(expr) = val` without `^` is not valid.
+- Only `.field` access is allowed after `(expr)^` (for struct pointers).
+- Writing through a pointer derived from a `const` address is a compile error:
+  ```zap
+  const byte data[3] = {1, 2, 3}
+  byte ^p = @data
+  (@data + 1)^ = 99     ; ERROR: Cannot write through pointer to const 'DATA'
+  ```
+- Port (`#PORT`) write-permission checks do not apply to `(expr)^` writes, since the base variable cannot be statically determined from a computed pointer expression. Use `ptr^` (simple identifier) for port access where `#WR` checking is needed.
+
 ### Pointer Comparisons
 
 Pointers can be compared using relational operators (`==`, `!=`, `<`, `>`, `<=`, `>=`).

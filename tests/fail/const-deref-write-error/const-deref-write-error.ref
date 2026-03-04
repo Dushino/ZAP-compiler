@@ -1,0 +1,4 @@
+# Error Test - Write through pointer to const
+
+## Expected Error
+Cannot write through pointer to const 'CARR'

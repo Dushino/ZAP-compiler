@@ -9771,6 +9771,36 @@ class CodeGen:
                 raise SemanticError(f"Variable '{lhs.name}' is not defined", node=lhs)
             if sym.is_const:
                 self._raise_error(f"Cannot assign to const variable '{lhs.name}'")
+        elif isinstance(lhs, DerefExpr):
+            # Check if writing through a pointer to a const variable
+            # Catches patterns like (@const_arr + 1)^ = val
+            def _find_const_addr_target(expr) -> str | None:
+                """Walk expression tree looking for @const_variable."""
+                from ast_nodes import UnaryExpr, BinaryExpr, Identifier
+                from ast_nodes import UnOp
+                if isinstance(expr, UnaryExpr) and expr.op == UnOp.ADDROF:
+                    if isinstance(expr.expr, Identifier):
+                        try:
+                            s = self.current_symtab.lookup(expr.expr.name)
+                            if s.is_const:
+                                return expr.expr.name
+                        except KeyError:
+                            pass
+                    elif isinstance(expr.expr, SubscriptExpr):
+                        if isinstance(expr.expr.array, Identifier):
+                            try:
+                                s = self.current_symtab.lookup(expr.expr.array.name)
+                                if s.is_const:
+                                    return expr.expr.array.name
+                            except KeyError:
+                                pass
+                elif isinstance(expr, BinaryExpr):
+                    return _find_const_addr_target(expr.left) or _find_const_addr_target(expr.right)
+                return None
+
+            const_name = _find_const_addr_target(lhs.pointer)
+            if const_name:
+                self._raise_error(f"Cannot write through pointer to const '{const_name}'")
         elif isinstance(lhs, SubscriptExpr):
             # Check if modifying an element of a const array
             if isinstance(lhs.array, Identifier):

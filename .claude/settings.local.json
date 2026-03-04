@@ -28,7 +28,12 @@
       "Bash(cmd /c \"make.bat tests 2>&1\")",
       "Bash(cmd /c \"call make.bat tests\")",
       "Bash(powershell -Command \"cmd /c ''make.bat tests''\")",
-      "Bash(powershell -Command \"cmd /c ''.\\\\make.bat tests''\")"
+      "Bash(powershell -Command \"cmd /c ''.\\\\make.bat tests''\")",
+      "Bash(xargs grep -l \"\\\\^.*=\")",
+      "Bash(xargs grep \"\\\\^.*=\")",
+      "Bash(python compiler.py /tmp/tg25.zap -o /dev/null)",
+      "Bash(python compiler.py tests/pass/167-paren-deref-assign/167-paren-deref-assign.zap -o /dev/null)",
+      "Bash(python compiler.py tests/fail/const-deref-write-error/const-deref-write-error.zap -o /dev/null)"
     ]
   }
 }
