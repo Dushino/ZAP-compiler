@@ -304,8 +304,7 @@ proc putchar(byte ch)
             until (cur_xpos & $03) == 3
             return
 
-        case '\0'       ; backspace
-            putbkspc()
+        case '\0'       ; null terminator - ignore
             return
     end
 
@@ -479,7 +478,7 @@ func byte gets(const byte ^buffer, const byte max_len)
 
             default
                 ; screen
-                curptr^ = ascii_to_screen(ch)
+                ; curptr^ = ascii_to_screen(ch)
 
                 ; buffer
                 bufp^ = ch                

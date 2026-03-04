@@ -40,8 +40,10 @@ proc main()
         inbuf[ch] = '-'
     end
     inbuf[15] = 0
-
-    puts("1234567891\\2\'\n3\"45\0qwer")
+    ; ptr = inbuf
+    gets(inbuf, 5)
+    puts("\nYou entered: ")
+    puts(inbuf)
     
     ; COLOR4 = COLOR_MEDIUM_GREEN + 4
 end
