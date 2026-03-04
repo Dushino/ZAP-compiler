@@ -215,7 +215,7 @@ found
 - [x] nested list init {{...},{...}}
 - [x] trailing comma in list
 - [x] large array init (> 255 bytes, COPY_BYTES16)
-- [ ] struct list init with nested struct field
+- [x] struct list init with nested struct field (fixed 3-level nesting bug in codegen flatten; test 168)
 
 ### Expressions & Operators
 - [x] All arithmetic operators + - * / %

@@ -5457,14 +5457,22 @@ class CodeGen:
             if is_struct_type and struct_info is not None:
                 assert struct_info is not None  # Help Pylance understand struct_info is not None
                 struct_size: int = struct_info.size
-                flattened_values = []
-                
+                flattened_values: list = []
+
+                def _flatten_init(values: list, out: list) -> None:
+                    """Recursively flatten nested ListInit into a flat list of expressions."""
+                    for v in values:
+                        if isinstance(v, ListInit):
+                            _flatten_init(v.values, out)
+                        else:
+                            out.append(v)
+
                 if sym.is_array:
                     # Struct array: each element should be a ListInit
-                    # Flatten nested lists into a single sequence of values
+                    # Recursively flatten nested lists into a single sequence of values
                     for struct_init in sym.init.values:
                         if isinstance(struct_init, ListInit):
-                            flattened_values.extend(struct_init.values)
+                            _flatten_init(struct_init.values, flattened_values)
                         else:
                             # Include declaration source info if available
                             info = self.global_decl_src.get(sym.name) if not sym.proc_name else self.local_decl_src.get((sym.proc_name, sym.name))
@@ -5479,13 +5487,7 @@ class CodeGen:
                             self._raise_error(f"Expected ListInit for struct element, got {type(struct_init)}")
                 else:
                     # Single struct: recursively flatten any nested ListInit values
-                    for field_init in sym.init.values:
-                        if isinstance(field_init, ListInit):
-                            # Nested struct field - flatten it
-                            flattened_values.extend(field_init.values)
-                        else:
-                            # Scalar field
-                            flattened_values.append(field_init)
+                    _flatten_init(sym.init.values, flattened_values)
                 
                 # Now treat as a regular constant array of bytes/words
                 is_const_array: bool = all(isinstance(ex, IntLiteral) for ex in flattened_values)
