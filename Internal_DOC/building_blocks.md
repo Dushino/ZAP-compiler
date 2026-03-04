@@ -154,9 +154,9 @@
 - [x] DOC-01: `grammar.ebnf` FOR loop: replace `"next" IDENT` with `"end"`.
 - [x] DOC-02: `grammar.ebnf` type_modifier: remove `"port"` from the production (ports use `#PORT` declmod).
 - [x] DOC-03: `grammar.ebnf` NOTES: two-char `'a''b'` → WORD and four-char `'a''b''c''d'` → LONG — REJECTED. Multi-char literals removed entirely (GAP-26). Only single-char `'x'` → BYTE supported.
-- [ ] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`.
-- [ ] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls.
-- [ ] DOC-06 Goal is to verify that all examples in files in DOC directory files have correct syntax and compiles to desired result. Solution is to copy all examples into separate directory "examples" - one example in one file with .zap extension. Every example must be possible to compile with ZAP compiler without errors. After debug, update examples in .md files too and addd filename to each example in .md and zap file header.
+- [x] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`. Added to header comment and lexical tokens section.
+- [x] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls. Added `builtin_call` production and `(expr)^` to `primary`. Also added `type_or_ident` for SIZEOF argument.
+- [ ] DOC-06 Goal is to verify that all examples in files in DOC directory files have correct syntax and compiles to desired result. Solution is to copy all examples into separate directory "examples" - one example in one file with .zap extension. Every example must be possible to compile with ZAP compiler without errors. After debug, update examples in .md files too and addd filename to each example in .md and zap file header. Prepare checklist and proceed acording the checklist created.
 
 
 ---

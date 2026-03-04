@@ -9,7 +9,7 @@
        FLAG_B = 2
    END
 *)
-(* Comments: beginning with ; until end of line *)
+(* Comments: ; until end of line, or block comments /* ... */ *)
 
 program         ::= { top_level } ;
 
@@ -177,7 +177,17 @@ primary         ::= NUMBER                      (* decimal, $hex (0x..), binary 
                   | IDENT "^"                   (* pointer dereference *)
                   | IDENT "^" "." IDENT        (* deref + field access *)
                   | "{" [ init_list ] "}"        (* struct literal *)
-                  | "(" expression ")" ;
+                  | "(" expression ")"
+                  | "(" expression ")" "^"      (* parenthesized pointer deref *)
+                  | builtin_call ;
+
+builtin_call    ::= "LOW" "(" expression ")"    (* low byte of WORD/LONG → BYTE *)
+                  | "HIGH" "(" expression ")"   (* high byte of WORD/LONG → BYTE *)
+                  | "LOWW" "(" expression ")"   (* low word of LONG → WORD *)
+                  | "HIGHW" "(" expression ")"  (* high word of LONG → WORD *)
+                  | "SIZEOF" "(" type_or_ident ")" ;  (* size in bytes *)
+
+type_or_ident   ::= base_type | IDENT ;
 
 expr_list       ::= expression { "," expression } ;
 
@@ -189,6 +199,7 @@ expr_list       ::= expression { "," expression } ;
    STRING          - "..." with NUL terminator, supports escape sequences
    ASM_BLOCK       - Inline 6502 assembly code
    Comments        - ; until end of line
+                    - /* ... */ block comments (may span multiple lines; do not nest)
 
    Escape Sequences in strings and character literals:
    - Standard: \n (newline), \t (tab), \r (carriage return), \a (bell), \b (backspace), 
