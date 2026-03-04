@@ -50,6 +50,18 @@ proc main()
     ;putchar('>')
     puts(inbuf)
     ;putchar('<')
+
+    switch ch
+        case ATARI_KEY_RETURN
+            puts("Input OK!\n")
+            break
+
+        case ATARI_KEY_ESCAPE
+            puts("ESC!\n")
+
+        default
+            puts("Input OK!\n")
+    end
     
     ; COLOR4 = COLOR_MEDIUM_GREEN + 4
 end

@@ -167,7 +167,11 @@
   - `byte arr[10] = 0` → `byte arr[10]` (scalar array init not supported)
   - FUNC return-in-branches (min/max/abs_diff) → restructured with top-level return
   - `some_pointer^` postfix (was `^some_pointer` prefix — wrong dereference direction)
-- [ ] Extract known limitations and put in separate chapter
+- [x] Collect all known limitations of ZAP language syntax and semantics and put in separate chapter with hints how to overcome. Created `DOC/KNOWN_LIMITATIONS.md` covering ~50 limitations across 12 categories (architecture, types, variables, control flow, expressions, pointers, structs, functions, modules, assembly, identifiers, analysis gaps) with workarounds for each.
+
+- [ ] After ASM-END block emit .segment <name> into assembly code where <name> is name of CODe segment (default CODE, overriden by command line).
+
+
 
 ---
 
