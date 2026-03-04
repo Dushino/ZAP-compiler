@@ -2,6 +2,32 @@
 
 ---
 
+## GAP-22: NULL pointer checks — WORD/pointer comparison (2026-03-04)
+
+### What was done
+
+Fixed type checking in `sema_expr.py` to allow comparing a pointer with a WORD value (in addition to literal 0 already working).
+
+**Root cause**: The comparison check (`_is_zero_literal`) only accepted `IntLiteral(0)`. Using `const word NULL = $0000` and then `if ptr == NULL` failed at sema because `NULL` is still an `Identifier` at sema time (constant substitution runs later in the pipeline).
+
+**Fix** in `sema_expr.py` (BinaryExpr comparison section):
+- Old rule: pointer vs non-pointer allowed only if non-pointer side is `IntLiteral` with value 0
+- New rule: also allow if non-pointer side has base="WORD" (and is not a struct or pointer itself)
+
+**Preserved behavior**: `x == "string"` (BYTE value vs string pointer) still fails with "Invalid pointer comparison" because `x` is BYTE, not WORD — the test `026-equality-error` is unaffected.
+
+**Allowed patterns**:
+- `ptr == NULL` — `const word NULL = $0000` compared to pointer ✓
+- `ptr != NULL` — negated ✓
+- `NULL == ptr` — reversed (WORD on left, pointer on right) ✓
+- `ptr == word_var` — any WORD variable ✓
+- `ptr == 0` — literal zero (existing, BYTE literal) ✓
+- `ptr = NULL` — assignment already worked, no change needed ✓
+
+**Test**: `tests/pass/165-null-ptr/` — 4 checks (non-null check, reversed null check, post-assignment null check, literal-zero null check), result=$0F, all 4 variants pass.
+
+---
+
 ## GAP-20: LONG struct field read/write codegen (2026-03-03)
 
 ### What was done

@@ -19,8 +19,8 @@ struct FILE
 end
 
 
-; NULL file handle
-const word NULL = 0
+; NULL pointer constant
+const word NULL = $0000
 
 
 ; maximum number of open file handles

@@ -109,7 +109,12 @@
 
 - [x] GAP-21 Check code generated for IF - ELSE, WHILE, FOR, REPEAT for short branches.
 
-- [ ] GAP-22 Null pointer checks - WORD and pointers must be considered compatible to allow NULL pointer checks and set.
+- [x] GAP-22 Null pointer checks - WORD and pointers must be considered compatible to allow NULL pointer checks and set.
+  - Fixed in `sema_expr.py`: pointer comparison check now allows WORD values on the non-pointer side (in addition to literal 0).
+  - Allows `ptr == NULL` where `const word NULL = $0000`, `ptr != NULL`, `NULL == ptr` (reversed), and `ptr == word_var`.
+  - BYTE values still require literal 0 (`ptr == 0`); BYTE variables vs pointers still rejected to preserve `026-equality-error` behavior.
+  - Assignment `ptr = NULL` already worked (no change needed).
+  - New test `165-null-ptr` — 4 checks, result=$0F, all 4 variants pass.
 
 - [ ] GAP-23 Error generating ASM when FOR i = pos to max_len - 2
 

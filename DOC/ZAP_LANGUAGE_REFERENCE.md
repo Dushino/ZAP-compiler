@@ -2343,11 +2343,65 @@ end
 - `PTR + PTR`, multiplying pointers, dividing pointers, and all bitwise operations (`&`, `|`, `^`, `<<`, `>>`) on pointers are explicitly bounded by the semantic checker and will cause a compilation error.
 
 ### Pointer Comparisons
+
 Pointers can be compared using relational operators (`==`, `!=`, `<`, `>`, `<=`, `>=`).
-- You can compare a pointer against another pointer (even of a different type as ZAP is flexible across addresses).
+
+- You can compare a pointer against another pointer (even of different types).
 - You can compare a pointer against the literal constant `0` (null check).
-- Comparing a pointer against a regular scalar value or an array string reference is strictly illegal.
+- You can compare a pointer against any **`word`** value — because pointers are 16-bit, `word` is the natural type for storing and testing pointer values. This enables proper null pointer checks using named constants.
+- Comparing a pointer against a `byte` variable or a string reference is a compile error.
+
+```zap
+byte ^ptr = @some_var
+
+; Valid: pointer vs pointer
+if ptr == @other_var
+    ...
+end
+
+; Valid: pointer vs literal zero
+if ptr == 0
+    ...
+end
+
+; Valid: pointer vs WORD (e.g. NULL constant)
+if ptr == $0000
+    ...
+end
 ```
+
+### NULL Pointer Idiom
+
+ZAP does not have a built-in `NULL` keyword, but you can define one as a `const word`:
+
+```zap
+const word NULL = $0000
+
+proc main()
+    byte ^ptr       ; uninitialized (will be in BSS, zero-initialized)
+
+    ; Set pointer to null
+    ptr = NULL
+
+    ; Test if pointer is null
+    if ptr == NULL
+        ; handle null case
+    end
+
+    ; Test if pointer is NOT null
+    if ptr != NULL
+        ; safe to dereference
+        byte value = ptr^
+    end
+end
+```
+
+**Key rules for NULL pointer usage:**
+- `ptr = NULL` — assigning a `word` value to a pointer is always allowed.
+- `ptr == NULL` — comparing a pointer with a `word` value is allowed (pointer and `word` are both 16-bit).
+- `NULL == ptr` — reversed comparison also works.
+- `ptr == 0` — literal zero comparison is also valid for null checks.
+- `byte` variables cannot be compared directly to pointers (only `word` or literal `0` is allowed).
 
 ### Pointer to Pointers (Limited)
 

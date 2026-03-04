@@ -263,14 +263,16 @@ class ExprTypeChecker:
                 is_rt_ptr = rt.sem_type.is_pointer or rt.kind == ExprKind.ADDR
 
                 if is_lt_ptr or is_rt_ptr:
-                    if is_lt_ptr and is_rt_ptr:
-                        pass
-                    else:
-                        def _is_zero_literal(node) -> bool:
-                            from ast_nodes import IntLiteral
-                            return isinstance(node, IntLiteral) and node.value == 0
-                        
-                        if not ((is_lt_ptr and _is_zero_literal(expr.right)) or (is_rt_ptr and _is_zero_literal(expr.left))):
+                    if not (is_lt_ptr and is_rt_ptr):
+                        # One side is pointer, other is not.
+                        non_ptr_type = rt.sem_type if is_lt_ptr else lt.sem_type
+                        non_ptr_node = expr.right if is_lt_ptr else expr.left
+                        # Allow WORD values (pointer-sized, e.g. ptr == NULL where const word NULL = 0)
+                        _is_word = (non_ptr_type.base == "WORD" and
+                                    not non_ptr_type.is_pointer and not non_ptr_type.is_struct)
+                        # Allow literal zero for null checks (e.g. ptr == 0)
+                        _is_zero = isinstance(non_ptr_node, IntLiteral) and non_ptr_node.value == 0
+                        if not (_is_word or _is_zero):
                             raise SemanticError("Invalid pointer comparison", node=expr)
 
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)

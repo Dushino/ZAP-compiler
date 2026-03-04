@@ -1,7 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(python compiler.py /tmp/test_null.zap -o /tmp/test_null.asm)",
+      "Bash(python compiler.py /tmp/test_null3.zap -o /tmp/test_null3.asm)",
+      "Bash(python compiler.py \"tests/fail/026-equality-error/026-equality-error.zap\" -o /tmp/eq_fail.asm)",
+      "Bash(python compiler.py tests/pass/165-null-ptr/165-null-ptr.zap -o /tmp/165.asm)",
+      "Bash(python run_tests.py)",
+      "Bash(cmd /c \"make.bat tests\")",
+      "Bash(cmd /c \"make.bat tests > test_output.txt 2>&1\")",
+      "Bash(cmd /c \"make.bat tests pass/165-null-ptr\")",
+      "Bash(6502_simulator.exe --cpu 65c02 --config tests/pass/165-null-ptr/165-null-ptr.json --dump-file tests/pass/165-null-ptr/165-null-ptr_default.txt tests/pass/165-null-ptr/165-null-ptr_default.com)",
+      "Bash(python compiler.py -6502 tests/pass/165-null-ptr/165-null-ptr.zap -o tests/pass/165-null-ptr/165-null-ptr_6502.s)",
+      "Bash(6502_simulator.exe --cpu 6502 --config tests/pass/165-null-ptr/165-null-ptr.json --dump-file tests/pass/165-null-ptr/165-null-ptr_6502.txt tests/pass/165-null-ptr/165-null-ptr_6502.com)",
+      "Bash(for f in tests/fail/026-equality-error tests/fail/004-word-pointers-error tests/fail/013-comparison-operators-error)",
+      "Bash(do)",
+      "Bash(python compiler.py \"$f/\"*.zap -o /tmp/fail_test.s)",
+      "Bash(done)"
     ]
   }
 }
