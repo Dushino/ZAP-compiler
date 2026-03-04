@@ -110,7 +110,7 @@ echo Linking Atari binary...
 if errorlevel 1 exit /b 1
 
 echo Creating cut binary (skipping header)...
-powershell -Command "$data = Get-Content -Path '%APPBIN%.com' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '%APPBIN%.cut' -Encoding Byte"
+python -c "d=open(r'%APPBIN%.com','rb').read();open(r'%APPBIN%.cut','wb').write(d[6:])"
 if errorlevel 1 exit /b 1
 
 echo Disassembling binary...
@@ -239,6 +239,14 @@ if !errorlevel! neq 0 (
 if not exist "tests\pass" mkdir "tests\pass"
 if not exist "tests\fail" mkdir "tests\fail"
 
+rem Pre-assemble exehdr.o for both CPU types (avoids ~610 redundant ca65 calls)
+if !AS_AVAILABLE! equ 1 (
+    set "CACHED_EXEHDR_6502=%TEMP%\zap_test_exehdr_6502.o"
+    set "CACHED_EXEHDR_65C02=%TEMP%\zap_test_exehdr_65c02.o"
+    %AS% -I %LIBDIR% -t none --cpu 6502 -g %LIBDIR%\atari\exehdr.s -o "!CACHED_EXEHDR_6502!"
+    %AS% -I %LIBDIR% -t none --cpu 65c02 -g %LIBDIR%\atari\exehdr.s -o "!CACHED_EXEHDR_65C02!"
+)
+
 set "pass_count=0"
 set "fail_count=0"
 set "error_count=0"
@@ -308,17 +316,16 @@ if not "%2"=="" (
                     set "bin_file=!testdir!\!base!!variant_name!.com"
                     echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
                          %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\autostart.s -o "!autostart_obj!" >> tests.txt
-                    %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!"
+                    rem Use cached exehdr.o instead of reassembling
+                    if "!as_cpu!"=="6502" (
+                        copy /Y "!CACHED_EXEHDR_6502!" "!exehdr_obj!" >nul
+                    ) else (
+                        copy /Y "!CACHED_EXEHDR_65C02!" "!exehdr_obj!" >nul
+                    )
                     if !errorlevel! equ 0 (
                         %LD% -C cfg\my_atari.cfg  -o "!bin_file!" "!exehdr_obj!" "!obj_file!"  "!autostart_obj!"
                         if !errorlevel! equ 0 (
-                            rem Create cut binary (skip 6-byte header) for disassembly
-                            set "cut_file=!testdir!\!base!!variant_name!.cut"
-                            set "dis_file=!testdir!\!base!!variant_name!.da65"
                             set "cfg_file=!testdir!\!base!.json"
-                            powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
-                            echo %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
-                                 %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 
                             set "txt_file=!testdir!\!base!!variant_name!.txt"
                             echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                                  %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
@@ -346,9 +353,8 @@ if not "%2"=="" (
                         )
                     ) else (
                         set /a variant_fail+=1
-                        echo ❌ FAIL: Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
-                        echo ❌ Assemler failed on %LIBDIR%\atari\exehdr.s 
-
+                        echo ❌ FAIL: Failed to copy cached exehdr.o >> tests.txt
+                        echo ❌ Failed to copy cached exehdr.o
                     )
                 ) else (
                     set /a variant_fail+=1
@@ -359,7 +365,6 @@ if not "%2"=="" (
                 rem Just count compilation success
                 set /a variant_fail+=1
                 echo ❌ FAIL: ca65 not found, compilation failed.
-
             )
         ) else (
             set /a variant_fail+=1
@@ -443,19 +448,17 @@ if not "%2"=="" (
                     rem Create Atari binary with header
                     set "exehdr_obj=!testdir!\!base!!variant_name!_exehdr.o"
                     set "bin_file=!testdir!\!base!!variant_name!.com"
-                    echo %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >> tests.txt
-                    %AS% -I %LIBDIR% -t none --cpu !as_cpu! -g %LIBDIR%\atari\exehdr.s -o "!exehdr_obj!" >nul 2>&1
+                    rem Use cached exehdr.o instead of reassembling
+                    if "!as_cpu!"=="6502" (
+                        copy /Y "!CACHED_EXEHDR_6502!" "!exehdr_obj!" >nul
+                    ) else (
+                        copy /Y "!CACHED_EXEHDR_65C02!" "!exehdr_obj!" >nul
+                    )
                     if !errorlevel! equ 0 (
                         echo %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >> tests.txt
                         %LD% -C cfg\my_atari.cfg "!obj_file!" "!exehdr_obj!" -o "!bin_file!" >nul 2>&1
                         if !errorlevel! equ 0 (
-                            rem Create cut binary (skip 6-byte header) for disassembly
-                            set "cut_file=!testdir!\!base!!variant_name!.cut"
-                            set "dis_file=!testdir!\!base!!variant_name!.da65"
                             set "cfg_file=!testdir!\!base!.json"
-                            powershell -Command "$data = Get-Content -Path '!bin_file!' -Encoding Byte -ReadCount 0; $data[6..$($data.Length-1)] | Set-Content -Path '!cut_file!' -Encoding Byte" >nul 2>&1
-                            echo %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" >> tests.txt
-                            %DA% --cpu !as_cpu! --multi-pass -i cfg/my_atari.info  --comments 3 --hexoffs --verbose --verbose "!cut_file!" > "!dis_file!" 2>nul
                             set "txt_file=!testdir!\!base!!variant_name!.txt"
                             echo %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
                             %SIM% --cpu !as_cpu! --config !cfg_file! --verbose --dump-file "!txt_file!" "!bin_file!" >> tests.txt
@@ -483,14 +486,13 @@ if not "%2"=="" (
                         )
                     ) else (
                         set /a variant_fail+=1
-                        echo ❌ FAIL: Assemler failed on %LIBDIR%\atari\exehdr.s  >> tests.txt
-                        echo ❌ Assemler failed on %LIBDIR%\atari\exehdr.s
+                        echo ❌ FAIL: Failed to copy cached exehdr.o >> tests.txt
+                        echo ❌ Failed to copy cached exehdr.o
                     )
                 ) else (
                     set /a variant_fail+=1
                     echo ❌ FAIL: Assembler failed on "!output_file!" >> tests.txt
                     echo ❌ Assembler failed on "!output_file!"
-
                 )
             ) else (
                 rem Just count compilation success
