@@ -11901,7 +11901,8 @@ class CodeGen:
 
         if isinstance(stmt, CallStmt):
             # Pass arguments to callee parameters (simple ABI via memory)
-            specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(stmt.name)
+            # Check both proc and func param specs — a func can be called as a statement
+            specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(stmt.name) or self.func_param_specs.get(stmt.name)
             if specs is not None:
                 self._emit_call_args(stmt.name, stmt.args, specs)
             self.emit(f"\tJSR {self.asm_symbol_name(stmt.name)}")
