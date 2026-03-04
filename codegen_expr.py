@@ -11872,6 +11872,7 @@ class CodeGen:
             for line in stmt.text.splitlines():
                 self.emit(line)
             self.emit("; ASM_BLOCK_END")
+            self.emit(f'\t.segment "{self.seg_code}"')
             return
 
         # Compile-time diagnostic directives: .error/.warning/.info
