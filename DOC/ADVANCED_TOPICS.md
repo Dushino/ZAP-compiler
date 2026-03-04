@@ -713,10 +713,12 @@ proc load_font()
     asm
         .segment "FONT"
         .incbin "font.dat"
-        .segment "CODE"    ; Switch back
+        .incbin "font.dat"
     end
 end
 ```
+
+**Note:** The compiler automatically restores the CODE segment after each `asm ... end` block, so you do not need to manually add `.segment "CODE"` at the end.
 
 For compile-time diagnostics, ZAP provides the following directives (used outside of `asm` blocks):
 
@@ -728,12 +730,12 @@ For compile-time diagnostics, ZAP provides the following directives (used outsid
 
 ### Assembly Gotchas
 
-**Don't forget to restore segments:**
+**Segment switching is safe — the compiler restores the CODE segment automatically:**
 ```zap
 asm
     .segment "DATA"
     .byte 1, 2, 3
-    .segment "CODE"    ; MUST restore!
+    ; No need to restore CODE segment — the compiler does it for you
 end
 ```
 

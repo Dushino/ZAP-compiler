@@ -550,18 +550,24 @@ The `.module` directive requires a quoted string:
 Assembler directives like `.segment`, `.incbin`, `.byte` are only recognized inside `asm ... end` blocks. They cannot appear at the ZAP top level. 
 
 ```zap
-proc load_data()
+proc load_data() #keep
     asm
         .segment "DATA"
         .incbin "sprite.dat"
-        .segment "CODE"      ; not needed, is restored by code generator after end of ASM block
     end
 end
 ```
 
+**Notes**
+- The compiler automatically restores the CODE segment after each `asm ... end` block, so manual `.segment "CODE"` is not needed.
+- ZAP compiler does not check anything inside an `asm` block — the content is copied verbatim into the generated assembly.
+- If you need assembly only to include data (as shown above), use `#keep` to prevent the procedure from being optimized away when it is not called.
+- If you happen to call `load_data()`, nothing catastrophic happens — the compiler emits only `RTS` in the `CODE` segment at the end of the procedure, and the data resides in the `DATA` segment. However, if you place raw data into the `CODE` segment and then call the procedure, the CPU will attempt to execute the data as instructions, with unpredictable results.
+- ZAP language is case-insensitive, but the ca65 assembler is not. Remember this when referring to ZAP variables from an `asm` block.
+
 ### Do Not Use END as an Assembly Label
 
-The keyword `END` terminates the `asm` block. Using it as a label or instruction operand prematurely closes the block.
+The keyword `END` terminates the `ASM` block. Using it as a label or instruction operand prematurely closes the block.
 
 ### Calling Convention Is Not Stable
 
