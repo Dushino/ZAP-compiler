@@ -186,11 +186,11 @@ byte ^ptr               ; Pointer (advanced)
 Programs make decisions and repeat:
 
 ```zap
-if condition 
+if condition
     ; Do this
 else
     ; Do that
-endif
+end
 
 while condition
     ; Repeat this
@@ -315,7 +315,7 @@ end
 
 **Example: Simple Call Counter**
 ```zap
-proc get_next_id()
+func byte get_next_id()
     static byte next_id = 1
     byte result = next_id
     next_id = next_id + 1
@@ -332,9 +332,9 @@ byte high_score = 0
 proc add_points(byte points)
     current_score = current_score + points
     
-    if current_score > high_score then
+    if current_score > high_score
         high_score = current_score
-    endif
+    end
 end
 
 proc main()
@@ -353,9 +353,9 @@ end
 
 ```zap
 proc check_age(byte age)
-    if age >= 18 then
+    if age >= 18
         ; You're an adult
-    endif
+    end
 end
 ```
 
@@ -363,11 +363,11 @@ end
 
 ```zap
 proc check_age(byte age)
-    if age >= 18 then
+    if age >= 18
         ; Adult code
     else
         ; Minor code
-    endif
+    end
 end
 ```
 
@@ -384,17 +384,17 @@ end
 
 ```zap
 proc game_logic(byte level)
-    if level == 1 then
+    if level == 1
         ; Easy level
-    endif
-    
-    if level < 5 then
+    end
+
+    if level < 5
         ; Early levels
-    endif
-    
-    if level > 9 then
+    end
+
+    if level > 9
         ; Hard levels
-    endif
+    end
 end
 ```
 
@@ -403,27 +403,27 @@ end
 **AND (`&&`) - Both must be true:**
 ```zap
 proc enter_dungeon(byte level, byte health)
-    if level >= 5 && health > 50 then
+    if level >= 5 && health > 50
         ; Can enter
-    endif
+    end
 end
 ```
 
 **OR (`||`) - Either can be true:**
 ```zap
 proc is_ready(byte stamina, byte magic)
-    if stamina > 20 || magic > 20 then
+    if stamina > 20 || magic > 20
         ; Ready to fight
-    endif
+    end
 end
 ```
 
 **NOT (`!`) - Reverse the condition:**
 ```zap
 proc check_not_dead(byte health)
-    if !health == 0 then
+    if !(health == 0)
         ; Still alive!
-    endif
+    end
 end
 ```
 
@@ -431,11 +431,11 @@ end
 
 ```zap
 proc complex_logic(byte a, byte b)
-    if a > 10 then
-        if b < 5 then
+    if a > 10
+        if b < 5
             ; a > 10 AND b < 5
-        endif
-    endif
+        end
+    end
 end
 ```
 
@@ -445,21 +445,21 @@ end
 byte game_state = 0    ; 0=menu, 1=playing, 2=paused, 3=over
 
 proc update_game()
-    if game_state == 0 then
+    if game_state == 0
         ; Show menu
-    endif
-    
-    if game_state == 1 then
+    end
+
+    if game_state == 1
         ; Update gameplay
-    endif
-    
-    if game_state == 2 then
+    end
+
+    if game_state == 2
         ; Show pause screen
-    endif
-    
-    if game_state == 3 then
+    end
+
+    if game_state == 3
         ; Show game over
-    endif
+    end
 end
 ```
 
@@ -516,10 +516,10 @@ byte i
 
 proc search_for_value(byte target_value)
     for i = 0 to 255
-        if memory_at(i) == target_value then
+        if memory_at(i) == target_value
             found = 1
             break       ; Exit loop
-        endif
+        end
     end
 end
 ```
@@ -552,16 +552,20 @@ proc count_by_tens()
 end
 ```
 
-**Backwards:**
+**Backwards (using while):**
 ```zap
 byte i
 
 proc count_down()
-    for i = 10 to 0 step -1
+    i = 10
+    while i > 0
         ; i = 10, 9, 8, ... 1
+        i = i - 1
     end
 end
 ```
+
+> **Note:** `for` loops only support positive step values. Use `while` for counting down.
 
 ### Example: Initialize Screen
 
@@ -664,10 +668,10 @@ end
 
 ```zap
 proc validate_input(byte input)
-    if input == 0 then
+    if input == 0
         return      ; Exit procedure early
-    endif
-    
+    end
+
     ; Rest of validation here
 end
 ```
@@ -676,27 +680,24 @@ end
 
 ```zap
 func byte min(byte a, byte b)
-    if a < b then
+    if a < b
         return a
-    else
-        return b
-    endif
+    end
+    return b
 end
 
 func byte max(byte a, byte b)
-    if a > b then
+    if a > b
         return a
-    else
-        return b
-    endif
+    end
+    return b
 end
 
 func byte abs_diff(byte a, byte b)
-    if a > b then
+    if a > b
         return a - b
-    else
-        return b - a
-    endif
+    end
+    return b - a
 end
 
 proc main()
@@ -713,8 +714,7 @@ end
 ### Declaring Arrays
 
 ```zap
-byte data[10]           ; Array of 10 bytes
-byte data[10] = 0       ; All initialized to 0
+byte data[10]           ; Array of 10 bytes, uninitialized
 byte data[] = {1,2,3}   ; Size determined by initializer
 ```
 
@@ -772,11 +772,11 @@ byte score3 = 60
 byte scores[] = {100, 85, 60}
 
 proc add_score(byte new_score)
-    if new_score > scores[0] then
+    if new_score > scores[0]
         scores[2] = scores[1]
         scores[1] = scores[0]
         scores[0] = new_score
-    endif
+    end
 end
 ```
 
@@ -823,14 +823,13 @@ for i = 10 to 5         ; Won't run - start > end
 end
 ```
 
-**Wrong loop direction:**
+**Need to count down? Use while:**
 ```zap
-; This goes UP, not down:
-for i = 10 to 5         ; Start at 10, end at 5, step +1
-end
-
-; Fix: Use negative step:
-for i = 10 to 5 step -1 ; Now goes down
+; for loops only go up, use while to count down:
+i = 10
+while i > 5
+    ; Process i = 10, 9, 8, 7, 6
+    i = i - 1
 end
 ```
 
@@ -913,7 +912,7 @@ Create a simple game or utility:
 ✅ **Variables** store data  
 ✅ **Procedures** execute code  
 ✅ **Functions** return values  
-✅ **if/then/else** make decisions  
+✅ **if/else/end** make decisions  
 ✅ **while/for/repeat-until** loops repeat code  
 ✅ **Arrays** store multiple values  
 
@@ -934,10 +933,10 @@ end
 proc update()
     counter = counter + 1
     
-    if counter > 100 then
+    if counter > 100
         state = 0
         counter = 0
-    endif
+    end
 end
 
 ; Main entry point
@@ -964,7 +963,7 @@ const byte NAME = 10   ; Constant
 
 ### Control Flow
 ```zap
-if x == 5 then ... endif
+if x == 5 ... end
 while x < 10 ... end
 for i = 0 to 9 ... end
 repeat ... until x == 10

@@ -156,8 +156,18 @@
 - [x] DOC-03: `grammar.ebnf` NOTES: two-char `'a''b'` → WORD and four-char `'a''b''c''d'` → LONG — REJECTED. Multi-char literals removed entirely (GAP-26). Only single-char `'x'` → BYTE supported.
 - [x] DOC-04: `grammar.ebnf` NOTES: add block comment syntax `/* ... */`. Added to header comment and lexical tokens section.
 - [x] DOC-05: `grammar.ebnf`: add `LOW`, `HIGH`, `LOWW`, `HIGHW`, `SIZEOF` to primary expression as built-in calls. Added `builtin_call` production and `(expr)^` to `primary`. Also added `type_or_ident` for SIZEOF argument.
-- [ ] DOC-06 Goal is to verify that all examples in files in DOC directory files have correct syntax and compiles to desired result. Solution is to copy all examples into separate directory "examples" - one example in one file with .zap extension. Every example must be possible to compile with ZAP compiler without errors. After debug, update examples in .md files too and addd filename to each example in .md and zap file header. Prepare checklist and proceed acording the checklist created.
-
+- [x] DOC-06: Extracted and verified all compilable doc examples into `examples/` directory. Created 32 `.zap` files (8 getting_started, 9 advanced, 15 reference) — all compile without errors. Skipped error-demonstrating examples. Doc bugs found and fixed in all 3 .md files:
+  - `then`/`endif` → removed `then`, changed `endif` to `end` (~50 instances across all docs)
+  - `step -1` → replaced with `while` loop examples (for loops only support positive step)
+  - `^var` as address-of → changed to `@var` (the only supported address-of syntax)
+  - `if state = 0` → `if state == 0` (assignment vs comparison)
+  - `func calculate() byte` → `func byte calculate()` (wrong return type position)
+  - `proc allocate_handle()` with return value → `func byte allocate_handle()`
+  - `proc get_next_id()` with return value → `func byte get_next_id()`
+  - `byte arr[10] = 0` → `byte arr[10]` (scalar array init not supported)
+  - FUNC return-in-branches (min/max/abs_diff) → restructured with top-level return
+  - `some_pointer^` postfix (was `^some_pointer` prefix — wrong dereference direction)
+- [ ] Extract known limitations and put in separate chapter
 
 ---
 

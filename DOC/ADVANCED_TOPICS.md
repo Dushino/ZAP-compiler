@@ -52,12 +52,7 @@ byte ^ptr = @data   ; Get address of data, store in ptr
 - The 16-bit memory address where `data` lives
 - Compiler assigns this address automatically
 
-**Alternative syntax with `^` operator** (also supported):
-
-```zap
-byte data = 100
-byte ^ptr = ^data   ; Equivalent to @data
-```
+**Note:** The `@` operator is the only supported syntax for taking addresses. Use `@var` (not `^var`) in expressions and initializers.
 
 ### Getting Addresses of Complex Expressions
 
@@ -148,7 +143,7 @@ ZAP! doesn't support full pointer-to-pointer chains, but you can simulate:
 
 ```zap
 byte x = 100
-byte ^ptr1 = ^x
+byte ^ptr1 = @x
 byte ^ptr2 = ptr1       ; NOT pointer to ptr1, but copy of address
 ```
 
@@ -172,7 +167,7 @@ The compiler can optimize pointer usage:
 
 ```zap
 ; Compiler optimizes this:
-byte ^ptr = ^array
+byte ^ptr = @array
 byte val1 = ptr^
 ptr = ptr + 1
 byte val2 = ptr^
@@ -341,15 +336,15 @@ end
 proc game_state()
     static byte state = 0  ; 0=menu, 1=playing, 2=paused
     
-    if state = 0
+    if state == 0
         ; Handle menu
         state = 1
-    elseif state = 1
+    elseif state == 1
         ; Handle game
         if player_pressed_pause
             state = 2
         end
-    elseif state = 2
+    elseif state == 2
         ; Handle pause
         if player_pressed_resume
             state = 1
@@ -460,7 +455,7 @@ proc initialize()
     counter = 0
 end
 
-func calculate() byte
+func byte calculate()
     return counter + 10
 end
 
@@ -658,7 +653,7 @@ proc unsafe_temp_access()
         ; WARNING: Compiler may overwrite __TMP0 after ASM block!
     end
     
-    byte x = ^some_pointer  ; This operation may use __TMP0
+    byte x = some_pointer^  ; This operation may use __TMP0
 end
 ```
 
@@ -770,18 +765,24 @@ The Atari has memory-mapped hardware registers:
 
 ```zap
 ; GTIA (Graphics) Registers
-byte GTIA_M0PL @$D00C           ; Missile 0 / Player collision
-byte GTIA_P0PL @$D00D           ; Player 0 collision
-byte GTIA_HPOS0 @$D000          ; Player 0 horizontal position
+byte GTIA_M0PL @$D00C #PORT #RD    ; Missile 0 / Player collision (read-only)
+byte GTIA_P0PL @$D00D #PORT #RD    ; Player 0 collision (read-only)
+byte GTIA_HPOS0 @$D000 #PORT #WR   ; Player 0 horizontal position (write-only)
 
 ; ANTIC (Display) Registers
-word ANTIC_DLIST @$D402         ; Display list pointer
-byte ANTIC_HSCROL @$D404        ; Horizontal scroll
+word ANTIC_DLIST @$D402 #PORT       ; Display list pointer (read/write)
+byte ANTIC_HSCROL @$D404 #PORT #WR ; Horizontal scroll (write-only)
 
 ; POKEY (Sound/I/O) Registers
-byte POKEY_AUDF1 @$D200         ; Audio frequency 1
-byte POKEY_AUDC1 @$D201         ; Audio control 1
+byte POKEY_AUDF1 @$D200 #PORT #WR  ; Audio frequency 1 (write-only)
+byte POKEY_AUDC1 @$D201 #PORT #WR  ; Audio control 1 (write-only)
 ```
+
+The `#PORT` modifier marks a variable as a hardware port. The compiler uses this to:
+- Skip optimization of port accesses (each read/write must happen as written)
+- `#RD` restricts the port to read-only (compile error if you try to write)
+- `#WR` restricts the port to write-only (compile error if you try to read)
+- `#PORT` alone (without `#RD`/`#WR`) allows both read and write
 
 ### Reading Registers
 
@@ -979,13 +980,13 @@ word large_value = 40000
 
 ```zap
 ; Slow: multiple dereferences
-byte ^ptr = ^data
+byte ^ptr = @data
 byte v1 = ptr^
 byte v2 = ptr^
 byte v3 = ptr^
 
 ; Faster: cache value
-byte ^ptr = ^data
+byte ^ptr = @data
 byte value = ptr^
 byte v1 = value
 byte v2 = value
@@ -1168,23 +1169,25 @@ const byte STATE_OVER = 3
 byte game_state = STATE_INIT
 
 proc update_state()
-    if game_state == STATE_INIT
-        initialize_game()
-        game_state = STATE_PLAY
-    end
-    
-    if game_state == STATE_PLAY
-        update_game()
-        check_pause()
-        check_game_over()
-    end
-    
-    if game_state == STATE_PAUSE
-        check_unpause()
-    end
-    
-    if game_state == STATE_OVER
-        show_game_over()
+    switch game_state
+        case STATE_INIT
+            initialize_game()
+            game_state = STATE_PLAY
+            break
+
+        case STATE_PLAY
+            update_game()
+            check_pause()
+            check_game_over()
+            break
+
+        case STATE_PAUSE
+            check_unpause()
+            break
+
+        case STATE_OVER
+            show_game_over()
+            break
     end
 end
 ```
@@ -1237,7 +1240,7 @@ end
 proc update_sprites()
     byte i
     for i = 0 to sprite_count
-        if sprite_active[i] then
+        if sprite_active[i]
             sprite_y[i] = sprite_y[i] + 1
             
             if sprite_y[i] > 191

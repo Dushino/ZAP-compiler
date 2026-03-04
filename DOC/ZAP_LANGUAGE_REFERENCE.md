@@ -379,29 +379,28 @@ end
 proc update_game_state()
     static byte state = 0  ; 0=init, 1=running, 2=paused
     
-    if state = 0 then
+    if state == 0
         initialize_game()
         state = 1
-    elseif state = 1 then
+    elseif state == 1
         run_game()
-    elseif state = 2 then
+    elseif state == 2
         handle_pause()
-    endif
+    end
 end
 ```
 
 3. **Resource tracking:**
 ```zap
-proc allocate_handle()
+func byte allocate_handle()
     static byte handle_count = 0
-    
-    if handle_count < 10 then
+
+    if handle_count < 10
         byte h = handle_count
         handle_count = handle_count + 1
         return h
-    else
-        return 255  ; Error: no handles available
-    endif
+    end
+    return 255  ; Error: no handles available
 end
 ```
 
@@ -601,7 +600,7 @@ byte init_flag = 1
 proc initialize_once()
     byte state
     
-    if init_flag then
+    if init_flag
         state = 0
         init_flag = 0
     end
@@ -688,13 +687,13 @@ All comparison operators work on `byte`, `word`, and `long` operands. The result
 proc comparison_example()
     byte x = 42
     
-    if x == 42 then
+    if x == 42
         ; x equals 42
-    endif
-    
-    if x > 40 && x < 50 then
+    end
+
+    if x > 40 && x < 50
         ; x is between 40 and 50
-    endif
+    end
 end
 ```
 
@@ -712,19 +711,19 @@ proc logical_example()
     byte y = 10
     
     ; AND operator
-    if x > 0 && y > 0 then
+    if x > 0 && y > 0
         ; Both conditions true
-    endif
-    
+    end
+
     ; OR operator
-    if x == 5 || y == 5 then
+    if x == 5 || y == 5
         ; At least one condition true
-    endif
-    
+    end
+
     ; NOT operator
-    if !(x == 0) then
+    if !(x == 0)
         ; x is not zero
-    endif
+    end
 end
 ```
 
@@ -767,7 +766,7 @@ proc bitwise_example()
     byte not_result = ~value           ; $00 - Bitwise NOT
 
     ; Common pattern: check if bit is set
-    if value & $80 then
+    if value & $80
         ; High bit is set
     end
 
@@ -775,7 +774,7 @@ proc bitwise_example()
     long flags = $FFFF0000
     long masked = flags & $00FF0000    ; $00FF0000
     long shifted = flags >> 8          ; $00FFFF00
-    if flags & $01000000 then
+    if flags & $01000000
         ; Bit 24 is set
     end
 end
@@ -933,8 +932,8 @@ proc precedence_example()
     
     ; Logical precedence
     byte a = 1, b = 0, c = 1
-    if a && b || c then     ; (a && b) || c = true
-    endif
+    if a && b || c          ; (a && b) || c = true
+    end
     
     ; Bitwise precedence
     result = 5 & 3 | 1      ; ((5 & 3) | 1) = (1 | 1) = 1
@@ -992,30 +991,30 @@ end
 
 ## Control Flow
 
-### if-then-else Statement
+### if-else Statement
 
 ```zap
 proc if_example()
     byte x = 5
-    
+
     ; Simple if
-    if x == 5 then
+    if x == 5
         ; This executes
-    endif
-    
+    end
+
     ; if-else
-    if x > 10 then
+    if x > 10
         ; x is greater than 10
     else
         ; x is 10 or less
-    endif
-    
+    end
+
     ; Nested if
-    if x > 0 then
-        if x < 100 then
+    if x > 0
+        if x < 100
             ; x is between 0 and 100
-        endif
-    endif
+        end
+    end
 end
 ```
 
@@ -1172,9 +1171,9 @@ proc while_example()
     byte x = 0
     while 1         ; Infinite loop
         x = x + 1
-        if x == 100 then
+        if x == 100
             break   ; Exit loop
-        endif
+        end
     end
 end
 ```
@@ -1239,21 +1238,23 @@ proc for_example()
         ; i = 0, 10, 20, ..., 90
     end
     
-    ; Descending
-    for i = 10 to 0 step -1
+    ; Descending (use while for count-down)
+    i = 10
+    while i > 0
         ; i = 10, 9, 8, ..., 1
+        i = i - 1
     end
-    
+
     ; With break
     for i = 0 to 255
-        if i == 128 then
+        if i == 128
             break
-        endif
+        end
     end
 end
 ```
 
-**Semantics:** The `to` bound is exclusive (C-like). With a positive step, the loop runs while `i < end`. With a negative step, it runs while `i > end`.
+**Semantics:** The `to` bound is exclusive (C-like). The loop runs while `i < end`. Only positive step values are supported; use `while` for counting down.
 To include a specific last value, set `to` one step past it (e.g., `for i = 0 to 10` includes 9 with step 1; `for i = 0 to 110 step 10` includes 100).
 
 **Data types:** The loop variable may be `byte`, `word`, `long`, or a pointer (`byte^`, `word^`). The `to` bound and `step` are widened to match the loop variable type.
@@ -1387,17 +1388,17 @@ proc break_example()
     byte x = 0
     while x < 1000
         x = x + 1
-        if x == 500 then
+        if x == 500
             break
-        endif
+        end
     end
 
     ; In for loop
     byte i
     for i = 0 to 255
-        if i == 50 then
+        if i == 50
             break
-        endif
+        end
     end
 
     ; In repeat-until loop
@@ -1470,20 +1471,20 @@ proc zero_evaluation()
     byte x = 0
     byte y = 1
 
-    if x then        ; False (x is 0)
-    endif
+    if x              ; False (x is 0)
+    end
 
-    if y then        ; True (y is non-zero)
-    endif
+    if y              ; True (y is non-zero)
+    end
 
-    if 0 then        ; False
+    if 0              ; False
     else
         ; This executes
-    endif
+    end
 
-    if 1 then        ; True
+    if 1              ; True
         ; This executes
-    endif
+    end
 end
 ```
 
@@ -1591,9 +1592,9 @@ end
 In procedures (returns to caller, no value):
 ```zap
 proc early_exit(byte x)
-    if x == 0 then
+    if x == 0
         return      ; Exit early
-    endif
+    end
     
     ; More code
 end
@@ -1738,9 +1739,9 @@ Procedures can call themselves:
 proc countdown(byte n)
     putc(n + 48)    ; Print digit
     
-    if n > 0 then
+    if n > 0
         countdown(n - 1)
-    endif
+    end
 end
 
 proc main()
@@ -1758,7 +1759,7 @@ Note: parameters and local variables are not stored on the stack, so recursive c
 
 ```zap
 byte arr1[10]                   ; Array of 10 bytes, uninitialized
-byte arr2[10] = 0               ; All initialized to 0
+byte arr2[10]                   ; Uninitialized (BSS zeroed)
 word arr3[5]                    ; Array of 5 words
 const byte arr4[] = {1, 2, 3}   ; Constant array (cannot modify)
 ```
@@ -2294,12 +2295,7 @@ byte x = 42
 byte ^ptr = @x      ; ptr now points to x
 ```
 
-Alternative syntax with `^` (also supported):
-
-```zap
-byte x = 42
-byte ^ptr = ^x      ; ptr now points to x (equivalent)
-```
+**Note:** Use `@` for taking addresses. The `^` symbol is only used for pointer type declarations and postfix dereference (`ptr^`).
 
 ### Dereferencing
 
@@ -2454,7 +2450,7 @@ end
 ### Pointer to Pointers (Limited)
 
 ```zap
-byte ^ptr = ^some_var
+byte ^ptr = @some_var
 ; Further pointer-to-pointer not directly supported
 ```
 
@@ -2486,11 +2482,10 @@ Mark a file as a module that can be included:
 .module "lib_math"
 
 func byte abs_diff(byte a, byte b)
-    if a > b then
+    if a > b
         return a - b
-    else
-        return b - a
-    endif
+    end
+    return b - a
 end
 ```
 
@@ -2696,9 +2691,9 @@ proc dce_example()
     ; This code never executes - removed by optimizer
     byte unused = 42
     
-    if 0 then        ; Condition always false
+    if 0              ; Condition always false
         byte never_used = 1
-    endif
+    end
 end
 ```
 
@@ -2730,10 +2725,10 @@ byte initialized = 0
 proc counter_correct()
     byte count
     
-    if !initialized then
+    if !initialized
         count = 0
         initialized = 1
-    endif
+    end
     
     count = count + 1
 end
@@ -2817,15 +2812,15 @@ proc count_until_condition()
     byte i, found = 0
     
     for i = 0 to 255
-        if some_condition(i) then
+        if some_condition(i)
             found = 1
             break
-        endif
+        end
     end
-    
-    if found then
+
+    if found
         ; Found at index i
-    endif
+    end
 end
 ```
 
@@ -2837,10 +2832,10 @@ byte first_call = 1
 proc initialize_once()
     byte data
     
-    if first_call then
+    if first_call
         data = 0
         first_call = 0
-    endif
+    end
 end
 ```
 
@@ -2860,7 +2855,7 @@ end
 ```zap
 proc iterate_with_pointer()
     byte data[] = {1, 2, 3, 4, 5}
-    byte ^ptr = ^data
+    byte ^ptr = @data
     byte i
     
     for i = 0 to 4
@@ -2876,9 +2871,9 @@ end
 proc test_bit()
     byte flags = $0F
     
-    if flags & $01 then
+    if flags & $01
         ; Bit 0 is set
-    endif
+    end
 end
 ```
 
@@ -3006,9 +3001,9 @@ python compiler.py -6502 program.zap
 const byte MAX_FIBO = 20
 
 func byte fibonacci(byte n)
-    if n <= 1 then
+    if n <= 1
         return n
-    endif
+    end
     return fibonacci(n - 1) + fibonacci(n - 2)
 end
 

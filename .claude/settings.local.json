@@ -45,7 +45,16 @@
       "Bash(cmd.exe /c \"make.bat tests\")",
       "Bash(cmd.exe /c \"make.bat tests > tests_output.log 2>&1\")",
       "Bash(/c/Windows/System32/cmd.exe //c \"make.bat tests\")",
-      "Bash(/c/Windows/System32/cmd.exe //c \"c:\\\\Users\\\\dusan.holub\\\\src\\\\ZAP-compiler\\\\make.bat tests\")"
+      "Bash(/c/Windows/System32/cmd.exe //c \"c:\\\\Users\\\\dusan.holub\\\\src\\\\ZAP-compiler\\\\make.bat tests\")",
+      "Bash(python compiler.py examples/getting_started/gs_06_functions.zap)",
+      "Bash(python compiler.py examples/getting_started/gs_07_arrays.zap)",
+      "Bash(for f in examples/advanced/adv_*.zap)",
+      "Bash(do echo \"=== $f ===\")",
+      "Bash(python compiler.py \"$f\")",
+      "Bash(python compiler.py examples/advanced/adv_01_pointers.zap)",
+      "Bash(for f in examples/reference/ref_*.zap)",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(/c/Windows/System32/cmd.exe //c \"C:\\\\Users\\\\dusan.holub\\\\src\\\\ZAP-compiler\\\\make.bat tests\")"
     ]
   }
 }
