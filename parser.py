@@ -1819,10 +1819,18 @@ class Parser:
                 self.expect(TOK_LBRACE)
                 args = []
                 if self.cur.type != TOK_RBRACE:
-                    args.append(self.parse_expr())
+                    # Allow empty first argument (skipped)
+                    if self.cur.type == TOK_DELIM and self.cur.value == ',':
+                        args.append(None)
+                    else:
+                        args.append(self.parse_expr())
                     while self.cur.type == TOK_DELIM and self.cur.value == ',':
                         self.advance()
-                        args.append(self.parse_expr())
+                        # Check for empty argument (skipped parameter)
+                        if self.cur.type == TOK_RBRACE or (self.cur.type == TOK_DELIM and self.cur.value == ','):
+                            args.append(None)
+                        else:
+                            args.append(self.parse_expr())
                 self.expect(TOK_RBRACE)
                 node = CallStmt(name, args)
                 line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""

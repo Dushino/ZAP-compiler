@@ -276,7 +276,7 @@ found
 - [x] func returning struct
 - [x] array param (type name[])
 - [x] const param
-- [ ] skipped default arg in call proc(1,,3)
+- [x] skipped default arg in call proc(1,,3) — fixed parser path 3, test 170, documented in language reference
 - [x] #KEEP #NOEXPORT #EXPORT on proc/func - create failed tests when necessary
 
 ### Structs

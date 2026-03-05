@@ -1570,6 +1570,68 @@ proc param_with_locals(byte value)
 end
 ```
 
+### Default Parameters
+
+Parameters can have default values. Parameters with defaults must follow all required parameters:
+
+```zap
+proc draw(byte x, byte y, byte color = 1)
+    ; color defaults to 1 if omitted
+end
+
+func byte clamp(byte val, byte lo = 0, byte hi = 255)
+    if val < lo
+        return lo
+    end
+    if val > hi
+        return hi
+    end
+    return val
+end
+
+proc main()
+    draw(10, 20)        ; color = 1 (default)
+    draw(10, 20, 3)     ; color = 3
+
+    byte r = clamp(50)          ; lo=0, hi=255
+    byte s = clamp(50, 10)      ; lo=10, hi=255
+    byte t = clamp(50, 10, 100) ; lo=10, hi=100
+end
+```
+
+### Skipping Arguments
+
+When calling a procedure or function with default parameters, you can skip individual arguments by leaving them empty between commas. The skipped parameter uses its default value:
+
+```zap
+proc setup(byte mode = 0, byte speed = 5, byte flags = $FF)
+    ; ...
+end
+
+proc main()
+    setup(1,,3)     ; mode=1, speed=5 (default), flags=3
+    setup(,2)       ; mode=0 (default), speed=2, flags=$FF (default)
+    setup(,,7)      ; mode=0 (default), speed=5 (default), flags=7
+    setup(1,,,)     ; ERROR: more commas than parameters
+end
+```
+
+The same syntax works for function calls in expressions:
+
+```zap
+func byte calc(byte a = 10, byte b = 20, byte c = 30)
+    return a + b + c
+end
+
+proc main()
+    byte r = calc(1,,3)  ; a=1, b=20 (default), c=3 → 24
+end
+```
+
+**Rules:**
+- A skipped argument must have a corresponding default value in the declaration.
+- Trailing arguments with defaults can simply be omitted (no trailing commas needed).
+
 ### Local Variables
 
 ```zap
