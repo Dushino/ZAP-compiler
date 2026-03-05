@@ -165,6 +165,7 @@ end
 
 - Must have an initializer (`const byte X` alone is invalid)
 - Cannot have a fixed address (`const byte X @$2000` is invalid)
+- `SIZEOF()` in const expressions requires a **type name**, not a variable: `const word SZ = SIZEOF(Point)` works, but `const word SZ = SIZEOF(p)` does not (use the type name instead)
 
 ### STATIC Restrictions
 

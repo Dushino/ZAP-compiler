@@ -236,7 +236,7 @@ found
 - [x] LOW() HIGH() on simple identifier
 - [x] SIZEOF() on struct name
 - [x] LOW() HIGH() LOWW() HIGHW() on complex expressions (fixed LOWW/HIGHW gen_expr fallback via MATH0; test 169)
-- [ ] SIZEOF() on struct instance (not name)
+- [x] SIZEOF() on struct instance (not name) — already works and tested (tests 107, 159 checks 3-4; not supported in const context, only runtime)
 
 
 ### Statements
