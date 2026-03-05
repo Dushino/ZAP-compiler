@@ -321,6 +321,7 @@ found
 ### Optimizations
 - [ ] TMPs and __LVSLOTs generated when not used:
 __TMP4 = __LVSLOT_8 in 169-loww-highw-complex_6502.s
+- [ ] Check all test code generated for optimizations
 
 
 ### Cosmetics
