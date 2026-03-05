@@ -3455,10 +3455,17 @@ class CodeGen:
         if not self.math_routines_needed:
             return
 
-        # Math routines use TMP0..TMP4 for scratch during multiply.
-        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3", "TMP4"})
-
+        # Only flag TMPs actually used by the specific math routines needed.
         needed: set[str] = set(self.math_routines_needed)
+        # MUL8, MUL16_8 use TMP0, TMP1
+        if needed & {"MUL8", "MUL16_8"}:
+            self.used_temps.update({"TMP0", "TMP1"})
+        # MUL16 uses TMP0-TMP4
+        if "MUL16" in needed:
+            self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3", "TMP4"})
+        # MUL32, DIV32, MOD32 use TMP0-TMP3
+        if needed & {"MUL32", "DIV32", "MOD32"}:
+            self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
         # Include dependencies (MUL16_8 uses MUL8)
         if "MUL16_8" in needed:
             needed.add("MUL8")
@@ -4264,15 +4271,19 @@ class CodeGen:
         if self.copy_bytes16_needed:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4")})
 
-        if self.math_routines_needed:
+        # Predict TMPs needed by math routines (emitted later in gen_file_footer)
+        needed = set(self.math_routines_needed)
+        if needed & {"MUL8", "MUL8_A", "MUL16_8"}:
+            temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1")})
+        if "MUL16" in needed:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4")})
+        if needed & {"MUL32", "DIV32", "MOD32"}:
+            temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3")})
 
         for line in code:
             for name in temp_names:
                 if name in line:
                     temps.add(name)
-        if code and not temps.intersection({self._internal_name_map.get("TMP0", "TMP0"), self._internal_name_map.get("TMP1", "TMP1")}):
-            temps.update({self._internal_name_map.get("TMP0", "TMP0"), self._internal_name_map.get("TMP1", "TMP1")})
         return temps
 
     def assign_zeropage(self, procs=None, funcs=None) -> None:
@@ -4520,8 +4531,12 @@ class CodeGen:
         shared_slots_zp: dict[str, int] = {}   # slot_label -> size (in bytes)
         shared_slots_bss: dict[str, int] = {}  # slot_label -> size (in bytes)
         
-        # First, collect slots from system temps (always ZP)
+        # First, collect slots from system temps (always ZP) — only if actually used
         for temp_name, slot_label in self.system_temp_slots.items():
+            # Skip TMP slots not in use
+            internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if temp_name.startswith("TMP") and internal_name not in temps_in_use:
+                continue
             # Determine size based on temp name
             temp_sizes_map = {
                 "MATH_STACK": 32,
@@ -4911,8 +4926,12 @@ class CodeGen:
                 total_size = pointer_array_slot_sizes[slot_label]
                 if total_size == 0:
                     continue
-        # First, collect slots from system temps (always ZP)
+        # First, collect slots from system temps (always ZP) — only if actually used
         for temp_name, slot_label in self.system_temp_slots.items():
+            # Skip TMP slots not in use
+            internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if temp_name.startswith("TMP") and internal_name not in temps_in_use:
+                continue
             # Determine size based on temp name
             temp_sizes_map = {
                 "MATH_STACK": 32,
