@@ -9555,9 +9555,11 @@ class CodeGen:
             elif isinstance(arg, IntLiteral):
                 self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
             else:
-                # For complex expressions, evaluate normally (result is in A with X cleared for byte results)
-                # Just take the low byte that's in A after evaluation
+                # For complex expressions, evaluate then take low byte
                 self.gen_expr(arg)
+                if arg_t.sem_type.base == "LONG":
+                    # LONG result is in MATH0, not A
+                    self.emit("\tLDA MATH0")
             # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
                 self.emit("\tLDX #$00     ; widen byte builtin")
@@ -9587,9 +9589,13 @@ class CodeGen:
                     self._gen_field_access(arg, load_only=True)
                     self.emit(f"\tTXA")
                 else:
-                    # For other expressions, evaluate and use high byte from X
+                    # For other expressions, evaluate and use high byte
                     self.gen_expr(arg)
-                    self.emit("\tTXA")
+                    if arg_t.sem_type.base == "LONG":
+                        # LONG result is in MATH0, byte 1 is the high byte
+                        self.emit("\tLDA MATH0+1")
+                    else:
+                        self.emit("\tTXA")
             # If result is used in 16-bit context, set high byte to 0
             if self.force_word_result:
                 self.emit("\tLDX #$00     ; widen byte builtin")

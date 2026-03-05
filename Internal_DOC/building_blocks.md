@@ -315,6 +315,14 @@ found
 - [x] .error / .warning / .info
 - [ ] .undef — verify behavior
 
+### Bugs found
+- [ ] 
+
+### Optimizations
+- [ ] TMPs and __LVSLOTs generated when not used:
+__TMP4 = __LVSLOT_8 in 169-loww-highw-complex_6502.s
+
+
 ### Cosmetics
 - [ ] Remove compiler debug messages
 - [ ] Check documentation inside of compiler code

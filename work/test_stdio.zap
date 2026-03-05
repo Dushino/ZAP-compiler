@@ -40,7 +40,6 @@ proc main()
         inbuf[ch] = '-'
     end
     inbuf[15] = 0
-    ; ptr = inbuf
     gets(inbuf, 5)
     puts("\nYou entered: ")
     puts(inbuf)
