@@ -313,7 +313,7 @@ found
 - [x] .ifdef / .ifndef / .else / .endif
 - [x] .include / .incbin
 - [x] .error / .warning / .info
-- [ ] .undef — verify behavior
+- [x] .undef — verify behavior
 
 ### Bugs found
 - [ ] 
