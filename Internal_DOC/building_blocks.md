@@ -251,15 +251,15 @@ found
 - [x] for / end (long var)
 - [x] for with step
 - [x] switch / case / default / end
-- [ ] switch with no default
+- [x] switch with no default — verified (test 150, 12 checks; documented in language reference line 1101)
 - [x] break (in while)
 - [x] break (in for)
-- [ ] break (in repeat)
-- [ ] break (in switch)
+- [x] break (in repeat) — verified (test 155, checks 1,4-5,8-9; documented lines 1178-1220, 1401-1408)
+- [x] break (in switch) — verified (tests 105, 150, 156; documented lines 1043, 1328-1376)
 - [x] continue (in for)
 - [x] continue (in while)
-- [ ] continue (in repeat)
-- [ ] continue (inside switch — should affect enclosing loop)
+- [x] continue (in repeat) — verified (test 155, checks 2-3,6-7; documented lines 1192-1217, 1444-1455)
+- [x] continue (inside switch — should affect enclosing loop) — verified (test 156, 4 checks; documented lines 1044-1045, 1140-1154)
 - [x] return (in proc, no expr)
 - [x] return (in func, with expr)
 - [x] asm...end inline assembly
