@@ -78,6 +78,7 @@ proc CONSTRUCTOR()
         vlstart[i] = data
         data = data + SCREEN_X_SIZE   
     end
+    cls()
 end
 
 
@@ -621,6 +622,14 @@ end
 
 
 /*
+    rewind - move file cursor to the beginning of the file
+*/
+func ERRNO rewind(FILE^ fd)
+    return fseek(fd, 0, SEEK_SET)
+end
+
+
+/*
     fread - read from file
 */
 func word fread(FILE^ fd, byte ^buffer, word size, word count)
@@ -712,60 +721,48 @@ end
 
 
 /*
-    printf - print formatted string to screen
+    printb - print 1 Byte decimal number to the screen with optional leading zeroes
 */
-func byte printf(const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    return 0
+proc printb(byte arg, const byte lzero=1, const byte ralign=1)
+
+    byte i, j
+    byte divisor = 100
+    byte buf[3] = {'0', '0', '0'}
+    const byte div[4] = {100, 10, 1, 0}
+
+    i = 0
+    divisor = div[i]
+    while divisor > 0 
+        while arg >= divisor
+            buf[i] += 1
+            arg -= divisor
+        end
+        i += 1
+        divisor = div[i]
+    end
+
+    if !lzero
+        for i=0 to 3
+            if buf[i] != '0'
+                break
+            end
+        end
+    else
+        i = 0
+    end
+
+    if ralign
+        for j = 0 to i
+            putchar(' ')
+        end
+    end
+
+    for j = i to 3
+        putchar(buf[j])
+    end
+
 end
 
-
-/*
-    rewind - move file cursor to the beginning of the file
-*/
-func ERRNO rewind(FILE^ fd)
-    return fseek(fd, 0, SEEK_SET)
-end
-
-
-/*
-    scanf - read formatted string from screen
-*/
-func byte scanf(const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    ; TODO: implement console input reading  
-    return 0
-end
-
-
-/*
-    snprintf - print formatted string to buffer
-*/
-func byte snprintf(byte ^buffer, word size, const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    ; TODO: implement buffer writing  
-    return 0
-end
-
-
-/*
-    sprintf - print formatted string to buffer
-*/
-func byte sprintf(byte ^buffer, const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    ; TODO: implement buffer writing  
-    return 0
-end
-
-
-/*
-    sscanf - read formatted string from buffer
-*/
-func byte sscanf(const byte ^buffer, const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    ; TODO: implement buffer reading  
-    return 0
-end
 
 
 ; EOF

@@ -925,3 +925,9 @@ The following are explicitly flagged as incomplete, untested, or discrepant betw
 16	LOW() / HIGH() on struct field, array element, deref expression	Codegen handles some; edge cases unclear
 17	Auto short branches (long JMP → short BXX where range allows)	Open todo item, not implemented
 This list covers every building block derived from the grammar, tokenizer, parser, and codegen. Items 1–17 in the gap table are the candidates for completeness/correctness testing.
+
+
+**C-Like libraries**
+- [ ] stdio.h
+- [ ] ctype https://cplusplus.com/reference/cctype/
+- [ ] 
