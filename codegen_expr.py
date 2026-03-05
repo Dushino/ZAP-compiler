@@ -9604,7 +9604,10 @@ class CodeGen:
                 self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
                 self.emit(f"\tLDX #${(arg.value >> 8) & 0xFF:02X}")
             else:
-                self._raise_error("LOWW() requires a LONG variable or literal argument")
+                # Complex expression: evaluate into MATH0, then read bytes 0-1
+                self.gen_expr(arg)
+                self.emit("\tLDA MATH0")
+                self.emit("\tLDX MATH0+1")
 
         elif name_upper == "HIGHW":
             # HIGHW(longExpr) → high WORD (bytes 2-3) in A (low) / X (high)
@@ -9616,7 +9619,10 @@ class CodeGen:
                 self.emit(f"\tLDA #${(arg.value >> 16) & 0xFF:02X}")
                 self.emit(f"\tLDX #${(arg.value >> 24) & 0xFF:02X}")
             else:
-                self._raise_error("HIGHW() requires a LONG variable or literal argument")
+                # Complex expression: evaluate into MATH0, then read bytes 2-3
+                self.gen_expr(arg)
+                self.emit("\tLDA MATH0+2")
+                self.emit("\tLDX MATH0+3")
 
         return True
 

@@ -235,7 +235,7 @@ found
 - [x] Pointer arithmetic ptr+int, ptr-int, ptr-ptr
 - [x] LOW() HIGH() on simple identifier
 - [x] SIZEOF() on struct name
-- [ ] LOW() HIGH() LOWW() HIGHW() on complex expressions
+- [x] LOW() HIGH() LOWW() HIGHW() on complex expressions (fixed LOWW/HIGHW gen_expr fallback via MATH0; test 169)
 - [ ] SIZEOF() on struct instance (not name)
 
 
@@ -320,3 +320,4 @@ found
 - [ ] Check documentation inside of compiler code
 - [ ] Implement hotkey for compiler run on current ZAP file
 
+Expression = arithmetic, field access, subscript, deref
