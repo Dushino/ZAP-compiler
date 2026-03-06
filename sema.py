@@ -112,17 +112,13 @@ def eval_array_dimensions(array_sizes, symtab, d_obj=None, struct_registry=None)
             try:
                 sz_val = eval_const_expr(size_expr, symtab, struct_registry)
             except SemanticError as e:
-                line: Any | int = getattr(d_obj, 'line', 0)
-                col: Any | int = getattr(d_obj, 'col', 0)
-                raise SemanticError(e.message, line=line, col=col)
-            
+                raise SemanticError(e.message, node=d_obj)
+
             if sz_val == -1:
                 # [] → will be inferred from initializer
                 array_dims.append(None)
             elif sz_val <= 0:
-                line: Any | int = getattr(d_obj, 'line', 0)
-                col: Any | int = getattr(d_obj, 'col', 0)
-                raise SemanticError("Array dimension must be positive", line=line, col=col)
+                raise SemanticError("Array dimension must be positive", node=d_obj)
             else:
                 array_dims.append(sz_val)
         
@@ -183,7 +179,7 @@ class StructAnalyzer:
                 elem_width = 2
             else:
                 # Unknown non-pointer type
-                raise SemanticError(f"Unsupported field type '{field_type}' in struct", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
+                raise SemanticError(f"Unsupported field type '{field_type}' in struct", node=field_ast)
 
             if is_pointer and elem_width != 2:
                 # Pointers should be 2 bytes
@@ -198,7 +194,7 @@ class StructAnalyzer:
                         size = eval_const_expr(size_expr, struct_registry=self.registry)
                         array_sizes.append(size)
                     except SemanticError as e:
-                        raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
+                        raise SemanticError(f"Invalid array size in struct field '{field_ast.name}': {e.message}", node=field_ast)
 
             # Calculate total width
             width: int = elem_width
@@ -214,7 +210,7 @@ class StructAnalyzer:
                 try:
                     fixed_addr = eval_const_expr(field_ast.address, struct_registry=self.registry)
                 except SemanticError as e:
-                    raise SemanticError(f"Invalid field address: {e.message}", line=getattr(field_ast,'line', None), col=getattr(field_ast,'col', None))
+                    raise SemanticError(f"Invalid field address: {e.message}", node=field_ast)
 
             # Create field info
             field_info = StructFieldInfo(
@@ -246,7 +242,7 @@ class StructAnalyzer:
             self.registry.define(struct_info, node=struct_def)
         except SemanticError as e:
             # Attach struct definition source location if available
-            raise SemanticError(f"Struct definition error: {e.message}", line=struct_def.line, col=struct_def.col)
+            raise SemanticError(f"Struct definition error: {e.message}", node=struct_def)
 
 
 
@@ -318,14 +314,17 @@ class DeclarationAnalyzer:
         if orig_src:
             err.source_text = "\n".join(orig_src)
 
-    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int) -> None:
+    def _validate_struct_init(self, init: ListInit, struct_info, line: int, col: int, filename: str = "") -> None:
         """Recursively validate struct initializer has correct field count and nested structs."""
         num_fields: int = len(struct_info.fields)
         num_values: int = len(init.values)
-        
+
         if num_values != num_fields:
-            raise SemanticError(f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided", line=line, col=col)
-        
+            err = SemanticError(f"Struct '{struct_info.name}' has {num_fields} field(s) but {num_values} value(s) provided", line=line, col=col)
+            if filename:
+                err.filename = filename
+            raise err
+
         # Validate nested structs
         for field, value in zip(struct_info.fields, init.values):
             # Check if field type is a struct by looking it up in registry
@@ -339,7 +338,7 @@ class DeclarationAnalyzer:
                     pass
                 
                 if nested_struct_info and isinstance(value, ListInit):
-                    self._validate_struct_init(value, nested_struct_info, line, col)
+                    self._validate_struct_init(value, nested_struct_info, line, col, filename)
 
     def _analyze_declarator(
         self,
@@ -353,44 +352,44 @@ class DeclarationAnalyzer:
         if decl.is_static or d.is_static:
             # STATIC can only be used on local variables (proc_name must be set)
             if not getattr(self.symtab, '_proc_name', ''):
-                raise SemanticError("STATIC modifier can only be used on local variables", line=d.line, col=d.col)
+                raise SemanticError("STATIC modifier can only be used on local variables", node=d)
             
             # STATIC cannot be used on const variables
             if decl.is_const:
-                raise SemanticError("STATIC and CONST modifiers cannot be combined", line=d.line, col=d.col)
+                raise SemanticError("STATIC and CONST modifiers cannot be combined", node=d)
             
             # STATIC variables must have an initializer
             if d.initializer is None:
-                raise SemanticError("STATIC variable must have an initializer", line=d.line, col=d.col)
+                raise SemanticError("STATIC variable must have an initializer", node=d)
 
         # Validate PORT modifier
         if decl.is_port:
             # PORT cannot be combined with CONST
             if decl.is_const:
-                raise SemanticError("PORT and CONST modifiers cannot be combined", line=d.line, col=d.col)
+                raise SemanticError("PORT and CONST modifiers cannot be combined", node=d)
             
             # PORT cannot be combined with STATIC
             if decl.is_static or d.is_static:
-                raise SemanticError("PORT and STATIC modifiers cannot be combined", line=d.line, col=d.col)
+                raise SemanticError("PORT and STATIC modifiers cannot be combined", node=d)
             
             # PORT requires an address specification (@)
             if d.address is None:
-                raise SemanticError("PORT modifier requires address specification with @", line=d.line, col=d.col)
+                raise SemanticError("PORT modifier requires address specification with @", node=d)
             
             # PORT cannot be used on arrays
             if d.array_size is not None or d.array_sizes is not None:
-                raise SemanticError("PORT modifier cannot be used on arrays", line=d.line, col=d.col)
+                raise SemanticError("PORT modifier cannot be used on arrays", node=d)
             
             # PORT cannot be used on pointers
             if decl.type.is_pointer:
-                raise SemanticError("PORT modifier cannot be used on pointers", line=d.line, col=d.col)
+                raise SemanticError("PORT modifier cannot be used on pointers", node=d)
             
             # PORT cannot have initializers (hardware ports can't be initialized)
             if d.initializer is not None:
-                raise SemanticError("PORT variable cannot have initializer", line=d.line, col=d.col)
+                raise SemanticError("PORT variable cannot have initializer", node=d)
         # RD/WR modifiers must be used together with #PORT
         if (getattr(decl, 'port_rd', False) or getattr(decl, 'port_wr', False)) and not decl.is_port:
-            raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", line=d.line, col=d.col)
+            raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", node=d)
 
         # Extract array dimensions (supports multi-dimensional arrays)
         array_sizes_to_eval: List[Expr] = d.array_sizes if d.array_sizes else (
@@ -458,7 +457,7 @@ class DeclarationAnalyzer:
         # const pravidla
         if decl.is_const:
             if d.address is not None:
-                raise SemanticError("CONST cannot have address", line=d.line, col=d.col)
+                raise SemanticError("CONST cannot have address", node=d)
             
             # CONST can have expression initializer (scalars), ListInit (structs/arrays), or StringInit (byte arrays)
             if isinstance(d.initializer, ExprInit):
@@ -473,8 +472,8 @@ class DeclarationAnalyzer:
                         lookup_symtab = self.symtab
                     val = eval_const_expr(d.initializer.expr, lookup_symtab, self.struct_registry)
                 except SemanticError as e:
-                    raise SemanticError(e.message, line=d.line, col=d.col)
-                
+                    raise SemanticError(e.message, node=d)
+
                 # Check if constant fits in its type
                 if sem_type.base == "BYTE" and not sem_type.is_pointer:
                     if val < 0 or val > 0xFF:
@@ -513,7 +512,7 @@ class DeclarationAnalyzer:
                     self.symtab.define(sym)
                 except SemanticError as e:
                     # Re-raise with better context for constants
-                    raise SemanticError(f"Constant '{d.name}': {e.message}", line=d.line, col=d.col)
+                    raise SemanticError(f"Constant '{d.name}': {e.message}", node=d)
                 # Scalar const handled - no further processing for this declarator
                 return
 
@@ -526,12 +525,12 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                         if array_len == 0:
-                            raise SemanticError("Array initializer must have at least one element", line=d.line, col=d.col)
+                            raise SemanticError("Array initializer must have at least one element", node=d)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
                             raise SemanticError("Array initializer size mismatch", node=size_expr)
-                        raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                        raise SemanticError("Array initializer size mismatch", node=d)
                     
                 # Use effective rd/wr computed earlier
                 
@@ -557,13 +556,13 @@ class DeclarationAnalyzer:
                     try:
                         self.symtab.define(sym, node=d)
                     except SemanticError as e:
-                        raise SemanticError(f"Const array '{d.name}': {e.message}", line=d.line, col=d.col)
+                        raise SemanticError(f"Const array '{d.name}': {e.message}", node=d)
                     return
                 
                 elif sem_type.is_struct:
                     # Const struct (non-array)
                     # Validate field count (including nested)
-                    self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
+                    self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col, d.filename)
                     
                     # Use effective rd/wr computed earlier
                     sym = Symbol(
@@ -588,17 +587,17 @@ class DeclarationAnalyzer:
                     try:
                         self.symtab.define(sym, node=d)
                     except SemanticError as e:
-                        raise SemanticError(f"Const struct '{d.name}': {e.message}", line=d.line, col=d.col)
+                        raise SemanticError(f"Const struct '{d.name}': {e.message}", node=d)
                     return
                 else:
-                    raise SemanticError("List initializer only allowed for struct or array types", line=d.line, col=d.col)
+                    raise SemanticError("List initializer only allowed for struct or array types", node=d)
             
             elif isinstance(d.initializer, StringInit):
                 # String init for const byte array
                 if not is_array:
-                    raise SemanticError("String initializer for scalar", line=d.line, col=d.col)
+                    raise SemanticError("String initializer for scalar", node=d)
                 if sem_type.base.lower() != "byte":
-                    raise SemanticError("String only allowed for byte array", line=d.line, col=d.col)
+                    raise SemanticError("String only allowed for byte array", node=d)
                 
                 if array_len is None:
                     array_len: int = len(d.initializer.value) + 1
@@ -626,11 +625,11 @@ class DeclarationAnalyzer:
                 try:
                     self.symtab.define(sym, node=d)
                 except SemanticError as e:
-                    raise SemanticError(f"Const string '{d.name}': {e.message}", line=d.line, col=d.col)
+                    raise SemanticError(f"Const string '{d.name}': {e.message}", node=d)
                 return
             
             else:
-                raise SemanticError("CONST must have initializer (expression, list, or string)", line=d.line, col=d.col)
+                raise SemanticError("CONST must have initializer (expression, list, or string)", node=d)
 
 
         # inicializace pole
@@ -645,19 +644,19 @@ class DeclarationAnalyzer:
                         elem = d.initializer.values[i]
                         # elem may be Expr or InitValue; we only accept ListInit for struct array elements
                         if isinstance(elem, ListInit):
-                            self._validate_struct_init(elem, sem_type.struct_info, d.line, d.col)
+                            self._validate_struct_init(elem, sem_type.struct_info, d.line, d.col, d.filename)
                         else:
-                            raise SemanticError(f"Struct array element {i} must be a list initializer", line=d.line, col=d.col)
+                            raise SemanticError(f"Struct array element {i} must be a list initializer", node=d)
                     
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                         if array_len == 0:
-                            raise SemanticError("Array initializer must have at least one element", line=d.line, col=d.col)
+                            raise SemanticError("Array initializer must have at least one element", node=d)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
                             raise SemanticError("Array initializer size mismatch", node=size_expr)
-                        raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                        raise SemanticError("Array initializer size mismatch", node=d)
 
                     # Resolve inferred dimensions in array_dims from initializer
                     if array_dims and None in array_dims:
@@ -669,12 +668,12 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                         if array_len == 0:
-                            raise SemanticError("Array initializer must have at least one element", line=d.line, col=d.col)
+                            raise SemanticError("Array initializer must have at least one element", node=d)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
                             raise SemanticError("Array initializer size mismatch", node=size_expr)
-                        raise SemanticError("Array initializer size mismatch", line=d.line, col=d.col)
+                        raise SemanticError("Array initializer size mismatch", node=d)
                     
                     # Resolve inferred dimensions in array_dims from initializer
                     if array_dims and None in array_dims:
@@ -683,18 +682,15 @@ class DeclarationAnalyzer:
                         array_dims[-1] = inferred_size
 
             elif isinstance(d.initializer, StringInit):
-                init_line = getattr(d.initializer, "line", d.line)
-                init_col = getattr(d.initializer, "col", d.col)
                 if sem_type.base.lower() != "byte":
-                    raise SemanticError("String only allowed for byte array", line=init_line, col=init_col)
-                
+                    raise SemanticError("String only allowed for byte array", node=d)
+
                 # Check if string fits in the specified array size
                 string_len: int = len(d.initializer.value) + 1  # +1 for NUL terminator
                 if array_len is not None and string_len > array_len:
                     raise SemanticError(
                         f"String length {len(d.initializer.value)} + 1 = {string_len} exceeds array size {array_len}",
-                        line=init_line,
-                        col=init_col
+                        node=d
                     )
                 
                 if array_len is None:
@@ -707,27 +703,25 @@ class DeclarationAnalyzer:
                     array_dims[-1] = inferred_size
 
             elif d.initializer is not None:
-                raise SemanticError("Invalid array initializer", line=d.line, col=d.col)
+                raise SemanticError("Invalid array initializer", node=d)
 
             # Check if array size is specified (either array_len for 1D or array_dims for multi-dimensional)
             if array_len is None and (not array_dims or None in array_dims):
-                raise SemanticError("Array size required", line=d.line, col=d.col)
+                raise SemanticError("Array size required", node=d)
 
         # skalární proměnná
         else:
             if isinstance(d.initializer, ListInit):
                 # ListInit is allowed for struct types for nested initialization
                 if not sem_type.is_struct:
-                    raise SemanticError("List initializer for scalar", line=d.line, col=d.col)
+                    raise SemanticError("List initializer for scalar", node=d)
                 
                 # Validate struct field count matches initializer value count (including nested)
                 if sem_type.struct_info:
-                    self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col)
+                    self._validate_struct_init(d.initializer, sem_type.struct_info, d.line, d.col, d.filename)
 
             if isinstance(d.initializer, StringInit):
-                init_line = getattr(d.initializer, "line", d.line)
-                init_col = getattr(d.initializer, "col", d.col)
-                raise SemanticError("String initializer for scalar", line=init_line, col=init_col)
+                raise SemanticError("String initializer for scalar", node=d)
             
             # Check if initializer is a constant that fits in the type
             if isinstance(d.initializer, ExprInit) and isinstance(d.initializer.expr, IntLiteral):
@@ -789,7 +783,7 @@ class DeclarationAnalyzer:
             self.symtab.define(sym, node=d)
         except SemanticError as e:
             # Re-raise with better context
-            raise SemanticError(f"{e.message}", line=d.line, col=d.col)
+            raise SemanticError(f"{e.message}", node=d)
 
 
 class EnumAnalyzer:

@@ -10,7 +10,11 @@
       "Bash(ls *)",
       "Bash(make *)",
       "Bash(sed *)",
-      "Bash(xxd tests/pass/*)"      
+      "Bash(xxd tests/pass/*)",
+      "Bash(python -c \"from parser import Parser; print\\(''parser OK''\\)\")",
+      "Bash(python -m pyright --outputjson)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f''errors={d[\"\"summary\"\"][\"\"errorCount\"\"]} warnings={d[\"\"summary\"\"][\"\"warningCount\"\"]}''\\)\")",
+      "Bash(pyright --ignore generated_tests)"
     ],
     "additionalDirectories": [
       "/home/dusan/src/ZAP-compiler/tests/pass",

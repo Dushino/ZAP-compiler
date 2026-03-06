@@ -108,6 +108,7 @@ class Declarator(ASTNode):
     line: int = 0
     col: int = 0
     is_static: bool = False  # True for STATIC variables
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return a readable declarator representation."""
@@ -166,6 +167,9 @@ class StructField(ASTNode):
     is_port: bool = False
     port_rd: Optional[bool] = None
     port_wr: Optional[bool] = None
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return a readable struct-field representation."""
@@ -198,6 +202,7 @@ class StructDef(ASTNode):
     export: bool = False    # #EXPORT forces export even in non-module files
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return a readable struct definition representation."""
@@ -224,6 +229,7 @@ class IntLiteral(Expr):
     value: int
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return the literal as a string for debugging."""
@@ -236,6 +242,7 @@ class StringLiteral(Expr):
     value: str
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return the literal as a string for debugging."""
@@ -248,6 +255,7 @@ class StructLiteral(Expr):
     values: List["Expr | InitValue"]
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return a readable struct-literal representation."""
@@ -261,6 +269,7 @@ class Identifier(Expr):
     name: str
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self) -> str:
         """Return the identifier name for debugging."""
@@ -272,6 +281,7 @@ class DerefExpr(Expr):
     pointer: Expr
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self):
         """Return a readable dereference representation."""
@@ -281,7 +291,7 @@ class DerefExpr(Expr):
 @dataclass(frozen=True)
 class SubscriptExpr(Expr):
     """Array subscript: arr[index] or nested arr[i][j]
-    
+
     For multi-dimensional arrays, nesting creates the structure:
       arr[i][j] → SubscriptExpr(SubscriptExpr(arr, i), j)
     """
@@ -289,6 +299,7 @@ class SubscriptExpr(Expr):
     index: Expr
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self):
         """Return a readable subscript representation."""
@@ -303,6 +314,7 @@ class FieldAccess(Expr):
     is_deref: bool = False    # True if via pointer dereference (ptr^.field)
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self):
         """Return a readable field-access representation."""
@@ -341,6 +353,7 @@ class BinaryExpr(Expr):
     right: Expr
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self):
         """Return a readable binary expression representation."""
@@ -362,6 +375,7 @@ class UnaryExpr(Expr):
     expr: Expr
     line: int = 0
     col: int = 0
+    filename: str = ""
 
     def __repr__(self):
         """Return a readable unary expression representation."""
@@ -375,6 +389,7 @@ class CallExpr(Expr):
     args: list
     line: int = 0
     col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -389,6 +404,9 @@ class FuncDecl:
     keep: bool = False      # #KEEP prevents dead-code elimination of unused func
     noexport: bool = False  # #NOEXPORT prevents export even in non-module files
     export: bool = False
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -400,6 +418,7 @@ class Parameter:
     default_value: Optional["Expr"] = None  # Default value expression, None if required param
     line: int = 0
     col: int = 0
+    filename: str = ""
 
 @dataclass(frozen=True)
 class ProcDecl:
@@ -412,6 +431,9 @@ class ProcDecl:
     keep: bool = False      # #KEEP prevents dead-code elimination of unused proc
     noexport: bool = False  # #NOEXPORT prevents exporting from a module
     export: bool = False    # #EXPORT forces export even in non-module files
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -419,6 +441,9 @@ class CallStmt:
     """Procedure call statement node."""
     name: str
     args: list
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -426,6 +451,9 @@ class AssignStmt:
     """Assignment statement node."""
     lhs: Expr
     rhs: Expr
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 
@@ -434,6 +462,9 @@ class AssignStmt:
 class ReturnStmt:
     """Return statement node."""
     expr: Optional[Expr]
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 
@@ -487,6 +518,9 @@ class IfStmt:
     cond: Expr
     then_body: list
     else_body: list | None
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -494,6 +528,9 @@ class WhileStmt:
     """While loop statement node."""
     cond: Expr
     body: list
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -501,17 +538,24 @@ class RepeatUntilStmt:
     """Repeat-until loop statement node."""
     body: list
     cond: Expr
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
 class BreakStmt:
     """Loop break statement node."""
-    pass
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 @dataclass(frozen=True)
 class ContinueStmt:
     """Loop continue statement node."""
-    pass
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 @dataclass
 class ForStmt:
@@ -521,6 +565,9 @@ class ForStmt:
     end: Expr
     step: Expr | None
     body: list
+    line: int = 0
+    col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -536,3 +583,6 @@ class SwitchStmt:
     """Switch statement node with case list."""
     expr: Expr
     cases: list[SwitchCase]
+    line: int = 0
+    col: int = 0
+    filename: str = ""

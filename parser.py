@@ -347,6 +347,8 @@ class Parser:
             
             # field name
             field_name: str = self.cur.value
+            field_name_line: int = self.cur.line
+            field_name_col: int = self.cur.col
             if field_name.startswith('_'):
                 self.error("Field names cannot start with underscore")
             self.expect(TOK_IDENT)
@@ -390,7 +392,8 @@ class Parser:
                 self.advance()
 
             fields.append(StructField(field_type, field_name, field_addr, array_sizes,
-                                      is_port=field_is_port, port_rd=field_port_rd, port_wr=field_port_wr))
+                                      is_port=field_is_port, port_rd=field_port_rd, port_wr=field_port_wr,
+                                      line=field_name_line, col=field_name_col, filename=self.filename))
         
         self.expect(TOK_KEYWORD, "END")
         return StructDef(
@@ -403,6 +406,7 @@ class Parser:
             export=struct_export,
             line=start_line,
             col=start_col,
+            filename=self.filename,
         )
 
     def parse_enum(self) -> EnumDecl:
@@ -547,7 +551,7 @@ class Parser:
         self.expect(TOK_KEYWORD, "END")
 
         self.current_proc_name = None
-        return ProcDecl(name, params, locals, body, keep=keep, noexport=noexport, export=export)
+        return ProcDecl(name, params, locals, body, keep=keep, noexport=noexport, export=export, line=start_line, col=start_col, filename=self.filename)
 
     def parse_func(self) -> FuncDecl:
         """Parse a function declaration and its body."""
@@ -630,7 +634,7 @@ class Parser:
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.proc_src[name] = (self.filename, start_line, start_col, line_text)
 
-        return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body, keep=keep, noexport=noexport, export=export)
+        return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, locals, body, keep=keep, noexport=noexport, export=export, line=start_line, col=start_col, filename=self.filename)
 
     def parse_parameter(self) -> Parameter:
         """Parse a single parameter with optional default value."""
@@ -673,7 +677,7 @@ class Parser:
             self.advance()
             default_value = self.parse_expr()
         
-        return Parameter(TypeNode(type_base, is_pointer), name, is_array, default_value, name_line, name_col)
+        return Parameter(TypeNode(type_base, is_pointer), name, is_array, default_value, name_line, name_col, filename=self.filename)
 
     def parse_init_value(self):
         """Parse an initializer value: either a nested list { ... } or an expression."""
@@ -837,7 +841,8 @@ class Parser:
                 array_sizes=array_sizes if array_sizes else None,
                 line=decl_line,
                 col=decl_col,
-                is_static=is_static
+                is_static=is_static,
+                filename=self.filename,
             )
 
         declarators: list[Declarator] = [parse_declarator()]
@@ -1005,7 +1010,8 @@ class Parser:
                 array_sizes=array_sizes if array_sizes else None,
                 line=decl_line,
                 col=decl_col,
-                is_static=is_static
+                is_static=is_static,
+                filename=self.filename,
             )
 
         declarators = [parse_declarator()]
@@ -1064,7 +1070,7 @@ class Parser:
             deref_line: int = self.cur.line
             deref_col: int = self.cur.col
             self.advance()  # consume ^
-            node = DerefExpr(inner, line=deref_line, col=deref_col)
+            node = DerefExpr(inner, line=deref_line, col=deref_col, filename=self.filename)
             # Allow .field after (expr)^ for struct pointer arithmetic
             if self.cur.type == TOK_OP and self.cur.value == ".":
                 self.advance()
@@ -1074,7 +1080,7 @@ class Parser:
                 field_line: int = self.cur.line
                 field_col: int = self.cur.col
                 self.advance()
-                node = FieldAccess(node, field_name, is_deref=True, line=field_line, col=field_col)
+                node = FieldAccess(node, field_name, is_deref=True, line=field_line, col=field_col, filename=self.filename)
             return node
 
         if self.cur.type != TOK_IDENT:
@@ -1082,7 +1088,7 @@ class Parser:
 
         name_line: int = self.cur.line
         name_col: int = self.cur.col
-        node = Identifier(self.cur.value, line=name_line, col=name_col)
+        node = Identifier(self.cur.value, line=name_line, col=name_col, filename=self.filename)
         self.advance()
 
         while True:
@@ -1095,7 +1101,7 @@ class Parser:
                     self.advance()
                 else:
                     self.error("Expected ']' after subscript")
-                node = SubscriptExpr(node, idx, line=br_line, col=br_col)
+                node = SubscriptExpr(node, idx, line=br_line, col=br_col, filename=self.filename)
                 continue
             if (self.cur.type == TOK_PTR) or (self.cur.type == TOK_OP and self.cur.value == "^"):
                 # Check for ptr^.field pattern BEFORE treating ^ as postfix deref
@@ -1115,7 +1121,7 @@ class Parser:
                     field_col: int = self.cur.col
                     field_name: str = self.cur.value
                     self.advance()
-                    node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col), field_name, is_deref=True, line=field_line, col=field_col)
+                    node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col, filename=self.filename), field_name, is_deref=True, line=field_line, col=field_col, filename=self.filename)
                     continue
                 # Also check if this might be binary XOR (a ^ b) rather than postfix deref
                 # If next token could start an expression operand on the same line, it's probably XOR
@@ -1128,7 +1134,7 @@ class Parser:
                 deref_line: int = self.cur.line
                 deref_col: int = self.cur.col
                 self.advance()
-                node = DerefExpr(node, line=deref_line, col=deref_col)
+                node = DerefExpr(node, line=deref_line, col=deref_col, filename=self.filename)
                 continue
             # Handle field access: obj.field
             if self.cur.type == TOK_OP and self.cur.value == ".":
@@ -1141,7 +1147,7 @@ class Parser:
                 field_col: int = self.cur.col
                 field_name: str = self.cur.value
                 self.advance()
-                node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col)
+                node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col, filename=self.filename)
                 continue
             # Handle pointer field access: ptr^.field (handled as ptr^ then field)
             break
@@ -1175,15 +1181,15 @@ class Parser:
                     else:
                         args.append(self.parse_expr())
             self.expect(TOK_RBRACE)
-            return CallStmt(lhs.name, args)
+            return CallStmt(lhs.name, args, line=start_line, col=start_col, filename=self.filename)
 
         if self.cur.type == TOK_COMPOUNDASSIGN:
             op_str: str = self.cur.value   # "+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>"
             self.advance()
             rhs_expr = self.parse_expr()
             # Desugar: lhs op= rhs_expr  →  lhs = lhs op rhs_expr
-            binary = BinaryExpr(lhs, BinOp(op_str), rhs_expr, line=start_line, col=start_col)
-            node = AssignStmt(lhs, binary)
+            binary = BinaryExpr(lhs, BinOp(op_str), rhs_expr, line=start_line, col=start_col, filename=self.filename)
+            node = AssignStmt(lhs, binary, line=start_line, col=start_col, filename=self.filename)
             line_text: str = (self.source_lines[start_line-1]
                               if 1 <= start_line <= len(self.source_lines) else "")
             self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
@@ -1192,7 +1198,7 @@ class Parser:
         self.expect(TOK_EQU)
 
         rhs = self.parse_expr()
-        node = AssignStmt(lhs, rhs)
+        node = AssignStmt(lhs, rhs, line=start_line, col=start_col, filename=self.filename)
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
@@ -1206,7 +1212,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_factor()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1219,7 +1225,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_add()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1232,7 +1238,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_term()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1247,7 +1253,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_shift()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1260,7 +1266,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_rel()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1273,7 +1279,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_and()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1286,7 +1292,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_xor()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1299,7 +1305,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_bitwise_or()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
 
@@ -1312,7 +1318,7 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             rhs = self.parse_logic_and()
-            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col)
+            node = BinaryExpr(node, op, rhs, line=op_line, col=op_col, filename=self.filename)
         return node
 
     def parse_expr(self):
@@ -1328,14 +1334,14 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Parse the expression to take address of
-            return UnaryExpr(UnOp.ADDROF, operand, line=op_line, col=op_col)
+            return UnaryExpr(UnOp.ADDROF, operand, line=op_line, col=op_col, filename=self.filename)
         
         if self.cur.type == TOK_OP and self.cur.value == "~":
             op_line: int = self.cur.line
             op_col: int = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
-            return UnaryExpr(UnOp.BNOT, operand, line=op_line, col=op_col)
+            return UnaryExpr(UnOp.BNOT, operand, line=op_line, col=op_col, filename=self.filename)
         
         if self.cur.type == TOK_OP and self.cur.value == "!":
             # Logical NOT operator
@@ -1343,27 +1349,27 @@ class Parser:
             op_col: int = self.cur.col
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
-            return UnaryExpr(UnOp.NOT, operand, line=op_line, col=op_col)
+            return UnaryExpr(UnOp.NOT, operand, line=op_line, col=op_col, filename=self.filename)
         
         if self.cur.type == TOK_NUMBER:
             val: str = self.cur.value
             num_line: int = self.cur.line
             num_col: int = self.cur.col
             self.advance()
-            return IntLiteral(int(val, 0), line=num_line, col=num_col)
+            return IntLiteral(int(val, 0), line=num_line, col=num_col, filename=self.filename)
 
         if self.cur.type == TOK_STRING:
             val: str = self.cur.value
             str_line: int = self.cur.line
             str_col: int = self.cur.col
             self.advance()
-            return StringLiteral(val, line=str_line, col=str_col)
+            return StringLiteral(val, line=str_line, col=str_col, filename=self.filename)
 
         if self.cur.type == TOK_IDENT:
             name: str = self.cur.value
             name_line: int = self.cur.line
             name_col: int = self.cur.col
-            node = Identifier(name, line=name_line, col=name_col)
+            node = Identifier(name, line=name_line, col=name_col, filename=self.filename)
             self.advance()
 
             while True:
@@ -1388,7 +1394,7 @@ class Parser:
                             else:
                                 args.append(self.parse_expr())
                     self.expect(TOK_RBRACE)
-                    node = CallExpr(name, args, line=name_line, col=name_col)
+                    node = CallExpr(name, args, line=name_line, col=name_col, filename=self.filename)
                     continue  # allow postfix .field / [idx] on call result
                 if self.cur.type in (TOK_SQB, TOK_OP) and self.cur.value == "[":
                     br_line: int = self.cur.line
@@ -1399,7 +1405,7 @@ class Parser:
                         self.advance()
                     else:
                         self.error("Expected ']' after subscript")
-                    node = SubscriptExpr(node, idx, line=br_line, col=br_col)
+                    node = SubscriptExpr(node, idx, line=br_line, col=br_col, filename=self.filename)
                     continue
                 # IMPORTANT: Check for ptr^.field BEFORE checking for standalone ^
                 # This must be checked first because ^ can be consumed as postfix deref
@@ -1416,7 +1422,7 @@ class Parser:
                         field_col: int = self.cur.col
                         field_name: str = self.cur.value
                         self.expect(TOK_IDENT)
-                        node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col), field_name, is_deref=True, line=field_line, col=field_col)
+                        node = FieldAccess(DerefExpr(node, line=ptr_line, col=ptr_col, filename=self.filename), field_name, is_deref=True, line=field_line, col=field_col, filename=self.filename)
                         continue
                 # For caret: only treat as postfix dereference if next token cannot start an expression
                 # If it could be an expression (IDENT, NUMBER, LBRACE, etc.), then it's likely binary XOR
@@ -1424,7 +1430,7 @@ class Parser:
                     deref_line: int = self.cur.line
                     deref_col: int = self.cur.col
                     self.advance()
-                    node = DerefExpr(node, line=deref_line, col=deref_col)
+                    node = DerefExpr(node, line=deref_line, col=deref_col, filename=self.filename)
                     continue
                 # Check for caret as postfix dereference
                 # Only consume it if the next token is NOT an identifier or number (which would indicate binary XOR)
@@ -1440,7 +1446,7 @@ class Parser:
                     deref2_line: int = self.cur.line
                     deref2_col: int = self.cur.col
                     self.advance()
-                    node = DerefExpr(node, line=deref2_line, col=deref2_col)
+                    node = DerefExpr(node, line=deref2_line, col=deref2_col, filename=self.filename)
                     continue
                 # Field access: obj.field
                 if self.cur.type == TOK_OP and self.cur.value == ".":
@@ -1451,7 +1457,7 @@ class Parser:
                     field_col: int = self.cur.col
                     field_name: str = self.cur.value
                     self.expect(TOK_IDENT)
-                    node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col)
+                    node = FieldAccess(node, field_name, is_deref=False, line=field_line, col=field_col, filename=self.filename)
                     continue
                 break
             return node
@@ -1469,7 +1475,7 @@ class Parser:
                         break
                     values.append(self.parse_init_value())
             self.expect(TOK_RCURLY)
-            return StructLiteral(values, line=lit_line, col=lit_col)
+            return StructLiteral(values, line=lit_line, col=lit_col, filename=self.filename)
 
         if self.cur.type == TOK_LBRACE:
             self.advance()
@@ -1489,7 +1495,7 @@ class Parser:
                     deref_line: int = self.cur.line
                     deref_col: int = self.cur.col
                     self.advance()  # consume ^
-                    node = DerefExpr(node, line=deref_line, col=deref_col)
+                    node = DerefExpr(node, line=deref_line, col=deref_col, filename=self.filename)
                     # Allow .field after (expr)^
                     if self.cur.type == TOK_OP and self.cur.value == ".":
                         self.advance()
@@ -1519,7 +1525,7 @@ class Parser:
         ):
             then_body.append(self.parse_stmt())
 
-        root_if = IfStmt(cond, then_body, None)
+        root_if = IfStmt(cond, then_body, None, line=start_line, col=start_col, filename=self.filename)
         cur_if: IfStmt = root_if
 
         # ELSEIF*
@@ -1534,7 +1540,7 @@ class Parser:
             ):
                 body.append(self.parse_stmt())
 
-            next_if = IfStmt(cond, body, None)
+            next_if = IfStmt(cond, body, None, line=self.cur.line, col=self.cur.col, filename=self.filename)
             cur_if.else_body = [next_if]
             cur_if: IfStmt = next_if
 
@@ -1609,7 +1615,7 @@ class Parser:
             self.error("SWITCH requires at least one CASE or DEFAULT")
 
         self.expect(TOK_KEYWORD, "END")
-        node = SwitchStmt(expr, cases)
+        node = SwitchStmt(expr, cases, line=start_line, col=start_col, filename=self.filename)
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
@@ -1627,7 +1633,7 @@ class Parser:
             body.append(self.parse_stmt())
 
         self.expect(TOK_KEYWORD, "END")
-        node = WhileStmt(cond, body)
+        node = WhileStmt(cond, body, line=start_line, col=start_col, filename=self.filename)
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
@@ -1639,7 +1645,7 @@ class Parser:
         self.expect(TOK_KEYWORD, "FOR")
 
         # i
-        var = Identifier(self.cur.value)
+        var = Identifier(self.cur.value, line=self.cur.line, col=self.cur.col, filename=self.filename)
         self.expect(TOK_IDENT)
 
         self.expect(TOK_EQU)
@@ -1658,7 +1664,7 @@ class Parser:
             body.append(self.parse_stmt())
 
         self.expect(TOK_KEYWORD, "END")
-        node = ForStmt(var, start, end, step, body)
+        node = ForStmt(var, start, end, step, body, line=start_line, col=start_col, filename=self.filename)
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
@@ -1679,7 +1685,7 @@ class Parser:
         self.expect(TOK_KEYWORD, "UNTIL")
         cond = self.parse_expr()
 
-        node = RepeatUntilStmt(body, cond)
+        node = RepeatUntilStmt(body, cond, line=start_line, col=start_col, filename=self.filename)
         line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
         self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
         return node
@@ -1777,7 +1783,7 @@ class Parser:
                 start_line: int = self.cur.line
                 start_col: int = self.cur.col
                 self.advance()
-                node = BreakStmt()
+                node = BreakStmt(line=start_line, col=start_col, filename=self.filename)
                 line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
                 self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node
@@ -1785,7 +1791,7 @@ class Parser:
                 start_line: int = self.cur.line
                 start_col: int = self.cur.col
                 self.advance()
-                node = ContinueStmt()
+                node = ContinueStmt(line=start_line, col=start_col, filename=self.filename)
                 line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
                 self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node
@@ -1801,7 +1807,7 @@ class Parser:
                     # There's something after RETURN that looks like an expression
                     if self.cur.type not in (TOK_KEYWORD,):
                         expr = self.parse_expr()
-                node = ReturnStmt(expr)
+                node = ReturnStmt(expr, line=start_line, col=start_col, filename=self.filename)
                 line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
                 self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node
@@ -1832,7 +1838,7 @@ class Parser:
                         else:
                             args.append(self.parse_expr())
                 self.expect(TOK_RBRACE)
-                node = CallStmt(name, args)
+                node = CallStmt(name, args, line=start_line, col=start_col, filename=self.filename)
                 line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
                 self.stmt_src[id(node)] = (self.filename, start_line, start_col, line_text)
                 return node

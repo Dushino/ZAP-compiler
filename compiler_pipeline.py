@@ -1738,7 +1738,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     e.filename = fname
                     _attach_source_text(e, fname)
                     raise e
-                # No per-declaration source info available; attach a fallback position
+                # Fallback using AST node location
                 raise SemanticError(f"Variable '{name}' conflicts with .define symbol", line=1, col=1)
 
     # --- expression type checker ---
@@ -1765,8 +1765,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     e.filename = fname
                     _attach_source_text(e, fname)
                     raise e
-                # No per-proc source info available; attach a fallback position
-                raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable", line=1, col=1)
+                raise SemanticError(f"Procedure '{p.name}' conflicts with existing variable", node=p)
             # Check for collision with .define symbols
             if defined_symbols and p.name.upper() in defined_symbols:
                 proc_src = debug.get("proc_src") or {}
@@ -1778,8 +1777,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     e.filename = fname
                     _attach_source_text(e, fname)
                     raise e
-                # No per-proc source info available; attach a fallback position
-                raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", line=1, col=1)
+                raise SemanticError(f"Procedure '{p.name}' conflicts with .define symbol", node=p)
         elif isinstance(p, FuncDecl):
             func_an.analyze_decl(p)
             # Check for collision with existing global variables
@@ -1793,8 +1791,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     e.filename = fname
                     _attach_source_text(e, fname)
                     raise e
-                # No per-func source info available; attach a fallback position
-                raise SemanticError(f"Function '{p.name}' conflicts with existing variable", line=1, col=1)
+                raise SemanticError(f"Function '{p.name}' conflicts with existing variable", node=p)
             # Check for collision with .define symbols
             if defined_symbols and p.name.upper() in defined_symbols:
                 proc_src = debug.get("proc_src") or {}
@@ -1806,8 +1803,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     e.filename = fname
                     _attach_source_text(e, fname)
                     raise e
-                # No per-func source info available; attach a fallback position
-                raise SemanticError(f"Function '{p.name}' conflicts with .define symbol", line=1, col=1)
+                raise SemanticError(f"Function '{p.name}' conflicts with .define symbol", node=p)
     
     # Ensure main() procedure exists (required for initialization code)
     try:

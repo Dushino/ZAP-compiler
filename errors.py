@@ -16,8 +16,9 @@ class CompileError(Exception):
         # Normalize the stored values: only positive ints are meaningful
         self.line = line if isinstance(line, int) and line >= 1 else None
         self.col = col if isinstance(col, int) and col >= 1 else None
-        # Optional extra context
-        self.filename: str | None = None
+        # Optional extra context — auto-extract filename from node if available
+        node_filename = getattr(node, "filename", None) if node is not None else None
+        self.filename: str | None = node_filename if node_filename else None
         self.source_text: str | None = None
 
 
