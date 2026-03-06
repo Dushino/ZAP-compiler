@@ -559,19 +559,45 @@ end
 func byte find_free_IOCB()
     byte i
 
-    for i = 0 to 8
-        putx(i)
-        putchar(':')
-        putx(IOCB[i].ICHID)
-        crlf()
-        ;if IOCB[i].ICHID == 0
-        ;    return i
-        ;end
+    for i = 0 to 8        
+        if IOCB[i].ICHID == 255
+            return i
+        end
     end    
     return 255 ; no free IOCB found
 end
 
 
+
+func byte XIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+    byte rv
+
+    ch &= $07
+
+    if IOCB[ch].ICHID == 255
+        return ERRNO.ENODEV
+    end
+
+    IOCB[ch].ICCOM = command
+    IOCB[ch].ICBA = adr1
+    IOCB[ch].ICBL = adr2
+    IOCB[ch].ICAX1 = aux1
+    IOCB[ch].ICAX2 = aux2
+    IOCB[ch].ICAX3 = aux3
+
+    ch <<= 4
+    asm
+        ldx _XIO_ch
+        jsr $E456 ; call XIO handler
+        sta _XIO_RV
+    end
+
+    if rv != 0
+        return rv
+    end
+
+    return 0
+end
 
 /*
     fopen - open file
@@ -579,7 +605,7 @@ end
 ; FIXME: return value should be FILE^ or ERRNO
 func byte fopen(FILE^ fd, byte^ filename, byte mode)
     
-    fd = NULL
+    byte i, rv
 
     ; TODO: implement file opening  
     if fd == NULL        
@@ -587,9 +613,22 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
         return 0
     end
     
+    i = find_free_IOCB()
+    if i == 255
+        return ERRNO.ENODEV
+    end
 
-    set_fderror(fd, ERRNO.ENODEV)
-    
+
+    rv = XIO(i, ICCOM_COMMANDS.Open, filename, 0, mode)
+    if rv
+        return rv
+    end
+
+    set_fderror(fd, ERRNO.OK)
+    fd^.fd = i    
+    fd^.eof = BOOL.FALSE
+    fd^.error = ERRNO.OK
+
     return 0
 end
 

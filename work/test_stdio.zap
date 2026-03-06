@@ -17,7 +17,7 @@ proc main()
     COLOR4 = COLOR_MEDIUM_BLUE + 4
     
     
-    find_free_IOCB()
+    
     
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end

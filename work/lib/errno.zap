@@ -7,6 +7,7 @@
 
 ; Error codes
 enum ERRNO 
+    OK,                   ; No error
     E2BIG,                ; Argument list too long
     EACCES,               ; Permission denied
     EAGAIN,               ; Resource temporarily unavailable

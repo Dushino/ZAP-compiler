@@ -27,15 +27,12 @@ const word NULL = $0000
 const byte FILE_HANDLE_MAX = 4
 
 
-; constants for fopen modes
-const byte FILE_MODE_READ = 1
-const byte FILE_MODE_WRITE = 2
-const byte FILE_MODE_APPEND = 4
-
-
 ; Constants for fseek
-const byte SEEK_SET = 0
-const byte SEEK_CUR = 1
-const byte SEEK_END = 2 
+enum SEEK
+    SEEK_SET = 0
+    SEEK_CUR = 1
+    SEEK_END = 2
+end
+
 
 ; EOF
