@@ -1,11 +1,11 @@
-﻿# 
+# 
 
 from errors import SemanticError
 from typing import Any, List
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
 from ast_nodes import (
     Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr,
-    ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl
+    ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl, EnumItem
 )
 
 
@@ -801,11 +801,21 @@ class EnumAnalyzer:
         if not hasattr(self.symtab, '_enums'):
             self.symtab._enums = {}
 
+    def _raise_item_error(self, msg: str, item: EnumItem) -> None:
+        """Raise a SemanticError for an enum item with correct file location."""
+        err = SemanticError(msg, line=item.line, col=item.col)
+        if item.filename:
+            err.filename = item.filename
+        raise err
+
     def analyze(self, enum_decl: EnumDecl) -> None:
-        """Register an enum and its members as const symbols."""
+        """Register an enum and its members for qualified access only (EnumName.Member)."""
         base: str = enum_decl.base.upper() if enum_decl.base else 'BYTE'
         if base not in ("BYTE", "WORD"):
-            raise SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)
+            err = SemanticError(f"Enum base type '{enum_decl.base}' is not supported", line=enum_decl.line, col=enum_decl.col)
+            if enum_decl.filename:
+                err.filename = enum_decl.filename
+            raise err
         current = 0
         seen: set[str] = set()
         members: dict[str, int] = {}
@@ -815,49 +825,28 @@ class EnumAnalyzer:
                 try:
                     val = eval_const_expr(item.value, self.symtab)
                 except SemanticError as e:
-                    raise SemanticError(e.message, line=item.line, col=item.col)
+                    self._raise_item_error(e.message, item)
+                    val = 0  # unreachable; satisfies type checker
             else:
                 val = current
 
             # Range check
             if base == "BYTE" and (val < 0 or val > 0xFF):
-                raise SemanticError(f"Enum value {val} out of range for byte", line=item.line, col=item.col)
+                self._raise_item_error(f"Enum value {val} out of range for byte", item)
             if base == "WORD" and (val < 0 or val > 0xFFFF):
-                raise SemanticError(f"Enum value {val} out of range for word", line=item.line, col=item.col)
+                self._raise_item_error(f"Enum value {val} out of range for word", item)
 
             name: str = item.name.upper()
             if name in seen:
-                raise SemanticError(f"Enum member '{item.name}' duplicated in enum '{enum_decl.name}'", line=item.line, col=item.col)
-            if self.symtab._key(name) in self.symtab._symbols:
-                raise SemanticError(f"Enum member '{item.name}' conflicts with existing symbol", line=item.line, col=item.col)
+                self._raise_item_error(f"Enum member '{item.name}' duplicated in enum '{enum_decl.name}'", item)
 
-            sym = Symbol(
-                name=name,
-                type=SemType(base=base, is_pointer=False),
-                is_const=True,
-                const_value=val,
-                is_array=False,
-                array_len=None,
-                init=None,
-                address=None,
-                is_volatile=False,
-                proc_name="",
-                array_dims=None,
-                is_static=False,
-                is_port=False,
-                port_rd=False,
-                port_wr=False,
-                is_keep=False,
-                noexport=False,
-                export=False,
-            )
-            # Attach enum member AST item as node for errors
-            self.symtab.define(sym, node=item)
             seen.add(name)
             members[name] = val
             current = val + 1
 
-        # Register enum definition for qualified access (e.g., EnumName.Member)
+        # Register enum definition for qualified access only (e.g., EnumName.Member)
+        # Enum members are NOT added to the global symbol table — they are only
+        # accessible via the qualified syntax EnumName.Member.
         self.symtab._enums[enum_decl.name.upper()] = {'base': base, 'members': members}
 
 

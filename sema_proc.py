@@ -199,8 +199,15 @@ class ProcAnalyzer:
                 # Attach the parameter AST node for precise error reporting
                 local_symtab.define(sym, node=param)
             except SemanticError as e:
-                # Attach parameter source location
-                raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
+                # Attach parameter source location including filename
+                proc_src_map = self.debug.get("proc_src") or {}
+                info = proc_src_map.get(proc.name)
+                fname = info[0] if info else None
+                err = SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
+                if fname:
+                    err.filename = fname
+                    self._attach_source_text(err, fname)
+                raise err
 
 
         # Validate parameter ordering: parameters with defaults must come after those without
@@ -620,40 +627,54 @@ class ProcAnalyzer:
                                 raise err
                             raise
 
-                        if sw_type.kind != ExprKind.VALUE:
-                            raise SemanticError("SWITCH expression must be a value", node=st.expr)
+                        try:
+                            if sw_type.kind != ExprKind.VALUE:
+                                raise SemanticError("SWITCH expression must be a value", node=st.expr)
 
-                        seen_default = False
-                        seen_values: set[int] = set()
-                        case_inits: list[set[str]] = []
+                            seen_default = False
+                            seen_values: set[int] = set()
+                            case_inits: list[set[str]] = []
 
-                        for case in st.cases:
-                            if case.is_default:
-                                if seen_default:
-                                    raise SemanticError("Duplicate DEFAULT in SWITCH", node=st)
-                                seen_default = True
+                            for case in st.cases:
+                                if case.is_default:
+                                    if seen_default:
+                                        raise SemanticError("Duplicate DEFAULT in SWITCH", node=st)
+                                    seen_default = True
 
-                            for label in case.labels:
-                                # Validate label expression and ensure it is constant
-                                tc.check(label)
-                                _check_uninitialized(label, st)
-                                folded = fold_expr(subst_const(label, cast(SymbolTable, tc.symtab)))
-                                if not isinstance(folded, IntLiteral):
-                                    raise SemanticError("CASE label must be constant", node=label)
-                                val = folded.value
+                                for label in case.labels:
+                                    # Validate label expression and ensure it is constant
+                                    tc.check(label)
+                                    _check_uninitialized(label, st)
+                                    folded = fold_expr(subst_const(label, cast(SymbolTable, tc.symtab)))
+                                    if not isinstance(folded, IntLiteral):
+                                        raise SemanticError("CASE label must be constant", node=label)
+                                    val = folded.value
 
-                                if sw_type.sem_type.base == "BYTE" and not sw_type.sem_type.is_pointer:
-                                    if val < 0 or val > 0xFF:
-                                        raise SemanticError("CASE label out of range for BYTE", node=label)
-                                if sw_type.sem_type.base == "WORD" and not sw_type.sem_type.is_pointer:
-                                    if val < 0 or val > 0xFFFF:
-                                        raise SemanticError("CASE label out of range for WORD", node=label)
+                                    if sw_type.sem_type.base == "BYTE" and not sw_type.sem_type.is_pointer:
+                                        if val < 0 or val > 0xFF:
+                                            raise SemanticError("CASE label out of range for BYTE", node=label)
+                                    if sw_type.sem_type.base == "WORD" and not sw_type.sem_type.is_pointer:
+                                        if val < 0 or val > 0xFFFF:
+                                            raise SemanticError("CASE label out of range for WORD", node=label)
 
-                                if val in seen_values:
-                                    raise SemanticError("Duplicate CASE label", node=label)
-                                seen_values.add(val)
+                                    if val in seen_values:
+                                        raise SemanticError("Duplicate CASE label", node=label)
+                                    seen_values.add(val)
 
-                            case_inits.append(validate_stmt_exprs(case.body, set(initialized)))
+                                case_inits.append(validate_stmt_exprs(case.body, set(initialized)))
+                        except SemanticError as e:
+                            info = _map_stmt_info(st)
+                            if info and getattr(e, "filename", None) is None:
+                                fname, line, col = info
+                                err_line = getattr(e, "line", None) or line
+                                err_col = getattr(e, "col", None) or col
+                                err = SemanticError(e.message, line=err_line, col=err_col)
+                                err.filename = fname
+                                orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
+                                if orig_src:
+                                    err.source_text = "\n".join(orig_src)
+                                raise err
+                            raise
 
                         if case_inits:
                             merged = set(initialized)

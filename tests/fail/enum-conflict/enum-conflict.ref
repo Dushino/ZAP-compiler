@@ -1,4 +1,0 @@
-# Error Test - Enum member conflicts with existing symbol
-
-## Expected Error
-Enum member 'EXIST' conflicts with existing symbol

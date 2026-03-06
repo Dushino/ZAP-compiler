@@ -261,7 +261,7 @@ byte SOUND_OUT @$D400 #PORT #WR     ; writing audio registers
 
 #### Enums - Compile-time named constants 🧾
 
-Enums provide a concise syntax for defining a set of named integer constants. They are compile-time only and are expanded into `const` symbols (no runtime storage or overhead).
+Enums provide a concise syntax for defining a set of named integer constants. They are compile-time only — no runtime storage or overhead.
 
 **Syntax (END-style):**
 
@@ -277,14 +277,14 @@ END
 **Key points:**
 - The base type is optional and defaults to `byte`. Use `word` when values may exceed the `byte` range.
 - If a member has no explicit value, it takes the previous member's value + 1, or 0 for the first member.
-- Enum members are injected into the symbol table as `const` symbols and are available for subsequent declarations in the same translation unit (order matters).
 - Values are range-checked against the chosen base type (`byte`: 0–255, `word`: 0–65535).
-- Duplicate member names or conflicts with existing symbols are reported as compile-time errors.
-- Enums are syntax sugar only — they do not allocate runtime memory.
+- Each member is a typed compile-time constant with the enum's base type (`byte` or `word`) — usable anywhere a `const` value is accepted.
+- Duplicate member names within the same enum are reported as a compile-time error.
+- Enums do not allocate runtime memory.
 
-**Examples:**
+**Access — qualified syntax only:**
 
-Basic enum (default `byte` base):
+Enum members are accessible **exclusively** via the qualified `EnumName.Member` syntax. Unqualified access (using the member name alone) is not supported. This allows different enums to have members with the same name without any conflict.
 
 ```zap
 enum Colors
@@ -293,8 +293,16 @@ enum Colors
     BLUE
 END
 
-byte c = GREEN     ; c == 1
-byte arr[BLUE + 1] ; use enum value in an array size
+enum Direction
+    UP
+    DOWN
+    LEFT
+    RIGHT
+END
+
+byte c = Colors.GREEN      ; c == 1
+byte d = Direction.DOWN    ; d == 1 (no conflict with Colors.GREEN)
+byte arr[Colors.BLUE + 1]  ; use enum value in an array size
 ```
 
 Explicit values and auto-increment:
@@ -307,7 +315,7 @@ enum byte E
     D       ; D == 6
 END
 
-const byte v = D
+const byte v = E.D
 ```
 
 Word-sized enum and large values:
@@ -319,22 +327,21 @@ enum word Big
     C = 65535
 END
 
-const word w1 = A
+const word w1 = Big.A
 ```
+
 **Common errors (semantic checks performed by `EnumAnalyzer` in `sema.py`):**
-- "Enum value N out of range for byte" — when an explicit or inferred value is outside 0..255 for `byte` enums.
+- "Enum value N out of range for byte" — explicit or inferred value is outside 0..255 for `byte` enums.
 - "Enum member 'NAME' duplicated in enum 'X'" — duplicate member names within the same enum.
-- "Enum member 'NAME' conflicts with existing symbol" — enum member collides with an already-declared symbol in the current symbol table.
 - "Enum base type 'TYPE' is not supported" — only `byte` and `word` are supported base types.
 
 **Usage notes:**
 - Use enums for readable, self-documenting constants and to define sets of related identifiers or flags.
 - Enum members can be used wherever `const` values are allowed: initializers, array dimensions, compile-time expressions, arithmetic expressions (+, -, *, /, %), logical expressions (&&, ||, !), bitwise expressions (&, |, ^, <<, >>) and comparison operations (<, >, ==, <=, >=).
-- Enum members are available both as unqualified `const` names (e.g., `A`, `B`) for backward compatibility and via a qualified syntax `EnumName.Member` (e.g., `Big.A`). The qualified form using `.` is preferred to avoid name collisions and improve readability; only `.` is supported for qualification (colon `:` is not supported).
+- Only `.` is supported for qualification (colon `:` is not supported).
 
 **Tests:**
-- The test suite includes cases for: basic enums, enums with explicit values, word-sized enums, and failing cases for out-of-range values, duplicate members, name conflicts, and invalid base types.
-
+- The test suite includes cases for: basic enums, enums with explicit values, word-sized enums, and failing cases for out-of-range values, duplicate members, and invalid base types.
 
 
 **Rules for static variables:**

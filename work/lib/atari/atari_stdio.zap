@@ -66,6 +66,47 @@ const byte ATARI_KEY_ESCAPE         = $1B
 byte kbcode @$D209
 byte scr1 @40000
 
+; IOCB 
+struct IOCB_Block
+    byte ICHID      ; handler Identifier
+    byte ICDNO      ; device number (disk)
+    byte ICCOM      ; command
+    byte ICSTA      ; status
+    word ICBA       ; buffer address
+    word ICPT       ; address of put byte
+    word ICBL       ; buffer length
+    byte ICAX1      ; auxiliary information
+    byte ICAX2      ; -
+    byte ICAX3      ; the remaining auxiliary
+    byte ICAX4      ; bytes are rarely used
+    byte ICAX5      ; -
+    byte ICAX6      ; -
+end
+
+IOCB_Block IOCB[8] @$0340
+
+
+; ICCOM command codes
+enum ICCOM_COMMANDS
+    ; build - in
+    Open        = $03
+    Close       = $0C
+    Get         = $07
+    Put         = $09
+    Input       = $05
+    Print       = $09
+    Status      = $0D
+end
+
+enum ICAX1_COMMANDS
+    ; DOS 2.0
+    ; https://www.atarimania.com/documents/Atari_1050_disk_operating_system_II_reference_manual.pdf
+    Input       = 4       ; input operation; positions file pointer to start of file.
+    Directory   = 6       ; disk directory input operation.
+    Output      = 8       ; output operation; positions file pointer to start of file.
+    Append      = 9       ; end-of-file append operation; positions file pointer to end of file.
+end 
+
 
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
@@ -139,12 +180,11 @@ end
     Clear Screen and reset cursor position
 */
 proc cls()
-    word i
 
     cur_xpos = 0
     cur_ypos = 0    
     curptr = vlstart[0]
-    
+
     memset(vlstart[0], 0, SCREEN_X_SIZE * SCREEN_Y_SIZE)   
 end
 
@@ -160,7 +200,7 @@ func byte getchar()
         PHA
         LDA $e424
         PHA
-        rts        
+        rts         ; call keyboard handler
         sta _GETCHAR_CH
     end
 
@@ -180,6 +220,7 @@ end
 */
 proc putx(byte value)
     const byte hex_digits[] = "0123456789ABCDEF"
+    
     putchar(hex_digits[value >> 4])
     putchar(hex_digits[value & $0F])
 end
@@ -510,6 +551,26 @@ proc set_fderror(FILE^ file, byte error_code) #NOEXPORT
 end
 
 
+/* 
+    Find free IOCB block
+*/
+func byte find_free_IOCB()
+    byte i
+
+    for i = 0 to 7
+        putx(i)
+        putchar(':')
+        putx(IOCB[i].ICHID)
+        crlf()
+        ;if IOCB[i].ICHID == 0
+        ;    return i
+        ;end
+    end    
+    return 255 ; no free IOCB found
+end
+
+
+
 /*
     fopen - open file
 */
@@ -520,9 +581,11 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
 
     ; TODO: implement file opening  
     if fd == NULL        
+        set_fderror(fd, ERRNO.EBADF)
         return 0
     end
     
+
     set_fderror(fd, ERRNO.ENODEV)
     
     return 0

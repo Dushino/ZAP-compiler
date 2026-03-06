@@ -450,13 +450,13 @@ class Parser:
             if self.cur.type == TOK_EQU:
                 self.advance()
                 item_value = self.parse_expr()
-            items.append(EnumItem(item_name, item_value, line=item_line, col=item_col))
+            items.append(EnumItem(item_name, item_value, line=item_line, col=item_col, filename=self.filename))
             # optional trailing comma
             if self.cur.type == TOK_DELIM and self.cur.value == ',':
                 self.advance()
                 continue
         self.expect(TOK_KEYWORD, "END")
-        return EnumDecl(name, base, items, noexport=enum_noexport, export=enum_export, line=start_line, col=start_col)
+        return EnumDecl(name, base, items, noexport=enum_noexport, export=enum_export, line=start_line, col=start_col, filename=self.filename)
 
 
     def parse_proc(self) -> ProcDecl:

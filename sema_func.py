@@ -109,8 +109,14 @@ class FuncAnalyzer:
             try:
                 local_symtab.define(sym, node=param)
             except SemanticError as e:
-                # Attach parameter source location
-                raise SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
+                proc_src = self.debug.get("proc_src") or {}
+                info = proc_src.get(func.name)
+                fname = info[0] if info else None
+                err = SemanticError(f"Parameter '{param.name}': {e.message}", line=param.line, col=param.col)
+                if fname:
+                    err.filename = fname
+                    self._attach_source_text(err, fname)
+                raise err
 
         
         decl_an = DeclarationAnalyzer(

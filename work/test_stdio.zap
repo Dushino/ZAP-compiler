@@ -36,6 +36,7 @@ proc main()
     printb(1,0, 0) ; proc printb(byte arg, const byte lzero=0, const byte zeroes=0)
     puts("\n")    
     
+    find_free_IOCB()
     
     ; COLOR4 = COLOR_MEDIUM_GREEN + 4
 end

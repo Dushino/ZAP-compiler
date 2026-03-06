@@ -464,6 +464,7 @@ class EnumItem(ASTNode):
     value: "Expr | None" = None
     line: int = 0
     col: int = 0
+    filename: str = ""
 
 
 @dataclass(frozen=True)
@@ -477,6 +478,7 @@ class EnumDecl(ASTNode):
     export: bool = False    # #EXPORT forces export even in non-module files
     line: int = 0
     col: int = 0
+    filename: str = ""
 
 
 @dataclass()
