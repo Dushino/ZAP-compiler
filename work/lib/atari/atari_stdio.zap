@@ -570,7 +570,7 @@ end
 
 
 func byte XIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
-    byte rv
+    byte rv = 0
 
     ch &= $07
 
@@ -587,16 +587,12 @@ func byte XIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, by
 
     ch <<= 4
     asm
-        ldx _XIO_ch
+        ldx _XIO_CH
         jsr $E456 ; call XIO handler
         sta _XIO_RV
     end
 
-    if rv != 0
-        return rv
-    end
-
-    return 0
+    return rv
 end
 
 /*
