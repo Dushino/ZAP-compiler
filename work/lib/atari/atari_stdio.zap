@@ -1,6 +1,8 @@
 ; atari_stdio.zap
 
 .module "atari_stdio"
+
+; .include "atari_gtia.zap"
 .include "../errno.zap"
 .include "../types.zap"
 
@@ -220,7 +222,7 @@ end
 */
 proc putx(byte value)
     const byte hex_digits[] = "0123456789ABCDEF"
-    
+
     putchar(hex_digits[value >> 4])
     putchar(hex_digits[value & $0F])
 end
@@ -557,7 +559,7 @@ end
 func byte find_free_IOCB()
     byte i
 
-    for i = 0 to 7
+    for i = 0 to 8
         putx(i)
         putchar(':')
         putx(IOCB[i].ICHID)

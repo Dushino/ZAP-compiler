@@ -189,21 +189,16 @@ class CodeGen:
         
         def get_expr_width(node: Expr) -> int:
             """Determine width of expression result in bytes."""
-            node_str = str(node)
             try:
                 expr_type = self.tc_check(node, read_check_enabled=False)
-                print(f"; DEBUG: get_expr_width({node_str}) type={expr_type.sem_type.base} width={expr_type.sem_type.width}")
                 return expr_type.sem_type.width
-            except Exception as e:
-                print(f"; DEBUG: get_expr_width({node_str}) tc_check failed: {e}")
+            except Exception:
                 # Fallback for identifiers if type check fails (e.g. context issues)
                 if isinstance(node, Identifier):
                     try:
                         sym = self.current_symtab.lookup(node.name)
-                        print(f"; DEBUG: get_expr_width({node_str}) fallback Identifier sym={sym.name} width={sym.type.width}")
                         return sym.type.width
-                    except Exception as e2:
-                        print(f"; DEBUG: get_expr_width({node_str}) fallback Identifier failed: {e2}")
+                    except Exception:
                         pass
                 elif isinstance(node, IntLiteral):
                     if node.value <= 255: return 1
@@ -212,7 +207,6 @@ class CodeGen:
                 elif isinstance(node, BinaryExpr):
                     w1 = get_expr_width(node.left)
                     w2 = get_expr_width(node.right)
-                    print(f"; DEBUG: get_expr_width({node_str}) fallback BinaryExpr w1={w1} w2={w2}")
                     return max(w1, w2)
                 return 1
         
@@ -4491,6 +4485,9 @@ class CodeGen:
         if funcs:
             for func in funcs:
                 all_vars.extend(func.locals)
+                local_tbl = getattr(func.symtab, "local", None)
+                if local_tbl is not None:
+                    all_vars.extend(list(local_tbl))
 
         # Deduplicate by ASM name to avoid double emission
         uniq: dict[str, Symbol] = {}
