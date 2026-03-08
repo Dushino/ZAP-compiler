@@ -9403,11 +9403,34 @@ class CodeGen:
         else:
             raise SemanticError("Invalid operand for address-of operator", node=getattr(self, 'current_expr', None))
     
+    def _get_const_array_label(self, sym: Symbol) -> str:
+        """Return the __ARRAY_DATA_N label for a const array, registering it if needed."""
+        if sym.init and isinstance(sym.init, ListInit):
+            values: list[int] = [ex.value for ex in sym.init.values if isinstance(ex, IntLiteral)]
+            dtype: str = sym.type.base
+            data_key: tuple[tuple[int, ...], str] = (tuple(values), dtype)
+            if data_key not in self.array_literals:
+                self.array_id += 1
+                self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
+            return self.array_literals[data_key]
+        elif sym.init and isinstance(sym.init, StringInit):
+            str_values: list[int] = [ord(ch) for ch in sym.init.value] + [0]
+            str_key: tuple[tuple[int, ...], str] = (tuple(str_values), "BYTE")
+            if str_key not in self.array_literals:
+                self.array_id += 1
+                self.array_literals[str_key] = f"__ARRAY_DATA_{self.array_id}"
+            return self.array_literals[str_key]
+        else:
+            raise SemanticError(f"Const array '{sym.name}' has no initialization")
+
     def _get_label_for_symbol(self, sym: Symbol) -> str:
         """Get the label name for a symbol"""
         if sym.address is not None:
             # Fixed address variable
             return f"${sym.address:04X}"
+        # Const array: data lives in ROM under __ARRAY_DATA_N label
+        if sym.is_const and sym.is_array:
+            return self._get_const_array_label(sym)
         # Dynamic address - use symbol label (supports shared slots)
         return sym.asm_name()
     
