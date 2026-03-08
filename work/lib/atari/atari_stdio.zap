@@ -103,10 +103,11 @@ end
 enum ICAX1_COMMANDS
     ; DOS 2.0
     ; https://www.atarimania.com/documents/Atari_1050_disk_operating_system_II_reference_manual.pdf
-    Input       = 4       ; input operation; positions file pointer to start of file.
+    Read        = 4       ; input operation; positions file pointer to start of file.
     Directory   = 6       ; disk directory input operation.
-    Output      = 8       ; output operation; positions file pointer to start of file.
-    Append      = 9       ; end-of-file append operation; positions file pointer to end of file.
+    Write       = 8       ; output operation; positions file pointer to start of file.
+    Append      = 9       ; output operation; positions file pointer to end of file.
+    ReadWrite   = 12      ; input/output operation; positions file pointer to start of file.
 end 
 
 
@@ -568,49 +569,46 @@ func byte find_free_IOCB()
 end
 
 
-
-func byte CIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+/*
+    CIO - call CIO handler with the specified parameters and return status
+*/
+func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
     byte rv = 0
 
     ch &= $07
-
-    if IOCB[ch].ICHID == 255
-        return ERRNO.ENODEV
-    end
-
+    
     IOCB[ch].ICCOM = command
-    IOCB[ch].ICBA = adr1
-    IOCB[ch].ICBL = adr2
+    IOCB[ch].ICBA = adr
+    IOCB[ch].ICBL = len
     IOCB[ch].ICAX1 = aux1
     IOCB[ch].ICAX2 = aux2
     IOCB[ch].ICAX3 = aux3
 
-    ch <<= 4
     asm
-        ldx _CIO_CH
-        jsr $E456 ; call CIO handler        
-        sty _CIO_RV
+        lda _CIO_CH
+        asl
+        asl
+        asl
+        asl
+        tax        
+        jsr $E456 ; call CIO handler     
     end
+
+    rv = IOCB[ch].ICSTA
 
     return rv
 end
 
+
 /*
     fopen - open file
 */
-; FIXME: return value should be FILE^ or ERRNO
 func byte fopen(FILE^ fd, byte^ filename, byte mode)
     
     byte i, rv
 
-
-    putx(HIGH(fd))
-    putx(LOW(fd))
-
-    ; TODO: implement file opening  
     if fd == NULL        
-        set_fderror(fd, ERRNO.EBADF)
-        return 0
+        return ERRNO.EBADF
     end
     
     i = find_free_IOCB()
@@ -618,17 +616,14 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
         return ERRNO.ENODEV
     end
 
-
+    fd^.fd = i
     rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode)
-    if rv
+    if rv != 1
+        set_fderror(fd, rv)
         return rv
     end
 
-    set_fderror(fd, ERRNO.OK)
-    fd^.fd = i    
-    fd^.eof = BOOL.FALSE
-    fd^.error = ERRNO.OK
-
+    set_fderror(fd, ERRNO.OK)        
     return 0
 end
 
@@ -637,12 +632,20 @@ end
     fclose - close file
 */
 func ERRNO fclose(FILE^ fd)
-    ; TODO: implement file closing  
-    if fd == NULL
+    byte rv
+
+    if fd == NULL        
         return ERRNO.EBADF
     end
-    set_fderror(fd, ERRNO.ENODEV)
-    return fd^.error
+
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.Close)
+    if rv != 1
+        set_fderror(fd, rv)
+        return rv
+    end
+
+    set_fderror(fd, ERRNO.OK)    
+    return ERRNO.OK    
 end
 
 
@@ -650,11 +653,10 @@ end
     ferror - check for error
 */
 func ERRNO ferror(FILE^ fd)
-    ; TODO: implement error checking  
     if fd == NULL
         return ERRNO.EBADF
     end 
-    set_fderror(fd, ERRNO.ENODEV)
+    
     return fd^.error
 end
 
@@ -665,11 +667,9 @@ end
 func BOOL feof(FILE^ fd)
     ; TODO: implement end of file checking  
     if fd == NULL
-        return BOOL.TRUE
+        return ERRNO.EBADF
     end     
-    
-    set_fderror(fd, ERRNO.ENODEV)
-    fd^.eof = BOOL.TRUE
+        
     return BOOL.TRUE
 end
 
@@ -748,11 +748,23 @@ end
 /*
     fwrite - write to file
 */
-func word fwrite(FILE^ fd, byte ^buffer, word size, word count)
-    ; TODO: implement file writing  
-    if fd == NULL
-        return 0
-    end 
+func word fwrite(FILE^ fd, byte ^buffer, word size)
+    byte rv
+
+    if fd == NULL        
+        return ERRNO.EBADF
+    end
+
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.Put, buffer, size)
+    if rv != 1
+        set_fderror(fd, rv)
+        return rv
+    end
+
+    set_fderror(fd, ERRNO.OK)    
+    return ERRNO.OK    
+
+
     return 0
 end
 

@@ -15,7 +15,6 @@ end
 struct FILE
     byte  fd     ; handle
     ERRNO error  ; error code
-    BOOL  eof    ; end of file
 end
 
 

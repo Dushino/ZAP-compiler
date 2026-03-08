@@ -9,6 +9,9 @@
 .include "lib/types.zap"
 .include "lib/atari/atari_gtia.zap"
 
+
+const byte Text1[] = "Hello!"
+
 proc main()
 
     byte rv
@@ -16,7 +19,16 @@ proc main()
 
     COLOR4 = COLOR_MEDIUM_BLUE + 4
     
-    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.APPEND)    
+    puts("Open:  ")
+    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.Write)    
+    putx(rv)
+
+    puts("\nWrite: ")
+    rv = fwrite(@fd, @Text1, 6)
+    putx(rv)
+
+    puts("\nClose: ")
+    fclose(@fd)
     putx(rv)
     
     COLOR4 = COLOR_MEDIUM_GREEN + 8
