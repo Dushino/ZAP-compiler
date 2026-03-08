@@ -569,7 +569,7 @@ end
 
 
 
-func byte XIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+func byte CIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
     byte rv = 0
 
     ch &= $07
@@ -587,9 +587,9 @@ func byte XIO(byte ch, byte command, word adr1, word adr2 = 0, byte aux1 = 0, by
 
     ch <<= 4
     asm
-        ldx _XIO_CH
-        jsr $E456 ; call XIO handler
-        sta _XIO_RV
+        ldx _CIO_CH
+        jsr $E456 ; call CIO handler        
+        sty _CIO_RV
     end
 
     return rv
@@ -603,6 +603,10 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     
     byte i, rv
 
+
+    putx(HIGH(fd))
+    putx(LOW(fd))
+
     ; TODO: implement file opening  
     if fd == NULL        
         set_fderror(fd, ERRNO.EBADF)
@@ -615,7 +619,7 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     end
 
 
-    rv = XIO(i, ICCOM_COMMANDS.Open, filename, 0, mode)
+    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode)
     if rv
         return rv
     end

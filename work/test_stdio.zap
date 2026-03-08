@@ -16,7 +16,7 @@ proc main()
 
     COLOR4 = COLOR_MEDIUM_BLUE + 4
     
-    rv = fopen(fd, "D:TEST.TXT", ICAX1_COMMANDS.APPEND)
+    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.APPEND)    
     putx(rv)
     
     COLOR4 = COLOR_MEDIUM_GREEN + 8
