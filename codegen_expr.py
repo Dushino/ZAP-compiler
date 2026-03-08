@@ -5915,7 +5915,7 @@ class CodeGen:
         val: int = expr.value
         self.emit(f"\tLDA #${val & 0xFF:02X}")
         # Set X = high byte when needed; skip for byte-return ABI in return context
-        if t.sem_type.base == "WORD" or t.sem_type.is_pointer:
+        if t.sem_type.base == "WORD" or t.sem_type.is_pointer or self.force_word_result:
             self.emit(f"\tLDX #${(val >> 8) & 0xFF:02X}")
         elif t.sem_type.base == "LONG":
             # LONG literal: load all 4 bytes into MATH0 (LONG convention)
@@ -6046,11 +6046,11 @@ class CodeGen:
         else:
             # BYTE → X = 0
             # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
-            target_is_byte: None | bool = (self.assign_target_type and 
+            target_is_byte: None | bool = (self.assign_target_type and
                             hasattr(self.assign_target_type, 'base') and
-                            self.assign_target_type.base == "BYTE" and 
+                            self.assign_target_type.base == "BYTE" and
                             not getattr(self.assign_target_type, 'is_pointer', False))
-            if not target_is_byte and not self.suppress_byte_return_x:
+            if (not target_is_byte or self.force_word_result) and not self.suppress_byte_return_x:
                 self.emit("\tLDX #$00   ; note 3056")
 
     def _is_zeropage_pointer_array_subscript(self, expr) -> tuple[bool, Symbol | None, int]:
@@ -7006,7 +7006,7 @@ class CodeGen:
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and
                                         not getattr(self.assign_target_type, 'is_pointer', False))
-                        if not target_is_byte:
+                        if not target_is_byte or self.force_word_result:
                             self.emit("\tLDX #$00     ; note 3721")
                     
             elif isinstance(expr.object, SubscriptExpr):
@@ -7054,7 +7054,7 @@ class CodeGen:
                                     hasattr(self.assign_target_type, 'base') and
                                     self.assign_target_type.base == "BYTE" and
                                     not getattr(self.assign_target_type, 'is_pointer', False))
-                    if not target_is_byte:
+                    if not target_is_byte or self.force_word_result:
                         self.emit("\tLDX #$00     ; note 3749")
             elif isinstance(expr.object, FieldAccess):
                 # Nested field access: obj.field1.field2... (e.g., xs.pt.x or o1.md.in.a)
@@ -7095,7 +7095,7 @@ class CodeGen:
                                             hasattr(self.assign_target_type, 'base') and
                                             self.assign_target_type.base == "BYTE" and
                                             not getattr(self.assign_target_type, 'is_pointer', False))
-                            if not target_is_byte:
+                            if not target_is_byte or self.force_word_result:
                                 self.emit("\tLDX #$00     ; note 3774")
 
                 elif isinstance(base_expr, SubscriptExpr):
@@ -7143,7 +7143,7 @@ class CodeGen:
                                             hasattr(self.assign_target_type, 'base') and
                                             self.assign_target_type.base == "BYTE" and
                                             not getattr(self.assign_target_type, 'is_pointer', False))
-                            if not target_is_byte:
+                            if not target_is_byte or self.force_word_result:
                                 self.emit("\tLDX #$00     ; note 3801")
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
@@ -7179,7 +7179,7 @@ class CodeGen:
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and
                                         not getattr(self.assign_target_type, 'is_pointer', False))
-                        if not target_is_byte:
+                        if not target_is_byte or self.force_word_result:
                             self.emit("\tLDX #$00     ; note myfunc().field")
             elif isinstance(expr.object, DerefExpr):
                 # fptr^.field parsed as FieldAccess(is_deref=False, object=DerefExpr(fptr))
