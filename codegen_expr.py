@@ -12689,11 +12689,14 @@ class CodeGen:
                             fp32_l_loads = ["#$00", "#$00", "#$00", _l32]
 
                         if cond.op == BinOp.EQ:
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                             for _bi32 in range(4):
                                 self.emit(f"\tLDA {fp32_l_loads[_bi32]}")
                                 self.emit(f"\tCMP {fp32_r_bytes[_bi32]}")
-                                self.emit(f"\tBNE {lbl_false}")
+                                self.emit(f"\tBNE {lbl_else_tmp}")
                             self.emit(f"\tJMP {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
+                            self.emit(f"\tJMP {lbl_false}")
                             return
 
                         if cond.op == BinOp.NE:
@@ -12720,8 +12723,10 @@ class CodeGen:
                             self.emit(f"\tBCS {lbl_true}")
                             self.emit(f"\tJMP {lbl_false}")
                         elif cond.op == BinOp.GT:
-                            self.emit(f"\tBEQ {lbl_false}")
+                            lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                            self.emit(f"\tBEQ {lbl_else_tmp}")
                             self.emit(f"\tBCS {lbl_true}")
+                            self.emit(f"{lbl_else_tmp}:")
                             self.emit(f"\tJMP {lbl_false}")
                         elif cond.op == BinOp.LE:
                             self.emit(f"\tBCC {lbl_true}")
@@ -12792,19 +12797,22 @@ class CodeGen:
             # Compare from high byte down
             
             if cond.op == BinOp.EQ:
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 self.emit("\tLDA MATH0+3")
                 self.emit("\tCMP MATH1+3")
-                self.emit(f"\tBNE {lbl_false}")
+                self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit("\tLDA MATH0+2")
                 self.emit("\tCMP MATH1+2")
-                self.emit(f"\tBNE {lbl_false}")
+                self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit("\tLDA MATH0+1")
                 self.emit("\tCMP MATH1+1")
-                self.emit(f"\tBNE {lbl_false}")
+                self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit("\tLDA MATH0")
                 self.emit("\tCMP MATH1")
-                self.emit(f"\tBNE {lbl_false}")
+                self.emit(f"\tBNE {lbl_else_tmp}")
                 self.emit(f"\tJMP {lbl_true}")
+                self.emit(f"{lbl_else_tmp}:")
+                self.emit(f"\tJMP {lbl_false}")
                 return
 
             if cond.op == BinOp.NE:
@@ -12865,8 +12873,10 @@ class CodeGen:
                 # > : BEQ false (equal), BCC false (<), so BCS and BNE
                 # Logic: CMP sets Z=1 if equal, C=1 if >=.
                 # > is (C=1 AND Z=0)
-                self.emit(f"\tBEQ {lbl_false}")
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                self.emit(f"\tBEQ {lbl_else_tmp}")
                 self.emit(f"\tBCS {lbl_true}")
+                self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.LE:
                 # <= : (C=0 OR Z=1)
@@ -12891,10 +12901,12 @@ class CodeGen:
                 if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
                     self.emit("\tLDX #$00     ; note 7054")
                 if cond.op in {BinOp.EQ, BinOp.LE}:
+                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit("\tCPX #$00")
-                    self.emit(f"\tBNE {lbl_false}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
                     self.emit("\tCMP #$00")
                     self.emit(f"\tBEQ {lbl_true}")
+                    self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op in {BinOp.NE, BinOp.GT}:
@@ -12970,20 +12982,24 @@ class CodeGen:
                         if cmp_hi == "#$00" and cond.op in {BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
                             load_left_high()
                             if cond.op == BinOp.LT:
+                                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                                 self.emit("\tCPX #$00")
-                                self.emit(f"\tBNE {lbl_false}")
+                                self.emit(f"\tBNE {lbl_else_tmp}")
                                 load_left_low()
                                 self.emit(f"\tCMP {cmp_lo}")
                                 self.emit(f"\tBCC {lbl_true}")
+                                self.emit(f"{lbl_else_tmp}:")
                                 self.emit(f"\tJMP {lbl_false}")
                                 return
                             if cond.op == BinOp.LE:
+                                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                                 self.emit("\tCPX #$00")
-                                self.emit(f"\tBNE {lbl_false}")
+                                self.emit(f"\tBNE {lbl_else_tmp}")
                                 load_left_low()
                                 self.emit(f"\tCMP {cmp_lo}")
                                 self.emit(f"\tBCC {lbl_true}")
                                 self.emit(f"\tBEQ {lbl_true}")
+                                self.emit(f"{lbl_else_tmp}:")
                                 self.emit(f"\tJMP {lbl_false}")
                                 return
                             if cond.op == BinOp.GT:
@@ -13616,9 +13632,11 @@ class CodeGen:
                 self.emit(f"\tBEQ {lbl_true}")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GT:
+                lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                 self.emit(f"\tCMP {cmp_lo}")
-                self.emit(f"\tBEQ {lbl_false}")
+                self.emit(f"\tBEQ {lbl_else_tmp}")
                 self.emit(f"\tBCS {lbl_true}")
+                self.emit(f"{lbl_else_tmp}:")
                 self.emit(f"\tJMP {lbl_false}")
             elif cond.op == BinOp.GE:
                 self.emit(f"\tCMP {cmp_lo}")
