@@ -931,3 +931,7 @@ This list covers every building block derived from the grammar, tokenizer, parse
 - [ ] stdio.h
 - [ ] ctype https://cplusplus.com/reference/cctype/
 - [ ] 
+
+**Review grammar.ebnf**
+- [x] Review for missign keywords parts (SWITCH)
+- [x] Unify expression parsing and eval 
