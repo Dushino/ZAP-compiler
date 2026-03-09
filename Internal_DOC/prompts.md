@@ -1,13 +1,4 @@
-CLAUDE.md
-# Claude Code Instructions
-
-## Git Rules — STRICT
-- NEVER run `git push` under any circumstances
-- NEVER run `git push --force`
-- NEVER modify remote tracking branches
-- Local commits are allowed
-- Always ask for explicit user approval before any git operation
-
+Reffer to CLAUDE.md for AI setup
 
 
 

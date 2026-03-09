@@ -17,5 +17,12 @@
 - Always prioritize safety over speed.
 - When in doubt, ask the user.  
 
+## PROGRESS.md ##
+- After each change in compiler source codes, tests or documentation, update PROGRESS.md to reflect current sutuation.
+
+## Documentation ##
+- After each change in grammar, implementation or documentaion perform cross check in all documentaion files. Update documentation to reflect current state.
+
 # Compact instructions
 - When you are using compact, please focus on test output and code changes
+
