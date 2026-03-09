@@ -138,8 +138,9 @@ proc atari_file_data_area() #keep #noexport
         .word __RAM_START__		; RUN address
         .word __RAM_LAST__    	; last byte  
 
-        .segment "AUTOSTRT"        
-        .word   $02e0, $02e1, $4000 ; _MAIN
+        ;.segment "AUTOSTRT"        
+        ;.word   $02e0, $02e1, $4000 ; _MAIN
+        ;.word   $02e2, $02e3, $4000 ; _MAIN
     end
 end
 
