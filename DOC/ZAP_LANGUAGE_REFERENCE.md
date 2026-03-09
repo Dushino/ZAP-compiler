@@ -1019,8 +1019,21 @@ proc if_example()
             ; x is between 0 and 100
         end
     end
+
+    ; if-elseif-else chain
+    if x == 1
+        ; handle case 1
+    elseif x == 2
+        ; handle case 2
+    elseif x == 3
+        ; handle case 3
+    else
+        ; handle all other cases
+    end
 end
 ```
+
+The `elseif` keyword chains multiple conditions without nesting. Any number of `elseif` branches may appear between `if` and the optional `else`. Each condition is tested in order; the first true branch executes and the rest are skipped.
 
 ### Switch Statement
 
@@ -1675,6 +1688,38 @@ end
 
 func word calculate(byte a, byte b)
     return a + b
+end
+```
+
+#### Return Type Validation
+
+The compiler checks that the return expression is compatible with the declared return type:
+
+- **Scalar widening** (BYTE → WORD, BYTE → LONG, WORD → LONG): allowed — zero-extended automatically.
+- **Scalar narrowing** (WORD → BYTE, LONG → BYTE, LONG → WORD): allowed — truncated to lower bytes.
+- **Pointer ↔ WORD**: pointers are 2-byte values and are fully compatible with WORD. A `func word` may return a pointer, and a `func byte^` may return a word value.
+- **Struct return**: the returned expression must be the exact same struct type, or a struct literal `{…}`. Returning a different struct type is an error.
+- **Struct ↔ scalar mismatch**: returning a struct where a scalar is expected (or vice versa) is an error.
+- **Missing expression**: `return` without an expression in a function is an error.
+- **Constant range check**: if the return expression is a compile-time constant, it must fit in the declared type (e.g., returning 256 from a `func byte` is an error).
+
+```zap
+; These are compile-time errors:
+func byte bad_struct()
+    Point p
+    return p            ; error: expected BYTE, got struct 'POINT'
+end
+
+func Point bad_scalar()
+    return 42           ; error: expected struct 'POINT', got BYTE
+end
+
+func byte bad_range()
+    return $0100        ; error: 256 does not fit in BYTE (0-255)
+end
+
+func byte bad_empty()
+    return              ; error: RETURN in function must have an expression
 end
 ```
 

@@ -371,6 +371,26 @@ proc check_age(byte age)
 end
 ```
 
+### if-elseif-else
+
+When you need to check multiple conditions in sequence, use `elseif` to avoid deeply nested blocks:
+
+```zap
+proc check_level(byte level)
+    if level < 3
+        ; Beginner
+    elseif level < 7
+        ; Intermediate
+    elseif level < 10
+        ; Advanced
+    else
+        ; Expert
+    end
+end
+```
+
+`elseif` is equivalent to writing `else` followed by a nested `if`, but without needing an extra `end` for each branch.
+
 ### Comparison Operators
 
 | Operator | Meaning | Example |
@@ -447,17 +467,11 @@ byte game_state = 0    ; 0=menu, 1=playing, 2=paused, 3=over
 proc update_game()
     if game_state == 0
         ; Show menu
-    end
-
-    if game_state == 1
+    elseif game_state == 1
         ; Update gameplay
-    end
-
-    if game_state == 2
+    elseif game_state == 2
         ; Show pause screen
-    end
-
-    if game_state == 3
+    elseif game_state == 3
         ; Show game over
     end
 end
@@ -963,7 +977,7 @@ const byte NAME = 10   ; Constant
 
 ### Control Flow
 ```zap
-if x == 5 ... end
+if x == 5 ... elseif x == 3 ... else ... end
 while x < 10 ... end
 for i = 0 to 9 ... end
 repeat ... until x == 10

@@ -28,7 +28,8 @@ Source file (.zap)
    ├── StructAnalyzer   sema.py             Calculates struct sizes and field offsets
    ├── DeclarationAnalyzer sema.py          Resolves global variable/const/array/port declarations
    ├── ProcAnalyzer     sema_proc.py        Registers and type-checks procedure bodies
-   ├── FuncAnalyzer     sema_func.py        Registers and type-checks function bodies
+   ├── FuncAnalyzer     sema_func.py        Registers and type-checks function bodies;
+   │                                        validates return type against declaration
    └── ExprTypeChecker  sema_expr.py        Validates all expressions; handles promotion and casts
      │
      ▼
@@ -59,17 +60,17 @@ Output assembly (.s)    ca65 format
 | File | Lines | Role |
 |---|---|---|
 | `compiler.py` | ~235 | CLI entry point; parses flags, invokes pipeline |
-| `compiler_pipeline.py` | ~2020 | Full pipeline orchestration; `compile_program()` |
+| `compiler_pipeline.py` | ~2075 | Full pipeline orchestration; `compile_program()` |
 | `preprocessor.py` | ~125 | Macro/include preprocessor |
 | `module_system.py` | ~905 | Multi-file module resolution |
 | `tokenizer.py` | ~515 | Lexer; produces token stream |
 | `token_types.py` | ~25 | Token type constants |
-| `parser.py` | ~1790 | Recursive-descent parser → AST |
-| `ast_nodes.py` | ~535 | AST dataclass definitions |
+| `parser.py` | ~1845 | Recursive-descent parser → AST |
+| `ast_nodes.py` | ~590 | AST dataclass definitions |
 | `sema.py` | ~855 | Declaration, struct, and enum analysis |
 | `sema_expr.py` | ~525 | Expression type checker |
-| `sema_proc.py` | ~715 | Procedure body analysis |
-| `sema_func.py` | ~540 | Function body analysis |
+| `sema_proc.py` | ~735 | Procedure body analysis |
+| `sema_func.py` | ~565 | Function body analysis; return type validation |
 | `sema_types.py` | ~25 | `ExprType` / `ExprKind` definitions |
 | `symbols.py` | ~305 | Symbol tables, `SemType`, `StructInfo`, `ProcSymbol` |
 | `constfold.py` | ~130 | Constant expression folding |
@@ -77,7 +78,7 @@ Output assembly (.s)    ca65 format
 | `dce.py` | ~100 | Dead code elimination |
 | `jump_threading.py` | ~90 | Jump chain threading |
 | `label_cleanup.py` | ~85 | Unused label removal |
-| `codegen_expr.py` | ~12980 | Code generation + peephole optimizer |
+| `codegen_expr.py` | ~13670 | Code generation + peephole optimizer |
 | `errors.py` | ~60 | `SemanticError` with file/line/col context |
 | `identifier.py` | ~145 | Identifier validation helpers |
 | `version.py` | 1 | Version string (`0.2.0`) |
@@ -140,7 +141,7 @@ Handled in `sema_expr.py` by `ExprTypeChecker`:
 
 ## Code Generation
 
-All code generation is in `codegen_expr.py` via the `CodeGen` class (~12,980 lines).
+All code generation is in `codegen_expr.py` via the `CodeGen` class (~13,670 lines).
 
 ### Registers and Zero Page
 ```

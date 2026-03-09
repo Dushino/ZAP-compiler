@@ -590,7 +590,7 @@ Closure tasks
 [ ] Change -O1 option: Default is peephole optimization on, if -O no peephole optimizations.
 
 
-[ ] Remove compiler's debug messages
+[x] Remove compiler's debug messages
 
 
 ---------------------------------------------------------------

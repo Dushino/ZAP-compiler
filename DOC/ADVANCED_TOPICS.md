@@ -1432,6 +1432,22 @@ The accumulator-based architecture supports a future optimization: **keeping res
 - Needs special handling for each expression type (literals, identifiers, math ops, etc.)
 - May require two-pass or lookahead logic to determine when result will be immediately re-used in another math operation
 
+### Function Return Type Validation
+
+`FuncAnalyzer` in `sema_func.py` validates every `return` statement against the function's declared return type. The rules are:
+
+| Declared type | Return expression | Result |
+|---|---|---|
+| Scalar (BYTE/WORD/LONG) | Any scalar or pointer | Allowed (widening/narrowing) |
+| Pointer (e.g. `byte^`) | Scalar WORD or pointer | Allowed (pointers are WORD-compatible) |
+| Struct `S` | Same struct `S` | Allowed |
+| Struct `S` | Different struct `T` | **Error** |
+| Struct `S` | Scalar | **Error** |
+| Scalar | Struct | **Error** |
+| Any `func` | Missing expression | **Error** |
+
+Pointers are treated as WORD for type-compatibility purposes, so `func word f()` can `return ptr` and `func byte^ g()` can `return some_word`. Struct returns require exact name match (no structural equivalence).
+
 ### How Arrays Are Accessed
 
 ```zap
