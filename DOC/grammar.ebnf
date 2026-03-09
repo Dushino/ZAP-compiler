@@ -1,5 +1,5 @@
 (* ZAP! Language Grammar - EBNF Notation *)
-(* Updated: January 2026 - Struct Support, Bitwise Operators, Const Structs, PORT Modifier, STATIC Variables, LONG (32-bit) Type *)
+(* Updated: March 2026 - Switch/Case, Shift Operators, Default Parameters, Multi-dim Arrays *)
 (* Lexical tokens: IDENT, NUMBER, STRING, DECLMOD, ASM_BLOCK *)
 (*
    Enums: compile-time-only named integer constants. Default base type is `byte` unless a `word` is specified before the enum name.
@@ -48,7 +48,7 @@ declarator      ::= IDENT
                     [ address_spec ]
                     [ initializer ] ;
 
-array_spec      ::= "[" [ NUMBER ] "]" ;
+array_spec      ::= "[" [ expression ] "]" { "[" [ expression ] "]" } ;  (* multi-dimensional *)
 address_spec    ::= "@" NUMBER ;               (* NUMBER may be decimal, $hex, 0xhex, 0b... *)
 
 initializer     ::= "=" expression             (* scalar init *)
@@ -59,9 +59,9 @@ array_init      ::= "{" [ init_list ] "}" ;
 init_list       ::= expression { "," expression } ;
 
 (* ============ STRUCT DEFINITIONS ============ *)
-struct_decl     ::= "struct" IDENT struct_body "end" ;
+struct_decl     ::= "struct" IDENT [ decl_modifiers ] struct_body "end" ;
 struct_body     ::= { struct_field } ;
-struct_field    ::= type IDENT [ array_spec ] [ address_spec ] ;
+struct_field    ::= type IDENT [ array_spec ] [ address_spec ] [ decl_modifiers ] ;
 
 (* ============ PROCEDURES ============ *)
 proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" [ decl_modifiers ] proc_body "end" ;
@@ -75,7 +75,7 @@ func_body       ::= { local_decl } { statement } "return" expression ;
 
 (* ============ PARAMETERS ============ *)
 param_list      ::= param { "," param } ;
-param           ::= type IDENT ;
+param           ::= type IDENT [ array_spec ] [ "=" expression ] ;  (* array params, default values *)
 
 (* ============ STATEMENTS ============ *)
 local_decl      ::= [ type_modifier { type_modifier } ] type declarator_list ;
@@ -86,6 +86,7 @@ statement       ::= assignment
                   | while_stmt
                   | repeat_stmt
                   | for_stmt
+                  | switch_stmt
                   | break_stmt
                   | continue_stmt
                   | return_stmt
@@ -114,6 +115,12 @@ for_stmt        ::= "for" IDENT "=" expression "to" expression
                     { statement }
                     "end" ;
 
+switch_stmt     ::= "switch" expression
+                    { switch_clause }
+                    "end" ;
+
+switch_clause   ::= ( "case" expression | "default" ) { statement } ;
+
 break_stmt      ::= "break" ;
 
 continue_stmt   ::= "continue" ;
@@ -125,25 +132,27 @@ asm_stmt        ::= "asm" ASM_BLOCK "end" ;
 expr_stmt       ::= expression ;
 
 (* ============ L-VALUES ============ *)
-lvalue          ::= IDENT
-                  | IDENT "^"
-                  | IDENT "[" expression "]"
-                  | IDENT "." IDENT
-                  | IDENT "^" "." IDENT ;     (* deref + field access *)
+(* L-values use the same postfix_expr syntax as expressions.
+   Whether a postfix_expr is a valid assignment target is checked by
+   semantic analysis, not the grammar. Valid l-values include variables,
+   array elements, struct fields, pointer dereferences, and any chain
+   of these operations: arr[i].field, ptr^.member1^.member2, etc. *)
+lvalue          ::= postfix_expr ;
 
 (* ============ EXPRESSIONS ============ *)
 (* Operator precedence (lowest to highest):
    1. ||  (logical OR)
    2. &&  (logical AND)
-   3. ==, !=
-   4. <, >, <=, >=
-   5. |   (bitwise OR)
-   6. ^   (bitwise XOR)
-   7. &   (bitwise AND)
+   3. |   (bitwise OR)
+   4. ^   (bitwise XOR)
+   5. &   (bitwise AND)
+   6. ==, !=, <, >, <=, >=  (relational)
+   7. <<, >>  (shift)
    8. +, -
    9. *, /, %
-   10. -, !, ~, @  (unary)
-   11. primary (highest)
+   10. -, !, ~, @  (unary prefix)
+   11. [], ., ^, ()  (postfix)
+   12. primary atom (highest)
 *)
 
 expression      ::= logical_or ;
@@ -156,29 +165,33 @@ bitwise_or      ::= bitwise_xor { "|" bitwise_xor } ;
 
 bitwise_xor     ::= bitwise_and { "^" bitwise_and } ;
 
-bitwise_and     ::= equality { "&" equality } ;
+bitwise_and     ::= relational { "&" relational } ;
 
-equality        ::= comparison { ("==" | "!=") comparison } ;
+relational      ::= shift { ("==" | "!=" | "<" | ">" | "<=" | ">=") shift } ;
 
-comparison      ::= term { ("<" | ">" | "<=" | ">=") term } ;
+shift           ::= additive { ("<<" | ">>") additive } ;
 
-term            ::= factor { ("+" | "-") factor } ;
+additive        ::= multiplicative { ("+" | "-") multiplicative } ;
 
-factor          ::= unary { ("*" | "/" | "%") unary } ;
+multiplicative  ::= unary { ("*" | "/" | "%") unary } ;
 
-unary           ::= [ "-" | "!" | "~" | "@" ] primary ;
+unary           ::= [ "-" | "!" | "~" | "@" ] postfix_expr ;
 
-primary         ::= NUMBER                      (* decimal, $hex (0x..), binary (%...) *)
+(* Postfix expressions: a primary atom followed by any chain of
+   subscript, field access, dereference, or function call operations.
+   This is the unified rule used by both expressions and l-values. *)
+postfix_expr    ::= primary_atom { postfix_op } ;
+
+postfix_op      ::= "[" expression "]"         (* array subscript *)
+                  | "." IDENT                  (* struct field access *)
+                  | "^"                        (* pointer dereference *)
+                  | "(" [ expr_list ] ")" ;    (* function call *)
+
+primary_atom    ::= NUMBER                      (* decimal, $hex (0x..), binary (%...) *)
                   | STRING                      (* "..." string literal *)
-                  | IDENT
-                  | IDENT "(" [ expr_list ] ")" (* function call *)
-                  | IDENT "[" expression "]"    (* array subscript *)
-                  | IDENT "." IDENT              (* struct field access *)
-                  | IDENT "^"                   (* pointer dereference *)
-                  | IDENT "^" "." IDENT        (* deref + field access *)
+                  | IDENT                       (* variable or function name *)
                   | "{" [ init_list ] "}"        (* struct literal *)
-                  | "(" expression ")"
-                  | "(" expression ")" "^"      (* parenthesized pointer deref *)
+                  | "(" expression ")"          (* parenthesized expression *)
                   | builtin_call ;
 
 builtin_call    ::= "LOW" "(" expression ")"    (* low byte of WORD/LONG → BYTE *)
@@ -223,7 +236,7 @@ expr_list       ::= expression { "," expression } ;
 
    Type Modifier Rules:
    - CONST and STATIC cannot be used together
-   - STATIC requires initializer and @ address specification (local variables only)
+   - STATIC requires initializer (local variables only)
 
    General Notes:
    - All identifiers are case-insensitive internally (converted to uppercase)
@@ -245,18 +258,39 @@ expr_list       ::= expression { "," expression } ;
    - CONST STRUCT FIELDS: Cannot assign to fields of const structs at runtime
    - CONST SUPPORT: All types (byte, word, pointers, arrays, structs) support const initialization
    - BITWISE OPERATORS: & (AND), | (OR), ^ (XOR) for bit manipulation
+   - SHIFT OPERATORS: << (left shift), >> (right shift) for bit shifting
    - STRUCT ARRAYS: Arrays of structs support list-init (e.g., Point pts[3] = {{1,2},{3,4},{5,6}}),
      constant and variable element index, field access (arr[i].field), and multi-dim access
      (arr[i].array_field[j]). Whole-array copy (dst = src) is NOT supported for struct arrays;
      use a for loop to copy elements individually.
-   - COMPOUND ASSIGNMENT: lhs op= expr is syntax sugar for lhs = lhs op expr (all arithmetic and bitwise ops)
+   - COMPOUND ASSIGNMENT: lhs op= expr is syntax sugar for lhs = lhs op expr (all arithmetic, bitwise, and shift ops)
    - STATIC VARIABLES: Local variables that persist across procedure calls
    - PORT VARIABLES: Hardware port-mapped variables declared with #PORT declaration modifier (e.g., byte POKEY_AUDF1 @$D200 #PORT); use #RD and #WR to restrict access direction
-   - DECLARATION MODIFIERS: Trailing modifiers may be attached to top-level declarations, procedures, and functions. Supported modifiers include `#KEEP` (prevent dead-code elimination), `#NOEXPORT` (do not export from a module), `#EXPORT` (force export from non-module file), and `#PORT` / `#RD` / `#WR` (port-related modifiers). Modifiers may be combined and are case-insensitive.
-   - ELSEIF SUPPORT: Multiple conditional branches (if-elseif-elseif-else-endif)
-   - CONTINUE STATEMENT: Skip to next loop iteration in for/while loops
+   - DECLARATION MODIFIERS: Trailing modifiers may be attached to top-level declarations, struct definitions,
+     struct fields, procedures, and functions. Supported modifiers include `#KEEP` (prevent dead-code
+     elimination), `#NOEXPORT` (do not export from a module), `#EXPORT` (force export from non-module file),
+     and `#PORT` / `#RD` / `#WR` (port-related modifiers). Modifiers may be combined and are case-insensitive.
+   - ELSEIF SUPPORT: Multiple conditional branches (if-elseif-elseif-else-end)
+   - CONTINUE STATEMENT: Skip to next loop iteration in for/while/repeat loops
    - STRUCT FIELD ASSIGNMENT: Can assign to struct fields (unless const)
-   - POINTER DEREFERENCING: Both IDENT^ and @IDENT ^ IDENT syntax supported
+   - POINTER DEREFERENCING: Both IDENT^ and (expr)^ syntax supported
+   - SWITCH STATEMENT: Multi-way branch; multiple CASE labels can stack before a body,
+     DEFAULT is optional, BREAK exits the switch. Expression and case values may be any type.
+   - DEFAULT PARAMETERS: Parameters with default values must come after required parameters.
+     Caller may skip a default argument with empty slot: proc(1, , 3).
+   - MULTI-DIMENSIONAL ARRAYS: Arrays may have multiple dimensions (e.g., byte arr[3][4][2]).
+     Size may be inferred from initializer on the first dimension only.
+   - ARRAY PARAMETERS: Parameters declared with [] suffix are passed as pointers to the array.
+   - UNIFIED EXPRESSION / L-VALUE GRAMMAR: Expressions and l-values share the same postfix_expr
+     rule. Any chain of subscript ([expr]), field access (.field), dereference (^), and function
+     call (args) can be composed freely (e.g., ptr^.member1^.member2[i], arr[i].field,
+     fn(x).result^.data). Whether a postfix_expr is a valid assignment target (l-value) is
+     determined by semantic analysis, not the grammar — just like C.
+   - CARET DISAMBIGUATION: The parser uses lookahead to distinguish ^ (postfix pointer dereference)
+     from ^ (binary XOR). If ^ is followed by . it is deref+field; if followed by IDENT or NUMBER
+     on the same line it is treated as XOR; otherwise it is postfix dereference.
+   - BUILTIN FUNCTIONS: LOW, HIGH, LOWW, HIGHW, SIZEOF are parsed as regular function calls
+     but handled specially during code generation.
 *)
 
 
