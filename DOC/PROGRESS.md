@@ -159,3 +159,6 @@ Each pass-test directory contains:
 | Unify cosmetics in generated code (mixed `#$00` vs `#0`, extra blank lines) | Low |
 | Const struct literals with word/long fields store values as bytes — field widths not respected | Medium |
 | Tutorial examples and expanded language reference | Low |
+| VS Code extension: `loww`/`highw` keywords, `LONG` type, comparison operators updated | Done |
+| Documentation: return type validation, `elseif`, line counts updated across all DOC files | Done |
+| Examples: `gs_04_decisions.zap` updated to use `elseif` chains | Done |
