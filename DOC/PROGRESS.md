@@ -162,3 +162,4 @@ Each pass-test directory contains:
 | VS Code extension: `loww`/`highw` keywords, `LONG` type, comparison operators updated | Done |
 | Documentation: return type validation, `elseif`, line counts updated across all DOC files | Done |
 | Examples: `gs_04_decisions.zap` updated to use `elseif` chains | Done |
+| Documentation: const storage and immutability section in ADVANCED_TOPICS.md | Done |
