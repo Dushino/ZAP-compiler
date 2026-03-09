@@ -1,7 +1,7 @@
 # ZAP! Compiler — Progress & Status
 
 **Current version**: 0.2.0
-**Test suite**: 131 pass-tests · 62 fail-tests · all passing
+**Test suite**: 159 pass-tests · 101 fail-tests · all passing
 
 ---
 
@@ -45,9 +45,9 @@
 | `switch / case / default / end` | Done |
 | `break` | Done |
 | Inline `asm … end` blocks | Done |
-| `low()` / `high()` / `sizeof()` built-in functions | Done |
-| `cast` operator | Done |
-| `++` / `--` increment and decrement | Done |
+| `low()` / `high()` / `loww()` / `highw()` / `sizeof()` built-in functions | Done |
+| `continue` | Done |
+| `elseif` | Done |
 | String literals with escape sequences (`\n`, `\t`, `\r`, `\"`, `\'`, `\\`) | Done |
 | Character literals | Done |
 | Integer literals: decimal, hex (`$`), binary (`%`) | Done |
