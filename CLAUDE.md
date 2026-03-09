@@ -3,6 +3,7 @@
 ## Git Rules — STRICT
 - NEVER run `git push` under any circumstances
 - NEVER run `git push --force`
+- NEVER run `git revert` 
 - NEVER modify remote tracking branches
 - Local commits are allowed
 - Always ask for explicit user approval before any git operation
@@ -21,8 +22,18 @@
 - After each change in compiler source codes, tests or documentation, update PROGRESS.md to reflect current sutuation.
 
 ## Documentation ##
-- After each change in grammar, implementation or documentaion perform cross check in all documentaion files. Update documentation to reflect current state.
+- After each change in grammar, implementation or documentaion perform cross check in all documentaion files in `DOC` folder. Update documentation to reflect current state.
+
+## Test generated for development purposes ##
+- There is dedicated folder `generated_tests` for tests created for development purposes. Use this folder for all temporary files not to mess root project folder.
+
+## IDE integration ##
+- After each change in grammar, implementation or documentaion perform cross check in VS Code ZAP plugin in folder `IDE_Integration`.
+
+## Examples ##
+- After each change in grammar, implementation or documentaion perform cross check in all examples in `examples` folder and documentation to reflect current state.
 
 # Compact instructions
 - When you are using compact, please focus on test output and code changes
+
 
