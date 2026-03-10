@@ -491,12 +491,14 @@ def _liveness_block(
             continue
 
         if isinstance(st, CallStmt):
-            for callee in [st.name]:
-                if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(live)
             uses: set[str] = set()
             for a in st.args:
                 uses |= _expr_used_locals(a, name_to_id)
+            for callee in [st.name]:
+                if callee in valid_callees:
+                    # Include argument variables: they are live AT the call, so they
+                    # must not share slots with callee locals.
+                    call_live_across.setdefault((caller_name, callee), set()).update(live | uses)
             live = live | uses
             _add_interference(live, graph, class_key)
             continue
@@ -510,7 +512,9 @@ def _liveness_block(
             call_names = _stmt_call_names(st)
             for callee in call_names:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(live | uses_lhs)
+                    # Include both argument variables (uses_rhs) and lhs sub-expressions:
+                    # all are live AT the call point and must not share slots with callee locals.
+                    call_live_across.setdefault((caller_name, callee), set()).update(live | uses_lhs | uses_rhs)
 
             defs: set[str] = set()
             if isinstance(st.lhs, Identifier):

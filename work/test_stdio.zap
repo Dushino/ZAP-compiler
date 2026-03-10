@@ -17,17 +17,15 @@ proc main()
     byte rv
     FILE fd
         
-    puts("\nOpen:  ")    
+    puts("Open:  ")    
     rv = fopen(@fd, "H1:TEST.TXT\x9b", ICAX1_MODE.Write)  
-    puts("\nWrite: ")
-    rv = fwrite(@fd, Text1, 6)
-    putx(rv)
-
-    puts("\nClose: ")
-    fclose(@fd)
-    putx(rv)
     
-
+    puts("Write: ")
+    rv = fwrite(@fd, Text1, 6)
+    
+    puts("Close: ")
+    fclose(@fd)
+    
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end
 

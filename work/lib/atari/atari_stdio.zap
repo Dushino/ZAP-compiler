@@ -574,7 +574,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     
     ch &= $07
 
-    puts("CIO: ")
+    puts("CIO:")
     putx(ch)
     putchar(',')
     putx(command)
@@ -610,7 +610,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         lda $0340+3,X       ; Status register
         sta _CIO_RV         ; 
     end
-    putchar('-')
+    putchar(' ')
     putx(rv)
     puts("\n")
 
@@ -635,7 +635,7 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     end
 
     fd^.fd = i
-    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
+    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 12, mode, 0)
 
     if rv != ERRNO.OK
         set_fderror(fd, rv)
@@ -774,8 +774,6 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
-    putx(fd^.fd)
-  
     rv = CIO(fd^.fd, 9, "ABCDEF", 6)    
     if rv != 1
         set_fderror(fd, rv)

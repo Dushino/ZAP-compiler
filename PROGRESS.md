@@ -2,6 +2,30 @@
 
 ---
 
+## Liveness / slot-sharing and codegen fixes (2026-03-10)
+
+**Bug 1: `KeyError` on undefined identifiers reported as `1:1`**
+- `SymbolTable.lookup()` now raises `SemanticError("Undefined variable '...'")` instead of leaking `KeyError`
+- `ScopedSymbolTable.lookup()` catches `SemanticError` (not `KeyError`) from local table
+- `constsubst.py`: wraps lookup in `try/except SemanticError`; unknown identifiers return expr unchanged
+- Result: `test.zap:30:5: error: Undefined variable 'TEXT1'` instead of `test.zap:1:1: error: KeyError: 'TEXT1'`
+
+**Bug 2: Wrong second byte argument in two-BYTE-param function calls**
+- `_emit_call_args` `reorder_regs` path for `"two_bytes"`: X was loaded first, then A was evaluated — but A evaluation (e.g. pointer field access) clobbers X
+- Fix: evaluate A argument first, then load X (IntLiteral/simple Identifier never touches A)
+- Example: `CIO(fd^.fd, 9, ...)` was passing command=garbage instead of 9
+
+**Bug 3: Liveness analysis misses call-argument variables in `call_live_across`**
+- `CallStmt`: updated `call_live_across` with `live` only, not argument variables (`uses`)
+- `AssignStmt`: used `live | uses_lhs` but not `uses_rhs`
+- Effect: variables used ONLY as call arguments (not live after) not marked as interfering with callee locals → slot aliasing
+- Symptom: `CIO(i, ...)` — `i` aliased with `_CIO_AUX1` when `i` had no uses after the call (e.g. commenting out `putx(i)`)
+- Fix: `CallStmt` → `live | uses`; `AssignStmt` → `live | uses_lhs | uses_rhs`
+
+All 162 pass + 73 fail tests pass.
+
+---
+
 ## OPT-3: Redundant LDA #imm elimination (wide window) (2026-03-10)
 
 Second-pass peephole optimization: removes `LDA #imm` when A is already known to hold
