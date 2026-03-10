@@ -2,6 +2,28 @@
 
 ---
 
+## Peephole: generalized dead LDX #0 + LDX/TXA→LDA rules (2026-03-10)
+
+Replaced the narrow `LDA; LDX #0; STA` triple rule with two independent rules:
+
+**1. Generalized dead LDX #0**: triggers whenever the current line IS `LDX #0` (regardless
+of what precedes or follows). Forward liveness scan verifies X is overwritten before being
+read; if so, the `LDX #0` is simply skipped. This covers `LDX #0; CMP`, `LDX #0; STA`,
+and any other following instruction.
+
+**2. LDX <mem>; [non-X code]; TXA → [non-X code]; LDA <mem>**: when X is loaded from a
+memory address and the only subsequent use is `TXA` (copy X→A, before X is overwritten),
+replace `TXA` with `LDA <mem>` and remove the `LDX`. Safe because `LDA` does not affect
+carry. Both forward scans (scan1: LDX→TXA, scan2: after TXA to X overwrite) are required
+to pass. Stops conservatively at JSR/JMP/RTS.
+
+Fired on 7 of 8 occurrences in `work/test_stdio.s`; 8th cannot fire because the scan
+hits `RTS` before finding an X overwrite (correct conservative behaviour).
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Peephole: dead LDX #0 elimination after LDA/STA (2026-03-10)
 
 Added a forward-liveness peephole rule to `codegen_expr.py` that removes a dead `LDX #0`
