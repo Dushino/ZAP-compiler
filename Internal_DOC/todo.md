@@ -756,7 +756,7 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 - [ ] Find duplicates in compiler code and unify where possible
 "The second copy of emit_memory_map() runs from a different code path."
 #	Target	Savings	Effort
-1	[ ] AST walker families in compiler_pipeline.py	~600 lines	Medium
+1	[x] AST walker families in compiler_pipeline.py	~600 lines	Medium
 2	[ ] sema_proc.py / sema_func.py shared helpers	~600 lines	Medium
 3	[ ] cleanup_labels() unification	~30 lines	Low
 4	[ ] simple_byte_operand() in codegen	~50 lines	Low

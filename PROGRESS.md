@@ -2,6 +2,41 @@
 
 ---
 
+## Refactor: unified AST walker (2026-03-10)
+
+### What was done
+
+Introduced `ast_walker.py` — a new module that centralises all recursive AST
+traversal logic for the compiler pipeline.
+
+**Problem**: `compiler_pipeline.py` contained 11 near-identical functions
+across 4 families, each re-implementing the same recursive dispatch over the
+same AST node types (BinaryExpr, UnaryExpr, IfStmt, ForStmt, SwitchStmt, …).
+Adding a new AST node type previously required updating all 11 functions.
+
+**Solution**:
+- New file `ast_walker.py` with three generic walkers:
+  - `walk_expr(expr, *, on_identifier, on_call_expr)`
+  - `walk_stmt(stmt, *, on_call_stmt, on_identifier, on_call_expr)`
+  - `walk_initializer(init, *, on_identifier, on_call_expr)`
+- Each walker accepts optional callbacks for semantically-interesting nodes
+  (Identifier, CallExpr, CallStmt); structural recursion is handled once.
+- The 11 functions in `compiler_pipeline.py` are now thin wrappers that define
+  the relevant callbacks and delegate traversal to `ast_walker`.
+- Added `_BUILTIN_CALLS` module-level constant (previously inlined as a literal
+  set in three places: `{"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}`).
+- Added `_make_global_callbacks()` helper to share the Identifier and CallExpr
+  callback closures across the three Family-1 wrappers.
+
+**Files changed**:
+- `ast_walker.py` — new, ~170 lines (traversal logic + docstrings)
+- `compiler_pipeline.py` — removed ~490 lines of duplicated traversal, added
+  ~100 lines of thin wrappers and helpers; net ~−390 lines
+
+**Tests**: all 229 tests (157 pass + 72 fail) pass. No regressions.
+
+---
+
 ## Slot allocator: interference graph precision fixes (2026-03-10)
 
 ### What was done

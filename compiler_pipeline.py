@@ -7,139 +7,75 @@ from sema_func import FuncAnalyzer
 from codegen_expr import CodeGen
 from dce import dce_block
 from errors import SemanticError
+from ast_walker import walk_expr, walk_stmt, walk_initializer
 from collections import deque
 from typing import Optional, Set, Dict, Tuple, List, Any
 
+# Pseudo-function names handled in codegen that are excluded from call-graph
+# tracking (they take no real JSR and appear in no proc/func table).
+_BUILTIN_CALLS: frozenset = frozenset({"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"})
+
+
+def _make_global_callbacks(ctx, global_symtab):
+    """Return (on_identifier, on_call_expr) callbacks for the global-analysis pass.
+
+    Both callbacks populate the mutable ctx dict:
+        ctx['used_globals'] — symbol keys of referenced global variables
+        ctx['func_calls']   — names of functions called in expressions
+    """
+    def on_ident(node):
+        # Mark global usage (locals shadow automatically via scope lookup).
+        sym = global_symtab._symbols.get(global_symtab._key(node.name))
+        if sym is not None and not getattr(sym, "proc_name", ""):
+            ctx["used_globals"].add(global_symtab._key(node.name))
+
+    def on_call(node):
+        if node.name.upper() not in _BUILTIN_CALLS:
+            ctx["func_calls"].add(node.name)
+
+    return on_ident, on_call
+
 
 def _walk_expr(expr, ctx, global_symtab):
-    """Walk an expression and record global usage and calls."""
-    from ast_nodes import (
-        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
-        SubscriptExpr, CallExpr, FieldAccess
-    )
+    """Walk an expression, recording global variable usage and function call
+    names into ctx['used_globals'] and ctx['func_calls'].
 
-    if isinstance(expr, (IntLiteral, StringLiteral)):
-        return
-
-    if isinstance(expr, Identifier):
-        # Mark global usage (locals shadow automatically via scope lookup)
-        sym = global_symtab._symbols.get(global_symtab._key(expr.name))
-        if sym is not None and not getattr(sym, "proc_name", ""):
-            ctx["used_globals"].add(global_symtab._key(expr.name))
-        return
-
-    if isinstance(expr, FieldAccess):
-        # For field access like global_pt.x, mark the object as used
-        _walk_expr(expr.object, ctx, global_symtab)
-        return
-
-    if isinstance(expr, CallExpr):
-        if expr.name.upper() not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
-            ctx["func_calls"].add(expr.name)
-        for a in expr.args:
-            _walk_expr(a, ctx, global_symtab)
-        return
-
-    if isinstance(expr, BinaryExpr):
-        _walk_expr(expr.left, ctx, global_symtab)
-        _walk_expr(expr.right, ctx, global_symtab)
-        return
-
-    if isinstance(expr, UnaryExpr):
-        _walk_expr(expr.expr, ctx, global_symtab)
-        return
-
-    if isinstance(expr, DerefExpr):
-        _walk_expr(expr.pointer, ctx, global_symtab)
-        return
-
-    if isinstance(expr, SubscriptExpr):
-        _walk_expr(expr.array, ctx, global_symtab)
-        _walk_expr(expr.index, ctx, global_symtab)
-        return
+    Traversal is handled by walk_expr() in ast_walker.py; this wrapper
+    supplies the Identifier and CallExpr callbacks for the global-analysis pass.
+    """
+    on_ident, on_call = _make_global_callbacks(ctx, global_symtab)
+    walk_expr(expr, on_identifier=on_ident, on_call_expr=on_call)
 
 
 def _walk_stmt(stmt, ctx, global_symtab):
-    """Walk a statement tree and record global usage and calls."""
-    from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, BreakStmt,
-        ContinueStmt
-    )
+    """Walk a statement tree, recording global variable usage and proc/func
+    call names into ctx['used_globals'], ctx['proc_calls'], ctx['func_calls'].
 
-    if isinstance(stmt, CallStmt):
+    Traversal is handled by walk_stmt() in ast_walker.py; this wrapper
+    supplies the Identifier, CallExpr, and CallStmt callbacks for the
+    global-analysis pass.
+    """
+    on_ident, on_call_e = _make_global_callbacks(ctx, global_symtab)
+
+    def on_call_s(node):
         # Parser emits CallStmt for both proc calls and func calls used as
-        # statements (return value discarded). Add to both sets so prune_unused
+        # statements (return value discarded).  Add to both sets so prune_unused
         # finds functions that are only called this way.
-        ctx["proc_calls"].add(stmt.name)
-        ctx["func_calls"].add(stmt.name)
-        for a in stmt.args:
-            _walk_expr(a, ctx, global_symtab)
-        return
+        ctx["proc_calls"].add(node.name)
+        ctx["func_calls"].add(node.name)
 
-    if isinstance(stmt, AssignStmt):
-        _walk_expr(stmt.lhs, ctx, global_symtab)
-        _walk_expr(stmt.rhs, ctx, global_symtab)
-        return
-
-    if isinstance(stmt, ReturnStmt):
-        _walk_expr(stmt.expr, ctx, global_symtab)
-        return
-
-    if isinstance(stmt, IfStmt):
-        _walk_expr(stmt.cond, ctx, global_symtab)
-        for s in stmt.then_body:
-            _walk_stmt(s, ctx, global_symtab)
-        if stmt.else_body:
-            for s in stmt.else_body:
-                _walk_stmt(s, ctx, global_symtab)
-        return
-
-    if isinstance(stmt, WhileStmt):
-        _walk_expr(stmt.cond, ctx, global_symtab)
-        for s in stmt.body:
-            _walk_stmt(s, ctx, global_symtab)
-        return
-
-    if isinstance(stmt, RepeatUntilStmt):
-        for s in stmt.body:
-            _walk_stmt(s, ctx, global_symtab)
-        _walk_expr(stmt.cond, ctx, global_symtab)
-        return
-
-    if isinstance(stmt, ForStmt):
-        _walk_expr(stmt.var, ctx, global_symtab)
-        _walk_expr(stmt.start, ctx, global_symtab)
-        _walk_expr(stmt.end, ctx, global_symtab)
-        if stmt.step:
-            _walk_expr(stmt.step, ctx, global_symtab)
-        for s in stmt.body:
-            _walk_stmt(s, ctx, global_symtab)
-        return
-
-    if isinstance(stmt, SwitchStmt):
-        _walk_expr(stmt.expr, ctx, global_symtab)
-        for case in stmt.cases:
-            for label in case.labels:
-                _walk_expr(label, ctx, global_symtab)
-            for s in case.body:
-                _walk_stmt(s, ctx, global_symtab)
-        return
-
-    # Break/Continue and others carry no identifiers/calls
-    if isinstance(stmt, (BreakStmt, ContinueStmt)):
-        return
+    walk_stmt(stmt, on_call_stmt=on_call_s, on_identifier=on_ident, on_call_expr=on_call_e)
 
 
 def _walk_initializer(init, ctx, global_symtab):
-    """Walk an initializer expression for global usage and calls."""
-    from ast_nodes import ExprInit, ListInit, StringInit
-    if isinstance(init, ExprInit):
-        _walk_expr(init.expr, ctx, global_symtab)
-    elif isinstance(init, ListInit):
-        for v in init.values:
-            _walk_expr(v, ctx, global_symtab)
-    elif isinstance(init, StringInit):
-        return
+    """Walk an initializer, recording global variable usage and function call
+    names into ctx['used_globals'] and ctx['func_calls'].
+
+    Traversal is handled by walk_initializer() in ast_walker.py; this wrapper
+    supplies the Identifier and CallExpr callbacks for the global-analysis pass.
+    """
+    on_ident, on_call = _make_global_callbacks(ctx, global_symtab)
+    walk_initializer(init, on_identifier=on_ident, on_call_expr=on_call)
 
 
 def prune_unused(program, analyzed_procs, analyzed_funcs, global_symtab):
@@ -341,123 +277,42 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
 
 
 def _walk_expr_locals(expr, used: set[str], local_symtab):
-    """Walk an expression and collect referenced local symbols."""
-    from ast_nodes import (
-        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
-        SubscriptExpr, CallExpr, FieldAccess
-    )
+    """Walk an expression, collecting referenced local symbol keys into `used`.
 
-    if isinstance(expr, (IntLiteral, StringLiteral)):
-        return
+    Traversal is handled by walk_expr() in ast_walker.py; this wrapper
+    supplies the Identifier callback for the local-symbol-collection pass.
+    """
+    def on_ident(node):
+        if local_symtab._key(node.name) in local_symtab._symbols:
+            used.add(local_symtab._key(node.name))
 
-    if isinstance(expr, Identifier):
-        if local_symtab._key(expr.name) in local_symtab._symbols:
-            used.add(local_symtab._key(expr.name))
-        return
-
-    if isinstance(expr, CallExpr):
-        for a in expr.args:
-            _walk_expr_locals(a, used, local_symtab)
-        return
-
-    if isinstance(expr, BinaryExpr):
-        _walk_expr_locals(expr.left, used, local_symtab)
-        _walk_expr_locals(expr.right, used, local_symtab)
-        return
-
-    if isinstance(expr, UnaryExpr):
-        _walk_expr_locals(expr.expr, used, local_symtab)
-        return
-
-    if isinstance(expr, DerefExpr):
-        _walk_expr_locals(expr.pointer, used, local_symtab)
-        return
-
-    if isinstance(expr, SubscriptExpr):
-        _walk_expr_locals(expr.array, used, local_symtab)
-        _walk_expr_locals(expr.index, used, local_symtab)
-        return
-
-    if isinstance(expr, FieldAccess):
-        _walk_expr_locals(expr.object, used, local_symtab)
-        return
+    walk_expr(expr, on_identifier=on_ident)
 
 
 def _walk_stmt_locals(stmt, used: set[str], local_symtab):
-    """Walk a statement and collect referenced local symbols."""
-    from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt, BreakStmt,
-        ContinueStmt
-    )
+    """Walk a statement, collecting referenced local symbol keys into `used`.
 
-    if isinstance(stmt, CallStmt):
-        for a in stmt.args:
-            _walk_expr_locals(a, used, local_symtab)
-        return
+    Traversal is handled by walk_stmt() in ast_walker.py; this wrapper
+    supplies the Identifier callback for the local-symbol-collection pass.
+    """
+    def on_ident(node):
+        if local_symtab._key(node.name) in local_symtab._symbols:
+            used.add(local_symtab._key(node.name))
 
-    if isinstance(stmt, AssignStmt):
-        _walk_expr_locals(stmt.lhs, used, local_symtab)
-        _walk_expr_locals(stmt.rhs, used, local_symtab)
-        return
-
-    if isinstance(stmt, ReturnStmt):
-        _walk_expr_locals(stmt.expr, used, local_symtab)
-        return
-
-    if isinstance(stmt, IfStmt):
-        _walk_expr_locals(stmt.cond, used, local_symtab)
-        for s in stmt.then_body:
-            _walk_stmt_locals(s, used, local_symtab)
-        if stmt.else_body:
-            for s in stmt.else_body:
-                _walk_stmt_locals(s, used, local_symtab)
-        return
-
-    if isinstance(stmt, WhileStmt):
-        _walk_expr_locals(stmt.cond, used, local_symtab)
-        for s in stmt.body:
-            _walk_stmt_locals(s, used, local_symtab)
-        return
-
-    if isinstance(stmt, RepeatUntilStmt):
-        for s in stmt.body:
-            _walk_stmt_locals(s, used, local_symtab)
-        _walk_expr_locals(stmt.cond, used, local_symtab)
-        return
-
-    if isinstance(stmt, ForStmt):
-        _walk_expr_locals(stmt.var, used, local_symtab)
-        _walk_expr_locals(stmt.start, used, local_symtab)
-        _walk_expr_locals(stmt.end, used, local_symtab)
-        if stmt.step:
-            _walk_expr_locals(stmt.step, used, local_symtab)
-        for s in stmt.body:
-            _walk_stmt_locals(s, used, local_symtab)
-        return
-
-    if isinstance(stmt, SwitchStmt):
-        _walk_expr_locals(stmt.expr, used, local_symtab)
-        for case in stmt.cases:
-            for label in case.labels:
-                _walk_expr_locals(label, used, local_symtab)
-            for s in case.body:
-                _walk_stmt_locals(s, used, local_symtab)
-        return
-
-    if isinstance(stmt, (BreakStmt, ContinueStmt)):
-        return
+    walk_stmt(stmt, on_identifier=on_ident)
 
 
 def _walk_initializer_locals(init, used: set[str], local_symtab):
-    """Walk an initializer to collect referenced local symbols."""
-    from ast_nodes import ExprInit, ListInit, StringInit
-    if isinstance(init, ExprInit):
-        _walk_expr_locals(init.expr, used, local_symtab)
-    elif isinstance(init, ListInit):
-        for v in init.values:
-            _walk_expr_locals(v, used, local_symtab)
-    elif isinstance(init, StringInit):
-        return
+    """Walk an initializer, collecting referenced local symbol keys into `used`.
+
+    Traversal is handled by walk_initializer() in ast_walker.py; this wrapper
+    supplies the Identifier callback for the local-symbol-collection pass.
+    """
+    def on_ident(node):
+        if local_symtab._key(node.name) in local_symtab._symbols:
+            used.add(local_symtab._key(node.name))
+
+    walk_initializer(init, on_identifier=on_ident)
 
 
 def prune_unused_locals(analyzed_procs, analyzed_funcs):
@@ -489,217 +344,83 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
 
 
 def _expr_used_locals(expr, name_to_id: dict[str, str]) -> set[str]:
-    """Return IDs of locals referenced by an expression."""
-    from ast_nodes import (
-        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
-        SubscriptExpr, CallExpr, FieldAccess
-    )
+    """Return IDs of local variables referenced by an expression.
 
+    Looks up each Identifier in name_to_id (keys are upper-cased names) and
+    collects the corresponding slot IDs.  Traversal via walk_expr() in
+    ast_walker.py.
+    """
     used: set[str] = set()
-
     if expr is None:
         return used
 
-    if isinstance(expr, (IntLiteral, StringLiteral)):
-        return used
-
-    if isinstance(expr, Identifier):
-        key = expr.name.upper() if isinstance(expr.name, str) else expr.name
+    def on_ident(node):
+        key = node.name.upper() if isinstance(node.name, str) else node.name
         local_id = name_to_id.get(key)
         if local_id:
             used.add(local_id)
-        return used
 
-    if isinstance(expr, CallExpr):
-        for a in expr.args:
-            used |= _expr_used_locals(a, name_to_id)
-        return used
-
-    if isinstance(expr, BinaryExpr):
-        used |= _expr_used_locals(expr.left, name_to_id)
-        used |= _expr_used_locals(expr.right, name_to_id)
-        return used
-
-    if isinstance(expr, UnaryExpr):
-        used |= _expr_used_locals(expr.expr, name_to_id)
-        return used
-
-    if isinstance(expr, DerefExpr):
-        used |= _expr_used_locals(expr.pointer, name_to_id)
-        return used
-
-    if isinstance(expr, SubscriptExpr):
-        used |= _expr_used_locals(expr.array, name_to_id)
-        used |= _expr_used_locals(expr.index, name_to_id)
-        return used
-
-    if isinstance(expr, FieldAccess):
-        used |= _expr_used_locals(expr.object, name_to_id)
-        return used
-
+    walk_expr(expr, on_identifier=on_ident)
     return used
 
 
 def _init_used_locals(init, name_to_id: dict[str, str]) -> set[str]:
-    """Return IDs of locals referenced by an initializer."""
-    from ast_nodes import ExprInit, ListInit, StringInit
+    """Return IDs of local variables referenced by an initializer.
+
+    Traversal via walk_initializer() in ast_walker.py.
+    """
     used: set[str] = set()
     if init is None:
         return used
-    if isinstance(init, ExprInit):
-        return _expr_used_locals(init.expr, name_to_id)
-    if isinstance(init, ListInit):
-        for v in init.values:
-            if isinstance(v, ExprInit):
-                used |= _expr_used_locals(v.expr, name_to_id)
-            elif isinstance(v, ListInit):
-                used |= _init_used_locals(v, name_to_id)
-            elif isinstance(v, StringInit):
-                continue
-            else:
-                used |= _expr_used_locals(v, name_to_id)
-        return used
-    if isinstance(init, StringInit):
-        return used
+
+    def on_ident(node):
+        key = node.name.upper() if isinstance(node.name, str) else node.name
+        local_id = name_to_id.get(key)
+        if local_id:
+            used.add(local_id)
+
+    walk_initializer(init, on_identifier=on_ident)
     return used
 
 
 def _expr_call_names(expr) -> set[str]:
-    """Collect function/procedure call names within an expression."""
-    from ast_nodes import (
-        IntLiteral, StringLiteral, Identifier, BinaryExpr, UnaryExpr, DerefExpr,
-        SubscriptExpr, CallExpr, FieldAccess
-    )
+    """Return all function/procedure names called within an expression.
 
+    Includes nested calls (e.g. f(g(x)) returns both 'f' and 'g').
+    Traversal via walk_expr() in ast_walker.py.
+    """
     calls: set[str] = set()
-
     if expr is None:
         return calls
-
-    if isinstance(expr, (IntLiteral, StringLiteral, Identifier)):
-        return calls
-
-    if isinstance(expr, CallExpr):
-        calls.add(expr.name)
-        for a in expr.args:
-            calls |= _expr_call_names(a)
-        return calls
-
-    if isinstance(expr, BinaryExpr):
-        calls |= _expr_call_names(expr.left)
-        calls |= _expr_call_names(expr.right)
-        return calls
-
-    if isinstance(expr, UnaryExpr):
-        calls |= _expr_call_names(expr.expr)
-        return calls
-
-    if isinstance(expr, DerefExpr):
-        calls |= _expr_call_names(expr.pointer)
-        return calls
-
-    if isinstance(expr, SubscriptExpr):
-        calls |= _expr_call_names(expr.array)
-        calls |= _expr_call_names(expr.index)
-        return calls
-
-    if isinstance(expr, FieldAccess):
-        calls |= _expr_call_names(expr.object)
-        return calls
-
+    walk_expr(expr, on_call_expr=lambda node: calls.add(node.name))
     return calls
 
 
 def _init_call_names(init) -> set[str]:
-    """Collect function/procedure call names within an initializer."""
-    from ast_nodes import ExprInit, ListInit, StringInit
+    """Return all function/procedure names called within an initializer.
+
+    Traversal via walk_initializer() in ast_walker.py.
+    """
     calls: set[str] = set()
     if init is None:
         return calls
-    if isinstance(init, ExprInit):
-        return _expr_call_names(init.expr)
-    if isinstance(init, ListInit):
-        for v in init.values:
-            if isinstance(v, ExprInit):
-                calls |= _expr_call_names(v.expr)
-            elif isinstance(v, ListInit):
-                calls |= _init_call_names(v)
-            elif isinstance(v, StringInit):
-                continue
-            else:
-                calls |= _expr_call_names(v)
-        return calls
-    if isinstance(init, StringInit):
-        return calls
+    walk_initializer(init, on_call_expr=lambda node: calls.add(node.name))
     return calls
 
 
 def _stmt_call_names(stmt) -> set[str]:
-    """Collect function/procedure call names within a statement tree."""
-    from ast_nodes import (
-        CallStmt, AssignStmt, ReturnStmt, IfStmt, WhileStmt, RepeatUntilStmt, ForStmt,
-        SwitchStmt, BreakStmt, ContinueStmt, SwitchCase
-    )
+    """Return all function/procedure names called within a statement tree.
 
+    Includes both CallStmt (proc/func calls used as statements) and CallExpr
+    (function calls within sub-expressions).  Traversal via walk_stmt() in
+    ast_walker.py.
+    """
     calls: set[str] = set()
-
-    if isinstance(stmt, CallStmt):
-        calls.add(stmt.name)
-        for a in stmt.args:
-            calls |= _expr_call_names(a)
-        return calls
-
-    if isinstance(stmt, AssignStmt):
-        calls |= _expr_call_names(stmt.lhs)
-        calls |= _expr_call_names(stmt.rhs)
-        return calls
-
-    if isinstance(stmt, ReturnStmt):
-        calls |= _expr_call_names(stmt.expr)
-        return calls
-
-    if isinstance(stmt, IfStmt):
-        calls |= _expr_call_names(stmt.cond)
-        for s in stmt.then_body:
-            calls |= _stmt_call_names(s)
-        if stmt.else_body:
-            for s in stmt.else_body:
-                calls |= _stmt_call_names(s)
-        return calls
-
-    if isinstance(stmt, WhileStmt):
-        calls |= _expr_call_names(stmt.cond)
-        for s in stmt.body:
-            calls |= _stmt_call_names(s)
-        return calls
-
-    if isinstance(stmt, RepeatUntilStmt):
-        for s in stmt.body:
-            calls |= _stmt_call_names(s)
-        calls |= _expr_call_names(stmt.cond)
-        return calls
-
-    if isinstance(stmt, ForStmt):
-        calls |= _expr_call_names(stmt.start)
-        calls |= _expr_call_names(stmt.end)
-        if stmt.step is not None:
-            calls |= _expr_call_names(stmt.step)
-        for s in stmt.body:
-            calls |= _stmt_call_names(s)
-        return calls
-
-    if isinstance(stmt, SwitchStmt):
-        calls |= _expr_call_names(stmt.expr)
-        for case in stmt.cases:
-            for label in case.labels:
-                calls |= _expr_call_names(label)
-            for s in case.body:
-                calls |= _stmt_call_names(s)
-        return calls
-
-    if isinstance(stmt, (BreakStmt, ContinueStmt)):
-        return calls
-
+    walk_stmt(
+        stmt,
+        on_call_stmt=lambda node: calls.add(node.name),
+        on_call_expr=lambda node: calls.add(node.name),
+    )
     return calls
 
 
