@@ -2,6 +2,26 @@
 
 ---
 
+## Peephole: LDX #0 / TXA → LDA #$00 (2026-03-10)
+
+Fixed and generalised an existing (broken) peephole rule in `codegen_expr.py`:
+
+```
+Before:  LDX #$00 / CLC / ADC <mem> / STA <mem> / TXA
+After:   CLC / ADC <mem> / STA <mem> / LDA #$00
+```
+
+`LDX #0` followed by `TXA` is just a slow way to put 0 into A.  Replace with `LDA #$00`
+and drop the now-dead `LDX`.  The original rule had two bugs: the `in {…}` set
+contained the same string three times (should have covered `#0`, `#00`, `#$00`), and
+it hardcoded `TMP0` instead of matching any memory operand.  Also fixed: the rule was
+in the section that cannot yet call `_parse_inst` (defined later in the loop body), so
+the rewrite uses direct string splitting instead.
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Peephole: indirect WORD load + store optimization (2026-03-10)
 
 Added a 7→6 instruction peephole rule for loading a WORD via an indirect ZP pointer and storing it to a memory destination:

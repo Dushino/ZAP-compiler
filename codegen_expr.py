@@ -2585,25 +2585,29 @@ class CodeGen:
             # no longer exists.
             pass
 
-            # Replace LDX #$00; CLC; ADC TMP0; STA TMP0; TXA -> CLC; ADC TMP0; STA TMP0; LDA #$00
+            # Replace LDX #0; CLC; ADC <mem>; STA <mem>; TXA
+            #       → CLC; ADC <mem>; STA <mem>; LDA #$00
+            # LDX #0 + TXA is just a slow way to load 0 into A.  Replace with LDA #$00
+            # and drop the now-unused LDX.  Matches any zero-load form: #0, #$00, #00.
+            # Note: _parse_inst is defined later in this loop body; use raw string split here.
             if i + 4 < len(self.code):
-                l1 = self.code[i].strip()
-                l2 = self.code[i + 1].strip()
-                l3 = self.code[i + 2].strip()
-                l4 = self.code[i + 3].strip()
-                l5 = self.code[i + 4].strip()
-                l1_u = l1.split(';')[0].strip().upper()
-                l2_u = l2.split(';')[0].strip().upper()
-                l3_u = l3.split(';')[0].strip().upper()
-                l4_u = l4.split(';')[0].strip().upper()
-                l5_u = l5.split(';')[0].strip().upper()
-                if (l1_u in {"LDX #$00", "LDX #$00", "LDX #$00"} and l2_u == "CLC" and
-                        l3_u == "ADC TMP0" and l4_u == "STA TMP0" and l5_u == "TXA"):
-                    optimized.append(self.code[i + 1])
-                    optimized.append(self.code[i + 2])
-                    optimized.append(self.code[i + 3])
-                    indent = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
-                    optimized.append(f"{indent}LDA #$00\n")
+                _l1u = self.code[i].split(';')[0].strip().upper()
+                _l2u = self.code[i + 1].split(';')[0].strip().upper()
+                _l3u = self.code[i + 2].split(';')[0].strip().upper()
+                _l4u = self.code[i + 3].split(';')[0].strip().upper()
+                _l5u = self.code[i + 4].split(';')[0].strip().upper()
+                _l3p = _l3u.split(maxsplit=1)
+                _l4p = _l4u.split(maxsplit=1)
+                if (_l1u in {"LDX #0", "LDX #$00", "LDX #00", "LDX #$0"} and
+                        _l2u == "CLC" and
+                        len(_l3p) == 2 and _l3p[0] == "ADC" and
+                        len(_l4p) == 2 and _l4p[0] == "STA" and _l3p[1] == _l4p[1] and
+                        _l5u == "TXA"):
+                    ind4 = self.code[i + 4][:len(self.code[i + 4]) - len(self.code[i + 4].lstrip())]
+                    optimized.append(self.code[i + 1])   # CLC
+                    optimized.append(self.code[i + 2])   # ADC <mem>
+                    optimized.append(self.code[i + 3])   # STA <mem>
+                    optimized.append(f"{ind4}LDA #$00\n")
                     i += 5
                     continue
 
