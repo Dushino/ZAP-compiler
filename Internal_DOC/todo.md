@@ -757,7 +757,7 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 "The second copy of emit_memory_map() runs from a different code path."
 #	Target	Savings	Effort
 1	[x] AST walker families in compiler_pipeline.py	~600 lines	Medium
-2	[ ] sema_proc.py / sema_func.py shared helpers	~600 lines	Medium
+2	[x] sema_proc.py / sema_func.py shared helpers	~600 lines	Medium
 3	[ ] cleanup_labels() unification	~30 lines	Low
 4	[ ] simple_byte_operand() in codegen	~50 lines	Low
 5	[ ] sym_size() in compiler_pipeline	~10 lines	Trivial
@@ -765,6 +765,14 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 
 
 - [ ] Emit bytes count used as a comment in generated assembly code after end of "ZEROPAGE" and "BSS" segments.
+
+- [ ] Create color schemes based on 
+https://github.com/HallerPatrick/Solarized-Autumn/tree/master
+
+https://open-vsx.org/extension/santoso-wijaya/helios-selene
+https://github.com/jan-warchol/selenized
+
+https://github.com/jan-warchol/selenized
 
 
 

@@ -2,6 +2,52 @@
 
 ---
 
+## Refactor: sema_proc / sema_func shared helpers (2026-03-10)
+
+### What was done
+
+Introduced `sema_shared.py` — a new module that centralises the semantic
+analysis helpers duplicated between `ProcAnalyzer` (sema_proc.py) and
+`FuncAnalyzer` (sema_func.py).
+
+**Problem**: Both analyzer classes contained near-identical implementations of
+~11 helpers and the large `validate_stmt_exprs` body validator, resulting in
+~600 lines of duplicated logic. Bug fixes in one copy were at risk of not being
+applied to the other.
+
+**Solution**:
+- New file `sema_shared.py` (~310 lines) with all shared module-level functions:
+  - `map_debug_line` / `attach_source_text` — debug line mapping and error annotation
+  - `map_stmt_info` — source-location lookup for a statement node
+  - `is_considered_initialized` — pure predicate for "safe to read without assignment"
+  - `get_base_ident` — extract root identifier from an LHS expression chain
+  - `check_uninitialized` — walk an expression and raise on first uninit local read
+  - `mark_initialized_from_lhs` — record assignment target as initialized
+  - `check_port_write` — raise on write to a read-only port variable
+  - `build_local_symtab` — create SymbolTable and register all parameters
+  - `build_init_set` — build the initial "known-initialized" upper-case name set
+  - `validate_body_exprs` — unified statement-list type-checker with init tracking
+- `validate_body_exprs` accepts two optional callbacks for routine-specific logic:
+  - `on_call_stmt(stmt, initialized)` — proc supplies argument uninit validation;
+    func passes None
+  - `on_return_stmt(stmt, initialized)` — proc supplies basic expression check;
+    func passes None (top-level returns validated separately for full type checking)
+- `_map_debug_line` and `_attach_source_text` in both Analyzer classes are now
+  one-line delegations to `sema_shared`.
+- All per-statement nested helper functions (`_map_stmt_info`, `_is_considered_initialized`,
+  `_check_uninitialized`, `_mark_initialized_from_lhs`, `_get_base_ident`) removed
+  from both analyzer methods.
+
+**Files changed**:
+- `sema_shared.py` — new, ~310 lines
+- `sema_proc.py` — reduced from ~737 to ~210 lines (−527 lines)
+- `sema_func.py` — reduced from ~565 to ~215 lines (−350 lines)
+- Net: ~570 lines removed, ~310 added → **−260 lines overall**
+
+**Tests**: all 229 tests (157 pass + 72 fail) pass. No regressions.
+
+---
+
 ## Refactor: unified AST walker (2026-03-10)
 
 ### What was done
