@@ -3152,6 +3152,51 @@ class CodeGen:
                             i += 7
                             continue
 
+            # Dead LDX #0 elimination: LDA <src>; LDX #0; STA <dst>
+            # When a BYTE value is loaded then zero-extended to WORD (LDX #0), but only
+            # the low byte (A) is saved via STA and X is never subsequently read, the
+            # LDX is dead.  We verify liveness by scanning forward from i+3:
+            #  - Skip blank/comment lines and labels (sequential code continues past them).
+            #  - Stop at JSR/JMP/RTS (unknown execution continuation).
+            #  - If X is overwritten (LDX, TAX, TSX, PLX) before being read → X is dead.
+            #  - If X is read (STX, TXA, TXS, DEX, INX, CPX, PHX, or any ,X operand)
+            #    before being overwritten → X is live, keep the LDX.
+            if i + 2 < len(self.code):
+                _pi0 = _parse_inst(self.code[i])
+                _pi1 = _parse_inst(self.code[i + 1])
+                _pi2 = _parse_inst(self.code[i + 2])
+                if (_pi0[0] == "LDA" and
+                        _pi1[0] == "LDX" and _pi1[1] in ("#0", "#$00", "#00", "#$0") and
+                        _pi2[0] == "STA"):
+                    _X_READERS = {"STX", "TXA", "TXS", "DEX", "INX", "CPX", "PHX"}
+                    _X_WRITERS = {"LDX", "TAX", "TSX", "PLX"}
+                    _STOP_OPS  = {"JSR", "JMP", "RTS"}
+                    _x_dead = False
+                    _j = i + 3
+                    while _j < len(self.code):
+                        _lj = self.code[_j].strip()
+                        if not _lj or _lj.startswith(";"):
+                            _j += 1
+                            continue
+                        if _lj.endswith(":"):       # label — continue past it
+                            _j += 1
+                            continue
+                        _op_j, _arg_j = _parse_inst(self.code[_j])
+                        if _op_j in _X_WRITERS:
+                            _x_dead = True
+                            break
+                        if _op_j in _X_READERS or ",X" in _arg_j:
+                            break                   # X is live, abort
+                        if _op_j in _STOP_OPS:
+                            break                   # unknown path, conservative
+                        _j += 1
+                    if _x_dead:
+                        optimized.append(self.code[i])      # LDA <src>
+                        # skip self.code[i+1]               # LDX #0  ← removed
+                        optimized.append(self.code[i + 2])  # STA <dst>
+                        i += 3
+                        continue
+
             # Remove blank line right before RTS
             if not line_stripped:
                 j = i + 1

@@ -2,6 +2,26 @@
 
 ---
 
+## Peephole: dead LDX #0 elimination after LDA/STA (2026-03-10)
+
+Added a forward-liveness peephole rule to `codegen_expr.py` that removes a dead `LDX #0`
+in the pattern `LDA <src>; LDX #0; STA <dst>`.
+
+`LDX #0` appears when a BYTE value is zero-extended to WORD (`A=value, X=0`) but only the
+low byte is then saved (`STA <dst>`), leaving X=0 unused.
+
+**Liveness check**: scan forward from `i+3`, skipping blank/comment lines and labels,
+stopping at JSR/JMP/RTS (unknown control flow).  If X is overwritten (`LDX`, `TAX`, `TSX`,
+`PLX`) before being read (`STX`, `TXA`, `TXS`, `DEX`, `INX`, `CPX`, `PHX`, or any `,X`
+operand), the `LDX #0` is dead and removed.
+
+Works correctly for the struct-array-index multiplication pattern, where X stays dead
+across 100+ lines of `CLC/LDA/ADC/STA/BCC/INC` + labels before X is overwritten.
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Peephole: LDX #0 / TXA → LDA #$00 (2026-03-10)
 
 Fixed and generalised an existing (broken) peephole rule in `codegen_expr.py`:
