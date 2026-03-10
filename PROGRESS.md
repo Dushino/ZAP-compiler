@@ -2,6 +2,31 @@
 
 ---
 
+## Refactor: parse_declarator() dead code removal (2026-03-10)
+
+### What was done
+
+Deleted ~160 lines of unreachable dead code from `parser.py:parse_declaration`.
+
+**Root cause**: `parse_declaration` contained a complete second copy of its
+implementation (pointer parsing, `_is_sqb`/`_expect_sqb` helpers,
+`parse_declarator` closure, declarator loop, DECLMOD loop, and return statement)
+starting immediately after the first `return Declaration(…)` at line 876.  The
+second block was entirely unreachable and was an outdated snapshot from before
+`#PORT`, `#RD`, `#WR` support was added to the first path:
+
+| Feature | First path (active) | Second path (dead) |
+|---|---|---|
+| `CONST`/`STATIC` modifiers | ✅ | ❌ missing |
+| `#PORT`, `#RD`, `#WR` | ✅ | ❌ missing |
+| `port_rd`/`port_wr` in Declaration | ✅ | ❌ missing |
+
+**Fix**: deleted the entire dead block (−160 lines).  No logic change.
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Refactor: sym_size() unification (2026-03-10)
 
 ### What was done

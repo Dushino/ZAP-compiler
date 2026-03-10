@@ -761,8 +761,8 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 3	[x] cleanup_labels() unification	~30 lines	Low
 4	[x] simple_byte_operand() in codegen	~50 lines	Low
 5	[x] sym_size() in compiler_pipeline	~10 lines	Trivial
-6	[ ] parse_declarator() in parser	~100 lines	Medium
-
+6	[x] parse_declarator() in parser	~100 lines	Medium
+7   [ ] Check for any dead code and remove it
 
 - [ ] Emit bytes count used as a comment in generated assembly code after end of "ZEROPAGE" and "BSS" segments.
 
