@@ -2,6 +2,21 @@
 
 ---
 
+## Refactor: sym_size() unification (2026-03-10)
+
+### What was done
+
+Extracted two identical `sym_size()` closures from `share_locals_liveness` and
+`prioritize_locals_to_zp` into a single module-level `_sym_size(sym)` in
+`compiler_pipeline.py`.  The second copy was also missing the `is_pointer` guard
+(functionally equivalent since pointer `.type.width` == 2 either way, but the
+unified version is explicit).  Removed both nested functions (−18 lines),
+updated 3 call sites.
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Refactor: simple_byte_operand() unification (2026-03-10)
 
 ### What was done

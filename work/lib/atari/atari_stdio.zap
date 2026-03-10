@@ -557,6 +557,7 @@ func byte find_free_IOCB()
     byte i
 
     for i = 0 to 8        
+        
         if IOCB[i].ICHID == 255
             return i
         end

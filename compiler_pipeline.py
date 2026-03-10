@@ -276,6 +276,22 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
     return out
 
 
+def _sym_size(sym: 'Symbol') -> int:
+    """Return the storage size in bytes for a symbol.
+
+    Covers arrays (total size), structs (struct_info.size), pointers (width),
+    and plain scalars (width).  Used by share_locals_liveness and
+    prioritize_locals_to_zp for slot-size calculations.
+    """
+    if sym.is_array:
+        return sym.get_total_array_size()
+    if sym.type.is_pointer:
+        return sym.type.width
+    if sym.type.is_struct and sym.type.struct_info:
+        return sym.type.struct_info.size
+    return sym.type.width
+
+
 def _walk_expr_locals(expr, used: set[str], local_symtab):
     """Walk an expression, collecting referenced local symbol keys into `used`.
 
@@ -790,19 +806,9 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
             return False
         return True
 
-    def sym_size(sym: Symbol) -> int:
-        """Return the storage size in bytes for a symbol."""
-        if sym.is_array:
-            return sym.get_total_array_size()
-        if sym.type.is_pointer:
-            return sym.type.width
-        if sym.type.is_struct and sym.type.struct_info:
-            return sym.type.struct_info.size
-        return sym.type.width
-
     def class_for(sym: Symbol) -> tuple | None:
         """Classify a symbol for compatibility in slot sharing."""
-        size = sym_size(sym)
+        size = _sym_size(sym)
         if size <= 0:
             return None
         if sym.type.is_pointer:
@@ -1332,14 +1338,6 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
     # 2. High-frequency scalars (by frequency score) → ZP
     # 3. Arrays, fixed-address, static → always BSS
     
-    def sym_size(sym: Symbol) -> int:
-        """Get size of symbol in bytes."""
-        if sym.is_array:
-            return sym.get_total_array_size()
-        if sym.type.is_struct and sym.type.struct_info:
-            return sym.type.struct_info.size
-        return sym.type.width
-    
     # Collect candidates for ZP allocation
     zp_candidates = []  # List of (proc_name, sym) tuples
     
@@ -1354,7 +1352,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             local_id = f"{proc.ast.name}::{sym.name}"
             freq = total_freq.get(local_id, 0)
             
-            zp_candidates.append((sym, proc.ast.name, is_pointer, freq, sym_size(sym)))
+            zp_candidates.append((sym, proc.ast.name, is_pointer, freq, _sym_size(sym)))
     
     for func in analyzed_funcs:
         for sym in func.locals:
@@ -1366,7 +1364,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             local_id = f"{func.ast.name}::{sym.name}"
             freq = total_freq.get(local_id, 0)
             
-            zp_candidates.append((sym, func.ast.name, is_pointer, freq, sym_size(sym)))
+            zp_candidates.append((sym, func.ast.name, is_pointer, freq, _sym_size(sym)))
     
     # Sort candidates: pointers first (by frequency), then non-pointers by frequency
     # Key: (not is_pointer, -freq, -size) puts pointers first, then sorts by desc frequency

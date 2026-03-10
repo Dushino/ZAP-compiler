@@ -760,7 +760,7 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 2	[x] sema_proc.py / sema_func.py shared helpers	~600 lines	Medium
 3	[x] cleanup_labels() unification	~30 lines	Low
 4	[x] simple_byte_operand() in codegen	~50 lines	Low
-5	[ ] sym_size() in compiler_pipeline	~10 lines	Trivial
+5	[x] sym_size() in compiler_pipeline	~10 lines	Trivial
 6	[ ] parse_declarator() in parser	~100 lines	Medium
 
 

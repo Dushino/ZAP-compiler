@@ -20,7 +20,7 @@ proc main()
     ;COLOR4 = COLOR_MEDIUM_BLUE + 4
     
     puts("Open:  ")
-    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.Write)    
+    rv = fopen(@fd, "D1:TEST.TXT", ICAX1_COMMANDS.Write)    
     putx(rv)
 
     puts("\nWrite: ")
