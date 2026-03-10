@@ -92,6 +92,7 @@
 - **Shift-add for BYTE × small constant** (RPN evaluator): `a * 3/5/6/10/12` uses `_gen_index_multiply` instead of `JSR MUL8`. Test: `pass/172`.
 - **String literal high-byte fix**: `\x80`–`\xFF` in string literals now works in all contexts (was crashing with `UnicodeEncodeError` as function args). New helpers: `_str_to_bytes()` (inline path) and `_str_to_asm_directive()` (data section, readable mixed format: `"ASCII", $9B, $00`). Tokenizer rejects raw non-ASCII with proper line/col error. Tests: `pass/173`, `fail/string-raw-nonascii`.
 - **Peephole rules** (2026-03-10): generalized dead `LDX #0` elimination; `LDX <mem>; [non-X]; TXA → [non-X]; LDA <mem>` rule.
+- **OPT-3: Wide-window LDA #imm elimination** (`_eliminate_redundant_imm_lda`): second-pass after main peephole loop; tracks `known_a: int | None`; removes `LDA #imm` when A already holds that value across any number of A-safe instructions. Resets on control-flow, labels, and any A-modifying instruction.
 
 ## Code generation optimisations
 - **32-bit direct compare** (`codegen_expr.py:11831`): fast path in `_emit_relational_branch_impl` compares LONG/WORD/BYTE simple identifiers and IntLiterals byte-by-byte directly; saves 14–16 instructions vs old MATH0/MATH1 spill path. Falls back to MATH0/MATH1 for complex expressions.

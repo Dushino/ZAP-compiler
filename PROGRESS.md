@@ -2,6 +2,42 @@
 
 ---
 
+## OPT-3: Redundant LDA #imm elimination (wide window) (2026-03-10)
+
+Second-pass peephole optimization: removes `LDA #imm` when A is already known to hold
+that immediate value, across arbitrarily long sequences of A-safe instructions.
+
+**Method**: `_eliminate_redundant_imm_lda(code)` in `codegen_expr.py`, called at end of
+`peephole_optimize()` after the existing single-pass loop.
+
+**Algorithm**:
+- Tracks `known_a: int | None` — current known A immediate value
+- `LDA #imm`: if `known_a == imm` → remove (redundant); else set `known_a = imm`
+- A-safe instructions (STA/STX/STY/STZ/LDX/LDY/CMP/CPX/CPY/BIT/TAX/TAY/PHA/PHX/PHY/INX/
+  INY/DEX/DEY/INC/DEC/flag ops): leave `known_a` unchanged
+- Control-flow (JSR/JMP/RTS/RTI/branches) and labels: reset `known_a = None`
+- All other instructions (TXA/TYA/PLA/ADC/SBC/AND/ORA/EOR/shifts/LDA mem): reset `known_a = None`
+
+**Example eliminated pattern** (from CIO-style code):
+```asm
+LDA #$00           ; ← kept
+LDX #$00
+STA _CIO_ADR
+STX _CIO_ADR+1
+LDA #$00           ; ← eliminated
+STA _CIO_LEN
+STX _CIO_LEN+1
+LDA #$00           ; ← eliminated
+STA _CIO_AUX1
+STA _CIO_AUX2
+LDA #$00           ; ← eliminated
+STA _CIO_AUX3
+```
+
+All 162 pass + 73 fail tests pass.
+
+---
+
 ## String literal high-byte fix: unified \xHH handling (2026-03-10)
 
 **Bugs fixed:**

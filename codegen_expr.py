@@ -3282,8 +3282,108 @@ class CodeGen:
             # Default: keep the line as-is
             optimized.append(self.code[i])
             i += 1
-        
+
+        # Second pass: eliminate redundant LDA #imm across arbitrarily long windows.
+        # The first-pass 3-instruction rule already handles the narrow case; this
+        # pass catches patterns where any number of A-safe instructions appear
+        # between two identical LDA #imm loads (e.g. multiple STA/STX between them).
+        optimized = self._eliminate_redundant_imm_lda(optimized)
+
         self.code = optimized
+
+    def _eliminate_redundant_imm_lda(self, code: list[str]) -> list[str]:
+        """Second-pass peephole: remove LDA #imm when A is already known to hold that value.
+
+        Tracks A's known immediate value across A-safe instructions (STA/STX/STY/STZ/LDX/LDY/
+        CLC/SEC/TAX/TAY/CPX/CPY/CMP/BIT/NOP/PHA/PHX/PHY/INX/INY/DEX/DEY etc.).
+        Resets known_a on control-flow (JSR/JMP/RTS/RTI/branches/labels) and on any
+        instruction that modifies A (TXA, TYA, PLA, ADC, SBC, AND, ORA, EOR, shifts, LDA mem).
+        """
+        # Instructions that do NOT modify A (A-safe).
+        A_SAFE_MNEMONICS = {
+            "STA", "STX", "STY", "STZ",
+            "LDX", "LDY",
+            "CLC", "SEC", "CLD", "SED", "CLI", "SEI", "CLV",
+            "TAX", "TAY", "TSX", "TXS",
+            "CPX", "CPY", "CMP",
+            "BIT", "NOP",
+            "PHA", "PHX", "PHY",
+            "INX", "INY", "DEX", "DEY",
+            "INC", "DEC",
+        }
+        # Control-flow mnemonics that invalidate A tracking.
+        CONTROL_FLOW_MNEMONICS = {
+            "JSR", "JMP", "RTS", "RTI",
+            "BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC", "BRA",
+        }
+
+        result: list[str] = []
+        known_a: int | None = None
+
+        for line in code:
+            stripped = line.strip()
+
+            # Labels (or blank/comment lines) reset A tracking.
+            if not stripped or stripped.startswith(";"):
+                result.append(line)
+                continue
+
+            # Label definition (ends with ':' and no space before ':').
+            if stripped.endswith(":") and " " not in stripped.split(":")[0]:
+                known_a = None
+                result.append(line)
+                continue
+
+            # Parse mnemonic.
+            parts = stripped.split(None, 1)
+            mnemonic = parts[0].upper()
+            operand = parts[1].strip() if len(parts) > 1 else ""
+
+            # Check for LDA #imm.
+            if mnemonic == "LDA" and operand.startswith("#"):
+                # Try to parse the immediate value.
+                imm_str = operand[1:]  # strip '#'
+                imm_val: int | None = None
+                try:
+                    if imm_str.startswith("$"):
+                        imm_val = int(imm_str[1:], 16)
+                    elif imm_str.startswith("%"):
+                        imm_val = int(imm_str[1:], 2)
+                    elif imm_str.lstrip("-").isdigit():
+                        imm_val = int(imm_str) & 0xFF
+                except ValueError:
+                    pass  # Complex expression — cannot determine value; fall through
+
+                if imm_val is not None:
+                    if known_a == imm_val:
+                        # A already holds this value — skip the redundant LDA.
+                        continue
+                    known_a = imm_val
+                    result.append(line)
+                    continue
+                else:
+                    # Non-trivial immediate (e.g. #<label+offset) — keep but reset tracking.
+                    known_a = None
+                    result.append(line)
+                    continue
+
+            # Control-flow resets A tracking.
+            if mnemonic in CONTROL_FLOW_MNEMONICS:
+                known_a = None
+                result.append(line)
+                continue
+
+            # A-safe instructions: keep known_a.
+            if mnemonic in A_SAFE_MNEMONICS:
+                result.append(line)
+                continue
+
+            # Everything else modifies A (TXA, TYA, PLA, ADC, SBC, AND, ORA, EOR,
+            # accumulator shifts, LDA mem, etc.) — reset tracking.
+            known_a = None
+            result.append(line)
+
+        return result
 
     def legalize_illegal_ops(self) -> None:
         """Ensure emitted code is assemblable even without peephole optimizations.
