@@ -6751,6 +6751,83 @@ class CodeGen:
             else:
                 self._emit_indirect_store_zero("TMP0")
 
+    def _gen_index_multiply(self, n: int) -> None:
+        """Multiply 8-bit index (currently in A) by compile-time constant n.
+        Result lands in A (low byte) and X (high byte).
+        Uses optimal code sequence:
+          n == 1         : LDX #$00                        (0 shifts)
+          n power-of-2  : STA TMP3 / LDA #0 / ASL+ROL×k / TAX / LDA TMP3
+          n with ≤3 bits : shift-add decomposition (save partials via TMP3/TMP4)
+          otherwise      : repeated addition loop (fallback)
+        """
+        if n == 1:
+            self.emit("\tLDX #$00")
+            return
+
+        if n & (n - 1) == 0:
+            # Pure power of 2: log2(n) shifts
+            shifts = n.bit_length() - 1
+            self.emit("\tSTA TMP3")
+            self.emit("\tLDA #$00")
+            for _ in range(shifts):
+                self.emit("\tASL TMP3")
+                self.emit("\tROL A")
+            self.emit("\tTAX")
+            self.emit("\tLDA TMP3")
+            return
+
+        # Decompose n into powers of 2 (set bits).  Use shift-add when the
+        # number of terms is small enough to be cheaper than repeated addition.
+        # Each non-first term costs: save-partial (3) + shift-to-term (2×k) + add (5) ≈ 8+
+        # Repeated-add costs: n × 5 instructions.  Use shift-add when #terms ≤ 3.
+        terms = sorted([1 << b for b in range(n.bit_length()) if n & (1 << b)])
+        if len(terms) <= 3:
+            # Save original index; build result in TMP4 (16-bit) using shift-add.
+            self.emit("\tSTA TMP3")          # TMP3 = original index
+            self.emit("\tLDA #$00")
+            self.emit("\tSTA TMP4")
+            self.emit("\tSTA TMP4+1")        # TMP4:TMP4+1 = 0 (accumulator)
+            cur_shift = 0                    # tracks how many times TMP3 has been shifted
+            for term in terms:
+                target_shift = term.bit_length() - 1
+                # Shift TMP3 from cur_shift to target_shift
+                for _ in range(target_shift - cur_shift):
+                    self.emit("\tASL TMP3")
+                    lbl = self.new_label("SHIFTADD_CARRY")
+                    self.emit(f"\tBCC {lbl}")
+                    self.emit("\tINC TMP4+1")
+                    self.emit(f"{lbl}:")
+                cur_shift = target_shift
+                # Add TMP3 to TMP4
+                self.emit("\tCLC")
+                self.emit("\tLDA TMP3")
+                self.emit("\tADC TMP4")
+                self.emit("\tSTA TMP4")
+                lbl2 = self.new_label("SHIFTADD_CARRY")
+                self.emit(f"\tBCC {lbl2}")
+                self.emit("\tINC TMP4+1")
+                self.emit(f"{lbl2}:")
+            self.emit("\tLDA TMP4")
+            self.emit("\tLDX TMP4+1")
+            return
+
+        # Fallback: repeated addition  (n iterations: result += index)
+        self.emit("\tSTA TMP3")
+        self.emit("\tLDA #$00")
+        self.emit("\tSTA TMP4")
+        self.emit("\tSTA TMP4+1")
+        for _ in range(n):
+            self.emit("\tCLC")
+            self.emit("\tLDA TMP3")
+            self.emit("\tADC TMP4")
+            self.emit("\tSTA TMP4")
+            lbl3 = self.new_label("MULT_CARRY")
+            self.emit(f"\tBCC {lbl3}")
+            self.emit("\tINC TMP4+1")
+            self.emit(f"{lbl3}:")
+        self.emit("\tLDA TMP4")
+        self.emit("\tLDX TMP4+1")
+
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False) -> None:
         """Generate subscript.
         Internal helper used during code generation.
@@ -6908,39 +6985,7 @@ class CodeGen:
 
         # Multiply index by element width and store result
         if element_width > 1:
-            if element_width == 2:
-                # Optimization: use ASL to multiply by 2
-                self.emit("\tASL A")
-                # Handle carry from multiplication
-                carry_lbl: str = self.new_label("NOCARRY_MULT")
-                self.emit(f"\tBCC {carry_lbl}")
-                self.emit(f"{carry_lbl}:")
-                # For indices that fit in a byte, X should be 0 after ASL
-                self.emit("\tLDX #$00")
-            else:
-                # General case: multiply by width using addition loop
-                # Index is in A, multiply by width
-                self.emit("\tSTA TMP3")  # Save index to TMP3
-                self.emit("\tLDA #$00")
-                self.emit("\tSTA TMP4")  # TMP4 = result (low byte)
-                self.emit("\tLDA #$00")
-                self.emit("\tSTA TMP4+1")  # TMP4+1 = result (high byte)
-                
-                # Multiply: TMP4 = TMP3 * width
-                # Using repeated addition: result = 0; for i in range(width): result += index
-                for i in range(element_width):
-                    self.emit("\tCLC")
-                    self.emit("\tLDA TMP3")
-                    self.emit("\tADC TMP4")
-                    self.emit("\tSTA TMP4")
-                    multiply_carry_lbl: str = self.new_label("MULT_CARRY")
-                    self.emit(f"\tBCC {multiply_carry_lbl}")
-                    self.emit("\tINC TMP4+1")
-                    self.emit(f"{multiply_carry_lbl}:")
-                
-                # Load result back to A/X
-                self.emit("\tLDA TMP4")
-                self.emit("\tLDX TMP4+1")
+            self._gen_index_multiply(element_width)
         else:
             self.emit("\tLDX #$00")  # BYTE element, X = 0
         
@@ -8838,27 +8883,10 @@ class CodeGen:
                                not self.assign_target_type.is_pointer)
         
         if ptr_elem_size > 1:
-            # Pointer arithmetic with element size > 1
-            # Need to multiply offset by element size
-            if ptr_elem_size == 2:
-                # Optimization: use ASL to multiply by 2
-                self.emit("\tASL")  # Multiply by 2
-            else:
-                # General case: multiply by ptr_elem_size
-                self.emit("\tSTA TMP3")  # Save offset
-                self.emit("\tLDA #$00")
-                self.emit("\tSTA TMP4")
-                # Multiply TMP3 by ptr_elem_size
-                for i in range(ptr_elem_size - 1):
-                    self.emit("\tCLC")
-                    self.emit("\tLDA TMP3")
-                    self.emit("\tADC TMP4")
-                    self.emit("\tSTA TMP4")
-                    if self.emit("\tBCC +"):  # Check for carry
-                        self.emit("\tINC TMP4+1")
-                    self.emit("+")
-                self.emit("\tLDA TMP4")
-                self.emit("\tLDX TMP4+1")
+            # Pointer arithmetic with element size > 1: scale offset by element size.
+            # _gen_index_multiply handles power-of-2 (shifts), shift-add (≤3 set bits),
+            # and repeated-add fallback; result lands in A (low) / X (high).
+            self._gen_index_multiply(ptr_elem_size)
         
         # If final target is BYTE, use simple 8-bit addition regardless of is_16bit
         if final_target_is_byte and is_16bit and not use_inc:
@@ -8922,11 +8950,10 @@ class CodeGen:
         use_dec: if True and ptr_elem_size == 1, use DEC on left_tmp for subtracting 1 (optimization)
         left_tmp: which temporary register holds the left operand (default TMP0)
         """
-        if ptr_elem_size == 2:
-            # Pointer to WORD: scale offset by 2
-            # A (offset) needs to be multiplied by 2 before subtracting
-            self.emit("\tASL")  # Multiply by 2
-        
+        if ptr_elem_size > 1:
+            # Pointer arithmetic: scale offset by element size before subtracting.
+            self._gen_index_multiply(ptr_elem_size)
+
         if is_16bit:
             # 16-bit: (left_tmp,left_tmp+1) - (A,X) → (A,X)
             if use_dec and ptr_elem_size == 1:
@@ -9616,39 +9643,22 @@ class CodeGen:
                 self.emit("\tTAX")            # High byte to X
                 self.emit("\tLDA TMP1")       # Low byte to A
             else:
-                # Multiply index by element size (index is 8-bit in TMP0)
-                if elem_size == 2:
-                    # index * 2: shift left, track carry in TMP1 (high byte of offset)
-                    self.emit("\tASL TMP0")         # TMP0 = (index*2) & $FF, C = bit7
-                    self.emit("\tLDA #$00")
-                    self.emit("\tROL A")            # A = high byte of (index*2)
-                    self.emit("\tSTA TMP1")         # TMP1 = high byte of offset
-                    self.emit(f"\tLDA #<{label}")
-                    self.emit("\tCLC")
-                    self.emit("\tADC TMP0")         # A = base_lo + offset_lo
-                    self.emit("\tSTA TMP0")         # save low byte of result
-                    self.emit(f"\tLDA #>{label}")
-                    self.emit("\tADC TMP1")         # A = base_hi + offset_hi + carry
-                    self.emit("\tTAX")              # X = high byte of address
-                    self.emit("\tLDA TMP0")         # A = low byte of address
-                elif elem_size == 4:
-                    # index * 4: shift left twice, accumulate carries in TMP1
-                    self.emit("\tASL TMP0")         # TMP0 = (index*2) & $FF, C = bit7
-                    self.emit("\tLDA #$00")
-                    self.emit("\tROL A")            # A = carry from first shift
-                    self.emit("\tASL TMP0")         # TMP0 = (index*4) & $FF, C = bit7 of (index*2)
-                    self.emit("\tROL A")            # A = high byte of (index*4)
-                    self.emit("\tSTA TMP1")         # TMP1 = high byte of offset
-                    self.emit(f"\tLDA #<{label}")
-                    self.emit("\tCLC")
-                    self.emit("\tADC TMP0")         # A = base_lo + offset_lo
-                    self.emit("\tSTA TMP0")         # save low byte of result
-                    self.emit(f"\tLDA #>{label}")
-                    self.emit("\tADC TMP1")         # A = base_hi + offset_hi + carry
-                    self.emit("\tTAX")              # X = high byte of address
-                    self.emit("\tLDA TMP0")         # A = low byte of address
-                else:
-                    raise SemanticError(f"Element size {elem_size} not yet supported for @array[index]", node=getattr(self, 'current_expr', None))
+                # Multiply index (in TMP0) by element size.
+                # Load into A, use _gen_index_multiply for optimal code
+                # (power-of-2 shifts, shift-add, or repeated-add fallback).
+                # Result: A = offset low byte, X = offset high byte.
+                self.emit("\tLDA TMP0")
+                self._gen_index_multiply(elem_size)
+                self.emit("\tSTA TMP0")             # TMP0 = offset low byte
+                self.emit("\tSTX TMP1")             # TMP1 = offset high byte
+                self.emit(f"\tLDA #<{label}")
+                self.emit("\tCLC")
+                self.emit("\tADC TMP0")             # A = base_lo + offset_lo
+                self.emit("\tSTA TMP0")             # save low byte of result
+                self.emit(f"\tLDA #>{label}")
+                self.emit("\tADC TMP1")             # A = base_hi + offset_hi + carry
+                self.emit("\tTAX")                  # X = high byte of address
+                self.emit("\tLDA TMP0")             # A = low byte of address
         
         elif isinstance(operand, FieldAccess):
             # Struct field: base address + field offset

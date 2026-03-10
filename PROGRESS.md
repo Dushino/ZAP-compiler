@@ -2,6 +2,28 @@
 
 ---
 
+## Compile-time constant multiply optimization: shift-add decomposition (2026-03-10)
+
+Added `_gen_index_multiply(n)` helper to `codegen_expr.py`. Replaces repeated-addition loops
+for all compile-time element-size multiplications with optimal shift sequences:
+
+- **n = 2^k**: `k × (ASL TMP3; ROL A)` — pure shifts, zero adds
+- **n with ≤3 set bits** (e.g. 3, 5, 6, 10, 12, 24): shift-add decomposition — one `ASL TMP3; (BCC; INC TMP4+1)` pair per bit position + one `CLC/ADC TMP4/STA TMP4/(BCC; INC TMP4+1)` per term
+- **n with >3 set bits**: fallback to repeated addition (rare for realistic struct sizes)
+
+**Before** (e.g. struct size 16, `arr[i]`): 85 instructions (16 × 5-instruction add loop)
+**After**: 14 instructions (4 shifts + bookkeeping)
+
+**Changed locations:**
+- `_gen_subscript()` — array index × element_width (replaces broken elem_width==2 path too)
+- `_gen_add()` — pointer arithmetic offset scaling
+- `_gen_sub()` — pointer arithmetic offset scaling (had same `ptr_elem_size==2` only bug)
+- `@array[index]` — address-of subscript; now supports any element size (was error for >4)
+
+**Tests:** `pass/164-struct-array-pow2-index` (S4/S8/S16), `pass/165-struct-array-mixed-index` (S3/S5/S6/S12). All 231 tests pass.
+
+---
+
 ## Peephole: generalized dead LDX #0 + LDX/TXA→LDA rules (2026-03-10)
 
 Replaced the narrow `LDA; LDX #0; STA` triple rule with two independent rules:
