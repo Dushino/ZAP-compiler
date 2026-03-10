@@ -11,6 +11,8 @@
 
 
 const byte Text1[] = "Hello!"
+const byte FName[] = "H1:TEST2.TXT\x9b"
+
 
 proc main()
 
@@ -18,7 +20,7 @@ proc main()
     FILE fd
         
     puts("Open:  ")    
-    rv = fopen(@fd, "H1:TEST.TXT\x9b", ICAX1_MODE.Write)  
+    rv = fopen(@fd, FName, 8)  
     
     puts("Write: ")
     rv = fwrite(@fd, Text1, 6)

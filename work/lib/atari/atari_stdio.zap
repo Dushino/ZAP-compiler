@@ -556,7 +556,7 @@ end
 func byte find_free_IOCB()
     byte i
 
-    for i = 1 to 8        
+    for i = 3 to 8        
         
         if IOCB[i].ICHID == 255
             return i
@@ -601,15 +601,13 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         asl
         asl
         asl
-        asl
-        pha
+        asl        
         tax        
         jsr $E456           ; call CIO handler     
-        pla
-        tax
-        lda $0340+3,X       ; Status register
-        sta _CIO_RV         ; 
     end
+
+    rv = IOCB[ch].ICSTA
+
     putchar(' ')
     putx(rv)
     puts("\n")
@@ -635,7 +633,7 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     end
 
     fd^.fd = i
-    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 12, mode, 0)
+    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
 
     if rv != ERRNO.OK
         set_fderror(fd, rv)
@@ -774,14 +772,14 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
-    rv = CIO(fd^.fd, 9, "ABCDEF", 6)    
+    ; rv = CIO(fd^.fd, ICCOM_COMMANDS.PutRec, buffer, size)    
+    rv = CIO(fd^.fd, $09, buffer, 3)    
     if rv != 1
         set_fderror(fd, rv)
         return rv
     end
 
     set_fderror(fd, ERRNO.OK)    
-
     return ERRNO.OK    
 end
 
