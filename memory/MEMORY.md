@@ -93,6 +93,11 @@
 - **String literal high-byte fix**: `\x80`–`\xFF` in string literals now works in all contexts (was crashing with `UnicodeEncodeError` as function args). New helpers: `_str_to_bytes()` (inline path) and `_str_to_asm_directive()` (data section, readable mixed format: `"ASCII", $9B, $00`). Tokenizer rejects raw non-ASCII with proper line/col error. Tests: `pass/173`, `fail/string-raw-nonascii`.
 - **Peephole rules** (2026-03-10): generalized dead `LDX #0` elimination; `LDX <mem>; [non-X]; TXA → [non-X]; LDA <mem>` rule.
 - **OPT-3: Wide-window LDA #imm elimination** (`_eliminate_redundant_imm_lda`): second-pass after main peephole loop; tracks `known_a: int | None`; removes `LDA #imm` when A already holds that value across any number of A-safe instructions. Resets on control-flow, labels, and any A-modifying instruction.
+- **Generated label fix**: `NOCARRY_*` labels used `id(expr)` suffix (long pointer value); replaced all 7 sites with `new_label()` for short sequential numbers.
+- **`SymbolTable.lookup()` fix**: raises `SemanticError("Undefined variable '...'")` instead of leaking `KeyError`. `ScopedSymbolTable` catches `SemanticError` (not `KeyError`). `constsubst.py` catches `SemanticError` and returns expr unchanged for unknown identifiers.
+- **`two_bytes` arg ordering fix** (`_emit_call_args` reorder_regs path): X loaded AFTER A evaluation; A evaluation (e.g. pointer field access) clobbers X, so X must be loaded last.
+- **Liveness `call_live_across` fix** (`compiler_pipeline.py`): `CallStmt` now includes argument vars (`uses`) in `call_live_across`; `AssignStmt` includes `uses_rhs`. Without this, call-argument variables that had no other uses were not marked as interfering with callee locals → slot aliasing corruption.
+- **Atari CIO `ICAX1` convention**: Atari OS CIO at `$E456` checks `ICAX1` as open mode for EVERY command, not just OPEN. CIO function must only write `ICAX1/ICAX2/ICAX3` when command=OPEN; all other commands must leave them unchanged or the OS returns `$87` (RDONLY).
 
 ## Code generation optimisations
 - **32-bit direct compare** (`codegen_expr.py:11831`): fast path in `_emit_relational_branch_impl` compares LONG/WORD/BYTE simple identifiers and IntLiterals byte-by-byte directly; saves 14–16 instructions vs old MATH0/MATH1 spill path. Falls back to MATH0/MATH1 for complex expressions.

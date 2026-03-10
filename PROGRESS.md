@@ -2,6 +2,12 @@
 
 ---
 
+## Generated label numbering fix (2026-03-10)
+`__ZAP_NOCARRY_ARRFIELD_{id(expr)}` labels replaced with sequential `new_label()` counter.
+All 7 NOCARRY_* sites in `codegen_expr.py` now emit short readable labels like `__ZAP_NOCARRY_ARRFIELD_134`.
+
+---
+
 ## Liveness / slot-sharing and codegen fixes (2026-03-10)
 
 **Bug 1: `KeyError` on undefined identifiers reported as `1:1`**

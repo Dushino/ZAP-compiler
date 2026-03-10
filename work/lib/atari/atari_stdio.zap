@@ -592,9 +592,12 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     IOCB[ch].ICCOM = command
     IOCB[ch].ICBA  = adr
     IOCB[ch].ICBL  = len
-    IOCB[ch].ICAX1 = aux1
-    IOCB[ch].ICAX2 = aux2
-    IOCB[ch].ICAX3 = aux3
+    if command == ICCOM_COMMANDS.Open
+        IOCB[ch].ICAX1 = aux1
+        IOCB[ch].ICAX2 = aux2
+        IOCB[ch].ICAX3 = aux3
+    end
+
 
     asm
         lda _CIO_CH
@@ -773,7 +776,7 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
     end
     
     ; rv = CIO(fd^.fd, ICCOM_COMMANDS.PutRec, buffer, size)    
-    rv = CIO(fd^.fd, $09, buffer, 3)    
+    rv = CIO(fd^.fd, $0B, buffer, size)    
     if rv != 1
         set_fderror(fd, rv)
         return rv
