@@ -574,9 +574,24 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     
     ch &= $07
 
+    puts("CIO: ")
+    putx(ch)
+    putchar(',')
+    putx(command)
+    putchar(',')
+    putx(high(adr))
+    putx(low(adr))
+    putchar(',')
+    putx(high(len))
+    putx(low(len))
+    putchar(',')
+    putx(aux1)
+    putchar(',')
+    putx(aux2)    
+
     IOCB[ch].ICCOM = command
-    IOCB[ch].ICBA = adr
-    IOCB[ch].ICBL = len
+    IOCB[ch].ICBA  = adr
+    IOCB[ch].ICBL  = len
     IOCB[ch].ICAX1 = aux1
     IOCB[ch].ICAX2 = aux2
     IOCB[ch].ICAX3 = aux3
@@ -587,12 +602,18 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         asl
         asl
         asl
-        sta _CIO_RV
+        pha
         tax        
-        jsr $E456 ; call CIO handler     
+        jsr $E456           ; call CIO handler     
+        pla
+        tax
+        lda $0340+3,X       ; Status register
+        sta _CIO_RV         ; 
     end
+    putchar('-')
+    putx(rv)
+    puts("\n")
 
-    rv = IOCB[ch].ICSTA
     return rv
 end
 
@@ -614,7 +635,7 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     end
 
     fd^.fd = i
-    rv = CIO(fd, ICCOM_COMMANDS.Open, filename, mode, 0)
+    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
 
     if rv != ERRNO.OK
         set_fderror(fd, rv)
@@ -753,7 +774,9 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutRec, buffer, size)
+    putx(fd^.fd)
+  
+    rv = CIO(fd^.fd, 9, "ABCDEF", 6)    
     if rv != 1
         set_fderror(fd, rv)
         return rv

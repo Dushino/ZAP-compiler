@@ -12216,9 +12216,18 @@ class CodeGen:
                 arg_y = next(a for i, _, _, _, a in resolved if i == reg_y_index)
                 _emit_load_y_simple(arg_y)
             elif reg_case in {"byte0", "two_bytes"} and reg_a_index is not None:
+                # Evaluate arg_a into A FIRST — arg_a may clobber X (e.g. pointer field access).
+                # After that, load X = arg_x (IntLiteral/simple Identifier: never touches A).
+                arg_a = next(a for i, _, _, _, a in resolved if i == reg_a_index)
+                prev_suppress = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                try:
+                    self.gen_expr(arg_a)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
                 if reg_case == "two_bytes" and reg_x_index is not None:
                     arg_x = next(a for i, _, _, _, a in resolved if i == reg_x_index)
-                    # Fast path: load X directly without going through A
+                    # Load X directly — these forms don't touch A.
                     if isinstance(arg_x, IntLiteral):
                         self.emit(f"\tLDX #${arg_x.value & 0xFF:02X}")
                     elif isinstance(arg_x, Identifier):
@@ -12241,13 +12250,6 @@ class CodeGen:
                         finally:
                             self.suppress_byte_return_x = prev_suppress
                         self.emit("\tTAX")
-                arg_a = next(a for i, _, _, _, a in resolved if i == reg_a_index)
-                prev_suppress = self.suppress_byte_return_x
-                self.suppress_byte_return_x = True
-                try:
-                    self.gen_expr(arg_a)
-                finally:
-                    self.suppress_byte_return_x = prev_suppress
         else:
             while restore_ops:
                 op = restore_ops.pop()
