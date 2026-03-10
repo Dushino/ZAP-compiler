@@ -20,7 +20,7 @@
 | sema_func.py | Function body analysis |
 | sema_proc.py | Procedure body analysis |
 | compiler_pipeline.py | Main orchestrator (2019 lines); DCE, liveness, variable sharing |
-| codegen_expr.py | Code generator (12,662 lines); RPN, peephole opts |
+| codegen_expr.py | Code generator (~13,000 lines); RPN, peephole opts |
 | constfold.py | Constant folding pass |
 | constsubst.py | Replaces const/enum refs with literals |
 | dce.py | Dead code elimination |
@@ -78,11 +78,20 @@
 - Segments: .segment "name"
 
 ## Test suite
-- tests/pass/ — 131 positive tests (numbered 001–145)
-- tests/fail/ — 62 negative tests (error detection)
+- tests/pass/ — 162 positive tests (numbered 001–173, with some gaps)
+- tests/fail/ — 73 negative tests (error detection)
 - Each positive test: 4 variants (65C02, 65C02+O1, 6502, 6502+O1)
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
 - generated_tests/ — ~50 Python unit tests for focused feature testing
+- `.ref` files must have exactly ONE trailing newline (two newlines → OUTPUT_MISMATCH)
+- Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
+
+## Recent additions (2026-03-10)
+- **Shift-add index multiply** (`_gen_index_multiply(n)`): replaces repeated-addition loops for array index scaling. Power-of-2 → pure shifts; ≤3 set bits (e.g. 3,5,6,10,12) → shift-add; fallback repeated-add. Used in `_gen_subscript`, pointer arithmetic, `@array[index]`, RPN MUL evaluator. Tests: `pass/164`, `pass/165`.
+- **Compile-time constant array index folding** (`_try_eval_const`): when index is a const expression, offset computed at compile time — emits `LDA #<offset` directly. Covers `_gen_subscript` (both paths), `_gen_multidim_subscript` (per-index), `@array[index]`. Test: `pass/171`.
+- **Shift-add for BYTE × small constant** (RPN evaluator): `a * 3/5/6/10/12` uses `_gen_index_multiply` instead of `JSR MUL8`. Test: `pass/172`.
+- **String literal high-byte fix**: `\x80`–`\xFF` in string literals now works in all contexts (was crashing with `UnicodeEncodeError` as function args). New helpers: `_str_to_bytes()` (inline path) and `_str_to_asm_directive()` (data section, readable mixed format: `"ASCII", $9B, $00`). Tokenizer rejects raw non-ASCII with proper line/col error. Tests: `pass/173`, `fail/string-raw-nonascii`.
+- **Peephole rules** (2026-03-10): generalized dead `LDX #0` elimination; `LDX <mem>; [non-X]; TXA → [non-X]; LDA <mem>` rule.
 
 ## Code generation optimisations
 - **32-bit direct compare** (`codegen_expr.py:11831`): fast path in `_emit_relational_branch_impl` compares LONG/WORD/BYTE simple identifiers and IntLiterals byte-by-byte directly; saves 14–16 instructions vs old MATH0/MATH1 spill path. Falls back to MATH0/MATH1 for complex expressions.

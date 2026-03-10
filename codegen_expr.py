@@ -3456,9 +3456,8 @@ class CodeGen:
         # Generate string data
         for content, label in self.string_literals.items():
             self.emit(f"{label}:")
-            # Emit string as .byte directives
-            ascii_bytes = content.encode('ascii')
-            self.emit(f"\t.byte " + ", ".join(f"${b:02X}" for b in ascii_bytes) + ", 0")
+            # Emit string as .byte with readable mixed ASCII-string/hex format
+            self.emit(self._str_to_asm_directive(content))
         
         # Generate array data
         for (data_tuple, data_type), label in self.array_literals.items():
@@ -5675,7 +5674,7 @@ class CodeGen:
             # For very short strings (1-2 chars), inline is better
             if str_len <= 3:
                 # Inline for very short strings (no string data needed)
-                for i, ch in enumerate(content.encode('ascii')):
+                for i, ch in enumerate(self._str_to_bytes(content)):
                     elem_offset: int = i * 2 if is_word else i
                     self.emit(f"\tLDA #${ch:02X}")
                     self.emit(f"\tSTA {dest_var}+{elem_offset}")
@@ -6223,6 +6222,55 @@ class CodeGen:
                             not getattr(self.assign_target_type, 'is_pointer', False))
             if not target_is_byte:
                 self.emit("\tLDX #$00")
+
+    @staticmethod
+    def _str_to_bytes(content: str) -> list[int]:
+        """Convert a string literal value to a list of byte values (0–255).
+        Used for inline per-character emission (LDA #$XX paths).
+        Raises SemanticError for characters outside 0–255 range.
+        """
+        result: list[int] = []
+        for i, ch in enumerate(content):
+            v = ord(ch)
+            if v > 255:
+                raise SemanticError(
+                    f"String literal: character at position {i} exceeds byte range "
+                    f"(U+{v:04X}). Use \\x{v:02X} escape for byte values 0-255.")
+            result.append(v)
+        return result
+
+    @staticmethod
+    def _str_to_asm_directive(content: str, null_terminate: bool = True) -> str:
+        """Convert string literal to a ca65 .byte directive with readable mixed format.
+
+        Printable ASCII characters (0x20–0x7E, excluding '"') are grouped into
+        quoted string segments. All other bytes (control chars, 0x7F, 0x80–0xFF,
+        and the double-quote character) are emitted as individual $XX hex literals.
+
+        Examples:
+          'H1:TEST.TXT\\x9b'  →  '\\t.byte "H1:TEST.TXT", $9B, $00'
+          'AB\\x01CD'          →  '\\t.byte "AB", $01, "CD", $00'
+          '\\x9b\\x9b'         →  '\\t.byte $9B, $9B, $00'
+        """
+        parts: list[str] = []
+        ascii_buf: list[str] = []
+        for ch in content:
+            v = ord(ch)
+            if v > 255:
+                raise SemanticError(
+                    f"String literal character U+{v:04X} exceeds byte range (0-255).")
+            if 0x20 <= v <= 0x7E and ch != '"':   # printable ASCII, not double-quote
+                ascii_buf.append(ch)
+            else:
+                if ascii_buf:
+                    parts.append('"' + "".join(ascii_buf) + '"')
+                    ascii_buf = []
+                parts.append(f"${v:02X}")
+        if ascii_buf:
+            parts.append('"' + "".join(ascii_buf) + '"')
+        if null_terminate:
+            parts.append("$00")
+        return "\t.byte " + ", ".join(parts)
 
     def _gen_string_literal(self, expr: StringLiteral) -> None:
         """Generate string literal address in A/X.

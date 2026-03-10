@@ -2,6 +2,27 @@
 
 ---
 
+## String literal high-byte fix: unified \xHH handling (2026-03-10)
+
+**Bugs fixed:**
+1. `UnicodeEncodeError: 'ascii' codec` when string literal with `\x80`–`\xFF` was used as a
+   function argument or in a short (≤3 char) variable initializer — reported as `file:1:1`
+2. Divergent code paths: `const byte arr[] = "...\x9b"` worked; same string as function
+   argument or variable init crashed
+3. Raw non-ASCII source characters in string literals silently accepted
+
+**Changes:**
+- `codegen_expr.py`: two static helpers `_str_to_bytes()` and `_str_to_asm_directive()`;
+  both `.encode('ascii')` calls replaced
+- `codegen_expr.py:_gen_string_data()`: emits `.byte "ASCII", $9B, $00` readable mixed format
+- `tokenizer.py`: raw chars > 0x7F in string literals → `TokenizerError` with correct line/col
+- `DOC/ZAP_LANGUAGE_REFERENCE.md`: documented high-byte rule and assembly output format
+
+**Tests:** `pass/173-string-highbyte` (7 checks); `fail/string-raw-nonascii`.
+All 162 pass + 73 fail tests pass.
+
+---
+
 ## OPT-1: Compile-time constant array index folding (2026-03-10)
 
 When an array index is a compile-time constant expression (const identifier, enum member,

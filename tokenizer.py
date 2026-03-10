@@ -257,6 +257,11 @@ class Tokenizer:
                     if c == '"':
                         self._advance(1)
                         break
+                    if ord(c) > 127:
+                        raise TokenizerError(
+                            f"Non-ASCII character in string literal (U+{ord(c):04X}). "
+                            f"Use \\x{ord(c):02X} escape instead.",
+                            line=self.line, col=self.col)
                     buf.append(c)
                     self._advance(1)
                 self._emit(TOK_STRING, self.sline, self.scol, "".join(buf))

@@ -162,13 +162,22 @@ Numeric Escape Sequences:
 
 All numeric escapes produce a single **BYTE** value (0-255). Multibyte escape sequences are not supported — each escape encodes exactly one byte.
 
+**Non-ASCII characters**: Raw non-ASCII characters (ordinal > 127) are **not** allowed directly in string or character literals. Use `\xHH` escapes for byte values 128–255. This includes platform-specific control characters such as the Atari EOL (`\x9B`).
+
 Examples:
 
 ```zap
-byte arr[] = "Hello\0World"  ; String with embedded null
-byte data[] = "\xFF\x00\x42" ; Binary data using hex escapes
-byte mask = '\b11110000'     ; Mask value using binary
-char code = '\101'           ; Letter 'A' using octal
+byte arr[] = "Hello\0World"       ; String with embedded null
+byte data[] = "\xFF\x00\x42"      ; Binary data using hex escapes
+byte atari_eol[] = "HELLO\x9B"    ; Atari end-of-line terminator ($9B)
+byte mask = '\b11110000'           ; Mask value using binary
+byte code = '\101'                 ; Letter 'A' using octal
+```
+
+The compiler emits string literals in readable ca65 assembly format, keeping printable ASCII as quoted strings and encoding non-printable or high bytes as individual `$XX` hex values:
+```asm
+; "HELLO\x9B" compiles to:
+.byte "HELLO", $9B, $00
 ```
 
 ### Type Modifiers
