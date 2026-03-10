@@ -764,7 +764,7 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 6	[x] parse_declarator() in parser	~100 lines	Medium
 7   [x] Check for any dead code and remove it
 
-- [ ] Emit bytes count used as a comment in generated assembly code after end of "ZEROPAGE" and "BSS" segments.
+- [ ] Emit bytes count used report as a comment in generated assembly code after end of "ZEROPAGE" and "BSS" segments.
 
 
 

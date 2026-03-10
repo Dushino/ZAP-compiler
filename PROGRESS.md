@@ -16,8 +16,7 @@ Scanned all 25 compiler `.py` files and removed 5 categories of dead code:
 | D | `compiler.py` L7 | Duplicate `import os` | −1 |
 | E | `dce.py` L2 | Duplicate `Expr` in import list | −1 |
 
-Item F (`parser.py` duplicate imports before `from ast_nodes import *`) deferred
-— needs careful verification that `import *` actually covers all needed names.
+| F | `parser.py` L3–35 | 32 redundant `from ast_nodes import X` lines (all superseded by `from ast_nodes import *`) | −32 |
 
 **Tests**: all 229 tests pass. No regressions.
 

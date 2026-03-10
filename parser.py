@@ -1,38 +1,5 @@
 ﻿
 from typing import NoReturn, Optional, Callable, Union, cast
-from ast_nodes import Program
-from ast_nodes import StructDef
-from ast_nodes import EnumDecl
-from ast_nodes import ProcDecl
-from ast_nodes import Parameter
-from ast_nodes import Parameter
-from ast_nodes import Declaration
-from ast_nodes import Declarator
-from ast_nodes import FuncDecl
-from ast_nodes import Parameter
-from ast_nodes import Parameter
-from ast_nodes import Declaration
-from ast_nodes import Declarator
-from ast_nodes import Parameter
-from ast_nodes import Declaration
-from ast_nodes import Declarator
-from ast_nodes import Declarator
-from ast_nodes import DerefExpr, FieldAccess, Identifier, SubscriptExpr
-from ast_nodes import AssignStmt, CallStmt
-from ast_nodes import DerefExpr, FieldAccess, Identifier, SubscriptExpr
-from ast_nodes import BinOp
-from ast_nodes import BinOp
-from ast_nodes import BinOp
-from ast_nodes import BinOp
-from ast_nodes import BinOp
-from ast_nodes import IfStmt
-from ast_nodes import IfStmt
-from ast_nodes import IfStmt
-from ast_nodes import IfStmt
-from ast_nodes import WhileStmt
-from ast_nodes import ForStmt
-from ast_nodes import RepeatUntilStmt
-from ast_nodes import AsmBlock, AssignStmt, BreakStmt, CallStmt, ContinueStmt, ForStmt, IfStmt, IncbinDirective, ReturnStmt, ErrorDirective, WarningDirective, InfoDirective, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
