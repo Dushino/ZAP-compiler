@@ -61,7 +61,7 @@ Steps:
     [x] Build on Ctrl-Shift-Z 
     [ ] Ctrl+Shift+P command "Build: ZAP: Compile current file" - recheck hotkeys
     
-[ ] Tutorials with examples.
+[x] Tutorials with examples.
 [x] .error, .warning directives
 
 
@@ -194,7 +194,7 @@ To check - enhance tests
 
 [x] ASM / END act as comment in VSCode syntax highlighting
     Hybrid syntax highlighting now works
-[ ] Check VSCode and compiler syntax highlighting for operators - OR etc.
+[x] Check VSCode and compiler syntax highlighting for operators - OR etc.
 [x] .segment between ASM and END fail for some reason
 [x] Array can be initialized:
     byte arr[3] = {10, 20, 30}
@@ -605,7 +605,7 @@ Closure tasks
 - [x] Unify expression parsing and eval 
 
 
-- [ ] Check variables slot allocations
+- [x] Check variables slot allocations
 proc Main()
 0 bytes params + 3 bytes local = 3 bytes needed
 
@@ -751,11 +751,20 @@ __LVSLOT_17:	.res 2      ; 71 + 4 = 75
 
 Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 
-- [ ] Memory slots allocation optimization
-- [ ] Unnecessary alocations for math routines
-- [ ] FInd duplicates in compiler code and unify where possible
+- [x] Memory slots allocation optimization
+- [x] Unnecessary alocations for math routines
+- [ ] Find duplicates in compiler code and unify where possible
 "The second copy of emit_memory_map() runs from a different code path."
+#	Target	Savings	Effort
+1	[ ] AST walker families in compiler_pipeline.py	~600 lines	Medium
+2	[ ] sema_proc.py / sema_func.py shared helpers	~600 lines	Medium
+3	[ ] cleanup_labels() unification	~30 lines	Low
+4	[ ] simple_byte_operand() in codegen	~50 lines	Low
+5	[ ] sym_size() in compiler_pipeline	~10 lines	Trivial
+6	[ ] parse_declarator() in parser	~100 lines	Medium
 
+
+- [ ] Emit bytes count used as a comment in generated assembly code after end of "ZEROPAGE" and "BSS" segments.
 
 
 

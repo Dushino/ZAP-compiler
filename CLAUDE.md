@@ -27,6 +27,7 @@
 
 ## Documentation ##
 - After each change in grammar, implementation or documentaion perform cross check in all documentaion files in `DOC` folder. Update documentation to reflect current state.
+- For every function / method inside the compiler provide short description in a comment before code.
 
 ## Test generated for development purposes ##
 - There is dedicated folder `generated_tests` for tests created for development purposes. Use this folder for all temporary files not to mess root project folder.
