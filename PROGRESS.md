@@ -2,6 +2,41 @@
 
 ---
 
+## Slot allocator: interference graph precision fixes (2026-03-10)
+
+### What was done
+
+Fixed two bugs in `compiler_pipeline.py:share_locals_liveness()` that caused excessive false interference edges in the graph coloring, leading to over-allocation of memory slots for local variables and parameters.
+
+**Bug 1 — `sym_size()` checked `is_struct` before `is_pointer`** (line 1072):
+- For pointer-to-struct types (e.g. `FILE^`), `sym_size()` was returning `struct_info.size` instead of `type.width` (pointer size)
+- Fix: added `if sym.type.is_pointer: return sym.type.width` before the `is_struct` check
+
+**Bug 2 — `call_live_across` incorrectly included call arguments** (line 776):
+- In `_liveness_block()`, for `AssignStmt` with a call in the RHS (e.g. `rv = CIO(filename, 0, mode)`), the argument variables (`filename`, `mode`, etc.) were added to `call_live_across` via `uses_rhs`
+- Arguments are consumed at the call point — they are NOT live inside the callee — so this created false interference between caller argument variables and all callee locals
+- Fix: changed `update(live | uses_rhs | uses_lhs)` to `update(live | uses_lhs)` — argument variables dropped, LHS addressing variables retained
+
+**Bug 3 — same issue in `_liveness_inits()`** (line 1035):
+- Initializer argument variables were included in `call_live_across` via `uses`
+- Fix: changed `update(live | uses)` to `update(live)`
+
+### Impact on test_stdio.zap
+
+| Metric | Before | After |
+|--------|--------|-------|
+| User variable slots (count) | 26 | 17 |
+| User variable slots (bytes, ZP) | 36 | 22 |
+| User variable slots (bytes, BSS) | 6 | 4 |
+| **Total user slot bytes** | **42** | **26** |
+| Theoretical minimum | — | 20 bytes |
+
+Notable improvements: FOPEN.FILENAME + FWRITE.BUFFER + MEMCPY.PTR1 + MEMSET.PTR collapsed into one 2-byte slot. Five byte-class variables now share slot 5, five more share slot 6.
+
+**Tests**: all 229 tests (157 pass + 72 fail) still pass. No regressions.
+
+---
+
 ## GAP-22: NULL pointer checks — WORD/pointer comparison (2026-03-04)
 
 ### What was done

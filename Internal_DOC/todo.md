@@ -603,3 +603,159 @@ Closure tasks
 **Review grammar.ebnf**
 - [x] Review for missign keywords parts (SWITCH)
 - [x] Unify expression parsing and eval 
+
+
+- [ ] Check variables slot allocations
+proc Main()
+0 bytes params + 3 bytes local = 3 bytes needed
+
+CONSTRUCTOR ─────────────────────────────── (runs before main)
+proc cls()
+0 bytes params + 0 bytes locals = 0 Bytes needed in slots
+
+proc memset(word dest, byte value, word count)
+5 bytes params + 3 bytes locals = 8 bytes needed in slots
+Total in CONSTRUCTOR branch: 0 + 8 = 8 Bytes 
+
+
+------------------------------------------------------
+MAIN ─┬─ fopen ─┬─ find_free_IOCB
+      │         ├─ CIO
+      │         └─ set_fderror
+
+func byte fopen(FILE^ fd, byte^ filename, byte mode)
+5 bytes parameters + 2 bytes locals = 7 bytes needed in slots
+
+func byte find_free_IOCB()
+0 bytes params + 1 byte local = 1 Bytes needed in slots
+
+
+func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+9 bytes params + 1 byte locals = 10 Bytes needed in slots
+
+
+proc set_fderror(FILE^ file, byte error_code) #NOEXPORT
+3 bytes params + 0 bytes locals = 3 Bytes in slts needed
+
+Total in fopen branch = 7 + MAX(1,10,3) = 17 Bytes needed in slots
+
+------------------------------------------------------
+MAIN
+      ├─ fwrite ─┬─ CIO
+      │          └─ set_fderror
+
+
+func word fwrite(FILE^ fd, byte ^buffer, word size)
+5 bytes params + 1 byte  locals = 6 Bytes needed in slots
+
+func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+9 bytes params + 1 byte locals = 10 Bytes needed in slots
+
+proc set_fderror(FILE^ file, byte error_code) #NOEXPORT
+3 bytes params + 0 bytes locals = 3 bytes needed in slots
+
+Total in fwrite branch = 6 + MAX(10, 3) = 16 Bytes needed in memory slots
+
+------------------------------------------------------
+MAIN
+      ├─ fclose ─┬─ CIO
+      │          └─ set_fderror
+
+
+func ERRNO fclose(FILE^ fd)
+2 bytes params + 1 byte  locals = 3 bytes needed in slots
+
+func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+9 bytes + 1 byte locals = 10 bytes needed in slots
+
+proc set_fderror(FILE^ file, byte error_code) #NOEXPORT
+3 bytes params + 0 bytes locals = 3 bytes needed in slots
+
+Total in fclose branch = 3 + MAX(10, 3) = 13 Bytes needed in memory slots
+
+------------------------------------------------------
+MAIN
+      ├─ puts ───┬─ ascii_to_screen
+      │          └─ putchar
+
+
+proc puts(byte ^str)
+2 bytes params + 1 byte locals = 3 bytes needed in slots
+
+func byte ascii_to_screen(byte ch)
+1 byte params + 0 bytes locals = 1 byte needed in slots
+
+proc putchar(byte ch)
+1 byte params + 0 bytes locals = 1 byte needed in slots
+
+Total in puts branch = 3 + MAX(1, 1) = 4 Bytes needed in memory slots
+
+------------------------------------------------------
+MAIN
+      └─ putx ───── putchar
+
+proc putx(byte value)
+1 byte params + 0 bytes locals = 1 byte needed in memory slots
+
+proc putchar(byte ch)
+1 byte params + 0 bytes locals = 1 byte needed in slots
+
+Total in putx branch = 1 + 1 = 2 bytes needed in memory slots
+
+------------------------------------------------------
+Summary
+Main            3 bytes needed
+
+Independent branches demands
+Constructor     8 Bytes needed
+fopen branch   17 Bytes needed
+fwrite branch  16 Bytes needed
+fclose         13 Bytes needed
+puts            4 Bytes needed
+putx            2 Byte needed
+
+total maximum = 3 + MAX(8,17,16,13,4,2) = 20 Bytes
+
+
+Code generated:
+
+__LVSLOT_1:	.res 2
+__LVSLOT_10:	.res 1
+__LVSLOT_11:	.res 1
+__LVSLOT_12:	.res 1
+__LVSLOT_13:	.res 2
+__LVSLOT_14:	.res 2
+__LVSLOT_15:	.res 2
+__LVSLOT_16:	.res 2
+__LVSLOT_18:	.res 32     ; 13 + 32 = 45
+__LVSLOT_19:	.res 4
+__LVSLOT_2:	.res 2
+__LVSLOT_20:	.res 4
+__LVSLOT_21:	.res 2
+__LVSLOT_22:	.res 2
+__LVSLOT_23:	.res 2
+__LVSLOT_24:	.res 2
+__LVSLOT_3:	.res 2          ; 65
+__LVSLOT_4:	.res 1
+__LVSLOT_5:	.res 1
+__LVSLOT_6:	.res 1
+__LVSLOT_7:	.res 1
+__LVSLOT_8:	.res 1
+__LVSLOT_9:	.res 1          ; 71
+
+.segment "BSS"
+; Shared slots (BSS)
+__BSSSLOT_1:	.res 2      
+__LVSLOT_17:	.res 2      ; 71 + 4 = 75
+
+
+Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
+
+- [ ] Memory slots allocation optimization
+- [ ] Unnecessary alocations for math routines
+
+
+
+
+
+

@@ -14,22 +14,22 @@ const byte Text1[] = "Hello!"
 
 proc main()
 
-    ;byte rv
-    ;FILE fd
+    byte rv
+    FILE fd
 
     ;COLOR4 = COLOR_MEDIUM_BLUE + 4
     
-    ;puts("Open:  ")
-    ;rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.Write)    
-    ;putx(rv)
+    puts("Open:  ")
+    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.Write)    
+    putx(rv)
 
-    ;puts("\nWrite: ")
-    ;rv = fwrite(@fd, @Text1, 6)
-    ;putx(rv)
+    puts("\nWrite: ")
+    rv = fwrite(@fd, @Text1, 6)
+    putx(rv)
 
-    ;puts("\nClose: ")
-    ;fclose(@fd)
-    ;putx(rv)
+    puts("\nClose: ")
+    fclose(@fd)
+    putx(rv)
     
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end

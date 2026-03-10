@@ -773,7 +773,7 @@ def _liveness_block(
             call_names = _stmt_call_names(st)
             for callee in call_names:
                 if callee in valid_callees:
-                    call_live_across.setdefault((caller_name, callee), set()).update(live | uses_rhs | uses_lhs)
+                    call_live_across.setdefault((caller_name, callee), set()).update(live | uses_lhs)
 
             defs: set[str] = set()
             if isinstance(st.lhs, Identifier):
@@ -1032,7 +1032,7 @@ def _liveness_inits(
         call_names = _init_call_names(init)
         for callee in call_names:
             if callee in valid_callees:
-                call_live_across.setdefault((caller_name, callee), set()).update(live | uses)
+                call_live_across.setdefault((caller_name, callee), set()).update(live)
         defs: set[str] = set()
         key = sym.name.upper() if isinstance(sym.name, str) else sym.name
         if key in name_to_id:
@@ -1073,6 +1073,8 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
         """Return the storage size in bytes for a symbol."""
         if sym.is_array:
             return sym.get_total_array_size()
+        if sym.type.is_pointer:
+            return sym.type.width
         if sym.type.is_struct and sym.type.struct_info:
             return sym.type.struct_info.size
         return sym.type.width
