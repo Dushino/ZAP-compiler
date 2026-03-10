@@ -11,7 +11,6 @@
 
 
 const byte Text1[] = "Hello!"
-const byte FName[] = "H1:TEST.TXT\x9b"
 
 proc main()
 

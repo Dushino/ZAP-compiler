@@ -8,12 +8,16 @@ from ast_nodes import (
 )
 
 from symbols import Symbol, SymbolTable
+from errors import SemanticError
 
 def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
     """Replace const identifiers in an expression with literal values."""
     # IDENTIFIER
     if isinstance(expr, Identifier):
-        sym: Symbol = symtab.lookup(expr.name)
+        try:
+            sym: Symbol = symtab.lookup(expr.name, node=expr)
+        except SemanticError:
+            return expr  # Unknown identifier — not a const; leave for codegen
         if sym.is_const:
             # Only substitute scalar consts; const arrays/structs keep their address semantics
             if sym.is_array or sym.type.is_struct:

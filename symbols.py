@@ -201,9 +201,12 @@ class SymbolTable:
         
         self._symbols[key] = sym
 
-    def lookup(self, name: str) -> Symbol:
-        """Look up a symbol by name, raising on missing entries."""
-        return self._symbols[self._key(name)]
+    def lookup(self, name: str, node=None) -> Symbol:
+        """Look up a symbol by name, raising SemanticError on missing entries."""
+        key = self._key(name)
+        if key not in self._symbols:
+            raise SemanticError(f"Undefined variable '{name}'", node=node)
+        return self._symbols[key]
 
     def __iter__(self) -> Iterator[Symbol]:
         """Iterate over symbols stored in this table."""
@@ -272,12 +275,12 @@ class ScopedSymbolTable:
         self.parent: SymbolTable = parent
         self.local = SymbolTable()
 
-    def lookup(self, name: str) -> Symbol:
+    def lookup(self, name: str, node=None) -> Symbol:
         """Lookup a symbol, preferring locals then globals."""
         try:
             return self.local.lookup(name)
-        except KeyError:
-            return self.parent.lookup(name)
+        except SemanticError:
+            return self.parent.lookup(name, node=node)
 
 @dataclass
 class FuncSymbol:
