@@ -1143,9 +1143,9 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
     # These are compiler-generated temps used during expression evaluation
     from symbols import Symbol, SemType
     system_temps: list[tuple[str, int]] = [
-        ("MATH_STACK", 8),
+        ("MATH_STACK", 32),
         ("MATH0", 4),
-        ("MATH1", 2),
+        ("MATH1", 4),
         ("TMP0", 2),
         ("TMP2", 2),
         ("TMP3", 2),

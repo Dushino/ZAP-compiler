@@ -37,6 +37,38 @@ Notable improvements: FOPEN.FILENAME + FWRITE.BUFFER + MEMCPY.PTR1 + MEMSET.PTR 
 
 ---
 
+## Math slot conditional allocation (2026-03-10)
+
+### What was done
+
+Extended the TMP-slot conditional-emission pattern to cover `MATH_STACK`, `MATH0`, and `MATH1`. Previously these three slots were **always** emitted in ZP regardless of whether the program used WORD/LONG arithmetic. Now they are only allocated when actually referenced in the generated code.
+
+**Changes in `codegen_expr.py`**:
+- `_detect_temp_usage()`: added `MATH_STACK`, `MATH0`, `MATH1` to the code scan set, and added flag-based prediction `if math_routines_needed: add MATH0+MATH1` (needed because math library routines are emitted by `gen_file_footer()` *after* the scan runs)
+- `emit_memory_map()` (both `gen_vars_block` and `gen_vars` copies): added `if internal_name not in temps_in_use: continue` guard for MATH slots, mirroring the existing TMP guard
+- Slot-sizing loop: extended single TMP condition to cover all system temps uniformly
+
+**Changes in `compiler_pipeline.py`**:
+- Fixed wrong sizes in `system_temps` list: `MATH_STACK` 8 → 32, `MATH1` 2 → 4 (the interference graph now uses the correct size classes)
+
+### Impact on test_stdio.zap (BYTE-only program, no WORD/LONG arithmetic)
+
+| Metric | Before | After |
+|--------|--------|-------|
+| MATH_STACK (ZP) | 32 bytes | 0 (removed) |
+| MATH0 (ZP) | 4 bytes | 0 (removed) |
+| MATH1 (ZP) | 4 bytes | 0 (removed) |
+| **Total MATH bytes saved** | **40 bytes** | — |
+| Total ZP (proc/func + TMP + MATH) | ~74 bytes | 32 bytes |
+
+Programs that use WORD/LONG arithmetic are unaffected — MATH slots are still emitted when needed.
+
+**Side effect**: `200-ops-byte.ref` updated (ZP layout shifted 32 bytes due to MATH_STACK removal; program output at `0x9C40` unchanged).
+
+**Tests**: all 229 tests (157 pass + 72 fail) pass. No regressions.
+
+---
+
 ## GAP-22: NULL pointer checks — WORD/pointer comparison (2026-03-04)
 
 ### What was done

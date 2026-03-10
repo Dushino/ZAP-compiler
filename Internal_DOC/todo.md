@@ -753,6 +753,9 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 
 - [ ] Memory slots allocation optimization
 - [ ] Unnecessary alocations for math routines
+- [ ] FInd duplicates in compiler code and unify where possible
+"The second copy of emit_memory_map() runs from a different code path."
+
 
 
 

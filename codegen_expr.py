@@ -4255,7 +4255,10 @@ class CodeGen:
 
     def _detect_temp_usage(self, code: list[str] | None = None) -> set[str]:
         """Scan generated code for temp usage and combine with flagged temps."""
-        temp_names: set[str] = {self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5")}
+        # Include MATH_STACK/MATH0/MATH1 alongside TMP slots so all are detected uniformly
+        temp_names: set[str] = {self._internal_name_map.get(n, n) for n in
+                                 ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5",
+                                  "MATH_STACK", "MATH0", "MATH1")}
         temps: set[str] = {self._internal_name_map.get(n, n) for n in self.used_temps}
         code = self.code if code is None else code
 
@@ -4273,6 +4276,10 @@ class CodeGen:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3", "TMP4")})
         if needed & {"MUL32", "DIV32", "MOD32"}:
             temps.update({self._internal_name_map.get(n, n) for n in ("TMP0", "TMP1", "TMP2", "TMP3")})
+        # All math routines use MATH0/MATH1 as operand registers; they're emitted in
+        # gen_file_footer() after the scan, so predict them here from the flag
+        if needed:
+            temps.update({self._internal_name_map.get(n, n) for n in ("MATH0", "MATH1")})
 
         for line in code:
             for name in temp_names:
@@ -4448,9 +4455,12 @@ class CodeGen:
         self.emit("; System variables")
 
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
+        # Skip MATH slots that are not referenced in generated code
         sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
         for temp_name, temp_size in sys_temp_names:
             internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if internal_name not in temps_in_use:
+                continue
             if temp_name in self.system_temp_slots:
                 # This temp uses a shared slot - emit as alias
                 slot_name = self.system_temp_slots[temp_name]
@@ -4530,9 +4540,9 @@ class CodeGen:
         
         # First, collect slots from system temps (always ZP) — only if actually used
         for temp_name, slot_label in self.system_temp_slots.items():
-            # Skip TMP slots not in use
+            # Skip any system temp (MATH or TMP) not referenced in generated code
             internal_name = self._internal_name_map.get(temp_name, temp_name)
-            if temp_name.startswith("TMP") and internal_name not in temps_in_use:
+            if internal_name not in temps_in_use:
                 continue
             # Determine size based on temp name
             temp_sizes_map = {
@@ -4788,9 +4798,12 @@ class CodeGen:
         self.emit("; System variables")
         
         # Emit system temps: use shared slots if assigned, otherwise dedicated slots
+        # Skip MATH slots that are not referenced in generated code
         sys_temp_names = [("MATH_STACK", 32), ("MATH0", 4), ("MATH1", 4)]
         for temp_name, temp_size in sys_temp_names:
             internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if internal_name not in temps_in_use:
+                continue
             if temp_name in self.system_temp_slots:
                 # This temp uses a shared slot - emit as alias
                 slot_name = self.system_temp_slots[temp_name]
@@ -4925,9 +4938,9 @@ class CodeGen:
                     continue
         # First, collect slots from system temps (always ZP) — only if actually used
         for temp_name, slot_label in self.system_temp_slots.items():
-            # Skip TMP slots not in use
+            # Skip any system temp (MATH or TMP) not referenced in generated code
             internal_name = self._internal_name_map.get(temp_name, temp_name)
-            if temp_name.startswith("TMP") and internal_name not in temps_in_use:
+            if internal_name not in temps_in_use:
                 continue
             # Determine size based on temp name
             temp_sizes_map = {
