@@ -20,7 +20,12 @@ Usage in the pipeline (compiler_pipeline.py)
 import re
 
 LABEL_RE: re.Pattern[str] = re.compile(r'^(\w+):')
-JUMP_RE: re.Pattern[str] = re.compile(r'\b(JMP|JSR|BEQ|BNE|BCC|BCS|BRA)\s+(\w+)\b')
+# All 6502/65C02 branch and jump mnemonics, case-insensitive so that labels
+# referenced from inline ASM blocks (which use lowercase) are preserved.
+JUMP_RE: re.Pattern[str] = re.compile(
+    r'\b(JMP|JSR|BEQ|BNE|BCC|BCS|BRA|BPL|BMI|BVC|BVS)\s+(\w+)\b',
+    re.IGNORECASE,
+)
 # References to labels in immediates: LDA #<LABEL  or  LDX #>LABEL
 IMM_LO_RE: re.Pattern[str] = re.compile(r'#<\s*(\w+)')
 IMM_HI_RE: re.Pattern[str] = re.compile(r'#>\s*(\w+)')
