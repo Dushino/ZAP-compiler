@@ -584,7 +584,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     putchar(',')
     putx(high(len))
     putx(low(len))
-    putchar(',')
+    putchar('_')
     putx(aux1)
     putchar(',')
     putx(aux2)    

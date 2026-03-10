@@ -84,6 +84,16 @@
 					"label": ""
 				}
 			]
+		},
+		{
+			"path": "work/test_stdio.s",
+			"bookmarks": [
+				{
+					"line": 1230,
+					"column": 9,
+					"label": ""
+				}
+			]
 		}
 	]
 }
