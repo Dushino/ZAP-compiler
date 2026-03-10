@@ -1,12 +1,31 @@
+"""jump_threading.py — Jump-chain simplification pass for ZAP compiler output.
+
+Eliminates redundant branches and trivial jump chains in the generated assembly:
+
+  * ``JMP L`` where ``L`` is the very next line → remove the jump
+  * ``JMP L1`` where ``L1:`` is immediately followed by ``JMP L2`` → rewrite
+    as ``JMP L2`` (one-level threading)
+  * ``BEQ L ; JMP L`` → collapse to ``JMP L``
+  * ``ORA X ; JMP L`` → collapse to ``JMP L`` (legacy pattern, kept for safety)
+
+Usage in the pipeline (compiler_pipeline.py)
+---------------------------------------------
+    from jump_threading import jump_threading
+    from label_cleanup import cleanup_labels
+    cg.code = jump_threading(cg.code)   # thread redundant jump chains
+    cg.code = cleanup_labels(cg.code)   # remove labels made unreferenced by threading
+"""
+
 import re
 
 JMP_RE: re.Pattern[str] = re.compile(r'^\s*JMP\s+(\w+)', re.IGNORECASE)
 LABEL_RE: re.Pattern[str] = re.compile(r'^(\w+):')
 
+
 def jump_threading(lines: list[str]) -> list[str]:
     """Simplify jump chains and trivial branches in assembly output."""
 
-    # mapování label -> index
+    # Build label → line-index map for O(1) target look-up.
     label_pos = {}
     for i, line in enumerate(lines):
         m: re.Match[str] | None = LABEL_RE.match(line)
@@ -19,7 +38,8 @@ def jump_threading(lines: list[str]) -> list[str]:
         line: str = lines[i]
 
         # ORA X ; JMP L  -> JMP L
-        if line.strip() == "ORA X":     # Fixme: Propabaly not needed anymore, but keep for now as it was a common pattern in the past
+        # (legacy pattern left over from early codegen; kept defensively)
+        if line.strip() == "ORA X":
             if i + 1 < len(lines):
                 next_line: str = lines[i + 1].strip()
                 if next_line.startswith("JMP "):
@@ -39,7 +59,7 @@ def jump_threading(lines: list[str]) -> list[str]:
                         i += 2
                         continue
 
-        # JMP L1 ; L1:
+        # JMP L1 where L1 is immediately next, or L1 immediately jumps to L2.
         m: re.Match[str] | None = JMP_RE.match(line)
         if m:
             target: str = m.group(1)
@@ -47,12 +67,12 @@ def jump_threading(lines: list[str]) -> list[str]:
             if target in label_pos:
                 tgt_idx = label_pos[target]
 
-                # skok na následující řádek
+                # Jump to the very next line → redundant; drop it.
                 if tgt_idx == i + 1:
                     i += 1
                     continue
 
-                # JMP L1 -> L1: JMP L2
+                # JMP L1 → L1: JMP L2 → rewrite as JMP L2 (one level of threading).
                 next_line = lines[tgt_idx + 1] if tgt_idx + 1 < len(lines) else ""
                 m2: re.Match[str] | None = JMP_RE.match(next_line)
                 if m2:
@@ -63,27 +83,5 @@ def jump_threading(lines: list[str]) -> list[str]:
 
         out.append(line)
         i += 1
-
-    return out
-
-def cleanup_labels(lines: list[str]) -> list[str]:
-    """Remove unreferenced labels and collapse redundant label runs."""
-    # najdi všechny cíle skoků
-    used = set()
-    for l in lines:
-        l: str = l.strip()
-        if l.startswith(("JMP ", "BEQ ", "BNE ", "BCC ", "BCS ")):
-            used.add(l.split()[1])
-
-    out = []
-    for i, l in enumerate(lines):
-        if l.endswith(":"):
-            label: str = l[:-1]
-            if label not in used:
-                continue
-            # více labelů za sebou
-            if i + 1 < len(lines) and lines[i + 1].strip().endswith(":"):
-                continue
-        out.append(l)
 
     return out

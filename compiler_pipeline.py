@@ -1792,6 +1792,12 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # Apply peephole optimizations only when explicitly enabled
     if enable_peephole:
         cg.peephole_optimize()
+    # Post-process assembly text: thread redundant jump chains, then remove
+    # labels that became unreferenced as a result.
+    from jump_threading import jump_threading
+    from label_cleanup import cleanup_labels
+    cg.code = jump_threading(cg.code)
+    cg.code = cleanup_labels(cg.code)
     cg.code = _format_assembly(cg.code, seg_zp=seg_zp, seg_bss=seg_bss)
     return "\n".join(cg.code)
 

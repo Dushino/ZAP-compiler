@@ -2,6 +2,34 @@
 
 ---
 
+## Refactor: cleanup_labels() unification (2026-03-10)
+
+### What was done
+
+- **Deleted** the weaker duplicate `cleanup_labels()` from `jump_threading.py`
+  (21 lines removed).  It only tracked 5 branch mnemonics, had no `keep_always`
+  runtime-label guard, and no data-label detection.  It was also dead code —
+  never imported or called anywhere.
+- **Rewrote** `jump_threading.py` with a module docstring explaining the pass,
+  each transformation rule, and how to call it from the pipeline.
+- **Rewrote** `label_cleanup.py` with a module docstring explaining the two-pass
+  algorithm, what `keep_always` covers, and how to call it from the pipeline.
+  Extended `keep_always` to include `LSHIFT32`, `RSHIFT32`, `COPY_BYTES`,
+  `COPY_BYTES16` (already in the codegen but not guarded).
+- **Wired both passes into the pipeline** (`compiler_pipeline.py`) after the
+  optional peephole optimizer and before `_format_assembly`:
+  ```
+  cg.code = jump_threading(cg.code)
+  cg.code = cleanup_labels(cg.code)
+  cg.code = _format_assembly(cg.code, …)
+  ```
+  Previously both modules were dead code (never called).  Now the pipeline
+  matches the architecture documented in `DOC/ARCHITECTURE.md`.
+
+**Tests**: all 229 tests (157 pass + 72 fail) pass. No regressions.
+
+---
+
 ## Refactor: sema_proc / sema_func shared helpers (2026-03-10)
 
 ### What was done
