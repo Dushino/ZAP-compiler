@@ -1,5 +1,5 @@
 from ast_nodes import (
-    Expr, Expr, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase, BreakStmt, ContinueStmt,
+    Expr, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase, BreakStmt, ContinueStmt,
     ReturnStmt
 )
 from ast_nodes import IntLiteral

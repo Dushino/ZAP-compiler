@@ -2,6 +2,27 @@
 
 ---
 
+## Dead code removal sweep (2026-03-10)
+
+### What was done
+
+Scanned all 25 compiler `.py` files and removed 5 categories of dead code:
+
+| | File | What | Lines |
+|---|---|---|---|
+| A | `identifier.py` | Entire file deleted — legacy `Identifier`/`Identifiers` classes, never imported anywhere | −147 |
+| B | `label_cleanup.py` L114–116 | Unreachable `if label not in used` inner check — control only reaches that line when `label in used`; removed the dead branch and replaced comment | −5 |
+| C | `compiler.py` L41 | `return ""` after unconditional `sys.exit(1)` | −1 |
+| D | `compiler.py` L7 | Duplicate `import os` | −1 |
+| E | `dce.py` L2 | Duplicate `Expr` in import list | −1 |
+
+Item F (`parser.py` duplicate imports before `from ast_nodes import *`) deferred
+— needs careful verification that `import *` actually covers all needed names.
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Refactor: parse_declarator() dead code removal (2026-03-10)
 
 ### What was done

@@ -4,7 +4,6 @@ from compiler_pipeline import compile_program
 from module_system import ModuleSystem
 from preprocessor import Preprocessor
 import os
-import os
 import sys
 from version import __version__
 from typing import Optional, Set, List
@@ -38,7 +37,6 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         else:
             print_exception(e, filename=parser_filename)
         sys.exit(1)
-        return ""
 
 
 def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:

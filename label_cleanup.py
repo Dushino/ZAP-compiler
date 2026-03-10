@@ -107,14 +107,8 @@ def cleanup_labels(lines: list[str]) -> list[str]:
                 i += 1
                 continue
 
-            # When two used labels appear on consecutive lines, keep both —
-            # the inner check below is redundant but harmless.
-            if i + 1 < len(lines):
-                next_stripped = lines[i + 1].strip()
-                if LABEL_RE.match(next_stripped):
-                    if label not in used:
-                        i += 1
-                        continue
+            # When two used labels appear on consecutive lines, keep both.
+            # (No drop needed here — label is in used, so it falls through to out.append.)
 
         out.append(line)
         i += 1
