@@ -2,6 +2,32 @@
 
 ---
 
+## Refactor: simple_byte_operand() unification (2026-03-10)
+
+### What was done
+
+Extracted the duplicate `simple_byte_operand()` closure that existed in two
+CodeGen methods into a single `CodeGen._simple_byte_operand(rhs, is_16bit)`
+method in `codegen_expr.py`.
+
+**Problem**: `_gen_relational` and `_emit_relational_branch_impl` each defined an
+identical local closure to return a CMP-ready operand for a trivial byte RHS.
+The two copies had a subtle divergence: `_gen_relational` used
+`self._sym_operand(sym, low_byte=True)` (returns `#_SYMNAME` for const scalars),
+while `_emit_relational_branch_impl` used `sym.asm_name()` (always memory — missing
+the const-immediate optimization).
+
+**Fix**:
+- Added `CodeGen._simple_byte_operand(self, rhs, is_16bit)` after `_sym_operand`.
+- Removed both local closures (−40 lines of duplicate code).
+- Updated 3 call sites to `self._simple_byte_operand(…, is_16bit)`.
+- Side-effect improvement: `_emit_relational_branch_impl` now emits immediate mode
+  for const BYTE right-hand operands (previously always memory mode).
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Refactor: cleanup_labels() unification (2026-03-10)
 
 ### What was done

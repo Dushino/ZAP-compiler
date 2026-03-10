@@ -5920,6 +5920,34 @@ class CodeGen:
             # Non-const: memory operand
             return f"{sym.asm_name()}" + ("" if low_byte else "+1")
 
+    def _simple_byte_operand(self, rhs: 'Expr', is_16bit: bool) -> 'str | None':
+        """Return a CMP-ready operand string if rhs is a trivial 8-bit source.
+
+        Returns an immediate string (``#value`` or ``#_SYMNAME``) or a memory
+        address string (``_SYMNAME``) when rhs is:
+          * an IntLiteral in 8-bit context, or
+          * a non-array, non-pointer, non-volatile BYTE Identifier.
+
+        Returns None when is_16bit is True or rhs is any other expression form.
+        Used by _gen_relational and _emit_relational_branch_impl to avoid
+        spilling the right operand to TMP0 for simple byte comparisons.
+        """
+        if is_16bit:
+            return None
+        if isinstance(rhs, IntLiteral):
+            return f"#{rhs.value & 0xFF}"
+        if isinstance(rhs, Identifier):
+            sym: Symbol = self.current_symtab.lookup(rhs.name)
+            if sym.is_array or sym.address is not None:
+                return None
+            if sym.type.is_pointer or sym.type.base != "BYTE":
+                return None
+            if sym.is_volatile:
+                return None
+            # Use immediate for const scalars, memory operand for variables.
+            return self._sym_operand(sym, low_byte=True)
+        return None
+
     def _gen_literal(self, expr: IntLiteral) -> None:
         """Generate literal.
         Internal helper used during code generation.
@@ -12537,29 +12565,7 @@ class CodeGen:
         # Try a fast 8-bit compare when the right operand is a simple byte value
         cmp_operand: str | None = None
 
-        def simple_byte_operand(rhs: Expr) -> str | None:
-            """Return an operand suitable for CMP if rhs is a trivial byte source."""
-            if is_16bit:
-                return None
-
-            if isinstance(rhs, IntLiteral):
-                return f"#{rhs.value & 0xFF}"
-
-            if isinstance(rhs, Identifier):
-                sym: Symbol = self.current_symtab.lookup(rhs.name)
-
-                if sym.is_array or sym.address is not None:
-                    return None
-                if sym.type.is_pointer or sym.type.base != "BYTE":
-                    return None
-                if sym.is_volatile:
-                    return None
-                # Use immediate if const scalar, otherwise memory operand
-                return self._sym_operand(sym, low_byte=True)
-
-            return None
-
-        cmp_operand = simple_byte_operand(expr.right)
+        cmp_operand = self._simple_byte_operand(expr.right, is_16bit)
 
         if cmp_operand is not None:
             # Left operand only; right is accessed directly in CMP
@@ -13306,28 +13312,6 @@ class CodeGen:
                     self.emit(f"\tJMP {lbl_false}")
                     return
 
-        # Try a fast 8-bit compare when the right operand is a simple byte value
-        def simple_byte_operand(rhs: Expr) -> str | None:
-            """Return an operand suitable for CMP if rhs is a trivial byte source."""
-            if is_16bit:
-                return None
-
-            if isinstance(rhs, IntLiteral):
-                return f"#{rhs.value & 0xFF}"
-
-            if isinstance(rhs, Identifier):
-                sym: Symbol = self.current_symtab.lookup(rhs.name)
-
-                if sym.is_array or sym.address is not None:
-                    return None
-                if sym.type.is_pointer or sym.type.base != "BYTE":
-                    return None
-                if sym.is_volatile:
-                    return None
-                return sym.asm_name()
-
-            return None
-
         # Optimize: if right side is a constant, use immediate addressing
         use_immediate: bool = isinstance(cond.right, IntLiteral)
         
@@ -13553,13 +13537,13 @@ class CodeGen:
                 self.emit("\tLDX #$00     ; note 6311")
         else:
             # Try simple byte operand optimization for 8-bit compares
-            cmp_operand: str | None = simple_byte_operand(cond.right)
-            
+            cmp_operand: str | None = self._simple_byte_operand(cond.right, is_16bit)
+
             if cmp_operand is not None:
                 # Left operand only; right is accessed directly in CMP
                 # Optimize: if left is also simple BYTE, load it directly without gen_expr to avoid unnecessary LDX #$00
                 # This avoids the unneeded "LDX #$00" that would normally follow "LDA byte_var" (optimization at 6321)
-                left_operand: str | None = simple_byte_operand(cond.left)
+                left_operand: str | None = self._simple_byte_operand(cond.left, is_16bit)
                 if left_operand is not None:
                     self.emit(f"\tLDA {left_operand}")
                 else:
