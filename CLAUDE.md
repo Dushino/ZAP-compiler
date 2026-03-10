@@ -18,6 +18,10 @@
 - Always prioritize safety over speed.
 - When in doubt, ask the user.  
 
+## Design ##
+- Always think in more generic context. If there is a way how to make things more generic or share logic accross parts of a project, go that way. For example, if there is already working logic for allocating TMP variables, use it for MATH variables as well and check possibility to use it for local variables. In other words: Check all places where allocated variables are used and try to unify approach accross all pieces.
+- If there are more copies of the same functionality, try to unify to one piece of code. This minimises design complexity and risk of missing bugs fixes in dusplicated code places.
+
 ## PROGRESS.md ##
 - After each change in compiler source codes, tests or documentation, update PROGRESS.md to reflect current sutuation.
 
