@@ -3096,6 +3096,58 @@ class CodeGen:
                             i += 8
                             continue
 
+            # 7-instruction: LDY #1 / LDA (ptr),Y / TAX / DEY / LDA (ptr),Y / STA dst / STX dst+1
+            # → LDY #1 / LDA (ptr),Y / STA dst+1 / DEY / LDA (ptr),Y / STA dst
+            # Loads a WORD from an indirect pointer and stores it to memory.
+            # TAX + STX collapse into a single early STA, saving one instruction.
+            #
+            # SAFETY: storing to dst+1 before the second load is only safe when
+            # dst+1 cannot alias the pointer bytes (ptr_base, ptr_base+1).
+            # Liveness analysis may alias user variables to the same ZP slot, making
+            # textual name comparison unreliable.  We therefore restrict this rule to
+            # sequences where the pointer base is a compiler-internal temp (TMP0,
+            # __TMP*, MATH*) which are never co-aliased with user-variable destinations.
+            if i + 6 < len(self.code):
+                ops7: list[tuple[str, str]] = []
+                for k in range(7):
+                    op, operand = _parse_inst(self.code[i + k])
+                    if not op or op.endswith(":"):
+                        ops7 = []
+                        break
+                    ops7.append((op, operand))
+                if ops7:
+                    (op0, a0), (op1, a1), (op2, _), (op3, _), (op4, a4), (op5, dst_lo), (op6, dst_hi) = ops7
+                    if (op0 == "LDY" and a0 in ("#1", "#$01") and
+                            op1 == "LDA" and op2 == "TAX" and op3 == "DEY" and
+                            op4 == "LDA" and a1 == a4 and
+                            op5 == "STA" and op6 == "STX" and
+                            dst_hi == f"{dst_lo}+1"):
+                        # Extract pointer base variable from "(ptr_base),Y"
+                        ptr_base = a1
+                        if ptr_base.startswith("(") and ptr_base.upper().endswith("),Y"):
+                            ptr_base = ptr_base[1:-3]
+                        ptr_base_upper = ptr_base.upper()
+                        is_internal_ptr = (
+                            ptr_base_upper.startswith("TMP") or
+                            ptr_base_upper.startswith("__TMP") or
+                            ptr_base_upper.startswith("MATH")
+                        )
+                        # Textual alias guard: dst+1 must not reference the pointer bytes
+                        no_alias = (dst_hi != ptr_base and dst_hi != f"{ptr_base}+1")
+                        if (is_internal_ptr and no_alias and
+                                not (_operand_is_port(dst_lo) or _operand_is_port(dst_hi))):
+                            ind0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                            ind1 = self.code[i + 1][:len(self.code[i + 1]) - len(self.code[i + 1].lstrip())]
+                            ind3 = self.code[i + 3][:len(self.code[i + 3]) - len(self.code[i + 3].lstrip())]
+                            optimized.append(f"{ind0}LDY #1\n")
+                            optimized.append(f"{ind1}LDA {a1}\n")
+                            optimized.append(f"{ind1}STA {dst_hi}\n")
+                            optimized.append(f"{ind3}DEY\n")
+                            optimized.append(f"{ind1}LDA {a4}\n")
+                            optimized.append(f"{ind1}STA {dst_lo}\n")
+                            i += 7
+                            continue
+
             # Remove blank line right before RTS
             if not line_stripped:
                 j = i + 1

@@ -2,6 +2,26 @@
 
 ---
 
+## Peephole: indirect WORD load + store optimization (2026-03-10)
+
+Added a 7→6 instruction peephole rule for loading a WORD via an indirect ZP pointer and storing it to a memory destination:
+
+| Before | After |
+|---|---|
+| `LDY #1` | `LDY #1` |
+| `LDA (ptr),Y` | `LDA (ptr),Y` |
+| `TAX` | `STA dst+1` |
+| `DEY` | `DEY` |
+| `LDA (ptr),Y` | `LDA (ptr),Y` |
+| `STA dst` | `STA dst` |
+| `STX dst+1` | |
+
+**Safety**: restricted to internal-temp pointers (`TMP*`, `__TMP*`) to avoid slot-aliased user-variable hazards.  Correctly skipped when the result feeds a `JSR` (X must hold the high byte).
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Peephole: 16-bit register shuffle elimination (2026-03-10)
 
 ### What was done
