@@ -100,7 +100,7 @@ enum ICCOM_COMMANDS
     Status      = $0D
 end
 
-enum ICAX1_COMMANDS
+enum ICAX1_Mode
     ; DOS 2.0
     ; https://www.atarimania.com/documents/Atari_1050_disk_operating_system_II_reference_manual.pdf
     Read        = 4       ; input operation; positions file pointer to start of file.
@@ -556,7 +556,7 @@ end
 func byte find_free_IOCB()
     byte i
 
-    for i = 0 to 8        
+    for i = 1 to 8        
         
         if IOCB[i].ICHID == 255
             return i
@@ -609,23 +609,20 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     end
     
     i = find_free_IOCB()
-    putx(i)
     if i == 255
         return ERRNO.ENODEV
     end
 
     fd^.fd = i
-    putx(fd^.fd)
+    rv = CIO(fd, ICCOM_COMMANDS.Open, filename, mode, 0)
 
-    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode)
-    putx(rv)
-    if rv != 1
+    if rv != ERRNO.OK
         set_fderror(fd, rv)
         return rv
     end
 
     set_fderror(fd, ERRNO.OK)        
-    return 0
+    return ERRNO.OK
 end
 
 
@@ -755,7 +752,7 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
     if fd == NULL        
         return ERRNO.EBADF
     end
-
+    
     rv = CIO(fd^.fd, ICCOM_COMMANDS.PutRec, buffer, size)
     if rv != 1
         set_fderror(fd, rv)
@@ -763,10 +760,8 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
     end
 
     set_fderror(fd, ERRNO.OK)    
+
     return ERRNO.OK    
-
-
-    return 0
 end
 
 

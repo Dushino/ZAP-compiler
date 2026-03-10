@@ -11,6 +11,7 @@
 
 
 const byte Text1[] = "Hello!"
+const byte FName[] = "H1:TEST.TXT\x9b"
 
 proc main()
 
@@ -19,10 +20,11 @@ proc main()
 
     ;COLOR4 = COLOR_MEDIUM_BLUE + 4
     puts("\nOpen:  ")    
-    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.Append)    
+    rv = fopen(@fd, "H1:TEST.TXT\x9b", ICAX1_MODE.Write)  
+    putx(rv)  
     
     puts("\nWrite: ")
-    rv = fwrite(@fd, @Text1, 6)
+    rv = fwrite(@fd, Text1, 6)
     putx(rv)
 
     puts("\nClose: ")

@@ -2,6 +2,43 @@
 
 ---
 
+## OPT-1: Compile-time constant array index folding (2026-03-10)
+
+When an array index is a compile-time constant expression (const identifier, enum member,
+or arithmetic on consts), the compiler now evaluates the complete byte offset at compile
+time and emits a direct `LDA #<offset; LDX #>offset` pair instead of a runtime multiply.
+
+**Helper**: `_try_eval_const(expr)` — wraps `eval_const_expr` from `sema.py`, returns
+`int | None`. Returns `None` for any runtime expression.
+
+**Changed locations:**
+- `_gen_subscript()` fast path: folded index replaces `isinstance(index, IntLiteral)` check
+- `_gen_subscript()` general path: const-fold skips `gen_expr` + multiply block entirely
+- `_gen_multidim_subscript()`: per-index fold; all-const → compile-time total offset
+- `_gen_address_of()` `@array[index]` path: const-fold produces `LDA #<(label+off); LDX #>(label+off)`
+- `_gen_multidim_subscript()` runtime loop bug fixed: replaced ad-hoc multi-case multiply with `_gen_index_multiply(stride_val)` call
+
+**Tests:** `pass/171-const-fold-array-index` (8 checks: byte/word/struct arrays with const,
+const-1, and const-expr indices). All 161 pass-tests pass.
+
+---
+
+## OPT-2: Shift-add for explicit multiply by small constant (2026-03-10)
+
+Extended the RPN evaluator MUL power-of-2 optimization block to also handle non-power-of-2
+constants with ≤3 set bits when the left operand is BYTE. Calls `_gen_index_multiply(n)`,
+eliminating `JSR MUL8`.
+
+Examples: `a * 3`, `a * 5`, `a * 6`, `a * 10`, `a * 12`, `3 * a` (commutative swap).
+
+**Changed:** `codegen_expr.py` RPN evaluator ~line 886 — added `elif` branch after power-of-2
+check. `200-ops-byte.ref` updated (ZP layout changed: TMP3/TMP4 now allocated for this test).
+
+**Tests:** `pass/172-mul-small-const` (8 checks: ×3, ×5, ×6, ×10, ×12, commutative, ×4, ×8).
+All 161 pass-tests + 72 fail-tests pass.
+
+---
+
 ## Compile-time constant multiply optimization: shift-add decomposition (2026-03-10)
 
 Added `_gen_index_multiply(n)` helper to `codegen_expr.py`. Replaces repeated-addition loops

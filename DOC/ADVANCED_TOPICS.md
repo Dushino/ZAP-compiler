@@ -968,6 +968,94 @@ proc process_loop()
 end
 ```
 
+### Struct Array Index Multiply Optimization
+
+When indexing into an array of structs, the compiler must scale the index by the element
+size.  ZAP! uses the most efficient code sequence available for the element size known at
+compile time.
+
+**Power-of-2 element sizes (4, 8, 16, 32 bytes)** — pure shifts:
+
+```zap
+struct Sprite          ; 16 bytes
+    word x
+    word y
+    byte tile
+    byte flags
+    byte f0[10]
+end
+
+Sprite sprites[32] @$5000
+
+proc update(byte i)
+    sprites[i].tile = 5    ; index*16 via 4 shifts — 14 instructions total
+end
+```
+
+Generated code for `i * 16`:
+```asm
+    STA TMP3       ; save index
+    LDA #$00
+    ASL TMP3       ; ─┐
+    ROL A          ;  ├ × 4  (log2 16 = 4 shifts)
+    ASL TMP3       ;  │
+    ROL A          ;  │
+    ASL TMP3       ;  │
+    ROL A          ;  │
+    ASL TMP3       ;  │
+    ROL A          ; ─┘
+    TAX            ; X = high byte of offset
+    LDA TMP3       ; A = low byte of offset
+```
+
+**Non-power-of-2 element sizes (3, 5, 6, 10, 12 bytes)** — shift-add decomposition:
+
+For struct sizes whose binary representation has ≤ 3 set bits, the compiler decomposes the
+multiply into shifts and adds.  For example, size 12 = 8 + 4:
+
+```zap
+struct Entry           ; 12 bytes
+    byte key[8]
+    word value
+    word next
+end
+```
+
+`index * 12` emits: shift to ×4, add; shift again to ×8, add. About 20 instructions vs 60
+for a repeated-add loop.
+
+**Compile-time constant indexes** — when the array index is a compile-time constant
+expression (e.g., `SCREEN_Y_SIZE - 1` where `SCREEN_Y_SIZE` is a `const`), the compiler
+evaluates the entire byte offset at compile time and emits a direct two-instruction load.
+This works for simple arrays, struct arrays, and multi-dimensional arrays:
+
+```zap
+const byte ROWS = 24
+word vlstart[ROWS] @50000
+
+proc update()
+    word ptr = vlstart[ROWS - 1]   ; offset = (ROWS-1)*2 = 46 = $2E — compile-time
+    ; Emits:  LDA #$2E / LDX #$00  — no runtime multiply needed
+end
+```
+
+### Multiply by Small Constant (Shift-Add)
+
+The compiler uses shift-add decomposition for multiplying a `byte` variable by a small
+non-power-of-2 constant with at most 3 set bits. This replaces the general `JSR MUL8`
+routine call with inline shifts and adds — typically 3× faster:
+
+| Expression | Decomposition | Code |
+|---|---|---|
+| `a * 3`  | 2 + 1 | shift-add, ~6 instr |
+| `a * 5`  | 4 + 1 | shift-add, ~8 instr |
+| `a * 6`  | 4 + 2 | shift-add, ~10 instr |
+| `a * 10` | 8 + 2 | shift-add, ~10 instr |
+| `a * 12` | 8 + 4 | shift-add, ~10 instr |
+
+Power-of-2 constants (`*2`, `*4`, `*8`, …) use pure shifts (even fewer instructions).
+Constants with more than 3 set bits fall back to `JSR MUL8`.
+
 ### Byte vs Word
 
 ```zap

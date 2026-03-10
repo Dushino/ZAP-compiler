@@ -19,7 +19,22 @@
 			"path": "work/lib/atari/atari_stdio.zap",
 			"bookmarks": [
 				{
-					"line": 758,
+					"line": 98,
+					"column": 10,
+					"label": ""
+				},
+				{
+					"line": 571,
+					"column": 19,
+					"label": ""
+				},
+				{
+					"line": 616,
+					"column": 43,
+					"label": ""
+				},
+				{
+					"line": 755,
 					"column": 35,
 					"label": ""
 				}

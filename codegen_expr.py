@@ -21,6 +21,7 @@ from ast_nodes import (
     IfStmt, ReturnStmt, WhileStmt, RepeatUntilStmt, ForStmt, SwitchStmt,
     AsmBlock, FieldAccess, StringLiteral
 )
+from sema import eval_const_expr
 from sema_expr import ExprTypeChecker
 from sema_proc import AnalyzedProc
 from sema_func import AnalyzedFunc
@@ -899,15 +900,26 @@ class CodeGen:
                                 self.emit("\tLDA MATH0")
                                 if node.width == 2:
                                     self.emit("\tLDX MATH0+1")
-                            
+
                             # Perform shifts
                             if node.value == BinOp.MUL:
                                 self._gen_lshift(node.width == 2, "A", shift_amount)
                             else:
                                 self._gen_rshift(node.width == 2, "A", shift_amount)
-                            
+
                             eval_stack.append(("AX" if node.width == 2 else "A", node.width))
                             math_optimized = True
+                    elif (node.value == BinOp.MUL and const_val > 0 and
+                          left_width == 1 and bin(const_val).count('1') <= 3):
+                        # Shift-add decomposition for non-power-of-2 constants on BYTE operands.
+                        # e.g. *3 = *2+*1, *5 = *4+*1, *6 = *4+*2, *10 = *8+*2, *12 = *8+*4
+                        if left_loc != "MATH0":
+                            load_to_ax(left_loc, False)
+                        else:
+                            self.emit("\tLDA MATH0")
+                        self._gen_index_multiply(const_val)
+                        eval_stack.append(("AX", 2))
+                        math_optimized = True
 
                 # 3. Perform operation
                 if math_optimized:
@@ -6581,15 +6593,17 @@ class CodeGen:
             strides.insert(0, stride)
             stride *= dims[i]
         
-        # OPTIMIZATION: Check if all indices are compile-time constants
-        all_indices_const: bool = all(isinstance(idx, IntLiteral) for idx in indices)
-        
+        # OPTIMIZATION: Try to evaluate all indices as compile-time constants
+        # (handles IntLiteral, const identifiers, and constant expressions like CONST-1).
+        _folded_indices: list[int | None] = [self._try_eval_const(idx) for idx in indices]
+        all_indices_const: bool = all(v is not None for v in _folded_indices)
+
         if all_indices_const:
             # Compile-time address calculation - OPTIMIZED
             # Calculate offset: offset = i*stride[0] + j*stride[1] + k*stride[2] + ...
             compile_time_offset = 0
-            for idx_expr, stride_val in zip(indices, strides):
-                compile_time_offset += idx_expr.value * stride_val
+            for folded_val, stride_val in zip(_folded_indices, strides):
+                compile_time_offset += (folded_val or 0) * stride_val
             
             # Get offset as low and high bytes
             offset_low = compile_time_offset & 0xFF
@@ -6660,47 +6674,16 @@ class CodeGen:
         self.emit("\tSTA TMP4+1")
         
         # Add each index * stride to offset
-        for idx_expr, stride_val in zip(indices, strides):
-            # Evaluate index expression -> A
-            self.gen_expr(idx_expr)
-            
-            # Multiply index by stride
-            if stride_val == 1:
-                # No multiplication needed - A already has index
-                self.emit("\tLDX #$00")  # Clear high byte
-            elif stride_val == 2:
-                # Multiply by 2: ASL
-                self.emit("\tASL")
-                self.emit("\tLDX #$00")
-            elif stride_val & (stride_val - 1) == 0:
-                # Power of 2: use bit shifts
-                shifts = (stride_val - 1).bit_length()  # log2(stride_val)
-                for _ in range(shifts):
-                    self.emit("\tASL")
-                self.emit("\tLDX #$00")
+        for idx_expr, stride_val, _fidx in zip(indices, strides, _folded_indices):
+            # If the index is a compile-time constant, emit the pre-scaled value directly.
+            if _fidx is not None:
+                const_off_part: int = _fidx * stride_val
+                self.emit(f"\tLDA #${const_off_part & 0xFF:02X}")
+                self.emit(f"\tLDX #${(const_off_part >> 8) & 0xFF:02X}")
             else:
-                # General multiplication (non-power-of-2)
-                # Save A (index) to a temporary (use TMP5 to avoid conflicts)
-                self.emit("\tSTA TMP5")
-                
-                # Multiply TMP5 * stride -> A:X using repeated addition
-                self.emit("\tLDA #$00")
-                self.emit("\tSTA TMP3")  # TMP3 = result low byte
-                self.emit("\tLDX #$00")   # X = result high byte
-                
-                for _ in range(stride_val):
-                    self.emit("\tCLC")
-                    self.emit("\tLDA TMP5")
-                    self.emit("\tADC TMP3")
-                    self.emit("\tSTA TMP3")
-                    carry_lbl: str = self.new_label("STRIDE_CARRY")
-                    self.emit(f"\tBCC {carry_lbl}")
-                    self.emit("\tINX")
-                    self.emit(f"{carry_lbl}:")
-                
-                self.emit("\tLDA TMP3")
-                # X already has high byte
-            
+                # Evaluate index expression -> A, then multiply by stride -> A (low) / X (high)
+                self.gen_expr(idx_expr)
+                self._gen_index_multiply(stride_val)
             # Now A/X has (index * stride), add to TMP4
             self.emit("\tCLC")
             self.emit("\tADC TMP4")
@@ -6828,6 +6811,17 @@ class CodeGen:
         self.emit("\tLDA TMP4")
         self.emit("\tLDX TMP4+1")
 
+    def _try_eval_const(self, expr: Expr) -> "int | None":
+        """Try to evaluate expr as a compile-time integer constant.
+        Returns the integer value if successful, or None if expr is not a constant.
+        Uses the semantic constant evaluator which resolves const identifiers, enum
+        members, LOW/HIGH/SIZEOF calls, and arithmetic on any of the above.
+        """
+        try:
+            return int(eval_const_expr(expr, self.current_symtab))
+        except Exception:
+            return None
+
     def _gen_subscript(self, expr: SubscriptExpr, load_only: bool, calc_addr_only: bool = False) -> None:
         """Generate subscript.
         Internal helper used during code generation.
@@ -6841,16 +6835,17 @@ class CodeGen:
             self._gen_multidim_subscript(indices, sym, load_only, calc_addr_only)
             return
         
-        # OPTIMIZATION: Direct load for immediate indices (compile-time constants)
-        # Pattern: arr[1] where index is known at compile time
-        if (load_only and isinstance(base, Identifier) and isinstance(expr.index, IntLiteral) and
+        # OPTIMIZATION: Direct load for compile-time constant indices.
+        # Pattern: arr[1] or arr[CONST] or arr[CONST+N] etc.
+        _fast_idx: int | None = self._try_eval_const(expr.index) if isinstance(base, Identifier) else None
+        if (load_only and isinstance(base, Identifier) and _fast_idx is not None and
             not calc_addr_only):
             sym: Symbol = self.current_symtab.lookup(base.name)
             if sym.is_array and not sym.is_const:
                 # This is a simple array with runtime base address
                 arr_addr: str = sym.asm_name()
                 element_width: int = self._calculate_element_width(sym)
-                index_val: int = expr.index.value
+                index_val: int = _fast_idx
                 offset: int = index_val * element_width
                 
                 # Direct load from arr+offset
@@ -6937,8 +6932,20 @@ class CodeGen:
             self.emit("\tSTX TMP0+1")
 
             # index -> calculate scaled offset
-            self.gen_expr(expr.index)
-            
+            # Try to evaluate index as a compile-time constant first.
+            # If successful, the full byte offset (index * element_width) is a
+            # compile-time constant: emit LDA #<lo> / LDX #<hi> directly
+            # and mark the result as pre-scaled (skip _gen_index_multiply below).
+            _const_idx: int | None = self._try_eval_const(expr.index)
+            if _const_idx is not None:
+                const_off: int = _const_idx * element_width
+                self.emit(f"\tLDA #${const_off & 0xFF:02X}")
+                self.emit(f"\tLDX #${(const_off >> 8) & 0xFF:02X}")
+                _index_prescaled = True
+            else:
+                self.gen_expr(expr.index)
+                _index_prescaled = False
+
         elif isinstance(base, FieldAccess):
             # New code for field access (struct_var.field[index])
             # First, generate the field access which should give us the address in A/X
@@ -6980,14 +6987,18 @@ class CodeGen:
             
             # Generate the index expression
             self.gen_expr(expr.index)
+            _index_prescaled = False
         else:
             self._raise_error("Subscript array must be identifier or field access")
+            _index_prescaled = False  # unreachable; keeps type checker happy
 
-        # Multiply index by element width and store result
-        if element_width > 1:
-            self._gen_index_multiply(element_width)
-        else:
-            self.emit("\tLDX #$00")  # BYTE element, X = 0
+        # Multiply index by element width and store result.
+        # Skip when const-fold already produced the fully-scaled A/X above.
+        if not _index_prescaled:
+            if element_width > 1:
+                self._gen_index_multiply(element_width)
+            else:
+                self.emit("\tLDX #$00")  # BYTE element, X = 0
         
         # Now A/X contains (scaled) index, add to base address in TMP0
         self.emit("\tCLC")
@@ -9626,11 +9637,23 @@ class CodeGen:
             
             # Get element size
             elem_size: int = array_sym.type.get_size()
-            
-            # Generate index value into TMP0
+
+            # OPTIMIZATION: try compile-time constant fold for index
+            _addr_const_idx: int | None = self._try_eval_const(operand.index)
+            if _addr_const_idx is not None:
+                const_offset: int = _addr_const_idx * elem_size
+                if const_offset == 0:
+                    self.emit(f"\tLDA #<{label}")
+                    self.emit(f"\tLDX #>{label}")
+                else:
+                    self.emit(f"\tLDA #<({label}+{const_offset})")
+                    self.emit(f"\tLDX #>({label}+{const_offset})")
+                return
+
+            # Runtime: generate index value into TMP0
             self.gen_expr(operand.index)
             self.emit("\tSTA TMP0")  # Save index
-            
+
             # Calculate address = base + index * elem_size
             if elem_size == 1:
                 # No multiplication needed
