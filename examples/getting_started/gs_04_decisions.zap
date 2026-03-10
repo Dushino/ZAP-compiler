@@ -1,7 +1,7 @@
 ; Example: gs_04_decisions.zap
 ; Source: GETTING_STARTED.md, section "Making Decisions" (lines 350-464)
 ;
-; Demonstrates: if/else, comparison operators, logical operators, nested conditions
+; Demonstrates: if/else/elseif, comparison operators, logical operators, nested conditions
 
 byte game_state = 0    ; 0=menu, 1=playing, 2=paused, 3=over
 
@@ -16,12 +16,12 @@ end
 proc game_logic(byte level)
     if level == 1
         ; Easy level
-    end
-    if level < 5
+    elseif level < 5
         ; Early levels
-    end
-    if level > 9
+    elseif level > 9
         ; Hard levels
+    else
+        ; Medium levels
     end
 end
 
@@ -48,14 +48,11 @@ end
 proc update_game()
     if game_state == 0
         ; Show menu
-    end
-    if game_state == 1
+    elseif game_state == 1
         ; Update gameplay
-    end
-    if game_state == 2
+    elseif game_state == 2
         ; Show pause screen
-    end
-    if game_state == 3
+    elseif game_state == 3
         ; Show game over
     end
 end

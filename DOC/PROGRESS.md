@@ -1,7 +1,7 @@
 # ZAP! Compiler — Progress & Status
 
 **Current version**: 0.2.0
-**Test suite**: 131 pass-tests · 62 fail-tests · all passing
+**Test suite**: 159 pass-tests · 105 fail-tests · all passing
 
 ---
 
@@ -32,6 +32,7 @@
 | Enum declarations with `EnumName.Member` qualified access | Done |
 | `proc` declarations with default parameters | Done |
 | `func` declarations with return types and default parameters | Done |
+| Function return type validation (scalar, pointer, struct) | Done |
 | Arithmetic operators: `+` `-` `*` `/` `%` | Done |
 | Bitwise operators: `&` `\|` `^` `~` | Done |
 | Shift operators: `<<` `>>` | Done |
@@ -45,9 +46,9 @@
 | `switch / case / default / end` | Done |
 | `break` | Done |
 | Inline `asm … end` blocks | Done |
-| `low()` / `high()` / `sizeof()` built-in functions | Done |
-| `cast` operator | Done |
-| `++` / `--` increment and decrement | Done |
+| `low()` / `high()` / `loww()` / `highw()` / `sizeof()` built-in functions | Done |
+| `continue` | Done |
+| `elseif` | Done |
 | String literals with escape sequences (`\n`, `\t`, `\r`, `\"`, `\'`, `\\`) | Done |
 | Character literals | Done |
 | Integer literals: decimal, hex (`$`), binary (`%`) | Done |
@@ -144,6 +145,7 @@ Each pass-test directory contains:
 | var→var struct copy had no handler → fell through to scalar codegen, producing wrong code | Added explicit COPY_BYTES/COPY_BYTES16 dispatch path in `gen_assign()` |
 | `_gen_const_struct_copy()` and struct-from-function-return used 8-bit `LDX #size` → overflow for structs > 255 bytes | Fixed: 2-way COPY_BYTES / COPY_BYTES16 split based on struct size |
 | Struct-returning function return buffers (`__RETBUF_FUNCNAME`) were added to `global_symtab` before `prune_unused()`, which then removed them as unreferenced | Fixed: generate RETBUF symbols after `prune_unused()` in `compiler_pipeline.py` |
+| Function return type not validated against declared type — struct returned as byte, wrong struct type, or missing return expression not caught | Added comprehensive return type checking in `sema_func.py`; pointers treated as WORD-compatible |
 
 ---
 
@@ -157,3 +159,7 @@ Each pass-test directory contains:
 | Unify cosmetics in generated code (mixed `#$00` vs `#0`, extra blank lines) | Low |
 | Const struct literals with word/long fields store values as bytes — field widths not respected | Medium |
 | Tutorial examples and expanded language reference | Low |
+| VS Code extension: `loww`/`highw` keywords, `LONG` type, comparison operators updated | Done |
+| Documentation: return type validation, `elseif`, line counts updated across all DOC files | Done |
+| Examples: `gs_04_decisions.zap` updated to use `elseif` chains | Done |
+| Documentation: const storage and immutability section in ADVANCED_TOPICS.md | Done |

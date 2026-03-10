@@ -1432,6 +1432,22 @@ The accumulator-based architecture supports a future optimization: **keeping res
 - Needs special handling for each expression type (literals, identifiers, math ops, etc.)
 - May require two-pass or lookahead logic to determine when result will be immediately re-used in another math operation
 
+### Function Return Type Validation
+
+`FuncAnalyzer` in `sema_func.py` validates every `return` statement against the function's declared return type. The rules are:
+
+| Declared type | Return expression | Result |
+|---|---|---|
+| Scalar (BYTE/WORD/LONG) | Any scalar or pointer | Allowed (widening/narrowing) |
+| Pointer (e.g. `byte^`) | Scalar WORD or pointer | Allowed (pointers are WORD-compatible) |
+| Struct `S` | Same struct `S` | Allowed |
+| Struct `S` | Different struct `T` | **Error** |
+| Struct `S` | Scalar | **Error** |
+| Scalar | Struct | **Error** |
+| Any `func` | Missing expression | **Error** |
+
+Pointers are treated as WORD for type-compatibility purposes, so `func word f()` can `return ptr` and `func byte^ g()` can `return some_word`. Struct returns require exact name match (no structural equivalence).
+
 ### How Arrays Are Accessed
 
 ```zap
@@ -1461,6 +1477,83 @@ byte h1 = $FF           ; Hex (dollar sign)
 byte h2 = 0xFF          ; 0x prefix (decimal also works)
 byte d1 = 255           ; Decimal
 ```
+
+### Const Storage and Immutability
+
+The `const` modifier affects how data is stored and whether it can be modified:
+
+#### Const Scalars — Assembler Equates
+
+Const scalar variables occupy **no memory at all**. They are emitted as assembler symbol equates:
+
+```zap
+const byte MAX = 100
+const word SCREEN = $4000
+```
+
+Produces:
+```asm
+_MAX = $64
+_SCREEN = $4000
+```
+
+Every use of `MAX` in code is substituted with the literal value at compile time (via `constsubst.py`). There is nothing to modify — no RAM, no ROM address.
+
+#### Const Arrays and Structs — CODE Segment
+
+Const arrays and const structs are stored as read-only data in the **CODE segment**:
+
+```zap
+const byte table[] = {10, 20, 30, 40, 50}
+const Point origin = {0, 0}
+```
+
+Produces:
+```asm
+; In CODE segment (alongside executable code)
+__ARRAY_DATA_1:
+    .byte $0A, $14, $1E, $28, $32
+__ARRAY_DATA_2:
+    .byte $00, $00
+```
+
+Unlike non-const arrays (which are copied from ROM to BSS at startup and then read/written in RAM), const arrays are **accessed directly from their CODE segment location**. No RAM copy exists.
+
+#### Compile-Time Write Protection
+
+The compiler rejects all direct modifications to const data:
+
+```zap
+const byte MAX = 10
+const byte table[] = {1, 2, 3}
+const Point origin = {0, 0}
+
+MAX = 20            ; ERROR: Cannot assign to const variable 'MAX'
+table[0] = 99       ; ERROR: Cannot assign to element of const array 'TABLE'
+origin.x = 5        ; ERROR: Cannot assign to field of const struct 'ORIGIN'
+```
+
+The compiler also detects writes through pointers when the address-of target is visibly const:
+
+```zap
+(@table + 1)^ = 99  ; ERROR: Cannot write through pointer to const 'TABLE'
+```
+
+#### Runtime Implications: RAM vs ROM
+
+On the 65(c)02 8-bit, a loaded program resides in **RAM**. This means the CODE segment is technically writable at the hardware level. If a pointer to a const array is stored in a word variable (bypassing the compile-time check), writing through it will silently modify the data in RAM:
+
+```zap
+const byte table[] = {1, 2, 3}
+word addr = @table      ; Store address in plain word (no const tracking)
+byte ^ptr
+ptr = addr              ; Compiler loses track of const origin
+ptr^ = 99              ; NO compile error — modifies table[0] in RAM
+```
+
+This works because the program runs from RAM. However, if the program is placed in **ROM** (e.g., an Atari cartridge image), writing to const data will have no effect or cause undefined behavior, since ROM is not writable by the CPU.
+
+**Best practice:** Treat `const` as a logical contract. The compiler enforces it for all direct and most indirect accesses. Do not rely on the ability to bypass it through pointer laundering — future compiler versions may enforce it more strictly.
 
 ---
 

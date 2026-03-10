@@ -17,9 +17,9 @@ This extension provides syntax highlighting for the Zap programming language.
 - Inline assembler: `ASM`, `END` (embedded ca65 highlighting between ASM / END)
 
 ### Data Types
-- `BYTE`, `WORD`
+- `BYTE`, `WORD`, `LONG`
 - `CONST`, `STATIC` type modifiers
-- `low()`, `high()`, `sizeof()` built-in functions
+- `low()`, `high()`, `loww()`, `highw()`, `sizeof()` built-in functions
 
 ### Declaration Modifiers
 - `#PORT`, `#RD`, `#WR` - For hardware port definitions

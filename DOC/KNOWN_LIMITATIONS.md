@@ -511,6 +511,26 @@ end
 ; end
 ```
 
+### Return Type Validation
+
+The compiler validates that `return` expressions match the declared return type:
+
+- **Scalar widening/narrowing** is allowed freely (BYTE ↔ WORD ↔ LONG)
+- **Pointers are WORD-compatible** — returning a pointer where WORD is expected (or vice versa) is allowed
+- **Struct returns require exact type match** — returning a different struct type, or a scalar where a struct is expected, is a compile-time error
+- **Missing `return` expression** in a `func` is a compile-time error
+
+```zap
+func Point make()       ; Returns struct
+    return 42           ; ERROR: expected struct 'POINT', got BYTE
+end
+
+func byte get_val()
+    Point p
+    return p            ; ERROR: expected BYTE, got struct 'POINT'
+end
+```
+
 ### Default Parameters Must Follow Required Parameters
 
 Parameters with default values must come after all required parameters.

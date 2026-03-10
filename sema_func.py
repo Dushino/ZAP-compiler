@@ -466,36 +466,55 @@ class FuncAnalyzer:
                                 msg = f"Return value {val} (0x{val:X}) does not fit in WORD (0-65535)"
                                 raise SemanticError(msg, node=stmt.expr)
 
-                if ret_sem.is_struct and not ret_sem.is_pointer:
-                    if et is None or not et.sem_type.is_struct:
-                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}", node=stmt)
-                    # Allow struct literal or exact struct type match
-                    if et.sem_type.base != ret_sem.base and et.sem_type.base != "STRUCT_LITERAL":
-                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}", node=stmt)
-                if et is not None and et.sem_type.base != ret_sem.base:
-                    # Allow implicit narrowing from WORD to BYTE (use lower byte)
-                    # Allow implicit widening from BYTE to WORD (zero-extend)
-                    if (ret_sem.base == "BYTE" and et.sem_type.base == "WORD") or \
-                       (ret_sem.base == "WORD" and et.sem_type.base == "BYTE") or \
-                       (ret_sem.base == "LONG" and et.sem_type.base in {"BYTE", "WORD"}):
-                        # This is allowed - implicit conversion
+                # --- Return type validation ---
+                # Helper to raise a type-mismatch error with source context
+                def _ret_type_error(msg: str) -> None:
+                    info = _map_stmt_info(stmt)
+                    if info:
+                        fname, line, col = info
+                        err = SemanticError(msg, line=line, col=col)
+                        err.filename = fname
+                        self._attach_source_text(err, fname)
+                        raise err
+                    raise SemanticError(msg, node=stmt)
+
+                if et is None:
+                    _ret_type_error("RETURN in function must have an expression")
+
+                ret_base: str = ret_sem.base.upper()
+                expr_base: str = et.sem_type.base.upper()
+                ret_is_ptr: bool = ret_sem.is_pointer
+                expr_is_ptr: bool = et.sem_type.is_pointer
+
+                # Struct return: exact type match required (or struct literal)
+                if ret_sem.is_struct and not ret_is_ptr:
+                    if not et.sem_type.is_struct:
+                        _ret_type_error(f"RETURN type mismatch: expected struct '{ret_base}', got {expr_base}")
+                    if expr_base != ret_base and expr_base != "STRUCT_LITERAL":
+                        _ret_type_error(f"RETURN type mismatch: expected struct '{ret_base}', got struct '{expr_base}'")
+                elif et.sem_type.is_struct and not expr_is_ptr:
+                    # Returning a struct value where scalar/pointer expected
+                    _ret_type_error(f"RETURN type mismatch: expected {ret_base}, got struct '{expr_base}'")
+                else:
+                    # Scalar / pointer return type validation
+                    # Pointers are 2-byte values compatible with WORD
+                    SCALARS = {"BYTE", "WORD", "LONG"}
+
+                    def _effective_base(base: str, is_ptr: bool) -> str:
+                        """Map pointer types to WORD for compatibility checking."""
+                        if is_ptr:
+                            return "WORD"
+                        return base
+
+                    eff_ret = _effective_base(ret_base, ret_is_ptr)
+                    eff_expr = _effective_base(expr_base, expr_is_ptr)
+
+                    if eff_ret in SCALARS and eff_expr in SCALARS:
+                        # All scalar-to-scalar and pointer-to-word conversions are allowed
+                        # (widening, narrowing, and pointer<->word equivalence)
                         pass
                     else:
-                        # Type mismatch - report error with context
-                        stmt_src = self.debug.get("stmt_src") or {}
-                        info = stmt_src.get(id(stmt))
-                        if info:
-                            if len(info) == 3:
-                                fname, line, _text = info
-                                col = 1
-                            else:
-                                fname, line, col, _text = info
-                            msg: str = f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}"
-                            err = SemanticError(msg, line=line, col=col)
-                            err.filename = fname
-                            raise err
-                        # Attach the return statement node so an accurate source position is available
-                        raise SemanticError(f"RETURN type mismatch: expected {ret_sem.base}, got {et.sem_type.base}", node=stmt)
+                        _ret_type_error(f"RETURN type mismatch: expected {ret_base}{'^ ' if ret_is_ptr else ''}, got {expr_base}{'^' if expr_is_ptr else ''}")
 
         # restore previous symbol table
         self.expr_tc.symtab = prev_symtab
