@@ -93,10 +93,10 @@ enum ICCOM_COMMANDS
     ; build - in
     Open        = $03
     Close       = $0C
-    Get         = $07
-    Put         = $09
-    Input       = $05
-    Print       = $09
+    GetChr      = $07
+    PutChr      = $0B
+    GetRec      = $05
+    PutRec      = $09
     Status      = $0D
 end
 
@@ -571,9 +571,9 @@ end
 */
 func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
     byte rv = 0
-
-    ch &= $07
     
+    ch &= $07
+
     IOCB[ch].ICCOM = command
     IOCB[ch].ICBA = adr
     IOCB[ch].ICBL = len
@@ -587,12 +587,12 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         asl
         asl
         asl
+        sta _CIO_RV
         tax        
         jsr $E456 ; call CIO handler     
     end
 
     rv = IOCB[ch].ICSTA
-
     return rv
 end
 
@@ -609,12 +609,16 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     end
     
     i = find_free_IOCB()
+    putx(i)
     if i == 255
         return ERRNO.ENODEV
     end
 
     fd^.fd = i
+    putx(fd^.fd)
+
     rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode)
+    putx(rv)
     if rv != 1
         set_fderror(fd, rv)
         return rv
@@ -752,7 +756,7 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
 
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.Put, buffer, size)
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutRec, buffer, size)
     if rv != 1
         set_fderror(fd, rv)
         return rv

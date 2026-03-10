@@ -3014,6 +3014,88 @@ class CodeGen:
                                 i += 10
                                 continue
 
+            # 8-instruction: ADC/TAY/LDA/ADC/TAX/TYA/STA/STX
+            # → ADC/STA/LDA/ADC/STA  (eliminates TAY/TAX/TYA for 16-bit ADD store)
+            # STA and STX never change the carry flag, so the carry from the first
+            # ADC is still valid when the second ADC executes.
+            if i + 7 < len(self.code):
+                ops8: list[tuple[str, str]] = []
+                for k in range(8):
+                    op, operand = _parse_inst(self.code[i + k])
+                    if not op or op.endswith(":"):
+                        ops8 = []
+                        break
+                    ops8.append((op, operand))
+                if ops8:
+                    (op0, a0), (op1, _), (op2, a2), (op3, a3), (op4, _), (op5, _), (op6, dst_lo), (op7, dst_hi) = ops8
+                    if (op0 == "ADC" and op1 == "TAY" and op2 == "LDA" and op3 == "ADC" and
+                            op4 == "TAX" and op5 == "TYA" and op6 == "STA" and op7 == "STX" and
+                            dst_hi == f"{dst_lo}+1"):
+                        if not (_operand_is_port(dst_lo) or _operand_is_port(dst_hi)):
+                            ind0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                            ind2 = self.code[i + 2][:len(self.code[i + 2]) - len(self.code[i + 2].lstrip())]
+                            optimized.append(f"{ind0}ADC {a0}\n")
+                            optimized.append(f"{ind0}STA {dst_lo}\n")
+                            optimized.append(f"{ind2}LDA {a2}\n")
+                            optimized.append(f"{ind0}ADC {a3}\n")
+                            optimized.append(f"{ind0}STA {dst_hi}\n")
+                            i += 8
+                            continue
+
+            # 9-instruction: LDA/SBC/TAY/LDA/SBC/TAX/TYA/STA/STX
+            # → LDA/SBC/STA/LDA/SBC/STA  (eliminates TAY/TAX/TYA for 16-bit SUB store)
+            if i + 8 < len(self.code):
+                ops9: list[tuple[str, str]] = []
+                for k in range(9):
+                    op, operand = _parse_inst(self.code[i + k])
+                    if not op or op.endswith(":"):
+                        ops9 = []
+                        break
+                    ops9.append((op, operand))
+                if ops9:
+                    (op0, a0), (op1, a1), (op2, _), (op3, a3), (op4, a4), (op5, _), (op6, _), (op7, dst_lo), (op8, dst_hi) = ops9
+                    if (op0 == "LDA" and op1 == "SBC" and op2 == "TAY" and op3 == "LDA" and
+                            op4 == "SBC" and op5 == "TAX" and op6 == "TYA" and op7 == "STA" and
+                            op8 == "STX" and dst_hi == f"{dst_lo}+1"):
+                        if not (_operand_is_port(dst_lo) or _operand_is_port(dst_hi)):
+                            ind0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                            ind3 = self.code[i + 3][:len(self.code[i + 3]) - len(self.code[i + 3].lstrip())]
+                            optimized.append(f"{ind0}LDA {a0}\n")
+                            optimized.append(f"{ind0}SBC {a1}\n")
+                            optimized.append(f"{ind0}STA {dst_lo}\n")
+                            optimized.append(f"{ind3}LDA {a3}\n")
+                            optimized.append(f"{ind0}SBC {a4}\n")
+                            optimized.append(f"{ind0}STA {dst_hi}\n")
+                            i += 9
+                            continue
+
+            # 8-instruction: AND|ORA|EOR/TAY/TXA/AND|ORA|EOR/TAX/TYA/STA/STX
+            # → AND|ORA|EOR/STA/TXA/AND|ORA|EOR/STA  (16-bit bitwise store)
+            # TXA transfers the high byte of the right operand; STA doesn't affect flags.
+            if i + 7 < len(self.code):
+                ops8bw: list[tuple[str, str]] = []
+                for k in range(8):
+                    op, operand = _parse_inst(self.code[i + k])
+                    if not op or op.endswith(":"):
+                        ops8bw = []
+                        break
+                    ops8bw.append((op, operand))
+                if ops8bw:
+                    (op0, a0), (op1, _), (op2, _), (op3, a3), (op4, _), (op5, _), (op6, dst_lo), (op7, dst_hi) = ops8bw
+                    if (op0 in {"AND", "ORA", "EOR"} and op0 == op3 and
+                            op1 == "TAY" and op2 == "TXA" and
+                            op4 == "TAX" and op5 == "TYA" and op6 == "STA" and op7 == "STX" and
+                            dst_hi == f"{dst_lo}+1"):
+                        if not (_operand_is_port(dst_lo) or _operand_is_port(dst_hi)):
+                            ind0 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                            optimized.append(f"{ind0}{op0} {a0}\n")
+                            optimized.append(f"{ind0}STA {dst_lo}\n")
+                            optimized.append(f"{ind0}TXA\n")
+                            optimized.append(f"{ind0}{op0} {a3}\n")
+                            optimized.append(f"{ind0}STA {dst_hi}\n")
+                            i += 8
+                            continue
+
             # Remove blank line right before RTS
             if not line_stripped:
                 j = i + 1

@@ -18,11 +18,9 @@ proc main()
     FILE fd
 
     ;COLOR4 = COLOR_MEDIUM_BLUE + 4
+    puts("\nOpen:  ")    
+    rv = fopen(@fd, "H1:TEST.TXT", ICAX1_COMMANDS.Append)    
     
-    puts("Open:  ")
-    rv = fopen(@fd, "D1:TEST.TXT", ICAX1_COMMANDS.Write)    
-    putx(rv)
-
     puts("\nWrite: ")
     rv = fwrite(@fd, @Text1, 6)
     putx(rv)

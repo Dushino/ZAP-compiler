@@ -2,6 +2,28 @@
 
 ---
 
+## Peephole: 16-bit register shuffle elimination (2026-03-10)
+
+### What was done
+
+Added three new peephole rules to `codegen_expr.py:peephole_optimize()` that eliminate the
+`TAY / TAX / TYA` register shuffle emitted whenever a 16-bit arithmetic result is stored
+directly to memory.  The shuffle was needed to pass the 16-bit result in `(A, X)` from the
+generator back to the caller, but when the caller immediately stores with `STA / STX`, the
+three transfer instructions are dead (STA/STX never modify the carry flag or accumulator).
+
+| Pattern | Before | After | Saved |
+|---|---|---|---|
+| ADD → store | `ADC mem; TAY; LDA x; ADC mem+1; TAX; TYA; STA dst; STX dst+1` | `ADC mem; STA dst; LDA x; ADC dst+1; STA dst+1` | 3 instr |
+| SUB → store | `LDA a; SBC b; TAY; LDA c; SBC d; TAX; TYA; STA dst; STX dst+1` | `LDA a; SBC b; STA dst; LDA c; SBC d; STA dst+1` | 3 instr |
+| AND/ORA/EOR → store | `op mem; TAY; TXA; op mem+1; TAX; TYA; STA dst; STX dst+1` | `op mem; STA dst; TXA; op mem+1; STA dst+1` | 3 instr |
+
+PORT-mapped destinations are excluded from the optimization.
+
+**Tests**: all 229 tests pass. No regressions.
+
+---
+
 ## Dead code removal sweep (2026-03-10)
 
 ### What was done
