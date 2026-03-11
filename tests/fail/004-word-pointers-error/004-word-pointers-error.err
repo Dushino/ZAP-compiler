@@ -1,0 +1,1 @@
+2:15: error: Constant value 100000 (0x186A0) does not fit in WORD (0-65535)

@@ -1,0 +1,1 @@
+2:18: error: Constant value 300 (0x12C) does not fit in BYTE (0-255)

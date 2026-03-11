@@ -1,0 +1,1 @@
+2:12: error: Return value 256 (0x100) does not fit in BYTE (0-255)

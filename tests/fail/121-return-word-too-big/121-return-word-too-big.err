@@ -1,0 +1,1 @@
+2:12: error: Return value 65536 (0x10000) does not fit in WORD (0-65535)

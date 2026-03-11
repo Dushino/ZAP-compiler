@@ -1,0 +1,1 @@
+8:5: error: RETURN type mismatch: expected struct 'POINT', got BYTE

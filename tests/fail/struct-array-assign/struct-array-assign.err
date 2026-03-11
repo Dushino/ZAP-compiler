@@ -1,0 +1,1 @@
+14:5: error: Array-of-struct assignment is not supported; use a loop or pointer copy
