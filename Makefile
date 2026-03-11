@@ -214,27 +214,55 @@ tests: clean
 	echo ""; \
 	echo "Testing files that SHOULD FAIL..."; \
 	echo "------------------------------------------"; \
+	fail_msg_ok=0; fail_msg_bad=0; fail_no_err=0; \
 	for zapfile in $$(find $(FAIL_ROOT) -name '*.zap' -type f 2>/dev/null | sort); do \
 		if [ -f "$$zapfile" ]; then \
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
+			err_file="$${dir}/$${base}.err"; \
 			printf "%-50s" "$$base.zap: "; \
 			variant_fail=0; variant_pass=0; variant_errors=""; \
+			err_checked=0; err_match=1; \
 			for variant_flags in "" "-6502" "-O1" "-6502 -O1"; do \
 				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/' | sed 's/^-/_/'); \
 				output_file="$${dir}/$${base}$${variant_name}.s"; \
-				if $(ZC) $$variant_flags $$zapfile -o $$output_file >> $(TEST_REPORT) 2>&1; then \
+				actual_err="$${dir}/$${base}$${variant_name}.actual_err"; \
+				if $(ZC) $$variant_flags $$zapfile -o $$output_file >$$actual_err 2>&1; then \
 					variant_errors="$$variant_errors [UNEXPECTED_PASS:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 				else \
 					variant_pass=$$((variant_pass + 1)); \
+					if [ $$err_checked -eq 0 ] && [ -f "$$err_file" ]; then \
+						err_checked=1; \
+						actual_stripped=$$(cat "$$actual_err" | sed 's/^.*\.zap:\([0-9]\)/\1/'); \
+						expected=$$(cat "$$err_file" | tr -d '\r' | sed '/^$$/d'); \
+						expected_len=$${#expected}; \
+						actual_trimmed=$$(printf '%s' "$$actual_stripped" | head -c $$expected_len); \
+						if [ "$$actual_trimmed" != "$$expected" ]; then \
+							err_match=0; \
+							variant_errors="$$variant_errors [MSG_MISMATCH]"; \
+						fi; \
+					fi; \
 				fi; \
+				rm -f "$$actual_err"; \
 			done; \
-			if [ $$variant_fail -eq 0 ]; then \
-				echo "✅ PASS (correctly rejected all 4 variants)"; \
+			if [ $$variant_fail -eq 0 ] && [ $$err_match -eq 1 ]; then \
+				if [ -f "$$err_file" ]; then \
+					echo "✅ PASS (correctly rejected, error message verified)"; \
+					fail_msg_ok=$$((fail_msg_ok + 1)); \
+				else \
+					echo "✅ PASS (correctly rejected, no .err reference)"; \
+					fail_no_err=$$((fail_no_err + 1)); \
+				fi; \
 				fail_count=$$((fail_count + 1)); \
-			else \
+			elif [ $$variant_fail -ne 0 ]; then \
 				echo "❌ FAIL ($$variant_fail/4 variants passed)$$variant_errors"; \
+				error_count=$$((error_count + 1)); \
+			else \
+				echo "❌ FAIL (wrong error message)$$variant_errors"; \
+				echo "  Expected: $$expected"; \
+				echo "  Got:      $$actual_stripped"; \
+				fail_msg_bad=$$((fail_msg_bad + 1)); \
 				error_count=$$((error_count + 1)); \
 			fi; \
 		fi; \
@@ -244,7 +272,10 @@ tests: clean
 	echo "Test Results Summary"; \
 	echo "=========================================="; \
 	echo "Should-pass tests: $$pass_count passed"; \
-	echo "Should-fail tests: $$fail_count correctly rejected"; \
+	echo "Should-fail tests: $$fail_count correctly rejected ($$fail_msg_ok with verified message, $$fail_no_err without .err reference)"; \
+	if [ $$fail_msg_bad -gt 0 ]; then \
+		echo "Wrong error messages: $$fail_msg_bad"; \
+	fi; \
 	echo "Errors: $$error_count"; \
 	echo ""; \
 	if [ "$$error_count" -eq 0 ]; then \
@@ -293,6 +324,7 @@ clean:
 	find tests/pass -name '*.da65' -type f -delete 2>/dev/null | true
 	find tests/fail -name '*.s' -type f -delete 2>/dev/null | true
 	find tests/fail -name '*.o' -type f -delete 2>/dev/null | true
+	find tests/fail -name '*.actual_err' -type f -delete 2>/dev/null | true
 	
 	
 	

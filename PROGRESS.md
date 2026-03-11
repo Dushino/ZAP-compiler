@@ -2,6 +2,17 @@
 
 ---
 
+## Fail test error message verification (2026-03-11)
+
+- Created `.err` reference files for all 124 fail tests — each contains the portable `line:col: error: message` portion
+- Modified `Makefile` fail-test section: captures compiler stderr, strips path prefix, compares against `.err` reference using prefix match
+- Modified `make.bat` fail-test section: same logic using Python for reliable cross-platform comparison
+- Summary now reports "verified message" vs "no .err reference" counts and "wrong error messages" count
+- Special handling for test 131-include-missing: `.err` stores portable prefix (excludes machine-specific path in message body)
+- Clean targets updated to remove `*.actual_err` temp files but preserve `.err` references
+
+---
+
 ## Error reporting system repair (2026-03-11)
 
 **Phase 1: Critical infrastructure fixes**
