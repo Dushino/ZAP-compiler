@@ -5,7 +5,9 @@
 ; .include "atari_gtia.zap"
 .include "../errno.zap"
 .include "../types.zap"
+.include "../string.zap"
 
+.define DEBUG_CIO
 
 /*
     * cls       vyčištění obrazovky
@@ -141,36 +143,6 @@ proc atari_file_data_area() #keep #noexport
         .segment "AUTOSTRT" 
         ;.word   $02e0, $02e1, $4000 ; _MAIN
         .word   $02e2, $02e3, $4000 ; _MAIN
-    end
-end
-
-
-/*
-    Fill memory with byte value
-*/
-proc memset(word dest, byte value, word count)
-    word i
-    byte ^ptr = dest
-
-    for i = 0 to count
-        ptr^ = value
-        ptr += 1
-    end
-end
-
-
-/*
-    Copy memory from source to destination    
-*/
-proc memcpy(word dest, word src, word count)
-    word i
-    byte ^ptr1 = dest
-    byte ^ptr2 = src
-
-    for i = 0 to count
-        ptr1^ = ptr2^
-        ptr1 += 1
-        ptr2 += 1
     end
 end
 
@@ -574,6 +546,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     
     ch &= $07
 
+.ifdef DEBUG_CIO
     puts("CIO:")
     putx(ch)
     putchar(',')
@@ -588,6 +561,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     putx(aux1)
     putchar(',')
     putx(aux2)    
+.endif
 
     IOCB[ch].ICCOM = command
     IOCB[ch].ICBA  = adr
@@ -609,15 +583,31 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         jsr $E456           ; call CIO handler     
     end
 
-    rv = IOCB[ch].ICSTA
+    rv = IOCB[ch].ICSTA        
 
+.ifdef DEBUG_CIO
     putchar(' ')
     putx(rv)
     puts("\n")
+.endif
 
     return rv
 end
 
+/*
+    Check and set EOF flag in FILE struct
+*/
+proc checkeof(FILE ^fd, byte errno) #noexport
+    if fd == NULL
+        return
+    end
+
+    if errno == 136
+        fd^.eof = BOOL.TRUE
+    else
+        fd^.eof = BOOL.FALSE
+    end
+end
 
 /*
     fopen - open file
@@ -637,6 +627,8 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
 
     fd^.fd = i
     rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
+
+    checkeof(fd, rv)
 
     if rv != ERRNO.OK
         set_fderror(fd, rv)
@@ -690,7 +682,7 @@ func BOOL feof(FILE^ fd)
         return ERRNO.EBADF
     end     
         
-    return BOOL.TRUE
+    return fd^.eof
 end
 
 
@@ -775,13 +767,12 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
-    ; rv = CIO(fd^.fd, ICCOM_COMMANDS.PutRec, buffer, size)    
-    rv = CIO(fd^.fd, $0B, buffer, size)    
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)        
     if rv != 1
         set_fderror(fd, rv)
         return rv
     end
-
+    checkeof(fd, rv)
     set_fderror(fd, ERRNO.OK)    
     return ERRNO.OK    
 end

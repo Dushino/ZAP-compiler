@@ -7,11 +7,13 @@
 
 .include "lib/stdio.zap"
 .include "lib/types.zap"
+.include "lib/string.zap"
 .include "lib/atari/atari_gtia.zap"
 
 
+
 const byte Text1[] = "Hello!"
-const byte FName[] = "H1:TEST2.TXT\x9b"
+const byte FName[] = "D1:TEST2.TXT\x9b"
 
 
 proc main()
@@ -23,7 +25,7 @@ proc main()
     rv = fopen(@fd, FName, 8)  
     
     puts("Write: ")
-    rv = fwrite(@fd, Text1, 6)
+    rv = fwrite(@fd, Text1, strlen(Text1))
     
     puts("Close: ")
     fclose(@fd)

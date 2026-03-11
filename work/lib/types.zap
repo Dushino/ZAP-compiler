@@ -13,8 +13,9 @@ end
 
 ; FILE structure
 struct FILE
-    byte  fd     ; handle
-    ERRNO error  ; error code
+    byte  fd        ; handle
+    ERRNO error     ; error code
+    BOOL eof        ; EOF reached
 end
 
 
