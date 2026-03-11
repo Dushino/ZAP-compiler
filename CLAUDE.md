@@ -33,6 +33,14 @@
 ## Test generated for development purposes ##
 - There is dedicated folder `generated_tests` for tests created for development purposes. Use this folder for all temporary files not to mess root project folder.
 
+## Regression tests ##
+- For all new features implemented, new regression tests must be created in `tests` folder. 
+- All previous tests in `./tests/pass` must pass and all tests in `./tests/fail` must fail.
+- If there are some tests missing, create new ones both to `pass` and `fail` categories.
+- For failed tests, check must be also done if correct error message, line and column numbers. If not correct, test is not successful.
+- All tests are stored in separate numbered subdirectories.
+
+
 ## IDE integration ##
 - After each change in grammar, implementation or documentaion perform cross check in VS Code ZAP plugin in folder `IDE_Integration`.
 
