@@ -13,7 +13,8 @@ class CompileError(Exception):
         if node is not None:
             line = getattr(node, "line", line)
             col = getattr(node, "col", col)
-        # Normalize the stored values: only positive ints are meaningful
+        # Normalize the stored values: only positive ints are meaningful;
+        # line=0 from AST nodes means "unknown" — treat as None
         self.line = line if isinstance(line, int) and line >= 1 else None
         self.col = col if isinstance(col, int) and col >= 1 else None
         # Optional extra context — auto-extract filename from node if available
@@ -60,4 +61,9 @@ def print_exception(e: Exception, filename: str | None = None):
         print_error(src, e.line, e.col, e.message, filename=fname, severity="error")
     else:
         fname = filename or "<internal>"
-        print(f"{fname}:1:1: error: {e.__class__.__name__}: {e}", file=sys.stderr)
+        if isinstance(e, CompileError):
+            # Use the clean message without Python exception class name
+            print(f"{fname}:1:1: error: {e.message}", file=sys.stderr)
+        else:
+            # Non-compiler exceptions: include the class name for debugging
+            print(f"{fname}:1:1: error: {e.__class__.__name__}: {e}", file=sys.stderr)

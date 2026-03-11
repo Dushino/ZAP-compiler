@@ -25,10 +25,11 @@ class Preprocessor:
         output_lines = []
         kept_line_numbers: list[int] = []
         
-        # Stack to track nested conditionals: (is_active, has_matched)
+        # Stack to track nested conditionals: (is_active, has_matched, start_line)
         # is_active: whether we're currently including code
         # has_matched: whether any branch in this if/elif/else chain has matched
-        cond_stack = [(True, False)]
+        # start_line: 1-based line number of the opening .ifdef/.ifndef
+        cond_stack = [(True, False, 0)]
         
         i = 0
         while i < len(lines):
@@ -69,21 +70,21 @@ class Preprocessor:
                 parent_active = cond_stack[-1][0]
                 is_defined = symbol in self.defined_symbols
                 is_active = parent_active and is_defined
-                cond_stack.append((is_active, is_active))
+                cond_stack.append((is_active, is_active, i + 1))
                 i += 1
                 continue
-            
+
             if stripped.startswith('.ifndef '):
                 parts = line.strip().split()
                 if len(parts) < 2:
                     raise PreprocessorError("Missing symbol in .ifndef", i + 1)
                 symbol = parts[1].strip().upper()
-                
+
                 # Only check condition if parent is active
                 parent_active = cond_stack[-1][0]
                 is_defined = symbol in self.defined_symbols
                 is_active = parent_active and not is_defined
-                cond_stack.append((is_active, is_active))
+                cond_stack.append((is_active, is_active, i + 1))
                 i += 1
                 continue
             
@@ -91,12 +92,12 @@ class Preprocessor:
                 if len(cond_stack) <= 1:
                     raise PreprocessorError("Unexpected .else without .ifdef/.ifndef", i + 1)
                 
-                current_active, has_matched = cond_stack.pop()
+                current_active, has_matched, start_line = cond_stack.pop()
                 parent_active = cond_stack[-1][0] if cond_stack else True
-                
+
                 # .else activates only if parent is active and no branch has matched yet
                 new_active = parent_active and not has_matched
-                cond_stack.append((new_active, has_matched or new_active))
+                cond_stack.append((new_active, has_matched or new_active, start_line))
                 i += 1
                 continue
             
@@ -116,7 +117,8 @@ class Preprocessor:
         
         # Check for unclosed conditionals
         if len(cond_stack) > 1:
-            raise PreprocessorError("Unclosed .ifdef/.ifndef (missing .endif)")
+            open_line = cond_stack[-1][2]
+            raise PreprocessorError("Unclosed .ifdef/.ifndef (missing .endif)", line=open_line, col=1)
         
         # Store last kept line mapping so callers can relate processed lines back to
         # the original file line numbers.

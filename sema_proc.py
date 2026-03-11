@@ -89,13 +89,15 @@ class ProcAnalyzer:
                     fs = self.func_table.lookup(call.name, node=call)
                     if len(call.args) > fs.param_count:
                         extra_arg = call.args[fs.param_count]
+                        _n, _g = fs.param_count, len(call.args)
                         raise SemanticError(
-                            f"Function '{call.name}' expects {fs.param_count} parameters, but {len(call.args)} were provided",
+                            f"Function '{call.name}' expects {_n} parameter{'s' if _n != 1 else ''}, but {_g} {'were' if _g != 1 else 'was'} provided",
                             node=extra_arg
                         )
                     if len(call.args) < fs.required_params:
+                        _n, _g = fs.param_count, len(call.args)
                         raise SemanticError(
-                            f"Function '{call.name}' expects {fs.param_count} parameters, but {len(call.args)} were provided",
+                            f"Function '{call.name}' expects {_n} parameter{'s' if _n != 1 else ''}, but {_g} {'were' if _g != 1 else 'was'} provided",
                             node=call
                         )
                     return
@@ -120,9 +122,10 @@ class ProcAnalyzer:
             raise proc_error
 
         if len(call.args) < proc_sym.required_params or len(call.args) > proc_sym.param_count:
+            _n, _g = proc_sym.param_count, len(call.args)
             msg: str = (
-                f"Procedure '{call.name}' expects {proc_sym.param_count} parameters, "
-                f"but {len(call.args)} were provided"
+                f"Procedure '{call.name}' expects {_n} parameter{'s' if _n != 1 else ''}, "
+                f"but {_g} {'were' if _g != 1 else 'was'} provided"
             )
             stmt_src_map = self.debug.get("stmt_src") or {}
             info = stmt_src_map.get(id(call))

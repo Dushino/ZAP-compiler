@@ -1533,7 +1533,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     # Ensure main() procedure exists (required for initialization code)
     try:
         proc_table.lookup("MAIN")
-    except KeyError:
+    except (KeyError, SemanticError):
         # Give a stable fallback location if main() is missing
         raise SemanticError("Program must have a 'main()' procedure", line=1, col=1)
     

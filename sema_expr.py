@@ -374,7 +374,8 @@ class ExprTypeChecker:
             fs: FuncSymbol = self.func_table.lookup(expr.name, node=expr)
             # Allow arguments from required_params to param_count
             if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:
-                raise SemanticError(f"Function '{expr.name}' expects {fs.param_count} parameters, but {len(expr.args)} were provided", node=expr)
+                _n, _g = fs.param_count, len(expr.args)
+                raise SemanticError(f"Function '{expr.name}' expects {_n} parameter{'s' if _n != 1 else ''}, but {_g} {'were' if _g != 1 else 'was'} provided", node=expr)
             return ExprType(fs.ret_type, ExprKind.VALUE)
 
         # struct field access: obj.field or ptr^.field

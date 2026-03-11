@@ -6239,8 +6239,8 @@ class CodeGen:
                 e.filename = fname
             raise e
         else:
-            # Attach current expression node if present so error has location
-            raise SemanticError(msg, node=getattr(self, 'current_expr', None))
+            # No statement context available — error will lack location
+            raise SemanticError(msg)
 
     def _load_sym_addr(self, sym_name: str) -> None:
         """Load sym addr.
@@ -6323,8 +6323,7 @@ class CodeGen:
             if not target_is_byte:
                 self.emit("\tLDX #$00")
 
-    @staticmethod
-    def _str_to_bytes(content: str) -> list[int]:
+    def _str_to_bytes(self, content: str) -> list[int]:
         """Convert a string literal value to a list of byte values (0–255).
         Used for inline per-character emission (LDA #$XX paths).
         Raises SemanticError for characters outside 0–255 range.
@@ -6333,14 +6332,13 @@ class CodeGen:
         for i, ch in enumerate(content):
             v = ord(ch)
             if v > 255:
-                raise SemanticError(
+                self._raise_error(
                     f"String literal: character at position {i} exceeds byte range "
                     f"(U+{v:04X}). Use \\x{v:02X} escape for byte values 0-255.")
             result.append(v)
         return result
 
-    @staticmethod
-    def _str_to_asm_directive(content: str, null_terminate: bool = True) -> str:
+    def _str_to_asm_directive(self, content: str, null_terminate: bool = True) -> str:
         """Convert string literal to a ca65 .byte directive with readable mixed format.
 
         Printable ASCII characters (0x20–0x7E, excluding '"') are grouped into
@@ -6357,7 +6355,7 @@ class CodeGen:
         for ch in content:
             v = ord(ch)
             if v > 255:
-                raise SemanticError(
+                self._raise_error(
                     f"String literal character U+{v:04X} exceeds byte range (0-255).")
             if 0x20 <= v <= 0x7E and ch != '"':   # printable ASCII, not double-quote
                 ascii_buf.append(ch)
@@ -9779,7 +9777,7 @@ class CodeGen:
             # Array element: calculate base + index*element_size
             # Get array symbol
             if not isinstance(operand.array, Identifier):
-                raise SemanticError("Complex array subscripts not supported with @", node=getattr(self, 'current_expr', None))
+                raise SemanticError("Complex array subscripts not supported with @", node=operand)
             array_sym: Symbol = self.current_symtab.lookup(operand.array.name)
             label: str = self._get_label_for_symbol(array_sym)
             
@@ -9834,7 +9832,7 @@ class CodeGen:
         elif isinstance(operand, FieldAccess):
             # Struct field: base address + field offset
             if not isinstance(operand.object, Identifier):
-                raise SemanticError("Complex field access not supported with @", node=getattr(self, 'current_expr', None))
+                raise SemanticError("Complex field access not supported with @", node=operand)
             
             struct_sym: Symbol = self.current_symtab.lookup(operand.object.name)
             struct_label: str = self._get_label_for_symbol(struct_sym)
@@ -9857,7 +9855,7 @@ class CodeGen:
                 self.emit(f"{lbl_no_carry}:")
         
         else:
-            raise SemanticError("Invalid operand for address-of operator", node=getattr(self, 'current_expr', None))
+            raise SemanticError("Invalid operand for address-of operator", node=operand)
     
     def _get_const_array_label(self, sym: Symbol) -> str:
         """Return the __ARRAY_DATA_N label for a const array, registering it if needed."""
@@ -9877,7 +9875,7 @@ class CodeGen:
                 self.array_literals[str_key] = f"__ARRAY_DATA_{self.array_id}"
             return self.array_literals[str_key]
         else:
-            raise SemanticError(f"Const array '{sym.name}' has no initialization")
+            self._raise_error(f"Const array '{sym.name}' has no initialization")
 
     def _get_label_for_symbol(self, sym: Symbol) -> str:
         """Get the label name for a symbol"""
@@ -9893,11 +9891,11 @@ class CodeGen:
     def _get_field_offset(self, struct_expr: Expr, field_name: str) -> int:
         """Calculate byte offset of field within struct"""
         if not isinstance(struct_expr, Identifier):
-            raise SemanticError("Complex struct access not supported", node=getattr(self, 'current_expr', None))
+            raise SemanticError("Complex struct access not supported", node=struct_expr)
         
         sym: Symbol = self.current_symtab.lookup(struct_expr.name)
         if not sym.type.is_struct or not sym.type.struct_info:
-            raise SemanticError("Not a struct", node=getattr(self, 'current_expr', None))
+            raise SemanticError("Not a struct", node=struct_expr)
         
         offset = 0
         for field in sym.type.struct_info.fields:
@@ -9905,7 +9903,7 @@ class CodeGen:
                 return offset
             offset += field.width
         
-        raise SemanticError(f"Field '{field_name}' not found in struct", node=getattr(self, 'current_expr', None))
+        raise SemanticError(f"Field '{field_name}' not found in struct", node=struct_expr)
 
     def _expr_mentions_identifier(self, expr: Expr, name: str) -> bool:
         """Helper for expr mentions identifier.

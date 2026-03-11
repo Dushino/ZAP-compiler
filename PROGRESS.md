@@ -2,6 +2,34 @@
 
 ---
 
+## Error reporting system repair (2026-03-11)
+
+**Phase 1: Critical infrastructure fixes**
+- `compiler_pipeline.py:1536`: Fixed "missing main" detection — `ProcTable.lookup()` raises `SemanticError`, not `KeyError`; `except` now catches both. User-friendly message "Program must have a 'main()' procedure" now works.
+- `codegen_expr.py`: Fixed 7 error sites using `getattr(self, 'current_expr', None)` (always None) — replaced with actual expression nodes from call context (`operand`, `struct_expr`).
+- `errors.py:print_exception()`: No longer leaks Python exception class names (e.g. `SemanticError:`) in user-facing output. `CompileError` subclasses use `e.message`, non-compiler exceptions still show class name for debugging.
+- `codegen_expr.py:_str_to_bytes()` and `_str_to_asm_directive()`: converted from `@staticmethod` to instance methods so they can use `_raise_error()` for proper location info.
+- `codegen_expr.py:9880`: Changed bare `raise SemanticError(...)` to `self._raise_error(...)` for proper location.
+
+**Phase 2: Preprocessor location info**
+- `preprocessor.py`: `.ifdef`/`.ifndef` stack now tracks opening line number; "Unclosed .ifdef/.ifndef" error reports the line of the opening directive.
+
+**Phase 3: Message quality**
+- `sema_expr.py`, `sema_proc.py`: Fixed pluralization — "expects 1 parameter" (was "expects 1 parameters"), "1 was provided" (was "1 were provided").
+
+**Phase 4: Stale .ref files updated**
+- 002-byte-type-error, 006-if-statement-error, 008-while-loop-error, 013-comparison-operators-error
+
+**Phase 5: Populated 33 empty fail test directories**
+- 009, 012, 015, 017, 020, 021, 022, 025, 027, 029, 031, 033, 035, 036, 038, 039, 042, 043, 046, 048, 049, 051, 054, 056, 057, 058, 059, 060, 061, 062, 063, 064, 065
+
+**Phase 6: Created 18 new fail tests for untested error paths**
+- missing-asm-end, static-global-error, static-const-error, static-no-init-error, port-const-error, port-no-addr-error, port-array-error, port-pointer-error, port-init-error, const-no-init-error, list-init-scalar-error, switch-no-case-error, repeat-no-until-error, continue-outside-loop, preproc-ifdef-unclosed, preproc-else-no-ifdef, preproc-endif-no-ifdef, sizeof-non-struct-error
+
+**Test results:** 162 pass tests compile, 123 fail tests correctly rejected, 0 regressions.
+
+---
+
 ## Generated label numbering fix (2026-03-10)
 `__ZAP_NOCARRY_ARRFIELD_{id(expr)}` labels replaced with sequential `new_label()` counter.
 All 7 NOCARRY_* sites in `codegen_expr.py` now emit short readable labels like `__ZAP_NOCARRY_ARRFIELD_134`.
