@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Expected expression, got type 'BYTE'"
+ERROR_TYPE: Syntax Error - invalid SIZEOF argument
+SEVERITY: Fatal - compilation fails

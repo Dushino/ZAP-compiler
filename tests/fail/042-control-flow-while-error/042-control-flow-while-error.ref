@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Expected identifier or '\\(' in assignment target"
+ERROR_TYPE: Syntax Error - Missing END for while block
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "List initializer for scalar"
+ERROR_TYPE: Syntax Error - invalid initializer for type
+SEVERITY: Fatal - compilation fails

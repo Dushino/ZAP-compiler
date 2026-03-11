@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Procedure 'FOO' already defined"
+ERROR_TYPE: Semantic Error - Duplicate procedure definition
+SEVERITY: Fatal - compilation fails

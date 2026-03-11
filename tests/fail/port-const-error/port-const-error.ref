@@ -1,0 +1,3 @@
+ERROR_PATTERN: "PORT and CONST modifiers cannot be combined"
+ERROR_TYPE: Syntax Error - conflicting modifiers
+SEVERITY: Fatal - compilation fails

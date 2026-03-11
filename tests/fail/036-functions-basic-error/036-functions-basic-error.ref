@@ -1,0 +1,3 @@
+ERROR_PATTERN: "FUNC must have RETURN"
+ERROR_TYPE: Semantic Error - Missing return statement
+SEVERITY: Fatal - compilation fails

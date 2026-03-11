@@ -19,78 +19,18 @@
 			"path": "work/lib/atari/atari_stdio.zap",
 			"bookmarks": [
 				{
-					"line": 98,
-					"column": 10,
-					"label": ""
-				},
-				{
-					"line": 571,
-					"column": 19,
-					"label": ""
-				},
-				{
-					"line": 638,
-					"column": 43,
-					"label": ""
-				},
-				{
-					"line": 777,
-					"column": 35,
+					"line": 769,
+					"column": 20,
 					"label": ""
 				}
 			]
 		},
 		{
-			"path": "Internal_DOC/todo.md",
+			"path": "work/lib/string.zap",
 			"bookmarks": [
 				{
-					"line": 28,
-					"column": 21,
-					"label": ""
-				},
-				{
-					"line": 61,
-					"column": 12,
-					"label": ""
-				},
-				{
-					"line": 536,
-					"column": 10,
-					"label": ""
-				},
-				{
-					"line": 538,
-					"column": 10,
-					"label": ""
-				},
-				{
-					"line": 576,
-					"column": 14,
-					"label": ""
-				},
-				{
-					"line": 583,
+					"line": 151,
 					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 589,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 598,
-					"column": 7,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "work/test_stdio.s",
-			"bookmarks": [
-				{
-					"line": 1230,
-					"column": 9,
 					"label": ""
 				}
 			]

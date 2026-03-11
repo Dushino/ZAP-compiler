@@ -1,0 +1,3 @@
+ERROR_PATTERN: "STATIC modifier can only be used on local variables"
+ERROR_TYPE: Syntax Error - invalid modifier scope
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Undefined variable 'LOCAL_VAR'"
+ERROR_TYPE: Semantic Error - Local variable not visible in another procedure
+SEVERITY: Fatal - compilation fails

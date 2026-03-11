@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Array-of-struct assignment is not supported; use a loop or pointer copy"
+ERROR_TYPE: Semantic Error - Unsupported array-of-struct assignment
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "BREAK outside of loop or switch"
+ERROR_TYPE: Semantic Error - Break outside loop
+SEVERITY: Fatal - compilation fails

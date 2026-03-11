@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Unexpected .endif without .ifdef/.ifndef"
+ERROR_TYPE: Preprocessor Error - orphan directive
+SEVERITY: Fatal - compilation fails

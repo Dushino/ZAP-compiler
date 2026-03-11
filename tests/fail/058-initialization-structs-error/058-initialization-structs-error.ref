@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Struct 'POINT' has 2 field\\(s\\) but 3 value\\(s\\) provided"
+ERROR_TYPE: Semantic Error - Struct initializer count mismatch
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "CONTINUE outside of loop"
+ERROR_TYPE: Syntax Error - invalid control flow
+SEVERITY: Fatal - compilation fails

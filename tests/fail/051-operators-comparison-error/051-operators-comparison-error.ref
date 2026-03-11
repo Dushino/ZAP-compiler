@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Struct values cannot be used in binary expressions"
+ERROR_TYPE: Semantic Error - Struct comparison not supported
+SEVERITY: Fatal - compilation fails

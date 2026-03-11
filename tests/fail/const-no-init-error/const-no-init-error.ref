@@ -1,0 +1,3 @@
+ERROR_PATTERN: "CONST must have initializer \\(expression, list, or string\\)"
+ERROR_TYPE: Syntax Error - missing initializer
+SEVERITY: Fatal - compilation fails

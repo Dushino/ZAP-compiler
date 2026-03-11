@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Unclosed .ifdef/.ifndef \\(missing .endif\\)"
+ERROR_TYPE: Preprocessor Error - unclosed conditional
+SEVERITY: Fatal - compilation fails

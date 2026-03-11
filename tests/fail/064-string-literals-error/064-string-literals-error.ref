@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Missing end of string"
+ERROR_TYPE: Tokenizer Error - Unterminated string literal
+SEVERITY: Fatal - compilation fails

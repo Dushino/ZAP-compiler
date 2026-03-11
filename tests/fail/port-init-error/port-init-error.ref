@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Expected declaration, PROC, FUNC, or STRUCT"
+ERROR_TYPE: Syntax Error - PORT with initializer rejected by parser
+SEVERITY: Fatal - compilation fails

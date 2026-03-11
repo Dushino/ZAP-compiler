@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Expected UNTIL to close REPEAT block"
+ERROR_TYPE: Syntax Error - unclosed REPEAT block
+SEVERITY: Fatal - compilation fails

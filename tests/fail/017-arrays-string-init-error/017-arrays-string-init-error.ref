@@ -1,0 +1,3 @@
+ERROR_PATTERN: "String only allowed for byte array"
+ERROR_TYPE: Semantic Error - String initialization on non-byte array
+SEVERITY: Fatal - compilation fails

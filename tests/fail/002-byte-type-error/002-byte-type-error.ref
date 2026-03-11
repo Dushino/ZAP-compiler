@@ -1,3 +1,5 @@
-ERROR_EXPECTED: Yes - undefined variable reference
-ERROR_MESSAGE: Should mention "undefined" or "not defined"
-SEVERITY: Semantic error - compilation must fail
+ERROR_EXPECTED: Yes - duplicate parameter declaration
+ERROR_PATTERN: "Duplicate parameter 'X' in procedure"
+ERROR_TYPE: Syntax Error - duplicate parameter name
+SEVERITY: Fatal - compilation fails
+MESSAGE_QUALITY: Human-readable, specific, actionable

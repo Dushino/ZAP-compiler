@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Unknown escape sequence: \q"
+ERROR_TYPE: Tokenizer Error - Invalid escape sequence in string
+SEVERITY: Fatal - compilation fails

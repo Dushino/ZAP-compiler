@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Struct 'INNER' has no field 'B'"
+ERROR_TYPE: Semantic Error - Non-existent nested struct field
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Missing END for ASM block"
+ERROR_TYPE: Syntax Error - unclosed ASM block
+SEVERITY: Fatal - compilation fails

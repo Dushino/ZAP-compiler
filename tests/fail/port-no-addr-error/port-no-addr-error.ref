@@ -1,0 +1,3 @@
+ERROR_PATTERN: "PORT modifier requires address specification with @"
+ERROR_TYPE: Syntax Error - missing address for PORT
+SEVERITY: Fatal - compilation fails

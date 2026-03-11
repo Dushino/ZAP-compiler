@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Array index 5 is out of bounds for array dimension 1 with size 2"
+ERROR_TYPE: Semantic Error - Array index out of bounds
+SEVERITY: Fatal - compilation fails

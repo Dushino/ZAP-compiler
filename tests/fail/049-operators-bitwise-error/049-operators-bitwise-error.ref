@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Bitwise operator requires values"
+ERROR_TYPE: Semantic Error - Bitwise operator on pointers
+SEVERITY: Fatal - compilation fails

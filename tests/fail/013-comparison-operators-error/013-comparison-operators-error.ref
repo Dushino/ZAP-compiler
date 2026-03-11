@@ -1,5 +1,9 @@
 # Error Test - Comparison Type Mismatch
 
 ## Expected Error
-Type mismatch in comparison: cannot compare BYTE with STRING
-Error should indicate incompatible operand types.
+Cannot compare BYTE scalar with array/pointer (string decays to pointer).
+The compiler reports this as an invalid pointer comparison.
+
+ERROR_PATTERN: "Invalid pointer comparison"
+ERROR_TYPE: Semantic Error - incompatible operand types for comparison
+SEVERITY: Fatal - compilation fails

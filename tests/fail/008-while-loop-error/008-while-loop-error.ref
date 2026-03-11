@@ -1,5 +1,9 @@
-# Error Test - WHILE Loop Control Flow
+# Error Test - WHILE Loop Syntax
 
 ## Expected Error
-Invalid 'break' statement: not in loop context OR break not supported
-Error should indicate statement is not allowed in this context.
+Parser encounters unknown identifier 'DO' after while condition — ZAP does not use 'DO' keyword.
+The parser expects an assignment or statement, not an identifier after the condition.
+
+ERROR_PATTERN: "Expected '=', got identifier"
+ERROR_TYPE: Syntax Error - unexpected token after while condition
+SEVERITY: Fatal - compilation fails

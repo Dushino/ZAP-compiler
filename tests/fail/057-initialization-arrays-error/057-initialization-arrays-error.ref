@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Array initializer size mismatch"
+ERROR_TYPE: Semantic Error - Array initializer count mismatch
+SEVERITY: Fatal - compilation fails

@@ -6,12 +6,12 @@ Prompt 0:
 This is a Python transpiler from ZAP! language to 6502/65c02 assembly using ca65. 
 Read the entire codebase, documentation in DOC directory and tests to summarize: the overall architecture, how types are represented, how operators are processed, and how code generation works. 
 After each significant change, update PROGRESS.md with what was done, what remains, and any known issues.
+Goal of this task is #####################
 Use your memory from previous prompts whenever possible.
 Do not change anything yet.
 
 
 Prompt 1:
-Intention is: ################
 Find ALL places in the codebase where ############### is. List ALL combinations of data types BYTE, WORD, LONG, pointer and STRUCT and ENUM types, all arithmetic operators +, -, , /, all bitwise operators &, |, ^, ~, all logical operators !, &&, ||, all comparison operators <, >, =, <=, >=, address operator @.
 Present this as a table. Do not change anything yet.
 

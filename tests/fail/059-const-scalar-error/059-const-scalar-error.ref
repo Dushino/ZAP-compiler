@@ -1,0 +1,3 @@
+ERROR_PATTERN: "CONST cannot have address"
+ERROR_TYPE: Semantic Error - Const with fixed address
+SEVERITY: Fatal - compilation fails

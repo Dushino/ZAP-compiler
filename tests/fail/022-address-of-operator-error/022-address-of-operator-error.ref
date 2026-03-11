@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Cannot take address of this expression"
+ERROR_TYPE: Semantic Error - Invalid address-of operand
+SEVERITY: Fatal - compilation fails

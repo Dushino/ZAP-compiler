@@ -1,0 +1,3 @@
+ERROR_PATTERN: "SWITCH requires at least one CASE or DEFAULT"
+ERROR_TYPE: Syntax Error - empty switch
+SEVERITY: Fatal - compilation fails

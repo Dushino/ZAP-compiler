@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Cannot dereference non-pointer"
+ERROR_TYPE: Semantic Error - Invalid dereference
+SEVERITY: Fatal - compilation fails

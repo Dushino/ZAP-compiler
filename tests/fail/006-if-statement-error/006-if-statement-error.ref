@@ -1,5 +1,9 @@
-# Error Test - IF Statement Scope
+# Error Test - Declaration Position
 
 ## Expected Error
-Variable y is out of scope: declared inside IF block but used outside
-Error should indicate variable scope boundaries.
+Local variable declarations must be placed before the first statement in a procedure.
+ZAP requires all declarations at the top of a procedure body, before any executable statements.
+
+ERROR_PATTERN: "Local variable declarations must be placed before the first statement in a procedure"
+ERROR_TYPE: Syntax Error - misplaced declaration
+SEVERITY: Fatal - compilation fails

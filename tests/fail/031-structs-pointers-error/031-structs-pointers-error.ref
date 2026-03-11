@@ -1,0 +1,3 @@
+ERROR_PATTERN: "'BYTE' is not a defined struct"
+ERROR_TYPE: Semantic Error - Field access on non-struct pointer
+SEVERITY: Fatal - compilation fails

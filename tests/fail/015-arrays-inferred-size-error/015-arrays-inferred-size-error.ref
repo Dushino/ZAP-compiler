@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Array initializer must have at least one element"
+ERROR_TYPE: Semantic Error - Empty array initializer
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "RETURN type mismatch: expected BYTE, got struct 'POINT'"
+ERROR_TYPE: Semantic Error - Return type mismatch
+SEVERITY: Fatal - compilation fails

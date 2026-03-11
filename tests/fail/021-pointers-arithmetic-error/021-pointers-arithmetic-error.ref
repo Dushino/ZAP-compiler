@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Cannot add two pointers"
+ERROR_TYPE: Semantic Error - Invalid pointer arithmetic
+SEVERITY: Fatal - compilation fails

@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Duplicate parameter 'A' in procedure"
+ERROR_TYPE: Semantic Error - Duplicate parameter name
+SEVERITY: Fatal - compilation fails

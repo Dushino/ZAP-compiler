@@ -1,0 +1,3 @@
+ERROR_PATTERN: "Expected expression, got keyword 'END'"
+ERROR_TYPE: Syntax Error - Malformed expression
+SEVERITY: Fatal - compilation fails
