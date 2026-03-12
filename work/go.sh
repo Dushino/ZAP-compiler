@@ -1,3 +1,4 @@
+#!/bin/bash
 rm -f *.s
 rm -f *.o
 rm -f *.com

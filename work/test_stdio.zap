@@ -13,7 +13,8 @@
 
 
 const byte Text1[] = "Hello!"
-const byte FName[] = "D1:TEST2.TXT\x9b"
+; const byte FName[] = "D1:TEST.TXT\x9b"
+const byte FName[] = "D1:TEST.TXT"
 
 
 proc main()
@@ -22,7 +23,7 @@ proc main()
     FILE fd
         
     puts("Open:  ")    
-    rv = fopen(@fd, FName, 8)  
+    rv = fopen(@fd, FName, ICAX1_Mode.Write)  
     
     puts("Write: ")
     rv = fwrite(@fd, Text1, strlen(Text1))
