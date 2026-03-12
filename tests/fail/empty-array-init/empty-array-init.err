@@ -1,1 +1,1 @@
-5:10: error: Array initializer must have at least one element
+5:18: error: Array initializer must have at least one element

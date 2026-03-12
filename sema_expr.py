@@ -43,10 +43,7 @@ class ExprTypeChecker:
             return ExprType(SemType("BYTE", True), ExprKind.ADDR)
 
         if isinstance(expr, Identifier):
-            try:
-                sym: Symbol = self.symtab.lookup(expr.name)
-            except KeyError:
-                raise SemanticError(f"Variable '{expr.name}' is not defined", node=expr)
+            sym: Symbol = self.symtab.lookup(expr.name, node=expr)
             if sym.is_array:
                 # Array addresses are 16-bit pointers even if they point to BYTE
                 # But preserve struct information
@@ -351,9 +348,9 @@ class ExprTypeChecker:
                         return ExprType(SemType("WORD", False), ExprKind.VALUE)
                     # Allow sizeof on a struct-typed variable as a convenience
                     try:
-                        sym = self.symtab.lookup(arg.name)
-                    except KeyError:
-                        raise SemanticError(f"'{arg.name}' is not a defined struct", node=expr)
+                        sym = self.symtab.lookup(arg.name, node=arg)
+                    except SemanticError:
+                        raise SemanticError(f"'{arg.name}' is not a defined struct", node=arg)
                     if not sym.type.is_struct or not sym.type.struct_info:
                         raise SemanticError("SIZEOF expects a struct type", node=expr)
                     return ExprType(SemType("WORD", False), ExprKind.VALUE)

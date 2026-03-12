@@ -10,18 +10,18 @@
 ;   dereferenced value as end bound
 ;
 ; Checks (result +1 each):
-;  1.  byte var, step from variable (s=3): for i=0 to 12 step s → 4 iters
-;  2.  byte var, bounds from compound expr: for i=a+1 to b*2 (a=2,b=5) → 7 iters
-;  3.  word var, step constant >1: for w=0 to 16 step 4 → 4 iters
-;  4.  word var, step from variable (ws=5): for w=0 to 20 step ws → 4 iters
-;  5.  word var, crosses byte boundary: for w=253 to 259 → 6 iters
-;  6.  word var, bounds from expression: for w=wa+2 to wb*3 (wa=3,wb=5) → 10 iters
-;  7.  long var, step constant >1: for l=0 to 15 step 3 → 5 iters
-;  8.  long var, step from variable (ls=4): for l=0 to 12 step ls → 3 iters
-;  9.  long var, crosses word boundary: for l=65533 to 65537 → 4 iters
-; 10.  long var, bounds from expressions: for l=lbase to lbase+5 (lbase=100000) → 5 iters
+;  1.  byte var, step from variable (s=3): for i=0 to 12 step s -> 4 iters
+;  2.  byte var, bounds from compound expr: for i=a+1 to b*2 (a=2,b=5) -> 7 iters
+;  3.  word var, step constant >1: for w=0 to 16 step 4 -> 4 iters
+;  4.  word var, step from variable (ws=5): for w=0 to 20 step ws -> 4 iters
+;  5.  word var, crosses byte boundary: for w=253 to 259 -> 6 iters
+;  6.  word var, bounds from expression: for w=wa+2 to wb*3 (wa=3,wb=5) -> 10 iters
+;  7.  long var, step constant >1: for l=0 to 15 step 3 -> 5 iters
+;  8.  long var, step from variable (ls=4): for l=0 to 12 step ls -> 3 iters
+;  9.  long var, crosses word boundary: for l=65533 to 65537 -> 4 iters
+; 10.  long var, bounds from expressions: for l=lbase to lbase+5 (lbase=100000) -> 5 iters
 ; 11.  pointer as loop var: for ptr=@arr[0] to @arr[0]+4, write 1; sum==4
-; 12.  deref as end bound: for i=0 to ptr^ (ptr→target=6) → 6 iters
+; 12.  deref as end bound: for i=0 to ptr^ (ptr->target=6) -> 6 iters
 ;
 ; Expected result: 12 = $0C
 
@@ -48,7 +48,7 @@ proc main()
     ; --- 1: byte, step from variable (uses _gen_for_general path) ---
     s = 3
     cnt = 0
-    for i = 0 to 12 step s      ; iters: 0,3,6,9 → 4
+    for i = 0 to 12 step s      ; iters: 0,3,6,9 -> 4
         cnt = cnt + 1
     end
     if cnt == 4
@@ -59,7 +59,7 @@ proc main()
     a = 2
     b = 5
     cnt = 0
-    for i = a + 1 to b * 2     ; start=3, end=10, iters: 3..9 → 7
+    for i = a + 1 to b * 2     ; start=3, end=10, iters: 3..9 -> 7
         cnt = cnt + 1
     end
     if cnt == 7
@@ -68,7 +68,7 @@ proc main()
 
     ; --- 3: word, step constant > 1 ---
     cnt = 0
-    for w = 0 to 16 step 4     ; iters: 0,4,8,12 → 4
+    for w = 0 to 16 step 4     ; iters: 0,4,8,12 -> 4
         cnt = cnt + 1
     end
     if cnt == 4
@@ -78,16 +78,16 @@ proc main()
     ; --- 4: word, step from variable ---
     ws = 5
     cnt = 0
-    for w = 0 to 20 step ws    ; iters: 0,5,10,15 → 4
+    for w = 0 to 20 step ws    ; iters: 0,5,10,15 -> 4
         cnt = cnt + 1
     end
     if cnt == 4
         result = result + 1     ; 4
     end
 
-    ; --- 5: word, crosses byte boundary (255→256) ---
+    ; --- 5: word, crosses byte boundary (255->256) ---
     cnt = 0
-    for w = 253 to 259         ; iters: 253,254,255,256,257,258 → 6
+    for w = 253 to 259         ; iters: 253,254,255,256,257,258 -> 6
         cnt = cnt + 1
     end
     if cnt == 6
@@ -98,7 +98,7 @@ proc main()
     wa = 3
     wb = 5
     cnt = 0
-    for w = wa + 2 to wb * 3   ; start=5, end=15, iters: 5..14 → 10
+    for w = wa + 2 to wb * 3   ; start=5, end=15, iters: 5..14 -> 10
         cnt = cnt + 1
     end
     if cnt == 10
@@ -107,7 +107,7 @@ proc main()
 
     ; --- 7: long, step constant > 1 ---
     cnt = 0
-    for l = 0 to 15 step 3     ; iters: 0,3,6,9,12 → 5
+    for l = 0 to 15 step 3     ; iters: 0,3,6,9,12 -> 5
         cnt = cnt + 1
     end
     if cnt == 5
@@ -117,16 +117,16 @@ proc main()
     ; --- 8: long, step from variable ---
     ls = 4
     cnt = 0
-    for l = 0 to 12 step ls    ; iters: 0,4,8 → 3
+    for l = 0 to 12 step ls    ; iters: 0,4,8 -> 3
         cnt = cnt + 1
     end
     if cnt == 3
         result = result + 1     ; 8
     end
 
-    ; --- 9: long, crosses word boundary (65535→65536) ---
+    ; --- 9: long, crosses word boundary (65535->65536) ---
     cnt = 0
-    for l = 65533 to 65537     ; iters: 65533,65534,65535,65536 → 4
+    for l = 65533 to 65537     ; iters: 65533,65534,65535,65536 -> 4
         cnt = cnt + 1
     end
     if cnt == 4
@@ -136,7 +136,7 @@ proc main()
     ; --- 10: long, bounds from expressions ---
     lbase = 100000
     cnt = 0
-    for l = lbase to lbase + 5 ; iters: 100000..100004 → 5
+    for l = lbase to lbase + 5 ; iters: 100000..100004 -> 5
         cnt = cnt + 1
     end
     if cnt == 5
@@ -155,7 +155,7 @@ proc main()
     ; --- 12: dereferenced pointer as end bound ---
     ptr = @target               ; target = 6
     cnt = 0
-    for i = 0 to ptr^          ; end = 6, iters: 0..5 → 6
+    for i = 0 to ptr^          ; end = 6, iters: 0..5 -> 6
         cnt = cnt + 1
     end
     if cnt == 6

@@ -1,1 +1,1 @@
-3:5: error: Undefined variable 'UNDEFINED'
+3:13: error: Undefined variable 'UNDEFINED'

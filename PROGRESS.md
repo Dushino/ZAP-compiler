@@ -2,6 +2,24 @@
 
 ---
 
+## Precise identifier error positions (2026-03-12)
+
+**Problem:** Errors about undefined variables pointed to the start of the enclosing *statement* instead of the exact identifier token.
+Example: `a = b + undefined_var` reported col 5 (statement start) instead of col 13 (the identifier).
+
+**Root cause:** `sema_expr.py` called `self.symtab.lookup(expr.name)` without `node=expr`, so `SymbolTable.lookup` raised `SemanticError` with `node=None` — `e.line=None, e.col=None`. Error handlers fell back to the statement's position.
+
+**Fix:**
+- `sema_expr.py:47` — pass `node=expr` to identifier lookup; removed dead `except KeyError` block
+- `sema_expr.py:354` — pass `node=arg` in SIZEOF lookup; changed `except KeyError` → `except SemanticError`
+- `symbols.py:ScopedSymbolTable.lookup` — pass `node` through to local table so errors from both local and global scope carry the node
+
+**Updated 5 .err reference files** (column moved to exact identifier): 028, 034, 044, 045, 063.
+
+**Test results:** 162 pass / 123 fail — all OK.
+
+---
+
 ## Double-mapped line number fix (2026-03-12)
 
 **Problem:** Error positions off by ~3 lines in multi-file projects (e.g. `string.zap:124:9` instead of `121:9`).

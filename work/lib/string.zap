@@ -118,7 +118,7 @@ proc strncat(byte^ dst, byte^ src, const byte max)
         if v == 0            
             return
         end
-        dst1 += 1
+        dst += 1
         src += 1
     end    
 end

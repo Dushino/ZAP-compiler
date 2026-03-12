@@ -1,1 +1,1 @@
-4:10: error: Undefined variable 'C'
+4:22: error: Undefined variable 'C'

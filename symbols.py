@@ -276,9 +276,9 @@ class ScopedSymbolTable:
         self.local = SymbolTable()
 
     def lookup(self, name: str, node=None) -> Symbol:
-        """Lookup a symbol, preferring locals then globals."""
+        """Lookup a symbol, preferring locals then globals; node is attached to any raised error."""
         try:
-            return self.local.lookup(name)
+            return self.local.lookup(name, node=node)
         except SemanticError:
             return self.parent.lookup(name, node=node)
 
