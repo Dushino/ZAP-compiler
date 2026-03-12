@@ -6245,11 +6245,26 @@ class CodeGen:
             raise SemanticError(msg)
 
     def _load_sym_addr(self, sym_name: str) -> None:
-        """Load sym addr.
-        Internal helper used during code generation.
+        """Load the compile-time (static) address of a symbol into A/X.
+        Use only for arrays and ROM labels whose address is a link-time constant.
+        For pointer-typed variables use _load_sym_base_addr instead.
         """
         self.emit(f"\tLDA #<{sym_name}")
         self.emit(f"\tLDX #>{sym_name}")
+
+    def _load_sym_base_addr(self, sym: 'Symbol') -> None:
+        """Load the base address for a subscript operation into A/X.
+        For pointer parameters (byte^, word^, long^, struct^) this loads the
+        runtime VALUE stored in the pointer variable (indirect base address).
+        For regular arrays this loads the compile-time static address of the array.
+        """
+        if sym.type.is_pointer and not sym.is_array:
+            # Pointer variable: value stored in sym IS the address we need
+            self.emit(f"\tLDA {sym.asm_name()}")
+            self.emit(f"\tLDX {sym.asm_name()}+1")
+        else:
+            # Static array: address is a link-time constant
+            self._load_sym_addr(sym.asm_name())
 
     def _sym_operand(self, sym: Symbol, low_byte: bool = True) -> str:
         """Return an operand string for symbol `sym`.
@@ -6757,22 +6772,18 @@ class CodeGen:
             offset_low = compile_time_offset & 0xFF
             offset_high = (compile_time_offset >> 8) & 0xFF
             
-            # Load base address and add compile-time offset directly
-            # Optimized approach: load each byte sequentially, avoiding TXA move
+            # Load base address into A/X (handles both static arrays and pointer parameters)
+            self._load_sym_base_addr(sym)
             if compile_time_offset == 0:
-                # No offset needed, load base address directly
-                self.emit(f"\tLDA #${sym.address:02X}" if sym.address else f"\tLDA #<{sym.asm_name()}")
+                # No offset — store base address directly into TMP0/TMP0+1
                 self.emit("\tSTA TMP0")
-                self.emit(f"\tLDA #${(sym.address >> 8) & 0xFF:02X}" if sym.address else f"\tLDA #>{sym.asm_name()}")
-                self.emit("\tSTA TMP0+1")
+                self.emit("\tSTX TMP0+1")
             else:
-                # Add compile-time offset: load low byte, add offset, store; then high byte with carry
-                self.emit(f"\tLDA #<{sym.asm_name()}")
+                # Add compile-time offset: A/X += offset (with carry between bytes)
                 self.emit("\tCLC")
                 self.emit(f"\tADC #${offset_low:02X}")
                 self.emit("\tSTA TMP0")
-                # Carry flag now contains any overflow from low byte addition
-                self.emit(f"\tLDA #>{sym.asm_name()}")
+                self.emit("\tTXA")
                 self.emit(f"\tADC #${offset_high:02X}")
                 self.emit("\tSTA TMP0+1")
             
@@ -6840,8 +6851,8 @@ class CodeGen:
             self.emit("\tADC TMP4+1")
             self.emit("\tSTA TMP4+1")
         
-        # Load base address -> TMP0/TMP0+1
-        self._load_sym_addr(sym.asm_name())
+        # Load base address -> TMP0/TMP0+1 (handles static arrays and pointer parameters)
+        self._load_sym_base_addr(sym)
         self.emit("\tSTA TMP0")
         self.emit("\tSTX TMP0+1")
         
@@ -7073,8 +7084,8 @@ class CodeGen:
                     self._raise_error(f"Const array '{sym.name}' has no initialization")
                 self._load_sym_addr(arr_label)
             else:
-                # base address -> TMP0/TMP0+1 (regular non-const array)
-                self._load_sym_addr(sym.asm_name())
+                # base address -> TMP0/TMP0+1
+                self._load_sym_base_addr(sym)
             
             self.emit("\tSTA TMP0")
             self.emit("\tSTX TMP0+1")

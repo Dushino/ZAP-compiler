@@ -2,6 +2,33 @@
 
 ---
 
+## Fix: `ptr[i]` subscript through pointer parameter wrong for all types (2026-03-12)
+
+**Extended fix** for all data types (BYTE, WORD, LONG, struct pointer parameters).
+
+Added `_load_sym_base_addr(sym)` helper that replaces `_load_sym_addr` in all subscript code paths:
+- `_gen_subscript` single-dim general path (already fixed; now uses the helper)
+- `_gen_multidim_subscript` compile-time-constant index path
+- `_gen_multidim_subscript` runtime index path
+
+The helper emits `LDA sym / LDX sym+1` for pointer parameters (all types) and `LDA #<sym / LDX #>sym` for static arrays.
+
+**Test results:** 162 pass / 123 fail — all OK.
+
+---
+
+## Fix: `ptr[i] = val` didn't write through pointer parameter (2026-03-12)
+
+**Bug:** Subscript assignment through a pointer parameter (e.g. `dst[3] = 'Y'` where `dst: byte^`) wrote to the wrong address. The generated code loaded `LDA #<_DST / LDX #>_DST` (the static address *of* the pointer variable itself) instead of `LDA _DST / LDX _DST+1` (the runtime address *stored in* the pointer).
+
+**Root cause:** `_gen_subscript` in `codegen_expr.py` (~line 7076) called `_load_sym_addr(sym.asm_name())` for all non-const non-ROM-array cases. This is correct for static arrays (whose address is a compile-time constant) but wrong for pointer-typed variables (whose value must be loaded from memory at runtime).
+
+**Fix:** `codegen_expr.py` — in the `else` branch of `_gen_subscript`, check `sym.type.is_pointer and not sym.is_array`. If true, emit `LDA sym / LDX sym+1` (load pointer value); otherwise emit the static `#<sym / #>sym` address as before.
+
+**Test results:** 162 pass / 123 fail — all OK.
+
+---
+
 ## Fix: `return` on its own line consumed next statement as expression (2026-03-12)
 
 **Bug:** `return` (with no expression) followed by code on the next line caused a confusing parse error.
