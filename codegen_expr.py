@@ -136,6 +136,7 @@ class CodeGen:
                     if mapped_line is not None:
                         e.line = mapped_line
                 e.filename = fname
+                e._line_mapped = True
                 src_lines = self._get_source_lines_for_file(fname)
                 if src_lines:
                     e.source_text = "\n".join(src_lines)
@@ -6232,6 +6233,7 @@ class CodeGen:
             fname, line, col, _ = self.current_stmt_info
             mapped_line = self._map_clean_line_to_orig(fname, line)
             e = SemanticError(msg, line=mapped_line if mapped_line is not None else line, col=col)
+            e._line_mapped = True
             src_lines = self._get_source_lines_for_file(fname)
             if src_lines:
                 e.source_text = "\n".join(src_lines)

@@ -649,7 +649,9 @@ class Parser:
     def parse_init_value(self):
         """Parse an initializer value: either a nested list { ... } or an expression."""
         if self.cur.type == TOK_LCURLY:
-            # Nested list initializer
+            # Nested list initializer — capture position of opening brace
+            init_line = self.cur.line
+            init_col = self.cur.col
             self.advance()
             values = []
             if self.cur.type != TOK_RCURLY:
@@ -661,7 +663,7 @@ class Parser:
                         break
                     values.append(self.parse_init_value())
             self.expect(TOK_RCURLY)
-            return ListInit(values)
+            return ListInit(values, line=init_line, col=init_col)
         else:
             # Regular expression
             return self.parse_expr()
@@ -760,6 +762,9 @@ class Parser:
 
                     # list initializer { ... }
                     if self.cur.type == TOK_LCURLY:
+                        # Capture position of opening brace
+                        init_line = self.cur.line
+                        init_col = self.cur.col
                         self.advance()
                         values = []
                         if self.cur.type != TOK_RCURLY:
@@ -771,7 +776,7 @@ class Parser:
                                     break
                                 values.append(self.parse_init_value())
                         self.expect(TOK_RCURLY)
-                        init = ListInit(values)
+                        init = ListInit(values, line=init_line, col=init_col)
                         continue
 
                     # string initializer

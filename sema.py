@@ -525,7 +525,7 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                         if array_len == 0:
-                            raise SemanticError("Array initializer must have at least one element", node=d)
+                            raise SemanticError("Array initializer must have at least one element", node=d.initializer)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
@@ -597,7 +597,7 @@ class DeclarationAnalyzer:
                 if not is_array:
                     raise SemanticError("String initializer for scalar", node=d)
                 if sem_type.base.lower() != "byte":
-                    raise SemanticError("String only allowed for byte array", node=d)
+                    raise SemanticError("String only allowed for byte array", node=d.initializer)
                 
                 if array_len is None:
                     array_len: int = len(d.initializer.value) + 1
@@ -651,7 +651,7 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                         if array_len == 0:
-                            raise SemanticError("Array initializer must have at least one element", node=d)
+                            raise SemanticError("Array initializer must have at least one element", node=d.initializer)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
@@ -668,7 +668,7 @@ class DeclarationAnalyzer:
                     if array_len is None:
                         array_len = len(d.initializer.values)  # type: ignore[assignment]
                         if array_len == 0:
-                            raise SemanticError("Array initializer must have at least one element", node=d)
+                            raise SemanticError("Array initializer must have at least one element", node=d.initializer)
                     elif array_len != len(d.initializer.values):
                         size_expr = d.array_sizes[0] if d.array_sizes else d.array_size
                         if size_expr is not None:
@@ -683,7 +683,7 @@ class DeclarationAnalyzer:
 
             elif isinstance(d.initializer, StringInit):
                 if sem_type.base.lower() != "byte":
-                    raise SemanticError("String only allowed for byte array", node=d)
+                    raise SemanticError("String only allowed for byte array", node=d.initializer)
 
                 # Check if string fits in the specified array size
                 string_len: int = len(d.initializer.value) + 1  # +1 for NUL terminator

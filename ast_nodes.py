@@ -78,6 +78,8 @@ class ExprInit(InitValue):
 class ListInit(InitValue):
     """Initializer with a list of expressions or nested initializers."""
     values: List["Expr | InitValue"]  # Can contain expressions or nested initializers
+    line: int = 0
+    col: int = 0
 
     def __repr__(self) -> str:
         """Return a readable list-initializer representation."""

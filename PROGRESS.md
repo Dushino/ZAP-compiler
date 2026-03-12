@@ -2,6 +2,26 @@
 
 ---
 
+## Double-mapped line number fix (2026-03-12)
+
+**Problem:** Error positions off by ~3 lines in multi-file projects (e.g. `string.zap:124:9` instead of `121:9`).
+
+**Root cause:** Line numbers were being mapped from clean-source → original-file *twice*:
+- `map_stmt_info()` (in `sema_shared.py`) correctly maps clean→original line, returns it in `(fname, orig_line, col)`
+- Error handlers in `sema_proc.py` didn't set `_line_mapped = True` on the resulting error
+- `compiler.py`'s except-block then re-applied `orig_map` (121 → 124)
+
+**Files fixed:**
+- `sema_proc.py` — 5 sites: `_validate_expr`, `_on_call_stmt`, `_on_return_stmt`, and 2 sites in `analyze_call()`: added `orig_map` guard (`if e.line is not None`) + `_line_mapped = True`
+- `sema_shared.py` — `_raise_with_stmt_info()`: same guard + flag
+- `sema_func.py` — 2 sites (`validate_expr` + return-stmt handler): guarded the already-present `orig_map` step with `if e_line is not None`
+- `codegen_expr.py` — 2 sites (`_raise_error` + `tc_check`): added `e._line_mapped = True`
+
+**Verified:** `string.zap:121:9: error: Undefined variable 'DST1'` ✓
+**Test results:** 161 pass tests OK (1 pre-existing UnicodeEncodeError in test 152 — Windows charmap issue unrelated to changes), 123 fail tests OK.
+
+---
+
 ## Fail test error message verification (2026-03-11)
 
 - Created `.err` reference files for all 124 fail tests — each contains the portable `line:col: error: message` portion

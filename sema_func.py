@@ -107,14 +107,16 @@ class FuncAnalyzer:
                     info = None
                 if info:
                     fname, line, col = info
-                    err_line = getattr(e, "line", None) or line
-                    # Second mapping: if the error carries its own line from an
-                    # AST node, that line may still be in cleaned-source space.
-                    orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
-                    if orig_map and isinstance(err_line, int) and 1 <= err_line <= len(orig_map):
-                        err_line = orig_map[err_line - 1]
+                    e_line = getattr(e, "line", None)
+                    if e_line is not None:
+                        # e.line is a clean-source line from an AST node — map to original
+                        orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+                        if orig_map and isinstance(e_line, int) and 1 <= e_line <= len(orig_map):
+                            e_line = orig_map[e_line - 1]
+                    else:
+                        e_line = line  # map_stmt_info already returned the original line
                     err_col = getattr(e, "col", None) or col
-                    err = SemanticError(e.message, line=err_line, col=err_col)
+                    err = SemanticError(e.message, line=e_line, col=err_col)
                     err.filename = fname
                     setattr(err, "_line_mapped", True)
                     orig_src = (self.debug.get("orig_source_lines_per_file") or {}).get(fname)
@@ -145,11 +147,14 @@ class FuncAnalyzer:
                     info = map_stmt_info(self.debug, stmt)
                     if info:
                         fname, line, col = info
-                        err_line = getattr(e, "line", None) or line
-                        orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
-                        if orig_map and isinstance(err_line, int) and 1 <= err_line <= len(orig_map):
-                            err_line = orig_map[err_line - 1]
-                        err = SemanticError(e.message, line=err_line, col=col)
+                        e_line = getattr(e, "line", None)
+                        if e_line is not None:
+                            orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+                            if orig_map and isinstance(e_line, int) and 1 <= e_line <= len(orig_map):
+                                e_line = orig_map[e_line - 1]
+                        else:
+                            e_line = line
+                        err = SemanticError(e.message, line=e_line, col=col)
                         err.filename = fname
                         setattr(err, "_line_mapped", True)
                         raise err

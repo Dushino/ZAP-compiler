@@ -581,7 +581,7 @@ class ModuleSystem:
                 try:
                     inc_path: str = self._find_file(inc, inc_dir)
                 except SemanticError as e:
-                    err = SemanticError(f"Error loading include '{inc}' from {full_path}: {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
+                    err = SemanticError(f"Error loading include '{inc}': {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
                     err.filename = full_path
                     raise err
                 # Ensure dependency is loaded
