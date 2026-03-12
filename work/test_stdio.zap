@@ -23,20 +23,37 @@ proc main()
     byte newname[] = "NEWN.ABC"
     byte name[64]
             
-    puts("Open:  ")    
+    puts("Open:   ")    
     rv = fopen(@fd, FName, ICAX1_Mode.Write)  
-    
-    puts("Write: ")
-    rv = fwrite(@fd, Text1, strlen(Text1))
-    
-    puts("Close: ")
-    fclose(@fd)
+    putx(rv)
 
-    ; puts("Rename:")
+    puts("\nWrite:  ")
+    rv = fwrite(@fd, Text1, strlen(Text1))
+    putx(rv)
+    
+    puts("\nClose:  ")
+    fclose(@fd)
+    putx(rv)
+
+    ; puts("Rename: ")
     ; rv = rename(FName, newname)
 
-    puts("Remove")
-    rv = remove(FName)
+    ;puts("Remove: ")
+    ;rv = remove(FName)
+
+    puts("\n\nOpen:   ")    
+    rv = fopen(@fd, FName, ICAX1_Mode.Read)  
+    putx(rv)
+
+    puts("\nRead:   ")    
+    rv = fread(@fd, name, 5)
+    putx(rv)
+    name[5] = 0
+    puts(name)
+
+    puts("\nClose:  ")
+    fclose(@fd)
+    putx(rv)
 
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end

@@ -70,7 +70,7 @@
 .include "../types.zap"
 .include "../string.zap"
 
-.define DEBUG_CIO
+; .define DEBUG_CIO
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40
@@ -616,6 +616,10 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     puts("\n")
 .endif
 
+    if rv == 1  ; remap ATARI OK to 0
+        rv = 0
+    end
+
     return rv
 end
 
@@ -654,11 +658,6 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
 
     checkeof(fd, rv)
-
-    if rv != ERRNO.OK
-        set_fderror(fd, rv)
-        return rv
-    end
 
     set_fderror(fd, ERRNO.OK)        
     return ERRNO.OK
@@ -751,7 +750,7 @@ func ERRNO remove(byte^ filename)
     if id == 255
         return ERRNO.EINVAL
     end
-    
+
     CIO(id, ICCOM_COMMANDS.Close)    
     rv = CIO(id, ICCOM_COMMANDS.Delete, filename)
 
@@ -763,12 +762,22 @@ end
 /*
     fread - read from file
 */
-func word fread(FILE^ fd, byte ^buffer, word size, word count)
-    ; TODO: implement file reading  
-    if fd == NULL
-        return 0
-    end 
-    return 0
+func byte fread(FILE^ fd, byte ^buffer, word size)
+    byte rv
+
+    if fd == NULL        
+        return ERRNO.EBADF
+    end
+    
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, buffer, size)        
+    if rv != 1
+        set_fderror(fd, rv)
+        return rv
+    end
+
+    checkeof(fd, rv)
+    set_fderror(fd, ERRNO.OK)    
+    return ERRNO.OK    
 end
 
 
