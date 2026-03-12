@@ -6711,14 +6711,27 @@ class CodeGen:
         return []
 
     def _calculate_element_width(self, sym: Symbol) -> int:
-        """Calculate the width of array elements in bytes.
+        """Calculate the width of each element accessed via subscript, in bytes.
 
-        For array of pointers, the element width is the pointer size (2 bytes).
-        For arrays of structs or native WORD/byte types, return the natural width.
+        Two distinct cases for pointer symbols:
+        - Array of pointers (byte^ arr[N]): each stored element IS a pointer → 2 bytes.
+        - Pointer variable (byte^ dst): subscript steps through pointed-to elements,
+          so element width is the size of the pointed-to type (1 for byte^, 2 for word^,
+          4 for long^, struct size for struct^).
         """
-        # If array elements are pointers (e.g., byte ^arr[]), element size is pointer size (2)
         if sym.type.is_pointer:
-            return 2
+            if sym.is_array:
+                # Array of pointers — each element occupies one pointer slot (2 bytes)
+                return 2
+            else:
+                # Pointer variable — element size is the pointed-to base type
+                if sym.type.is_struct and sym.type.struct_info:
+                    return sym.type.struct_info.size
+                if sym.type.base == "WORD":
+                    return 2
+                if sym.type.base == "LONG":
+                    return 4
+                return 1  # byte^
 
         # Non-pointer struct variable
         if sym.type.is_struct and sym.type.struct_info:

@@ -2,6 +2,18 @@
 
 ---
 
+## Fix: `ptr[i]` element width used pointer size instead of pointed-to type size (2026-03-12)
+
+**Bug:** `dst[3]` on `byte^ dst` computed offset `3*2=6` (WORD size) instead of `3*1=3` (BYTE size).
+
+**Root cause:** `_calculate_element_width` returned 2 for any `is_pointer` symbol. This was correct for arrays of pointers (`byte^ arr[N]` — each stored element IS a pointer = 2 bytes), but wrong for pointer variables (`byte^ dst` — subscript strides through the pointed-to type: 1 for `byte^`, 2 for `word^`, 4 for `long^`, struct-size for struct pointers).
+
+**Fix:** `codegen_expr.py:_calculate_element_width` — added `sym.is_array` check: if pointer and array → element = 2 (pointer slot); if pointer and not array → element = size of `sym.type.base`.
+
+**Test results:** 162 pass / 123 fail — all OK.
+
+---
+
 ## Fix: `ptr[i]` subscript through pointer parameter wrong for all types (2026-03-12)
 
 **Extended fix** for all data types (BYTE, WORD, LONG, struct pointer parameters).
