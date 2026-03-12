@@ -274,6 +274,21 @@ LDA #50
 STA _MAIN_X
 ```
 
+## Standard Library
+
+ZAP! ships a standard library in `work/lib/`. For full API documentation see [DOC/STDLIB.md](STDLIB.md).
+
+| Module | File | Description |
+|--------|------|-------------|
+| `errno` | `lib/errno.zap` | Error code enum (`ERRNO`) |
+| `types` | `lib/types.zap` | Core types: `BOOL`, `FILE`, `SEEK`, `NULL` |
+| `string` | `lib/string.zap` | Memory & string functions (`memcpy`, `strlen`, …) |
+| `stdio` | `lib/stdio.zap` | Platform I/O coordinator |
+| `atari_stdio` | `lib/atari/atari_stdio.zap` | Atari 8-bit screen / keyboard / file I/O |
+| _(hw defs)_ | `lib/atari/atari_gtia.zap` | GTIA chip: sprites, colors, collision |
+| _(hw defs)_ | `lib/atari/atari_pokey.zap` | POKEY chip: sound, keyboard, paddles |
+| _(hw defs)_ | `lib/atari/PIA.zap` | PIA chip: parallel I/O ports |
+
 ## Project Structure
 
 - `compiler.py` - Main compiler entry point

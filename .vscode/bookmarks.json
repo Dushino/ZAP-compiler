@@ -19,8 +19,23 @@
 			"path": "work/lib/atari/atari_stdio.zap",
 			"bookmarks": [
 				{
-					"line": 775,
+					"line": 729,
+					"column": 10,
+					"label": ""
+				},
+				{
+					"line": 732,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 741,
 					"column": 20,
+					"label": ""
+				},
+				{
+					"line": 755,
+					"column": 42,
 					"label": ""
 				}
 			]
@@ -29,7 +44,7 @@
 			"path": "work/lib/string.zap",
 			"bookmarks": [
 				{
-					"line": 151,
+					"line": 197,
 					"column": 0,
 					"label": ""
 				}

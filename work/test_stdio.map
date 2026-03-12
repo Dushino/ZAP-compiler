@@ -1,9 +1,9 @@
 Modules list:
 -------------
 test_stdio.o:
-    CODE              Offs=000000  Size=0007B4  Align=00001  Fill=0000
-    BSS               Offs=000000  Size=000009  Align=00001  Fill=0000
-    ZEROPAGE          Offs=000000  Size=000057  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=00037C  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=00004C  Align=00001  Fill=0000
+    ZEROPAGE          Offs=000000  Size=00004E  Align=00001  Fill=0000
     COMHEADER         Offs=000000  Size=000006  Align=00001  Fill=0000
     AUTOSTRT          Offs=000000  Size=000006  Align=00001  Fill=0000
 
@@ -14,27 +14,27 @@ Name                   Start     End    Size  Align
 ----------------------------------------------------
 AUTOSTRT              000000  000005  000006  00001
 COMHEADER             000000  000005  000006  00001
-ZEROPAGE              000082  0000D8  000057  00001
-CODE                  004000  0047B3  0007B4  00001
-BSS                   0047B4  0047BC  000009  00001
+ZEROPAGE              000082  0000CF  00004E  00001
+CODE                  004000  00437B  00037C  00001
+BSS                   00437C  0043C7  00004C  00001
 
 
 Exports list by name:
 ---------------------
-__BSS_LOAD__              0047B4 RLA    __RAM_START__             004000 RLA    
+__BSS_LOAD__              00437C RLA    __RAM_START__             004000 RLA    
 
 
 
 Exports list by value:
 ----------------------
-__RAM_START__             004000 RLA    __BSS_LOAD__              0047B4 RLA    
+__RAM_START__             004000 RLA    __BSS_LOAD__              00437C RLA    
 
 
 
 Imports list:
 -------------
 __BSS_LOAD__ ([linker generated]):
-    test_stdio.o              test_stdio.s:269
+    test_stdio.o              test_stdio.s:353
 __RAM_START__ ([linker generated]):
-    test_stdio.o              test_stdio.s:269
+    test_stdio.o              test_stdio.s:353
 

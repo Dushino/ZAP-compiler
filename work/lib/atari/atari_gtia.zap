@@ -1,3 +1,35 @@
+; ============================================================
+; Hardware definition file: atari_gtia.zap
+; File:   lib/atari/atari_gtia.zap
+; Platform: Atari 400/800/XL/XE  (6502/65C02)
+; Depends:  (none)
+; Module:   (none — plain include file)
+;
+; Description:
+;   Defines register layouts for the CTIA/GTIA (Color Television
+;   Interface Adapter / Graphics Television Interface Adapter) chip
+;   mapped at $D000.  Handles sprites (players/missiles), color
+;   registers, collision detection, and console buttons.
+;
+;   The chip has separate read and write register maps at the same
+;   address, represented by two distinct port structs.
+;   Use GTIA_RD to read registers; use GTIA_WR to write registers.
+;
+; Exports:
+;   struct GTIA_RD_struct #port #RD   -- read register layout
+;   struct GTIA_WR_struct #port #WR   -- write register layout
+;   GTIA_RD_struct GTIA_RD @$D000     -- read port instance
+;   GTIA_WR_struct GTIA_WR @$D000     -- write port instance
+;   byte PCOLR0-PCOLR3 @704-707       -- player/missile color shadows
+;   byte COLOR0-COLOR4 @708-712       -- playfield + background color shadows
+;   byte M0COLOR-M3COLOR @713-716     -- missile color shadows
+;   byte GPRIOR @717                  -- graphics priority shadow
+;   const COLOR_*                     -- 16 base hue constants ($00-$F0)
+;
+; Status: Complete
+; Reference: https://www.atariarchives.org/mapping/memorymap.php
+; ============================================================
+
 ;-------------------------------------------------------------------------
 ; CTIA/GTIA Address Equates
 ; https://www.atariarchives.org/mapping/memorymap.php

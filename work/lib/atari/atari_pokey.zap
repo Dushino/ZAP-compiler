@@ -1,3 +1,36 @@
+; ============================================================
+; Hardware definition file: atari_pokey.zap
+; File:   lib/atari/atari_pokey.zap
+; Platform: Atari 400/800/XL/XE  (6502/65C02)
+; Depends:  (none)
+; Module:   (none — plain include file)
+;
+; Description:
+;   Defines register layouts for the POKEY (Programmable Operator
+;   Keyboard Interface Expression) chip mapped at $D200.
+;   Handles 4-channel sound synthesis, keyboard scanning,
+;   paddle/joystick input, random number generation, and serial I/O.
+;
+;   The chip has separate read and write register maps at the same
+;   address.  Use POKEY_RD to read; use POKEY_WR to write.
+;
+;   Sound: set AUDFn (frequency) and AUDCn (distortion + volume)
+;          for each of the 4 independent audio channels.
+;
+; Exports:
+;   struct POKEY_RD_struct #port #RD  -- read register layout
+;   struct POKEY_WR_struct #port #WR  -- write register layout
+;   POKEY_WR_struct POKEY_WR @$D200   -- write port instance
+;   POKEY_RD_struct POKEY_RD @$D200   -- read port instance
+;   byte PADDL0-PADDL7 @624-631       -- paddle position shadows
+;   byte STICK0-STICK3 @632-635       -- joystick direction shadows
+;   byte PTRIG0-PTRIG7 @636-643       -- paddle trigger shadows
+;   byte STRIG0-STRIG3 @644-647       -- joystick trigger shadows
+;
+; Status: Complete
+; Reference: https://www.atariarchives.org/mapping/memorymap.php
+; ============================================================
+
 ;-------------------------------------------------------------------------
 ; POKEY Address Equates
 ; https://www.atariarchives.org/mapping/memorymap.php

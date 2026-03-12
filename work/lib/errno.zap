@@ -1,6 +1,21 @@
-; errno.zap
-; Error codes for ZAP
-; Based on Linux kernel error codes https://man7.org/linux/man-pages/man3/errno.3.html
+; ============================================================
+; Module: errno
+; File:   lib/errno.zap
+; Platform: All
+; Depends:  (none)
+;
+; Description:
+;   Defines the ERRNO enum with Linux kernel-compatible error codes.
+;   Also contains a reference comment block listing Atari CIO status
+;   byte values (raw numbers returned by the CIO handler; they do not
+;   map 1-to-1 to ERRNO values).
+;
+; Exports:
+;   enum ERRNO  -- error code set (OK, E2BIG, EACCES, ... EXFULL)
+;
+; Status: Complete
+; Reference: https://man7.org/linux/man-pages/man3/errno.3.html
+; ============================================================
 
 .module "errno"
 
@@ -12,7 +27,7 @@ enum ERRNO
     EACCES,               ; Permission denied
     EAGAIN,               ; Resource temporarily unavailable
     EALREADY,             ; Connection already in progress
-    EBADF,                ; Bad file descriptor
+    EBADF,                ; * Bad file descriptor
     EBADFD,               ; File descriptor in bad state
     EBADRQC,              ; Invalid request code
     EBUSY,                ; Device or resource busy
@@ -29,13 +44,13 @@ enum ERRNO
     EILSEQ,               ; Invalid sequence
     EINPROGRESS,          ; Operation in progress
     EINTR,                ; Interrupted
-    EINVAL,               ; Invalid argument
+    EINVAL,               ; * Invalid argument
     EIO,                  ; I/O error
     EISCONN,              ; Connection already in progress
     EISDIR,               ; Is a directory
     EMFILE,               ; Too many files
     EMSGSIZE,             ; Message too long
-    ENAMETOOLONG,         ; Filename too long
+    ENAMETOOLONG,         ; * Filename too long
     ENETDOWN,             ; Network down
     ENETRESET,            ; Network reset
     ENETUNREACH,          ; Network unreachable

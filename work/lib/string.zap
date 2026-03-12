@@ -1,5 +1,33 @@
-; string.zap
-; inspired by C string.h 
+; ============================================================
+; Module: string
+; File:   lib/string.zap
+; Platform: All
+; Depends:  errno, types
+;
+; Description:
+;   C string.h-inspired memory and string manipulation routines.
+;   All strings are null-terminated byte arrays.
+;   Functions that scan memory accept an explicit length or max limit.
+;
+; Exports (functions):
+;   func byte^  memchr  (byte^ ptr, const byte val, const word len)
+;   func byte   memcmp  (byte^ ptr1, byte^ ptr2, const word len)
+;   func byte   strlen  (byte^ ptr, const byte max=255)
+;   func byte   strncmp (byte^ str1, byte^ str2, const byte max)
+;   func byte^  strnchr (byte^ ptr, const byte val, const byte max)
+;
+; Exports (procedures):
+;   proc memcpy  (byte^ dst, byte^ src, const word len)
+;   proc memmove (byte^ dst, byte^ src, const word len)
+;   proc memset  (byte^ dst, const byte val, const word len)
+;   proc strncat (byte^ dst, byte^ src, const byte max)
+;   proc strncpy (byte^ dst, byte^ src, const byte max)
+;
+; Return value convention for comparison functions:
+;   0 = equal,  1 = first argument is larger,  2 = second is larger
+;
+; Status: Complete
+; ============================================================
 
 .module "string"
 
@@ -107,12 +135,30 @@ end
 /*
     Appends one string to the end of another
 */
-proc strncat(byte^ dst, byte^ src, const byte max)
+proc strncat(byte^ dst, byte^ src, byte max=255)
     byte i, m, v
 
-    m = strlen(dst)
+    
+    m = strlen(dst)    
+    putx(m)
+    puts(dst)
+
+    puts("\n")
+    puts(src)
+    m = strlen(src)
+    putx(m)
+    puts("-")
+    return
+    
+
+    max -= m
     dst += m
-    for i = m to max
+    putx(m)
+
+    m = strlen(src)  
+    putx(m)      
+    
+    for i = 0 to m
         v = src^
         dst^ = v
         if v == 0            
@@ -174,7 +220,7 @@ proc strncpy(byte^ dst, byte^ src, const byte max)
     byte i, v
 
     for i = 0 to max
-        v = dst^
+        v = src^
         dst^ = v
         if v == 0
             return

@@ -2,6 +2,46 @@
 
 ---
 
+## Fix: `return` on its own line consumed next statement as expression (2026-03-12)
+
+**Bug:** `return` (with no expression) followed by code on the next line caused a confusing parse error.
+The next line's identifier was consumed as the return expression, leaving the `+=`/`-=` operator stranded.
+Example: `return` then `max -= m` on the next line → `error: Expected identifier or '(' in assignment target` at `-=`.
+
+**Root cause:** `parse_stmt` RETURN handler (parser.py ~1615) checked only that the next token was not EOF/keyword, not whether it was on the same line. Any identifier on the following line was greedily consumed as the return expression.
+
+**Fix:** `parser.py` — added `self.cur.line == start_line` guard: expression is only parsed when it appears on the **same line** as `return`.
+
+**Test results:** 162 pass / 123 fail — all OK.
+
+---
+
+## Standard Library Documentation (2026-03-12)
+
+Added comprehensive documentation for all ZAP! standard library files in `work/lib/`.
+
+**New files:**
+- `DOC/STDLIB.md` — full API reference: all modules, exports, function signatures, return values, hardware register tables, usage examples, and implementation status matrix
+- `work/lib/README.md` — quick-reference index with module names, dependency graph, and summary API tables
+
+**Updated source files (inline header comments added):**
+- `work/lib/errno.zap` — module header with description and export list
+- `work/lib/types.zap` — module header with description and export list
+- `work/lib/string.zap` — module header with full export list and return-value convention note
+- `work/lib/stdio.zap` — module header explaining platform-conditional design
+- `work/lib/atari/atari_stdio.zap` — detailed module header listing all exported symbols with implementation status
+- `work/lib/atari/atari_gtia.zap` — hardware file header explaining dual read/write register model
+- `work/lib/atari/atari_pokey.zap` — hardware file header describing 4-channel audio model
+- `work/lib/atari/PIA.zap` — hardware file header describing PORTA/PORTB roles
+
+**Updated documentation files:**
+- `DOC/README.md` — added "Standard Library" section with module table and link to STDLIB.md
+- `DOC/ADVANCED_TOPICS.md` — added stdlib usage examples and reference to STDLIB.md in "Module System Deep Dive" section
+
+No compiler source files changed. Test count unchanged: 162 pass / 123 fail.
+
+---
+
 ## Precise identifier error positions (2026-03-12)
 
 **Problem:** Errors about undefined variables pointed to the start of the enclosing *statement* instead of the exact identifier token.

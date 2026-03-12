@@ -1,4 +1,21 @@
-; types.zap
+; ============================================================
+; Module: types
+; File:   lib/types.zap
+; Platform: All
+; Depends:  errno
+;
+; Description:
+;   Provides fundamental type definitions and file-I/O structures
+;   used throughout the standard library.
+;
+; Exports:
+;   enum BOOL           -- FALSE / TRUE
+;   struct FILE         -- open file handle (fd, error, eof)
+;   const word NULL     -- null pointer constant ($0000)
+;   const byte FILE_HANDLE_MAX -- maximum simultaneous open handles (4)
+;
+; Status: Complete
+; ============================================================
 
 .module "types"
 
@@ -25,14 +42,6 @@ const word NULL = $0000
 
 ; maximum number of open file handles
 const byte FILE_HANDLE_MAX = 4
-
-
-; Constants for fseek
-enum SEEK
-    SEEK_SET = 0
-    SEEK_CUR = 1
-    SEEK_END = 2
-end
 
 
 ; EOF

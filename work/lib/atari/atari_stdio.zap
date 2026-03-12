@@ -1,4 +1,67 @@
-; atari_stdio.zap
+; ============================================================
+; Module: atari_stdio
+; File:   lib/atari/atari_stdio.zap
+; Platform: Atari 400/800/XL/XE  (6502/65C02)
+; Depends:  errno, types, string
+;
+; Description:
+;   Complete Atari 8-bit I/O library.  Provides:
+;     - Direct-mapped text-mode screen output (40x24)
+;     - Keyboard input with blinking cursor and full-line editing
+;     - File and device I/O via the Atari CIO subsystem (IOCB channels)
+;   Critical inner loops use inline 6502 assembly for performance.
+;
+;   Normally included indirectly through stdio.zap when -D ATARI is
+;   defined.  Can also be included directly if needed.
+;
+;   Compile-time option:
+;     .define DEBUG_CIO  -- prints CIO call parameters and status to screen
+;
+; Exports (screen output):
+;   proc cls()                                      -- clear screen
+;   proc putchar(byte ch)                           -- print one character
+;   proc puts(byte^ str)                            -- print null-terminated string
+;   proc crlf()                                     -- newline + scroll
+;   proc gotoxy(byte x, byte y)                     -- move cursor
+;   proc cursor_on()                                -- show cursor (inverse video)
+;   proc cursor_off()                               -- hide cursor
+;   proc putx(byte value)                           -- print byte as 2 hex digits
+;   proc printb(byte arg, lzero=1, ralign=1)        -- print byte as decimal
+;   func byte ascii_to_screen(byte ch)              -- ATASCII → screen code
+;
+; Exports (keyboard input):
+;   func byte getchar()                             -- wait for key press
+;   func byte getc()                                -- alias for getchar
+;   func byte getcblink()                           -- wait with blinking cursor
+;   func byte gets(byte^ buf, byte max_len)         -- read edited input line
+;   proc delay(byte delay)                          -- wait N vertical blanks
+;
+; Exports (file I/O — CIO based):
+;   func byte  fopen  (FILE^ fd, byte^ filename, byte mode)   IMPLEMENTED
+;   func ERRNO fclose (FILE^ fd)                              IMPLEMENTED
+;   func word  fwrite (FILE^ fd, byte^ buffer, word size)     IMPLEMENTED
+;   func BOOL  feof   (FILE^ fd)                              IMPLEMENTED
+;   func ERRNO ferror (FILE^ fd)                              IMPLEMENTED
+;   func word  fread  (...)                                   TODO
+;   func byte  fgetc  (...)                                   TODO
+;   func byte  fputc  (...)                                   TODO
+;   func ERRNO rename (...)                                   TODO
+;   func ERRNO remove (...)                                   TODO
+;   func byte  fprintf(...)                                   TODO
+;   func byte  fputs  (...)                                   TODO
+;   func byte  fscanf (...)                                   TODO
+;
+; Exports (hardware / CIO):
+;   struct IOCB_Block          -- CIO channel control block layout
+;   IOCB_Block IOCB[8] @$0340  -- 8 CIO channels
+;   enum ICCOM_COMMANDS        -- CIO command codes
+;   enum ICAX1_Mode            -- file access modes (DOS 2.0)
+;   byte KBHIT @764            -- keyboard status register
+;   byte TIMER @20             -- vertical blank counter
+;   const ATARI_KEY_*          -- ATASCII key code constants
+;
+; Status: Partial (screen/keyboard complete; file I/O partial; formatted I/O TODO)
+; ============================================================
 
 .module "atari_stdio"
 
@@ -8,38 +71,6 @@
 .include "../string.zap"
 
 .define DEBUG_CIO
-
-/*
-    * cls       vyčištění obrazovky
-  
-    * getchar	zadání jednoho znaku ze stdin
-    * getc	    čtení jednoho znaku ze souboru
-    * gets	    vstup ze stdin (bez formátování)
-    * putchar	výstup jednoho znaku do stdout
-    * puts	    výstup řetězce do stdout
-    * fopen	    otevření souboru
-    * fclose	zavření souboru
-    * ferror	při chybě program vrací, že návratová hodnota se nerovná 0
-    * feof	    kontrola, zda byl dosažen EOF (End-Of-File) souboru
-    * rename	přejmenování souboru
-    * remove	mazání souboru
-    * fseek	    pohybování kurzorem v souboru
-    * ftell	    zjištění aktuální pozice kurzoru v souboru
-    * fread	    čtení dat ze souboru
-    * fwrite	zápis dat do souboru
-    * fgetc     čtení jednoho znaku ze souboru
-    * fputc     zápis jednoho znaku do souboru
-    * fgets	    čtení řádku ze souboru
-    * fprintf	zápis formátovaného řetězce do souboru
-    * fputs	    zápis řádku do souboru
-    * fscanf	čtení formátovaného řetězce ze souboru
-    * printf	výstup formátovaného řetězce do stdout
-    * snprintf	zápis formátovaného řetězce do char pole (bezpečné)
-    * sprintf	zápis formátovaného řetězce do char pole
-    * sscanf	čtení formátovaného řetězce ze char pole
-*/
-
-
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40
@@ -68,7 +99,7 @@ const byte ATARI_KEY_ESCAPE         = $1B
 
 
 byte kbcode @$D209
-byte scr1 @40000
+
 
 ; IOCB 
 struct IOCB_Block
@@ -100,6 +131,9 @@ enum ICCOM_COMMANDS
     GetRec      = $05
     PutRec      = $09
     Status      = $0D
+    ; DOS 2.5 commands
+    Rename      = $20
+    Delete      = $21    
 end
 
 enum ICAX1_Mode
@@ -139,13 +173,12 @@ proc atari_file_data_area() #keep #noexport
         .import __RAM_START__, __BSS_LOAD__
         .word $FFFF     		; first block marker
         .word __RAM_START__		; RUN address
-        .word __BSS_LOAD__ - 1   	; last byte  
+        .word __BSS_LOAD__ - 1 	; last byte  
     end
 
     .ifdef AUTOSTART
     asm
         .segment "AUTOSTRT" 
-        ;.word   $02e0, $02e1, $4000 ; _MAIN
         .word   $02e2, $02e3, $4000 ; _MAIN
     end
     .endif
@@ -341,20 +374,6 @@ proc putchar(byte ch)
             crlf()
         end
     end
-end
-
-
-/*
-    putbkspc - print backspace to the screen
-*/
-proc putbkspc()
-
-    if cur_xpos > 0
-        cur_xpos -= 1                    
-        curptr -= 1
-        curptr^ = 0
-    end
-    
 end
 
 
@@ -610,7 +629,7 @@ proc checkeof(FILE ^fd, byte errno) #noexport
 
     if errno == 136
         fd^.eof = BOOL.TRUE
-    else
+    elseif errno == 1
         fd^.eof = BOOL.FALSE
     end
 end
@@ -683,7 +702,7 @@ end
     feof - check for end of file
 */
 func BOOL feof(FILE^ fd)
-    ; TODO: implement end of file checking  
+
     if fd == NULL
         return ERRNO.EBADF
     end     
@@ -693,15 +712,28 @@ end
 
 
 /*
-    rename - rename file
+    rename - rename file    
 */
-func ERRNO rename(FILE^ fd, const byte ^oldname, const byte ^newname)
-    ; TODO: implement file renaming  
+func ERRNO rename(FILE^ fd, const byte^ oldname, const byte^ newname)
+    byte name[64]
+    byte len, rv
+
+    
     if fd == NULL
         return ERRNO.EBADF
     end 
-    set_fderror(fd, ERRNO.ENODEV)
-    return fd^.error
+    len = strlen(oldname) + strlen(newname) + 1
+    if len > 63
+        return ERRNO.ENAMETOOLONG
+    end
+    strncpy(name, oldname, 63)    
+    strncat(name, ",", 63)
+    strncat(name, newname, 63)
+        
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.Rename, name)
+    set_fderror(fd, rv)
+
+    return rv
 end
 
 
@@ -709,46 +741,18 @@ end
     remove - remove file
 */
 func ERRNO remove(byte^ filename)
-    ; TODO: implement file removal  
+    byte rv
+
     if filename == NULL
         return ERRNO.EBADF
     end 
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.Delete, filename)
+    set_fderror(fd, rv)
+    return rv
     
     return ERRNO.ENODEV
 end
 
-
-/*
-    fseek - seek in file
-*/
-func ERRNO fseek(FILE^ fd, long offset, byte whence)
-    ; TODO: implement file seeking  
-    if fd == NULL
-        return ERRNO.EBADF
-    end
-    set_fderror(fd, ERRNO.ENODEV)
-    return fd^.error
-end
-
-
-/*
-    ftell - tell file position
-*/
-func long ftell(FILE^ fd)
-    ; TODO: implement file position telling  
-    if fd == NULL
-        return 0
-    end 
-    return 0
-end
-
-
-/*
-    rewind - move file cursor to the beginning of the file
-*/
-func ERRNO rewind(FILE^ fd)
-    return fseek(fd, 0, SEEK_SET)
-end
 
 
 /*

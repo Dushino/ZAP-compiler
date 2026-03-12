@@ -11,9 +11,7 @@
 .include "lib/atari/atari_gtia.zap"
 
 
-
 const byte Text1[] = "Hello!"
-; const byte FName[] = "D1:TEST.TXT\x9b"
 const byte FName[] = "D1:TEST.TXT"
 
 
@@ -21,15 +19,33 @@ proc main()
 
     byte rv
     FILE fd
+    byte oldname[] = "D1:TEST.TXT"
+    byte newname[] = "NEWN.ABC"
+    byte name[64]
         
-    puts("Open:  ")    
-    rv = fopen(@fd, FName, ICAX1_Mode.Write)  
+    ;puts("Open:  ")    
+    ;rv = fopen(@fd, FName, ICAX1_Mode.Write)  
     
-    puts("Write: ")
-    rv = fwrite(@fd, Text1, strlen(Text1))
+    ;puts("Write: ")
+    ;rv = fwrite(@fd, Text1, strlen(Text1))
     
-    puts("Close: ")
-    fclose(@fd)
+    ;puts("Rename:")
+    ;rv = rename(@fd, FName, "ABC.ABC")
+
+    ;puts("Close: ")
+    ;fclose(@fd)
+
+    name[0] = 0
+    strncpy(name, oldname, 63)
+    puts("\n")
+    
+    strncat(name, ",", 63)
+    puts("\n")
+
+    ;strncat(name, newname, 63)
+    ;puts(name)
+    ;puts("\n")
+
     
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end

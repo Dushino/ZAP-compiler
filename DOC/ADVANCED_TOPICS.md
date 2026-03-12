@@ -1190,6 +1190,42 @@ func byte func_b() ... end
 .include "b.zaplib"
 ```
 
+### Standard Library Modules
+
+ZAP! ships with a ready-to-use standard library in `work/lib/`. Include the modules you need:
+
+```zap
+.include "string.zap"    ; memcpy, memset, strlen, strncmp, …
+.include "stdio.zap"     ; puts, putchar, getchar, fopen, fwrite, …
+```
+
+The `stdio` module uses conditional compilation to select the right platform backend:
+
+```
+-D ATARI  →  lib/atari/atari_stdio.zap  (screen + CIO file I/O)
+-D SBC    →  lib/sbc/sbc_stdio.zap      (not yet implemented)
+```
+
+Standard library dependency tree:
+
+```
+errno  ←  types  ←  string
+                        ↑
+errno  ←  types  ←  stdio  ←  [ATARI]  atari_stdio
+```
+
+For hardware register access, include the chip definition files directly:
+
+```zap
+.include "atari/atari_gtia.zap"    ; GTIA: sprites, color, collision ($D000)
+.include "atari/atari_pokey.zap"   ; POKEY: sound, keyboard, paddles ($D200)
+.include "atari/PIA.zap"           ; PIA: parallel I/O, joystick dirs ($D300)
+```
+
+These files have no `.module` declaration — they are plain include files with no module name.
+
+See [STDLIB.md](STDLIB.md) for the complete API reference.
+
 ---
 
 ## Performance Profiling
