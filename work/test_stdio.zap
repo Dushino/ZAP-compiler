@@ -29,12 +29,15 @@ proc main()
     puts("Write: ")
     rv = fwrite(@fd, Text1, strlen(Text1))
     
-    puts("Rename:")
-    rv = rename(@fd, FName, "ABC.ABC")
-
     puts("Close: ")
     fclose(@fd)
-    
+
+    ; puts("Rename:")
+    ; rv = rename(FName, newname)
+
+    puts("Remove")
+    rv = remove(FName)
+
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end
 

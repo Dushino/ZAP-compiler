@@ -553,9 +553,9 @@ end
 func byte find_free_IOCB()
     byte i
 
-    for i = 3 to 8        
+    for i = 1 to 8        
         
-        if IOCB[i].ICHID == 255
+        if IOCB[i].ICHID == 255            
             return i
         end
     end    
@@ -714,25 +714,28 @@ end
 /*
     rename - rename file    
 */
-func ERRNO rename(FILE^ fd, const byte^ oldname, const byte^ newname)
+func ERRNO rename(const byte^ oldname, const byte^ newname)
     byte name[64]
     byte len, rv
+    byte id
 
-    
-    if fd == NULL
-        return ERRNO.EBADF
-    end 
+    id = find_free_IOCB()
+    if id == 255
+        return ERRNO.EINVAL
+    end
     len = strlen(oldname) + strlen(newname) + 1
+    
     if len > 63
         return ERRNO.ENAMETOOLONG
     end
+    
     strncpy(name, oldname, 63)    
     strncat(name, ",", 63)
     strncat(name, newname, 63)
+    
+    CIO(id, ICCOM_COMMANDS.Close)
+    rv = CIO(id, ICCOM_COMMANDS.Rename, name)
         
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.Rename, name)
-    set_fderror(fd, rv)
-
     return rv
 end
 
@@ -742,15 +745,17 @@ end
 */
 func ERRNO remove(byte^ filename)
     byte rv
+    byte id
 
-    if filename == NULL
-        return ERRNO.EBADF
-    end 
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.Delete, filename)
-    set_fderror(fd, rv)
-    return rv
+    id = find_free_IOCB()
+    if id == 255
+        return ERRNO.EINVAL
+    end
     
-    return ERRNO.ENODEV
+    CIO(id, ICCOM_COMMANDS.Close)    
+    rv = CIO(id, ICCOM_COMMANDS.Delete, filename)
+
+    return rv
 end
 
 

@@ -142,6 +142,8 @@ proc strncat(byte^ dst, byte^ src, byte max=255)
     m = strlen(dst)
     dst += m
 
+    m = strlen(src)
+
     for i = 0 to m
         v = src^
         dst^ = v        
@@ -151,7 +153,7 @@ proc strncat(byte^ dst, byte^ src, byte max=255)
         dst += 1
         src += 1
     end   
-    puts("!\n") 
+
 end
 
 

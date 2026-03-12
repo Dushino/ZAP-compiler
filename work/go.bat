@@ -6,7 +6,8 @@ del *.xex
 rem python ..\compiler.py 
 rem exit /b
 
-python ..\compiler.py -O1 -I lib -6502 -SEGC CODE -D AUTOSTART -o test_stdio.s test_stdio.zap || exit /b
+python ..\compiler.py -O1 -I lib -6502 -o test_stdio.s test_stdio.zap || exit /b
+rem python ..\compiler.py -O1 -I lib -6502 -SEGC CODE -D AUTOSTART -o test_stdio.s test_stdio.zap || exit /b
 ca65 test_stdio.s -o test_stdio.o  || exit /b
 rem ld65 -C ..\cfg\my_atari.cfg  -m test_stdio.map test_stdio.o -o test_stdio.xex  || exit /b
 ld65 -C ..\cfg\my_atari.cfg  -m test_stdio.map test_stdio.o -o test_stdio.xex  || exit /b
