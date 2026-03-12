@@ -1610,12 +1610,17 @@ class Parser:
                 start_line: int = self.cur.line
                 start_col: int = self.cur.col
                 self.advance()
-                # Expression is optional for PROCs
+                # Expression is optional for PROCs.
+                # Only parse it if it is on the SAME LINE as 'return' — this prevents
+                # the next line's statement from being mistaken for a return expression
+                # when 'return' appears on a line by itself (e.g. early return in a loop).
                 expr = None
-                if self.cur.type not in (TOK_EOF, TOK_KEYWORD) or (
-                    self.cur.type == TOK_KEYWORD and self.cur.value not in ("END", "ELSE", "ELSEIF", "ENDIF")
+                if self.cur.line == start_line and (
+                    self.cur.type not in (TOK_EOF, TOK_KEYWORD) or (
+                        self.cur.type == TOK_KEYWORD and self.cur.value not in ("END", "ELSE", "ELSEIF", "ENDIF")
+                    )
                 ):
-                    # There's something after RETURN that looks like an expression
+                    # There's something after RETURN on the same line that looks like an expression
                     if self.cur.type not in (TOK_KEYWORD,):
                         expr = self.parse_expr()
                 node = ReturnStmt(expr, line=start_line, col=start_col, filename=self.filename)
