@@ -5685,13 +5685,13 @@ class CodeGen:
                             self.emit(f"\tSBC {y_asm}")
                         self.emit(f"\tSTA {dest_asm}")
                         
-                        self.emit(f"\tLDA {x_asm}+1")
+                        self.emit(f"\tLDA {self._sym_operand(x_sym, low_byte=False)}")
                         if left_expr.op == BinOp.ADD:
-                            self.emit(f"\tADC {y_asm}+1")
+                            self.emit(f"\tADC {self._sym_operand(y_sym, low_byte=False)}")
                         else:  # SUB
-                            self.emit(f"\tSBC {y_asm}+1")
+                            self.emit(f"\tSBC {self._sym_operand(y_sym, low_byte=False)}")
                         self.emit(f"\tSTA {dest_asm}+1")
-                        
+
                         # Step 2: Apply outer operation with immediate to destination
                         if expr.op == BinOp.ADD:
                             # dest = dest + imm
@@ -6271,7 +6271,9 @@ class CodeGen:
         For const scalars emits immediate operand using the assembler constant
         (e.g., '#_NAME' or '#<_NAME'/'#>_NAME' for word low/high).
         For variables emits memory operand ('_NAME' or '_NAME+1' for high byte).
+        For BYTE non-pointer variables, the high byte is always '#$00'.
         """
+        is_16bit = sym.type.base in ("WORD", "LONG") or sym.type.is_pointer
         if sym.is_const:
             # Const scalars/bytes
             if sym.type.base == "WORD" or sym.type.is_pointer:
@@ -6282,6 +6284,9 @@ class CodeGen:
                 return f"#{sym.asm_name()}"
         else:
             # Non-const: memory operand
+            if not low_byte and not is_16bit:
+                # BYTE variable has no high byte — logical value is 0
+                return "#$00"
             return f"{sym.asm_name()}" + ("" if low_byte else "+1")
 
     def _simple_byte_operand(self, rhs: 'Expr', is_16bit: bool) -> 'str | None':
@@ -11246,13 +11251,13 @@ class CodeGen:
                                 self.emit(f"\tSBC {y_asm}")
                             self.emit(f"\tSTA {asm}")
                             
-                            self.emit(f"\tLDA {x_asm}+1")
+                            self.emit(f"\tLDA {self._sym_operand(x_sym, low_byte=False)}")
                             if left_expr.op == BinOp.ADD:
-                                self.emit(f"\tADC {y_asm}+1")
+                                self.emit(f"\tADC {self._sym_operand(y_sym, low_byte=False)}")
                             else:  # SUB
-                                self.emit(f"\tSBC {y_asm}+1")
+                                self.emit(f"\tSBC {self._sym_operand(y_sym, low_byte=False)}")
                             self.emit(f"\tSTA {asm}+1")
-                            
+
                             # Step 2: Apply outer operation with immediate to destination
                             if rhs.op == BinOp.ADD:
                                 # dest = dest + imm

@@ -44,7 +44,12 @@
 			"path": "work/lib/string.zap",
 			"bookmarks": [
 				{
-					"line": 197,
+					"line": 141,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 182,
 					"column": 0,
 					"label": ""
 				}

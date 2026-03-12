@@ -22,30 +22,18 @@ proc main()
     byte oldname[] = "D1:TEST.TXT"
     byte newname[] = "NEWN.ABC"
     byte name[64]
-        
-    ;puts("Open:  ")    
-    ;rv = fopen(@fd, FName, ICAX1_Mode.Write)  
+            
+    puts("Open:  ")    
+    rv = fopen(@fd, FName, ICAX1_Mode.Write)  
     
-    ;puts("Write: ")
-    ;rv = fwrite(@fd, Text1, strlen(Text1))
+    puts("Write: ")
+    rv = fwrite(@fd, Text1, strlen(Text1))
     
-    ;puts("Rename:")
-    ;rv = rename(@fd, FName, "ABC.ABC")
+    puts("Rename:")
+    rv = rename(@fd, FName, "ABC.ABC")
 
-    ;puts("Close: ")
-    ;fclose(@fd)
-
-    name[0] = 0
-    strncpy(name, oldname, 63)
-    puts("\n")
-    
-    strncat(name, ",", 63)
-    puts("\n")
-
-    ;strncat(name, newname, 63)
-    ;puts(name)
-    ;puts("\n")
-
+    puts("Close: ")
+    fclose(@fd)
     
     COLOR4 = COLOR_MEDIUM_GREEN + 8
 end

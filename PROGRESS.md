@@ -2,6 +2,31 @@
 
 ---
 
+## Fix: `ptr += byte_var` high byte reads wrong memory (`ADC sym+1` for BYTE var) (2026-03-12)
+
+**Bug:** `dst += m` where `dst: byte^` and `m: byte` generated:
+```
+LDA _DST+1
+ADC _M+1    ← BUG: M is 1 byte wide, reads garbage
+STA _DST+1
+```
+
+**Root cause:** Three direct-memory optimization paths in `gen_assign` / var-init handlers assumed both operands of a `var1 + var2` expression were 16-bit. They used raw `sym+1` or `_sym_operand(sym, low_byte=False)` for the high byte of BYTE variables.
+
+- `_sym_operand(sym, low_byte=False)` returned `sym+1` unconditionally for non-const variables
+- Lines 5688-5692 (init chained add): raw `x_asm+1` / `y_asm+1` without type check
+- Lines 11249-11253 (assign chained add): same pattern
+- Lines 11120-11127 (assign direct var+var): used `_sym_operand` (now fixed via fix #1)
+
+**Fix:**
+1. `codegen_expr.py:_sym_operand` — when `low_byte=False` and sym is BYTE (non-pointer, non-WORD): return `"#$00"` instead of `sym+1`. BYTE variables have a logical high byte of 0; `ADC #$00` / `LDA #$00` correctly propagates the carry.
+2. Lines 5688-5692: replaced raw `x_asm+1` / `y_asm+1` with `self._sym_operand(x_sym/y_sym, low_byte=False)`.
+3. Lines 11249-11253: same replacement.
+
+**Test results:** 162 pass / 123 fail — all OK.
+
+---
+
 ## Fix: `ptr[i]` element width used pointer size instead of pointed-to type size (2026-03-12)
 
 **Bug:** `dst[3]` on `byte^ dst` computed offset `3*2=6` (WORD size) instead of `3*1=3` (BYTE size).

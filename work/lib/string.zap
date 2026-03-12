@@ -137,36 +137,21 @@ end
 */
 proc strncat(byte^ dst, byte^ src, byte max=255)
     byte i, m, v
+    byte^ ptr
 
-    
-    m = strlen(dst)    
-    putx(m)
-    puts(dst)
-
-    puts("\n")
-    puts(src)
-    m = strlen(src)
-    putx(m)
-    puts("-")
-    return
-    
-
-    max -= m
+    m = strlen(dst)
     dst += m
-    putx(m)
 
-    m = strlen(src)  
-    putx(m)      
-    
     for i = 0 to m
         v = src^
-        dst^ = v
-        if v == 0            
+        dst^ = v        
+        if v == 0                        
             return
         end
         dst += 1
         src += 1
-    end    
+    end   
+    puts("!\n") 
 end
 
 
@@ -234,14 +219,16 @@ end
 /*
     Return the length of a string
 */
-func byte strlen(byte ^ptr, const byte max=255)
+func byte strlen(byte^ ptr, const byte max=255)
 
-    byte i
+    byte i, val
 
     for i=0 to max
-        if ptr^ == 0
+        val = ptr^
+        if val == 0
             return i
         end
+        ptr += 1
     end
 
     return 0
