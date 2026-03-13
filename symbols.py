@@ -20,14 +20,16 @@ class StructFieldInfo:
     @property
     def width(self) -> int:
         """Width of this field in bytes"""
+        # Normalise to uppercase — sema.py stores base_type in uppercase ("BYTE", "WORD", …)
+        base = self.base_type.upper()
         # Calculate element width
         if self.is_pointer:
             elem_width = 2
-        elif self.base_type == "byte":
+        elif base == "BYTE":
             elem_width = 1
-        elif self.base_type == "word":
+        elif base == "WORD":
             elem_width = 2
-        elif self.base_type == "long":
+        elif base == "LONG":
             elem_width = 4
         else:
             # For struct types, will be calculated by StructRegistry

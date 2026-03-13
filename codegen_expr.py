@@ -4230,6 +4230,32 @@ class CodeGen:
         
         return (tuple(byte_values), False)
 
+    def _build_struct_init_layout(self, fields: list[StructFieldInfo]) -> list[tuple[int, int]]:
+        """Build (byte_offset, elem_width) list matching _flatten_init order for one struct.
+
+        One entry per init-value slot: scalar/pointer fields → one entry; array fields
+        expand to N entries; nested struct fields are recursively expanded.
+        Offsets are relative to the start of the struct.
+        """
+        layout: list[tuple[int, int]] = []
+        for fi in fields:
+            if fi.array_sizes:
+                total = 1
+                for s in fi.array_sizes:
+                    total *= s
+                ew: int = fi.width // total  # per-element width
+                for k in range(total):
+                    layout.append((fi.offset + k * ew, ew))
+            elif fi.is_pointer or fi.base_type.upper() in ("BYTE", "WORD", "LONG"):
+                layout.append((fi.offset, fi.width))
+            else:
+                # Nested struct field — recursively expand into constituent slots
+                nested = self.struct_registry.lookup(fi.base_type)
+                if nested:
+                    sub = self._build_struct_init_layout(nested.fields)
+                    layout.extend((fi.offset + off, w) for off, w in sub)
+        return layout
+
     def _gen_const_struct_copy(self, dst_sym, src_const_sym) -> None:
         """Generate code to copy const struct data from ROM to destination.
         
@@ -6359,100 +6385,81 @@ class CodeGen:
                     # Single struct: recursively flatten any nested ListInit values
                     _flatten_init(sym.init.values, flattened_values)
                 
-                # Now treat as a regular constant array of bytes/words
-                is_const_array: bool = all(isinstance(ex, IntLiteral) for ex in flattened_values)
-                
-                if not is_const_array:
-                    # Non-constant values
-                    for i, ex in enumerate(flattened_values):
-                        self.gen_expr(ex)
-                        # Calculate offset: (struct_index * struct_size) + field_offset
-                        field_offset: int = i % struct_size
-                        struct_index: int = i // struct_size
-                        base_offset: int = struct_index * struct_size + field_offset
-                        
-                        elem_offset: int = base_offset * 2 if sym.type.base == "WORD" else base_offset
-                        self.emit(f"\tSTA {sym.asm_name()}+{elem_offset}")
-                        if sym.type.base == "WORD":
-                            self.emit(f"\tSTX {sym.asm_name()}+{elem_offset}+1")
-                    return
-                
-                # Constant struct array - optimize with loop copy
-                values: list[int] = []
-                self._extract_const_values_from_listinit(sym.init, values)
-                
-                array_len: int = len(values)
-                is_word: bool = sym.type.base == "WORD"
+                # Use field layout to correctly handle mixed-width struct fields
+                # (byte, word, pointer, long) and array/nested sub-fields.
+                is_const: bool = all(isinstance(ex, IntLiteral) for ex in flattened_values)
                 dest_var: str = sym.asm_name()
-                
-                # Generate as regular array initialization
                 COPY_THRESHOLD = 8
-                
-                if array_len <= 2:
-                    # Inline for very short arrays
-                    for i, ex in enumerate(flattened_values):
-                        self.gen_expr(ex)
-                        elem_offset: int = i * 2 if is_word else i
-                        self.emit(f"\tSTA {dest_var}+{elem_offset}")
-                        if is_word:
-                            self.emit(f"\tSTX {dest_var}+{elem_offset}+1")
-                else:
-                    # Use loop for longer arrays
-                    data_key: tuple[tuple[int, ...], str] = (tuple(values), "WORD" if is_word else "BYTE")
-                    if data_key not in self.array_literals:
-                        self.array_id += 1
-                        self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
+                one_struct_layout: list[tuple[int, int]] = self._build_struct_init_layout(struct_info.fields)
+                num_elements: int = len(sym.init.values) if sym.is_array else 1
 
-                    arr_label = self.array_literals[data_key]
-                    elem_size: int = 2 if is_word else 1
-                    total_bytes: int = array_len * elem_size
+                if is_const:
+                    # Build the exact byte image of the struct(s) in memory order, then
+                    # emit it either inline (LDA #byte / STA dest+offset) or via COPY_BYTES.
+                    total_bytes_s: int = struct_size * num_elements
+                    byte_arr: list[int] = [0] * total_bytes_s
+                    slots_per_elem: int = len(one_struct_layout)
+                    for elem_idx in range(num_elements):
+                        base_s: int = elem_idx * struct_size
+                        for slot_idx, (off, width) in enumerate(one_struct_layout):
+                            iv = flattened_values[elem_idx * slots_per_elem + slot_idx]
+                            n: int = iv.value  # type: ignore[attr-defined]  # always IntLiteral
+                            byte_arr[base_s + off] = n & 0xFF
+                            if width >= 2:
+                                byte_arr[base_s + off + 1] = (n >> 8) & 0xFF
+                            if width >= 4:
+                                byte_arr[base_s + off + 2] = (n >> 16) & 0xFF
+                                byte_arr[base_s + off + 3] = (n >> 24) & 0xFF
 
-                    if total_bytes > 255:
-                        # Large struct array: use 16-bit copy routine
-                        self.copy_bytes16_needed = True
-                        self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} elements, {total_bytes} bytes)")
-                        self.emit(f"\tLDA #<{arr_label}")
-                        self.emit(f"\tLDX #>{arr_label}")
-                        self.emit("\tSTA TMP0")
-                        self.emit("\tSTX TMP0+1")
-                        self.emit(f"\tLDA #<{dest_var}")
-                        self.emit(f"\tLDX #>{dest_var}")
-                        self.emit("\tSTA TMP2")
-                        self.emit("\tSTX TMP2+1")
-                        self.emit(f"\tLDA #${total_bytes & 0xFF:02X}")
-                        self.emit("\tSTA TMP4")
-                        self.emit(f"\tLDA #${(total_bytes >> 8) & 0xFF:02X}")
-                        self.emit("\tSTA TMP4+1")
-                        self.emit("\tJSR COPY_BYTES16")
-                    elif total_bytes > COPY_THRESHOLD:
-                        # Medium struct array (9-255 bytes): use shared 8-bit copy routine
-                        self.copy_bytes_needed = True
-                        self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
-                        self.emit(f"\tLDA #<{arr_label}")
-                        self.emit(f"\tLDX #>{arr_label}")
-                        self.emit("\tSTA TMP0")
-                        self.emit("\tSTX TMP0+1")
-                        self.emit(f"\tLDA #<{dest_var}")
-                        self.emit(f"\tLDX #>{dest_var}")
-                        self.emit("\tSTA TMP2")
-                        self.emit("\tSTX TMP2+1")
-                        self.emit(f"\tLDX #{total_bytes}")
-                        self.emit("\tJSR COPY_BYTES")
+                    if total_bytes_s <= COPY_THRESHOLD:
+                        # Inline: LDA #byte / STA dest+offset for every byte
+                        for byte_offset, byte_val in enumerate(byte_arr):
+                            self.emit(f"\tLDA #${byte_val:02X}")
+                            self.emit(f"\tSTA {dest_var}+{byte_offset}")
                     else:
-                        # Small struct array (3-8 bytes): inline indexed loop
-                        self.emit(f"\t; Copy struct array [{', '.join(str(v) for v in values[:10])}{'...' if len(values) > 10 else ''}] ({array_len} bytes)")
-                        self.emit(f"\tLDX #$00")
-                        copy_loop: str = self.new_label("ARR_COPY")
-                        self.emit(f"{copy_loop}:")
-                        self.emit(f"\tLDA {arr_label},X")
-                        self.emit(f"\tSTA {dest_var},X")
-                        if is_word:
-                            self.emit(f"\tLDA {arr_label}+1,X")
-                            self.emit(f"\tSTA {dest_var}+1,X")
-                            self.emit(f"\tINX")
-                        self.emit(f"\tINX")
-                        self.emit(f"\tCPX #{total_bytes}")
-                        self.emit(f"\tBNE {copy_loop}")
+                        data_key: tuple[tuple[int, ...], str] = (tuple(byte_arr), "BYTE")
+                        if data_key not in self.array_literals:
+                            self.array_id += 1
+                            self.array_literals[data_key] = f"__ARRAY_DATA_{self.array_id}"
+                        arr_label: str = self.array_literals[data_key]
+                        if total_bytes_s <= 255:
+                            self.copy_bytes_needed = True
+                            self.emit(f"\tLDA #<{arr_label}")
+                            self.emit(f"\tLDX #>{arr_label}")
+                            self.emit("\tSTA TMP0")
+                            self.emit("\tSTX TMP0+1")
+                            self.emit(f"\tLDA #<{dest_var}")
+                            self.emit(f"\tLDX #>{dest_var}")
+                            self.emit("\tSTA TMP2")
+                            self.emit("\tSTX TMP2+1")
+                            self.emit(f"\tLDX #{total_bytes_s}")
+                            self.emit("\tJSR COPY_BYTES")
+                        else:
+                            self.copy_bytes16_needed = True
+                            self.emit(f"\tLDA #<{arr_label}")
+                            self.emit(f"\tLDX #>{arr_label}")
+                            self.emit("\tSTA TMP0")
+                            self.emit("\tSTX TMP0+1")
+                            self.emit(f"\tLDA #<{dest_var}")
+                            self.emit(f"\tLDX #>{dest_var}")
+                            self.emit("\tSTA TMP2")
+                            self.emit("\tSTX TMP2+1")
+                            self.emit(f"\tLDA #${total_bytes_s & 0xFF:02X}")
+                            self.emit("\tSTA TMP4")
+                            self.emit(f"\tLDA #${(total_bytes_s >> 8) & 0xFF:02X}")
+                            self.emit("\tSTA TMP4+1")
+                            self.emit("\tJSR COPY_BYTES16")
+                else:
+                    # Non-const: gen_expr per slot, store using actual field offsets/widths.
+                    # gen_expr leaves low byte in A and (for WORD/pointer) high byte in X.
+                    full_layout: list[tuple[int, int]] = []
+                    for k in range(num_elements):
+                        full_layout.extend((struct_size * k + off, w) for off, w in one_struct_layout)
+                    for ex, (offset, width) in zip(flattened_values, full_layout):
+                        self.gen_expr(ex)
+                        self.emit(f"\tSTA {dest_var}+{offset}")
+                        if width >= 2:
+                            self.emit(f"\tSTX {dest_var}+{offset+1}")
                 return
             
             # Regular (non-struct) array

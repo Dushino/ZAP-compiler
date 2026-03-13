@@ -2,6 +2,22 @@
 
 ---
 
+## Bug Fix: Struct WORD/pointer field initialisation (2026-03-13)
+
+Two related bugs fixed:
+
+1. **`symbols.py` `StructFieldInfo.width` property** — compared `self.base_type` with lowercase literals (`"byte"`, `"word"`, `"long"`) but `sema.py` stores `base_type` in uppercase (`"BYTE"`, `"WORD"`, `"LONG"`). Result: `fi.width` always returned 0 for primitive-type fields. Fixed: normalise to uppercase via `base = self.base_type.upper()` before comparisons.
+
+2. **`codegen_expr.py` struct `ListInit` codegen** — the `if is_struct_type` branch in `gen_init()` used `sym.type.base == "WORD"` (always False for struct types) to decide whether to store the high byte. This meant WORD and pointer fields in structs only had their low byte written during initialisation.
+
+**Fix**: replaced the entire struct `ListInit` path with layout-aware codegen using new helper `_build_struct_init_layout(fields)`. For const initialisers emits `LDA #byte / STA dest+offset` per byte. For non-const uses `gen_expr + STA/STX` per field with correct widths. Handles byte, word, pointer, long, array sub-fields, nested structs. Removes spurious `LDX #$00` before byte-field stores.
+
+**Test `177-struct-pointer-fields`** updated: `Target` struct now has `{ byte val1; word wval; byte val2 }`. `$9C45=01` (wval high byte) and `read_wval @$9C54=$2C $01` verify the fix.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimization: Register Transfer Instead of Immediate Reload (2026-03-13)
 
 Third-pass peephole `_replace_imm_load_with_transfer()` added to `codegen_expr.py`.

@@ -118,12 +118,12 @@
 - **RETBUF (struct-returning func return buffer)**: symbols added to global_symtab BEFORE `prune_unused()`, which then removed them. Fixed: move RETBUF generation to AFTER `prune_unused()` in `compiler_pipeline.py`.
 - **Bare array identifier ExprType**: `sema_expr.py:50-61` — for `sym.is_array`, always returns `is_pointer=True` in ExprType (correct for ADDR kind). All array copy code must check `sym.type.is_struct` (Symbol's own type), NOT `lhs_t.sem_type.is_struct`.
 
-## Struct pointer fields (2026-03-13)
+## Struct pointer fields + word-field init fix (2026-03-13)
 - Pointer fields (`byte^`, `word^`, `long^`, struct pointers) are **fully supported** in struct definitions
-- All layers implemented: parser, sema, codegen, type checking — no code changes needed
 - `DOC/ZAP_LANGUAGE_REFERENCE.md` updated: pointer types added to field list; "Pointer Fields" subsection added
-- Regression test: `tests/pass/177-struct-pointer-fields` (all 4 variants pass)
-- **Known bug (unfixed)**: Struct WORD field init emits `LDA #lo; LDX #hi; STA addr` but omits `STX addr+1` → high byte never stored. Only low byte initialized. Needs separate fix.
+- Regression test: `tests/pass/177-struct-pointer-fields` — `Target { byte val1; word wval; byte val2 }` verifies the word-field init fix; all 4 variants pass
+- **Bug fixed (symbols.py)**: `StructFieldInfo.width` property compared lowercase but `base_type` is stored uppercase → returned 0 for all primitive fields; fixed with `.upper()` normalisation
+- **Bug fixed (codegen_expr.py)**: struct `ListInit` codegen used `sym.type.base == "WORD"` (always False for struct types) → WORD/pointer fields only stored low byte; replaced with `_build_struct_init_layout(fields)` helper that uses actual `(offset, width)` per field; const path emits `LDA #byte / STA dest+offset` per byte (user-requested pattern); removes spurious `LDX #$00` for byte fields
 
 ## Known fixed bugs
 - `codegen_expr.py` (was ~5168): `val & 0xFFFF` mask before LONG init was removed — it truncated bytes 2-3 for values > 65535
