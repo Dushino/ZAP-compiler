@@ -18,6 +18,22 @@ Two related bugs fixed:
 
 ---
 
+## Optimization: Transfer+Store → Direct Store (OPT-5) (2026-03-13)
+
+`_replace_transfer_sta_with_direct_store()` added to `codegen_expr.py` as fourth peephole pass.
+
+Forward: `TYA; STA addr(s)` → `STY addr(s)`, `TXA; STA addr(s)` → `STX addr(s)` — removes the transfer instruction (saves 1 byte + 2 cycles per group).
+
+Reverse: `TAX; STX addr(s)` → `STA addr(s)`, `TAY; STY addr(s)` → `STA addr(s)` — removes the transfer, keeps STA (saves 1 byte + 2 cycles).
+
+Safety conditions: (1) addressing mode compatible with STY/STX (no `,Y` for STY, no `,X` for STX, no indirect); (2) for forward direction, A must be dead after the STA block (next real instruction reloads A or is JMP). Reverse direction is always safe since TAX/TAY don't modify A.
+
+Confirmed 1 site in test_stdio.zap (fopen CIO zero-init block: `TYA; STA _CIO_LEN; STA _CIO_LEN+1; STA _CIO_AUX2; STA _CIO_AUX3`).
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimization: Register Transfer Instead of Immediate Reload (2026-03-13)
 
 Third-pass peephole `_replace_imm_load_with_transfer()` added to `codegen_expr.py`.

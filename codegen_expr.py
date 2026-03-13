@@ -1722,18 +1722,19 @@ class CodeGen:
         
         return True
 
-    def _emit_store_word_const(self, sym: Symbol, value: int) -> None:
-        """Emit store word const.
-        Internal helper used during code generation.
-        Group bytes by value (first-occurrence order) so lo==hi shares one LDA.
-        On 65C02 zero bytes use STZ (no LDA).
+    def _emit_const_bytes_to_addr(self, asm: str, value: int, n_bytes: int) -> None:
+        """Emit grouped LDA #byte / STA addr+N stores for a multi-byte constant.
+
+        Groups identical byte values (first-occurrence order) so that equal bytes
+        share one LDA.  On 65C02 zero bytes use STZ (no LDA).  Handles 1, 2, or 4
+        bytes.  The resulting code never uses LDX/STX so subsequent peephole passes
+        (OPT-3 / OPT-5) can eliminate redundant LDA instructions across adjacent stores.
         """
-        value &= 0xFFFF
-        asm: str = sym.asm_name()
-        _sw_grp: dict[int, list[int]] = {}
-        for _bi, _bv in enumerate([(value & 0xFF), (value >> 8) & 0xFF]):
-            _sw_grp.setdefault(_bv, []).append(_bi)
-        for _bv, _offsets in _sw_grp.items():
+        _grp: dict[int, list[int]] = {}
+        for _bi in range(n_bytes):
+            _bv = (value >> (_bi * 8)) & 0xFF
+            _grp.setdefault(_bv, []).append(_bi)
+        for _bv, _offsets in _grp.items():
             if _bv == 0 and self.is_65c02:
                 for _bi in _offsets:
                     _d = asm if _bi == 0 else f"{asm}+{_bi}"
@@ -1743,6 +1744,14 @@ class CodeGen:
                 for _bi in _offsets:
                     _d = asm if _bi == 0 else f"{asm}+{_bi}"
                     self.emit(f"\tSTA {_d}")
+
+    def _emit_store_word_const(self, sym: Symbol, value: int) -> None:
+        """Emit store word const.
+        Internal helper used during code generation.
+        Group bytes by value (first-occurrence order) so lo==hi shares one LDA.
+        On 65C02 zero bytes use STZ (no LDA).
+        """
+        self._emit_const_bytes_to_addr(sym.asm_name(), value & 0xFFFF, 2)
 
     def _emit_inc_word(self, asm: str) -> None:
         """Emit inc word.
@@ -3617,9 +3626,13 @@ class CodeGen:
         # between two identical LDA #imm loads (e.g. multiple STA/STX between them).
         optimized = self._eliminate_redundant_imm_lda(optimized)
 
-        # Third pass: replace LDx #imm with register transfer (TAX/TAY/TXA/TYA/TXY/TYX)
+        # Third pass: replace LDx #imm with register transfer (TAX/TAY/TXA/TYA)
         # when another register already holds the same immediate value.
         optimized = self._replace_imm_load_with_transfer(optimized)
+
+        # Fourth pass: replace TYA/TXA + STA* with STY/STX*, removing the transfer.
+        # Also handles reverse: TAX + STX* → STA*, TAY + STY* → STA*.
+        optimized = self._replace_transfer_sta_with_direct_store(optimized)
 
         self.code = optimized
 
@@ -3876,6 +3889,186 @@ class CodeGen:
             # STA/STX/STY/STZ/CPX/CPY/CMP/BIT/PH*/etc. don't change registers.
 
             result.append(line)
+
+        return result
+
+    def _replace_transfer_sta_with_direct_store(self, code: list[str]) -> list[str]:
+        """Fourth-pass peephole: replace register-transfer + STA block with direct STY/STX stores.
+
+        Forward patterns (removes the transfer instruction):
+          TYA; STA addr(s) → STY addr(s)   saves TYA (1 byte/2 cycles)
+          TXA; STA addr(s) → STX addr(s)   saves TXA
+        Reverse patterns (removes the transfer instruction, keeps STA):
+          TAX; STX addr(s) → STA addr(s)   saves TAX
+          TAY; STY addr(s) → STA addr(s)   saves TAY
+
+        Addressing constraints (6502/65C02):
+          STY: zp, zp+X, abs  — NOT abs+Y, abs+X, indirect
+          STX: zp, zp+Y, abs  — NOT abs+X, abs+Y, indirect
+          STA: all modes      — always a valid replacement for STX/STY
+
+        Safety condition: A must be dead after the last converted STA, i.e. the
+        first real instruction following the STA block must reload A (LDA, TXA, TYA,
+        PLA, or arithmetic that writes A) or be an unconditional jump (JMP/RTS/RTI).
+        Branches, JSR, and anything that might USE A before reloading it are rejected.
+        This check applies only to the TYA/TXA → STY/STX direction (A changes value).
+        For TAX/TAY → STA direction A is preserved so no liveness check is needed.
+        """
+        # Instructions that reload A completely (A is dead before these).
+        A_LOAD_MNEMONICS = {
+            "LDA", "TXA", "TYA", "PLA",
+            "ADC", "SBC", "AND", "ORA", "EOR",
+            "ASL", "LSR", "ROL", "ROR",   # accumulator form (operand empty or "A")
+        }
+        # Unconditional exits where A value is irrelevant.
+        UNCONDITIONAL_EXIT = {"JMP"}
+
+        def _is_transparent(s: str) -> bool:
+            """Return True for blank, comment, or equate lines (don't affect registers)."""
+            stripped = s.strip()
+            if not stripped or stripped.startswith(";"):
+                return True
+            code_part = stripped.split(";")[0].strip()
+            # Equate: symbol = value (no colon suffix, has '=')
+            return bool(code_part) and "=" in code_part and not code_part.endswith(":")
+
+        def _parse_mnemonic_operand(s: str) -> tuple[str, str]:
+            """Return (MNEMONIC, operand) for a non-transparent line."""
+            stripped = s.strip().split(";")[0].strip()
+            parts = stripped.split(None, 1)
+            return parts[0].upper(), (parts[1].strip() if len(parts) > 1 else "")
+
+        def _sty_compatible(operand: str) -> bool:
+            """True if STA operand is valid for STY (no ,Y and no indirect)."""
+            op = operand.upper()
+            return "(" not in op and not op.endswith(",Y")
+
+        def _stx_compatible(operand: str) -> bool:
+            """True if STA operand is valid for STX (no ,X and no indirect)."""
+            op = operand.upper()
+            return "(" not in op and not op.endswith(",X")
+
+        def _a_dead_after(code: list[str], idx: int) -> bool:
+            """Return True if A is definitely dead at position idx (first real instruction reloads A)."""
+            for j in range(idx, len(code)):
+                if _is_transparent(code[j]):
+                    continue
+                mn, op = _parse_mnemonic_operand(code[j])
+                if mn in A_LOAD_MNEMONICS:
+                    # For accumulator-form shift/inc/dec: check operand is empty or 'A'
+                    if mn in ("ASL", "LSR", "ROL", "ROR") and op not in ("", "A"):
+                        return False  # memory form: A not written
+                    return True
+                if mn in UNCONDITIONAL_EXIT:
+                    return True
+                # Label definition — conservatively stop
+                if code[j].strip().endswith(":") and " " not in code[j].strip().split(":")[0]:
+                    return False
+                return False
+            return True  # end of code: A is dead
+
+        result: list[str] = []
+        i = 0
+        while i < len(code):
+            line = code[i]
+            if _is_transparent(line):
+                result.append(line)
+                i += 1
+                continue
+
+            mn, op = _parse_mnemonic_operand(line)
+
+            # ---- Forward: TYA/TXA + STA* → STY/STX* ----
+            if mn in ("TYA", "TXA"):
+                direct_store = "STY" if mn == "TYA" else "STX"
+                compat_fn = _sty_compatible if mn == "TYA" else _stx_compatible
+                indent = line[: len(line) - len(line.lstrip())]
+
+                # Collect all consecutive STA lines (skip transparent lines between them).
+                sta_indices: list[int] = []
+                j = i + 1
+                while j < len(code):
+                    if _is_transparent(code[j]):
+                        j += 1
+                        continue
+                    mn_j, op_j = _parse_mnemonic_operand(code[j])
+                    if mn_j == "STA":
+                        sta_indices.append(j)
+                        j += 1
+                    else:
+                        break
+
+                if sta_indices:
+                    # Check addressing compatibility for ALL STA operands.
+                    all_compat = all(compat_fn(_parse_mnemonic_operand(code[k])[1])
+                                     for k in sta_indices)
+                    # Check A is dead after the last STA.
+                    a_dead = _a_dead_after(code, j)
+
+                    if all_compat and a_dead:
+                        # Skip the transfer instruction (consume it).
+                        i += 1
+                        # Emit remaining code, replacing STA with direct_store.
+                        # Transparent lines between the transfer and the first STA are kept.
+                        while i < j:
+                            if _is_transparent(code[i]):
+                                result.append(code[i])
+                            else:
+                                mn_i, op_i = _parse_mnemonic_operand(code[i])
+                                if mn_i == "STA":
+                                    ind = code[i][: len(code[i]) - len(code[i].lstrip())]
+                                    result.append(f"{ind}{direct_store} {op_i}\n")
+                                else:
+                                    result.append(code[i])
+                            i += 1
+                        continue
+
+                result.append(line)
+                i += 1
+                continue
+
+            # ---- Reverse: TAX + STX* → STA*, TAY + STY* → STA* ----
+            if mn in ("TAX", "TAY"):
+                source_store = "STX" if mn == "TAX" else "STY"
+
+                # Collect all consecutive STX/STY lines.
+                store_indices: list[int] = []
+                j = i + 1
+                while j < len(code):
+                    if _is_transparent(code[j]):
+                        j += 1
+                        continue
+                    mn_j, _ = _parse_mnemonic_operand(code[j])
+                    if mn_j == source_store:
+                        store_indices.append(j)
+                        j += 1
+                    else:
+                        break
+
+                if store_indices:
+                    # No addressing restriction — STA supports all modes.
+                    # No A-liveness check needed — A is unchanged (TAX/TAY don't modify A).
+                    # Skip the transfer instruction.
+                    i += 1
+                    while i < j:
+                        if _is_transparent(code[i]):
+                            result.append(code[i])
+                        else:
+                            mn_i, op_i = _parse_mnemonic_operand(code[i])
+                            if mn_i == source_store:
+                                ind = code[i][: len(code[i]) - len(code[i].lstrip())]
+                                result.append(f"{ind}STA {op_i}\n")
+                            else:
+                                result.append(code[i])
+                        i += 1
+                    continue
+
+                result.append(line)
+                i += 1
+                continue
+
+            result.append(line)
+            i += 1
 
         return result
 
@@ -11066,26 +11259,7 @@ class CodeGen:
                 if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
                     self._emit_store_byte_const(sym_lhs, rhs.value)
                 elif lhs_t.sem_type.base == "LONG":
-                    # Emit 4-byte store for LONG constant.
-                    # Group bytes by value (first-occurrence order) so each unique byte value
-                    # needs only one LDA, with all its STA destinations following it.
-                    # On 65C02, zero bytes use STZ instead (no LDA, preserving that group).
-                    val = rhs.value
-                    asm = sym_lhs.asm_name()
-                    _ga_grp: dict[int, list[int]] = {}
-                    for _bi in range(4):
-                        _bv: int = (val >> (_bi * 8)) & 0xFF
-                        _ga_grp.setdefault(_bv, []).append(_bi)
-                    for _bv, _offsets in _ga_grp.items():
-                        if _bv == 0 and self.is_65c02:
-                            for _bi in _offsets:
-                                _d = asm if _bi == 0 else f"{asm}+{_bi}"
-                                self.emit(f"\tSTZ {_d}")
-                        else:
-                            self.emit(f"\tLDA #${_bv:02X}")
-                            for _bi in _offsets:
-                                _d = asm if _bi == 0 else f"{asm}+{_bi}"
-                                self.emit(f"\tSTA {_d}")
+                    self._emit_const_bytes_to_addr(sym_lhs.asm_name(), rhs.value, 4)
                 else:
                     self._emit_store_word_const(sym_lhs, rhs.value)
                 return
@@ -12631,7 +12805,11 @@ class CodeGen:
                 continue
 
             if width == 4:
-                # LONG parameter: gen_expr puts result in MATH0 (4 bytes)
+                # LONG parameter: IntLiteral fast path avoids MATH0 round-trip.
+                if isinstance(arg, IntLiteral):
+                    self._emit_const_bytes_to_addr(asm, arg.value, 4)
+                    continue
+                # Non-constant: gen_expr puts result in MATH0 (4 bytes)
                 self.gen_expr(arg)
                 self.emit(f"\tLDA MATH0")
                 self.emit(f"\tSTA {asm}")
@@ -12641,6 +12819,13 @@ class CodeGen:
                 self.emit(f"\tSTA {asm}+2")
                 self.emit(f"\tLDA MATH0+3")
                 self.emit(f"\tSTA {asm}+3")
+                continue
+
+            # WORD / pointer parameter (width == 2)
+            # IntLiteral fast path: use grouped LDA/STA (no LDX/STX) for peephole
+            # optimizability — OPT-3 can then eliminate redundant LDA across adjacent stores.
+            if isinstance(arg, IntLiteral):
+                self._emit_const_bytes_to_addr(asm, arg.value, 2)
                 continue
 
             prev_force: bool = self.force_word_result
