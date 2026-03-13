@@ -3617,6 +3617,10 @@ class CodeGen:
         # between two identical LDA #imm loads (e.g. multiple STA/STX between them).
         optimized = self._eliminate_redundant_imm_lda(optimized)
 
+        # Third pass: replace LDx #imm with register transfer (TAX/TAY/TXA/TYA/TXY/TYX)
+        # when another register already holds the same immediate value.
+        optimized = self._replace_imm_load_with_transfer(optimized)
+
         self.code = optimized
 
     def _eliminate_redundant_imm_lda(self, code: list[str]) -> list[str]:
@@ -3709,6 +3713,168 @@ class CodeGen:
             # Everything else modifies A (TXA, TYA, PLA, ADC, SBC, AND, ORA, EOR,
             # accumulator shifts, LDA mem, etc.) — reset tracking.
             known_a = None
+            result.append(line)
+
+        return result
+
+    def _replace_imm_load_with_transfer(self, code: list[str]) -> list[str]:
+        """Third-pass peephole: replace LDx #imm with register transfer when source already holds same value.
+
+        Tracks known immediate values in A, X, Y.  When e.g. LDX #$00 is seen and A already
+        holds #$00, replace with TAX (1 byte, 2 cycles) instead of LDX #$00 (2 bytes, 2 cycles).
+
+        Supported transfers (all valid on both 6502 and 65C02):
+          A→X: TAX   A→Y: TAY
+          X→A: TXA   Y→A: TYA
+        X↔Y without A would require TXY/TYX (65C816 only) — those cases are not optimized.
+        """
+        # Control-flow mnemonics that invalidate register tracking.
+        CONTROL_FLOW_MNEMONICS = {
+            "JSR", "JMP", "RTS", "RTI",
+            "BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC", "BRA",
+        }
+        # Mnemonics that modify A (other than LDA).
+        A_MODIFYING = {
+            "TXA", "TYA", "PLA",
+            "ADC", "SBC", "AND", "ORA", "EOR",
+            "ASL", "LSR", "ROL", "ROR",  # accumulator form
+            "INC", "DEC",                 # accumulator form (65C02)
+        }
+        # Mnemonics that modify X (other than LDX).
+        X_MODIFYING = {"TAX", "TSX", "INX", "DEX", "PLX"}
+        # Mnemonics that modify Y (other than LDY).
+        Y_MODIFYING = {"TAY", "INY", "DEY", "PLY"}
+
+        def _parse_imm(operand: str) -> int | None:
+            """Parse an immediate operand string (#$xx / #%bb / #nn) to int, or None."""
+            if not operand.startswith("#"):
+                return None
+            imm_str = operand[1:]
+            try:
+                if imm_str.startswith("$"):
+                    return int(imm_str[1:], 16) & 0xFF
+                if imm_str.startswith("%"):
+                    return int(imm_str[1:], 2) & 0xFF
+                if imm_str.lstrip("-").isdigit():
+                    return int(imm_str) & 0xFF
+            except ValueError:
+                pass
+            return None
+
+        result: list[str] = []
+        known_a: int | None = None
+        known_x: int | None = None
+        known_y: int | None = None
+
+        for line in code:
+            stripped = line.strip()
+
+            # Blank / comment lines: keep as-is, don't disturb register tracking.
+            if not stripped or stripped.startswith(";"):
+                result.append(line)
+                continue
+
+            # Equate lines (symbol = value): transparent, don't affect registers.
+            code_part = stripped.split(";")[0].strip()
+            if code_part and "=" in code_part and not code_part.endswith(":"):
+                result.append(line)
+                continue
+
+            # Label definitions reset all register tracking.
+            if stripped.endswith(":") and " " not in stripped.split(":")[0]:
+                known_a = None
+                known_x = None
+                known_y = None
+                result.append(line)
+                continue
+
+            # Parse mnemonic and operand.
+            parts = stripped.split(None, 1)
+            mnemonic = parts[0].upper()
+            operand = parts[1].strip() if len(parts) > 1 else ""
+            indent = line[: len(line) - len(line.lstrip())]
+
+            # ---- LDA #imm ----
+            if mnemonic == "LDA":
+                imm_val = _parse_imm(operand)
+                if imm_val is not None:
+                    if known_x == imm_val:
+                        result.append(f"{indent}TXA\n")
+                        known_a = imm_val
+                        continue
+                    if known_y == imm_val:
+                        result.append(f"{indent}TYA\n")
+                        known_a = imm_val
+                        continue
+                    known_a = imm_val
+                else:
+                    known_a = None
+                result.append(line)
+                continue
+
+            # ---- LDX #imm ----
+            if mnemonic == "LDX":
+                imm_val = _parse_imm(operand)
+                if imm_val is not None:
+                    if known_a == imm_val:
+                        result.append(f"{indent}TAX\n")
+                        known_x = imm_val
+                        continue
+                    # No TYX on 6502/65C02 — skip X↔Y direct transfer
+                    known_x = imm_val
+                else:
+                    known_x = None
+                result.append(line)
+                continue
+
+            # ---- LDY #imm ----
+            if mnemonic == "LDY":
+                imm_val = _parse_imm(operand)
+                if imm_val is not None:
+                    if known_a == imm_val:
+                        result.append(f"{indent}TAY\n")
+                        known_y = imm_val
+                        continue
+                    # No TXY on 6502/65C02 — skip X↔Y direct transfer
+                    known_y = imm_val
+                else:
+                    known_y = None
+                result.append(line)
+                continue
+
+            # ---- Control flow: reset all known register values ----
+            if mnemonic in CONTROL_FLOW_MNEMONICS:
+                known_a = None
+                known_x = None
+                known_y = None
+                result.append(line)
+                continue
+
+            # ---- Update tracking for instructions that modify registers ----
+            # Transfer instructions: update the destination register.
+            if mnemonic == "TAX":
+                known_x = known_a
+            elif mnemonic == "TAY":
+                known_y = known_a
+            elif mnemonic == "TXA":
+                known_a = known_x
+            elif mnemonic == "TYA":
+                known_a = known_y
+            elif mnemonic == "TSX":
+                known_x = None  # stack pointer is unknown
+            elif mnemonic in A_MODIFYING:
+                # For memory operand ASL/LSR/ROL/ROR/INC/DEC, check accumulator form.
+                # If operand is empty or 'A', it's accumulator form.
+                if mnemonic in ("ASL", "LSR", "ROL", "ROR", "INC", "DEC") and operand not in ("", "A"):
+                    pass  # memory form: A unchanged
+                else:
+                    known_a = None
+            elif mnemonic in X_MODIFYING:
+                known_x = None
+            elif mnemonic in Y_MODIFYING:
+                known_y = None
+            # STA/STX/STY/STZ/CPX/CPY/CMP/BIT/PH*/etc. don't change registers.
+
             result.append(line)
 
         return result

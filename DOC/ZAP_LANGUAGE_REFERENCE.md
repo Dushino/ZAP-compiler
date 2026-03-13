@@ -2044,7 +2044,50 @@ end
   error: Struct 'BIGSTRUCT' is 256 bytes — maximum struct size is 255 bytes
   ```
 
-- Fields may be `byte`, `word`, `long`, nested struct types, or arrays of those types.
+- Fields may be `byte`, `word`, `long`, pointer types (`byte^`, `word^`, `long^`, or a pointer to any struct type), nested struct types, or arrays of those types.
+
+### Pointer Fields
+
+A struct field can hold the address of another variable or struct instance. The field occupies 2 bytes (a 16-bit address). All pointer operations — assignment of an address, dereferencing, and field access through a pointer — work exactly as they do for standalone pointer variables.
+
+```zap
+struct Target
+    byte  val
+    word  wval
+end
+
+struct Holder
+    byte^   bptr    ; pointer to a byte variable
+    word^   wptr    ; pointer to a word variable
+    Target^ sptr    ; pointer to a Target struct
+end
+
+byte   bdata = 10
+word   wdata = 1000
+Target tdata = { 55, 300 }
+Holder h
+
+proc use_pointer_fields()
+    ; Assign addresses to pointer fields
+    h.bptr = @bdata
+    h.wptr = @wdata
+    h.sptr = @tdata
+
+    ; Write through a pointer field
+    h.bptr^ = 20        ; bdata is now 20
+    h.wptr^ = 2000      ; wdata is now 2000
+
+    ; Read through a pointer field
+    byte  b = h.bptr^   ; b == 20
+    word  w = h.wptr^   ; w == 2000
+
+    ; Access a field of the pointed-to struct
+    h.sptr^.val = 77    ; tdata.val is now 77
+    byte v = h.sptr^.val
+end
+```
+
+A pointer field to a struct type enables access to the target struct's fields using the `ptr^.field` syntax. Note that the compiler does not perform lifetime or aliasing checks; the programmer is responsible for ensuring that the pointed-to variable remains in scope.
 
 ### Struct Initialization
 

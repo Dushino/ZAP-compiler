@@ -2,6 +2,39 @@
 
 ---
 
+## Optimization: Register Transfer Instead of Immediate Reload (2026-03-13)
+
+Third-pass peephole `_replace_imm_load_with_transfer()` added to `codegen_expr.py`.
+
+When a register already holds a known immediate value and another register is about to be loaded with the same value, replaces the load with a register transfer instruction:
+- `LDA #imm` → `TXA` (when X holds imm) or `TYA` (when Y holds imm)
+- `LDX #imm` → `TAX` (when A holds imm)
+- `LDY #imm` → `TAY` (when A holds imm)
+- X↔Y: no direct transfer on 6502/65C02 (TXY/TYX are 65C816 only) — skipped
+
+Saves 1 byte and 0 cycles per replacement (both `LDx #imm` and `Txy` are 2 cycles; transfer saves 1 byte).
+Verified on `work/test_stdio.zap`: 6 replacements including `LDY #$00` → `TAY` and `LDA #$00` → `TYA`.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
+## Documentation + Regression Test: Struct Pointer Fields (2026-03-13)
+
+`DOC/ZAP_LANGUAGE_REFERENCE.md` line 2047 updated — pointer types (`byte^`, `word^`, `long^`, struct pointers) added to the list of valid struct field types. New "Pointer Fields" subsection added with code example covering field declaration, address assignment, write/read through pointer fields, and struct-pointer field access. Linked-list example intentionally omitted (no heap allocator).
+
+Regression test `tests/pass/177-struct-pointer-fields` added — 4 checks:
+- `byte^` field: write and read through pointer (bdata via h.bptr^)
+- `word^` field: write and read through pointer (wdata via h.wptr^)
+- `Target^` field: write and read a struct field through pointer (tdata.val1 via h.sptr^.val1)
+- Pointer field values themselves verified in memory (h.bptr / h.wptr / h.sptr store correct addresses)
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+**Note:** A pre-existing bug was observed during test design: struct WORD field initialization emits `LDA #lo; LDX #hi; STA addr` but omits `STX addr+1`, so only the low byte is stored. The test avoids word fields inside structs to stay clean. The bug needs a separate fix.
+
+---
+
 ## Optimization: Pre-peephole store-reordering pass (2026-03-13)
 
 New `_pre_optimize_reorder_stores()` method (runs before `peephole_optimize()`) detects:

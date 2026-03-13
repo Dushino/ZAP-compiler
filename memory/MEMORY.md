@@ -93,6 +93,7 @@
 - **String literal high-byte fix**: `\x80`–`\xFF` in string literals now works in all contexts (was crashing with `UnicodeEncodeError` as function args). New helpers: `_str_to_bytes()` (inline path) and `_str_to_asm_directive()` (data section, readable mixed format: `"ASCII", $9B, $00`). Tokenizer rejects raw non-ASCII with proper line/col error. Tests: `pass/173`, `fail/string-raw-nonascii`.
 - **Peephole rules** (2026-03-10): generalized dead `LDX #0` elimination; `LDX <mem>; [non-X]; TXA → [non-X]; LDA <mem>` rule.
 - **OPT-3: Wide-window LDA #imm elimination** (`_eliminate_redundant_imm_lda`): second-pass after main peephole loop; tracks `known_a: int | None`; removes `LDA #imm` when A already holds that value across any number of A-safe instructions. Resets on control-flow, labels, and any A-modifying instruction.
+- **OPT-4: Register transfer instead of immediate reload** (`_replace_imm_load_with_transfer`): third-pass; tracks `known_a/known_x/known_y: int | None`; replaces `LDA #imm` with `TXA/TYA`, `LDX #imm` with `TAX`, `LDY #imm` with `TAY` when source register already holds same value. X↔Y not optimized (no TXY/TYX on 6502/65C02 — those are 65C816). Saves 1 byte per replacement.
 - **Generated label fix**: `NOCARRY_*` labels used `id(expr)` suffix (long pointer value); replaced all 7 sites with `new_label()` for short sequential numbers.
 - **`SymbolTable.lookup()` fix**: raises `SemanticError("Undefined variable '...'")` instead of leaking `KeyError`. `ScopedSymbolTable` catches `SemanticError` (not `KeyError`). `constsubst.py` catches `SemanticError` and returns expr unchanged for unknown identifiers.
 - **`two_bytes` arg ordering fix** (`_emit_call_args` reorder_regs path): X loaded AFTER A evaluation; A evaluation (e.g. pointer field access) clobbers X, so X must be loaded last.
@@ -116,6 +117,13 @@
 - **struct-array assignment (Group D)**: was silently generating wrong code. Added `_raise_error` guard.
 - **RETBUF (struct-returning func return buffer)**: symbols added to global_symtab BEFORE `prune_unused()`, which then removed them. Fixed: move RETBUF generation to AFTER `prune_unused()` in `compiler_pipeline.py`.
 - **Bare array identifier ExprType**: `sema_expr.py:50-61` — for `sym.is_array`, always returns `is_pointer=True` in ExprType (correct for ADDR kind). All array copy code must check `sym.type.is_struct` (Symbol's own type), NOT `lhs_t.sem_type.is_struct`.
+
+## Struct pointer fields (2026-03-13)
+- Pointer fields (`byte^`, `word^`, `long^`, struct pointers) are **fully supported** in struct definitions
+- All layers implemented: parser, sema, codegen, type checking — no code changes needed
+- `DOC/ZAP_LANGUAGE_REFERENCE.md` updated: pointer types added to field list; "Pointer Fields" subsection added
+- Regression test: `tests/pass/177-struct-pointer-fields` (all 4 variants pass)
+- **Known bug (unfixed)**: Struct WORD field init emits `LDA #lo; LDX #hi; STA addr` but omits `STX addr+1` → high byte never stored. Only low byte initialized. Needs separate fix.
 
 ## Known fixed bugs
 - `codegen_expr.py` (was ~5168): `val & 0xFFFF` mask before LONG init was removed — it truncated bytes 2-3 for values > 65535
