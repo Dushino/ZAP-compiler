@@ -1084,9 +1084,12 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
         if sym and sym.shared_slot:
             # Decide if this variable goes to BSS or ZP (same logic as in gen_vars)
             # System temps always go to ZP
+            # IMPORTANT: pointer check must precede struct check: struct-pointer has both flags set.
             use_bss = False
             if "__SYSTEM__" not in local_id:  # Regular locals, not system temps
-                if sym.is_array and not sym.type.is_pointer:
+                if sym.type.is_pointer:
+                    pass  # pointers stay in ZP (use_bss stays False here; gen_vars respects in_zeropage)
+                elif sym.is_array:
                     use_bss = True
                 elif sym.type.is_struct:
                     use_bss = True
@@ -1110,7 +1113,9 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
                 # System temps always stay in ZP, don't remap them
                 use_bss = False
                 if "__SYSTEM__" not in local_id:  # Regular locals, not system temps
-                    if sym.is_array and not sym.type.is_pointer:
+                    if sym.type.is_pointer:
+                        pass  # pointer stays in ZP
+                    elif sym.is_array:
                         use_bss = True
                     elif sym.type.is_struct:
                         use_bss = True
@@ -1229,6 +1234,143 @@ def _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struc
         scan_stmts(af.ast.body, tc, local_tbl, af.ast.name)
 
     return for_temp_map
+
+
+def _predeclare_struct_base_memos(analyzed_procs, analyzed_funcs) -> dict[tuple[str, str, str], str]:
+    """Pre-declare proc-local WORD slots for struct-array subscript base address memoization.
+
+    Scans each proc/func body for `arr[idx].field` patterns where arr is a static
+    array identifier and idx is a variable identifier.  When the same (arr, idx) pair
+    appears two or more times within a proc/func the compiler can save the computed
+    TMP0 base address into a dedicated proc-local WORD variable and restore it cheaply
+    (4 instructions) instead of recomputing (~15 instructions) after branch/JSR
+    boundaries where the Phase-3 in-register cache is invalidated.
+
+    Returns dict mapping (proc_name_upper, arr_name_upper, idx_name_upper) -> local var name.
+    The caller must store this on the CodegenContext so codegen can use it.
+    """
+    from ast_nodes import (FieldAccess, SubscriptExpr, Identifier, AssignStmt,
+                           CallStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt,
+                           RepeatUntilStmt, SwitchStmt, BinaryExpr, UnaryExpr,
+                           DerefExpr, CallExpr, BreakStmt, ContinueStmt)
+    from symbols import SemType, Symbol
+
+    # (proc_name_upper, arr_name_upper, idx_name_upper) → local var name
+    result: dict[tuple[str, str, str], str] = {}
+    sbm_id = 0
+
+    def _collect_from_node(node: object, found: list[tuple[str, str]]) -> None:
+        """Recursively collect (arr_upper, idx_upper) from arr[idx].field patterns."""
+        if node is None:
+            return
+        if isinstance(node, FieldAccess):
+            if isinstance(node.object, SubscriptExpr):
+                sub = node.object
+                # Flatten to get outermost indices list and base
+                indices = [sub.index]
+                base: object = sub.array
+                while isinstance(base, SubscriptExpr):
+                    indices.insert(0, base.index)
+                    base = base.array
+                # Only single-dim with simple Identifier on both sides (mirrors _make_struct_cache_key)
+                if (len(indices) == 1 and isinstance(base, Identifier)
+                        and isinstance(indices[0], Identifier)):
+                    found.append((base.name.upper(), indices[0].name.upper()))
+            _collect_from_node(node.object, found)
+        elif isinstance(node, SubscriptExpr):
+            _collect_from_node(node.array, found)
+            _collect_from_node(node.index, found)
+        elif isinstance(node, BinaryExpr):
+            _collect_from_node(node.left, found)
+            _collect_from_node(node.right, found)
+        elif isinstance(node, UnaryExpr):
+            _collect_from_node(node.expr, found)
+        elif isinstance(node, DerefExpr):
+            _collect_from_node(node.pointer, found)
+        elif isinstance(node, CallExpr):
+            for arg in node.args:
+                _collect_from_node(arg, found)
+        elif isinstance(node, AssignStmt):
+            _collect_from_node(node.lhs, found)
+            _collect_from_node(node.rhs, found)
+        elif isinstance(node, ReturnStmt):
+            if node.expr is not None:
+                _collect_from_node(node.expr, found)
+        elif isinstance(node, CallStmt):
+            for arg in node.args:
+                _collect_from_node(arg, found)
+        elif isinstance(node, IfStmt):
+            _collect_from_node(node.cond, found)
+            for s in node.then_body:
+                _collect_from_node(s, found)
+            if node.else_body:
+                for s in node.else_body:
+                    _collect_from_node(s, found)
+        elif isinstance(node, WhileStmt):
+            _collect_from_node(node.cond, found)
+            for s in node.body:
+                _collect_from_node(s, found)
+        elif isinstance(node, RepeatUntilStmt):
+            for s in node.body:
+                _collect_from_node(s, found)
+            _collect_from_node(node.cond, found)
+        elif isinstance(node, ForStmt):
+            _collect_from_node(node.start, found)
+            _collect_from_node(node.end, found)
+            if node.step:
+                _collect_from_node(node.step, found)
+            for s in node.body:
+                _collect_from_node(s, found)
+        elif isinstance(node, SwitchStmt):
+            _collect_from_node(node.expr, found)
+            for case in node.cases:
+                for s in case.body:
+                    _collect_from_node(s, found)
+
+    def declare_sbm(local_tbl: SymbolTable, proc_name: str, sbm_name: str) -> None:
+        """Declare a WORD synthetic local for the struct base memo slot."""
+        key = local_tbl._key(sbm_name)
+        if key in local_tbl._symbols:
+            return
+        sym = Symbol(
+            name=sbm_name,
+            type=SemType("WORD", False),
+            is_const=False,
+            const_value=None,
+            is_array=False,
+            array_len=None,
+            init=None,
+            address=None,
+            is_volatile=False,
+            proc_name=proc_name,
+            array_dims=None,
+        )
+        local_tbl.define(sym)
+
+    all_routines = [(ap.ast.name, ap.symtab, ap.ast.body) for ap in analyzed_procs]
+    all_routines += [(af.ast.name, af.symtab, af.ast.body) for af in analyzed_funcs]
+
+    for proc_name, symtab, body in all_routines:
+        local_tbl: object = getattr(symtab, "local", None)
+        if local_tbl is None:
+            continue
+        found: list[tuple[str, str]] = []
+        for stmt in body:
+            _collect_from_node(stmt, found)
+        # Count occurrences of each (arr, idx) pair
+        counts: dict[tuple[str, str], int] = {}
+        for pair in found:
+            counts[pair] = counts.get(pair, 0) + 1
+        # Declare a WORD local for pairs appearing 2+ times
+        proc_name_upper = proc_name.upper()
+        for (arr_name, idx_name), count in counts.items():
+            if count >= 2:
+                sbm_id += 1
+                sbm_local_name = f"__SBM_{sbm_id}"
+                declare_sbm(local_tbl, proc_name, sbm_local_name)  # type: ignore[arg-type]
+                result[(proc_name_upper, arr_name, idx_name)] = sbm_local_name
+
+    return result
 
 
 def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
@@ -1746,6 +1888,11 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     for_temp_map = _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry)
     # Give CodeGen the map so _get_for_temp_name uses the same IDs as the pre-declarations
     cg.for_temp_map = for_temp_map
+
+    # Predeclare struct base memo slots (Phase 4): proc-local WORD vars that save TMP0
+    # across branch/JSR boundaries so repeated arr[idx].field access recomputes cheaply.
+    struct_base_memo_src_map = _predeclare_struct_base_memos(analyzed_procs, analyzed_funcs)
+    cg.struct_base_memo_src_map = struct_base_memo_src_map
 
     # Liveness-based local sharing (after DCE updates)
     system_temp_slots = share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map=for_temp_map)

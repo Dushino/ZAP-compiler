@@ -2036,6 +2036,16 @@ struct Player
 end
 ```
 
+### Constraints
+
+- **Maximum size**: A struct may not exceed **255 bytes** total. This limit exists because field offsets are loaded as 8-bit immediate values (`LDY #offset`). The compiler rejects struct definitions that exceed this limit:
+
+  ```
+  error: Struct 'BIGSTRUCT' is 256 bytes — maximum struct size is 255 bytes
+  ```
+
+- Fields may be `byte`, `word`, `long`, nested struct types, or arrays of those types.
+
 ### Struct Initialization
 
 ```zap

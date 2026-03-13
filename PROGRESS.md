@@ -2,6 +2,37 @@
 
 ---
 
+## Feature: Struct array field access optimization + 255-byte struct limit (2026-03-13)
+
+### Three-Phase Struct Field Access Optimization
+
+**Phase 1:** `LDY #field_offset` + `(TMP0),Y` for struct array element field access, replacing the previous `ADC #offset; STA TMP0` approach (~7 instructions saved per access).
+
+**Phase 2:** Direct `(ptr_asm),Y` for `ptr^.field` when the pointer is a confirmed zero-page identifier (`sym.in_zeropage = True`). Non-ZP pointers still route through TMP0.
+
+**Phase 3:** `_struct_base_cache` tuple `(arr_asm, idx_asm)` — skips recomputation of the struct base address for consecutive `array[same_idx].field` accesses within the same expression sequence.
+
+### Bugs Fixed
+
+**Fix 1 — Phase 3 cache not invalidated on idx variable writes:** Cache stored `(arr_asm, idx_asm)` but `emit()` only checked for `STA TMP0`/control flow. Added `STA {_idx_asm}`, `STZ`, `INC`, `DEC` pattern checks to invalidate cache on any write to the indexed variable.
+
+**Fix 2 — ca65 "Range error (Address size 2 does not match fragment size 1)"** for tests 037, 166: Phase 2 emitted `STA (_MAIN_PP),Y` where `_MAIN_PP` was a BSS slot equate (non-ZP). Root cause: slot placement in `gen_vars_block` checked `sym.type.is_struct` before `sym.type.is_pointer`, routing struct-pointers to BSS. Fixed by checking `is_pointer` first (pointer check precedes struct check in 4 locations: 2 in `gen_vars_block`, 2 in `compiler_pipeline.py`).
+
+**Fix 3 — O1 peephole Y-register clobber:** Optimizer eliminated `LDA (__TMP0),Y` because it matched a prior `STA (__TMP0),Y` (same text), but Y had changed between them. Added `_uses_y_index` / `_clobbers_y` guards in the `can_remove` loop.
+
+### 255-Byte Struct Size Limit
+
+Added sema check in `sema.py` (~line 231): rejects any struct whose total size exceeds 255 bytes. Rationale: field offsets are loaded as 8-bit immediates (`LDY #offset`); offset 256 would overflow.
+
+**New tests:**
+- `tests/pass/174-struct-field-zp-access/` — Phase 1, 2, 3 with Point/Rect structs and struct pointer (5 checks)
+- `tests/pass/175-struct-array-base-cache/` — Phase 3 cache invalidation in for loop (8 checks)
+- `tests/fail/struct-too-large/` — struct with 256 bytes rejected with correct error location and message
+
+**Test results:** 164 pass / 125 fail — all OK.
+
+---
+
 ## Fix: `ptr += byte_var` high byte reads wrong memory (`ADC sym+1` for BYTE var) (2026-03-12)
 
 **Bug:** `dst += m` where `dst: byte^` and `m: byte` generated:

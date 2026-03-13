@@ -120,6 +120,23 @@ class CodeGen:
         # ZP Prioritization: Track load/store frequency for each local scalar
         # Format: {"ROUTINE::LOCAL_NAME": frequency_count, ...}
         self.local_access_frequency: dict[str, int] = {}
+        # Phase 3: Struct base address cache.
+        # When TMP0 holds &array[idx] (element base, NO field offset), store the key
+        # (array_asm_name, idx_asm_name) here.  On the next access with the same key
+        # the expensive _gen_subscript + multiply can be skipped entirely.
+        self._struct_base_cache: tuple[str, str] | None = None
+        # Phase 4: Struct base address memo (cross-branch/JSR memoization).
+        # Maps (arr_asm, idx_asm) -> proc-local WORD asm name that stores the saved TMP0.
+        # Built per-proc from struct_base_memo_src_map set by the pipeline.
+        # Phase 3 cache is invalidated by branches/labels/JSR; Phase 4 memo survives
+        # them by using a proc-local variable (not a shared global temp).
+        self._struct_base_memo_map: dict[tuple[str, str], str] = {}
+        # Set of cache keys whose memo slot currently holds a valid (up-to-date) address.
+        # Cleared when the index variable (idx_asm) is written; NOT cleared on JSR/branches.
+        self._struct_base_memo_valid: set[tuple[str, str]] = set()
+        # Source-name map supplied by the pipeline; keyed by
+        # (proc_name_upper, arr_name_upper, idx_name_upper) -> local var name.
+        self.struct_base_memo_src_map: dict[tuple[str, str, str], str] = {}
 
     def tc_check(self, expr, read_check_enabled: bool = True) -> ExprType:
         """Type-check an expression with codegen context.
@@ -2298,6 +2315,9 @@ class CodeGen:
                                 if prev_op == expected_store and prev_operand.upper() == load_operand.upper():
                                     # Verify no register-clobbering instructions between store and this load
                                     can_remove = True
+                                    load_operand_u = load_operand.upper()
+                                    _uses_y_index = load_operand_u.endswith(",Y") or load_operand_u.endswith("),Y")
+                                    _uses_x_index = load_operand_u.endswith(",X") or load_operand_u.endswith("),X")
                                     for verify_idx in range(k + 1, len(optimized)):
                                         verify_line = optimized[verify_idx].strip()
                                         if verify_line == line_stripped:
@@ -2316,6 +2336,15 @@ class CodeGen:
                                             # Memory-modifying ops invalidate any register tracking
                                             # (e.g. ROL __TMP0+1 between STX __TMP0+1 and LDX __TMP0+1)
                                             if self._modifies_memory_operand(verify_line, load_operand):
+                                                can_remove = False
+                                                break
+                                            # For Y-indexed operands (ptr),Y or addr,Y: if Y changes between
+                                            # the store and the load, they access different memory bytes.
+                                            if _uses_y_index and _clobbers_y(verify_line):
+                                                can_remove = False
+                                                break
+                                            # For X-indexed operands: similarly guard X changes.
+                                            if _uses_x_index and _clobbers_x(verify_line):
                                                 can_remove = False
                                                 break
                                     
@@ -4933,16 +4962,16 @@ class CodeGen:
                     # Default to 2 bytes (word)
                     sym_size = 2
                 
-                # Decide segment: arrays/structs -> BSS, pointers -> ZP (arrays only if they fit), scalars -> ZP
+                # Decide segment: pointers -> ZP if they fit, non-pointer arrays/structs -> BSS
+                # IMPORTANT: pointer check must come before struct check because a struct-pointer
+                # (e.g. Point^) has both is_pointer=True and is_struct=True; it goes to ZP not BSS.
                 use_bss = False
-                if sym.is_array and not sym.type.is_pointer:
+                if sym.type.is_pointer:
+                    use_bss = not sym.in_zeropage
+                elif sym.is_array:
                     use_bss = True
                 elif sym.type.is_struct:
                     use_bss = True
-                elif sym.is_array and sym.type.is_pointer:
-                    use_bss = not sym.in_zeropage
-                elif sym.type.is_pointer and not sym.is_array:
-                    use_bss = not sym.in_zeropage
 
                 target = shared_slots_bss if use_bss else shared_slots_zp
 
@@ -5329,16 +5358,16 @@ class CodeGen:
                     # Default to 2 bytes (word)
                     sym_size = 2
                 
-                # Decide segment: arrays/structs -> BSS, pointers -> ZP (arrays only if they fit), scalars -> ZP
+                # Decide segment: pointers -> ZP if they fit, non-pointer arrays/structs -> BSS
+                # IMPORTANT: pointer check must come before struct check because a struct-pointer
+                # (e.g. Point^) has both is_pointer=True and is_struct=True; it goes to ZP not BSS.
                 use_bss = False
-                if sym.is_array and not sym.type.is_pointer:
+                if sym.type.is_pointer:
+                    use_bss = not sym.in_zeropage
+                elif sym.is_array:
                     use_bss = True
                 elif sym.type.is_struct:
                     use_bss = True
-                elif sym.is_array and sym.type.is_pointer:
-                    use_bss = not sym.in_zeropage
-                elif sym.type.is_pointer and not sym.is_array:
-                    use_bss = not sym.in_zeropage
 
                 target = shared_slots_bss if use_bss else shared_slots_zp
 
@@ -6108,7 +6137,40 @@ class CodeGen:
     def emit(self, line: str) -> None:
         """Append an assembly line to the output buffer.
         Rewrites internal names and tracks usage.
+        Also invalidates the struct base address cache (Phase 3) when TMP0 is
+        overwritten or when control flow changes.
         """
+        if self._struct_base_cache is not None:
+            s = line.strip()
+            _, _idx_asm = self._struct_base_cache
+            if (s.startswith('STA TMP0') or s.startswith('STX TMP0+1') or
+                    s.startswith('JSR ') or s.startswith('JMP ') or
+                    s.startswith('RTS') or s.startswith('RTI') or
+                    s.startswith('BCC') or s.startswith('BCS') or
+                    s.startswith('BEQ') or s.startswith('BNE') or
+                    s.startswith('BMI') or s.startswith('BPL') or
+                    s.startswith('BVS') or s.startswith('BVC') or
+                    s.startswith('BRA') or
+                    (s and not s.startswith(';') and s.endswith(':')) or
+                    s.startswith(f'STA {_idx_asm}') or
+                    s.startswith(f'STZ {_idx_asm}') or
+                    s.startswith(f'INC {_idx_asm}') or
+                    s.startswith(f'DEC {_idx_asm}')):
+                self._struct_base_cache = None
+        # Phase 4 memo invalidation: remove entries whose index variable is written.
+        # Unlike Phase 3, memo survives JSR/branches/labels (it's in a proc-local var).
+        # Only invalidate when idx_asm itself is modified.
+        if self._struct_base_memo_valid:
+            s4 = line.strip()
+            invalid: set[tuple[str, str]] = set()
+            for (_arr_asm4, _idx_asm4) in self._struct_base_memo_valid:
+                if (s4.startswith(f'STA {_idx_asm4}') or
+                        s4.startswith(f'STZ {_idx_asm4}') or
+                        s4.startswith(f'INC {_idx_asm4}') or
+                        s4.startswith(f'DEC {_idx_asm4}')):
+                    invalid.add((_arr_asm4, _idx_asm4))
+            if invalid:
+                self._struct_base_memo_valid -= invalid
         line = self._rewrite_internal_names(line)
         self.code.append(line)
         # Track frequency for ZP prioritization
@@ -7294,6 +7356,97 @@ class CodeGen:
         # current_expr is now the base (Identifier, SubscriptExpr, or other)
         return (total_offset, current_expr)
 
+    def _make_struct_cache_key(self, subscript: SubscriptExpr) -> tuple[str, str] | None:
+        """Return (array_asm, idx_asm) cache key for Phase 3 TMP0 caching.
+
+        Only simple array[simple_var] forms are cacheable.  Returns None for
+        any complex subscript (multi-dim, constant index, computed index, etc.).
+        """
+        indices, base = self._collect_subscript_indices(subscript)
+        if len(indices) != 1:
+            return None
+        if not isinstance(base, Identifier):
+            return None
+        if not isinstance(indices[0], Identifier):
+            return None
+        try:
+            arr_sym = self.current_symtab.lookup(base.name)
+            idx_sym = self.current_symtab.lookup(indices[0].name)
+            return (arr_sym.asm_name(), idx_sym.asm_name())
+        except Exception:
+            return None
+
+    def _emit_field_via_ptr(self, ptr_asm: str, field_offset: int,
+                            field_width: int, load_only: bool,
+                            target_is_byte: bool) -> None:
+        """Emit efficient field load or store using (ptr_asm),Y addressing.
+
+        Phase 1: ptr_asm = "TMP0"  — TMP0 holds the struct element base address.
+        Phase 2: ptr_asm = local ZP slot name — avoids TMP0 indirection entirely.
+
+        For LOAD (load_only=True):
+          BYTE:  LDY #offset;  LDA (ptr),Y
+          WORD:  LDY #offset+1; LDA (ptr),Y; TAX; DEY; LDA (ptr),Y  (A=lo, X=hi)
+          LONG:  LDY #offset;  LDA (ptr),Y; STA MATH0; INY; … (×4)
+
+        For STORE (load_only=False), RHS is in TMP2/TMP2+1 (BYTE/WORD) or MATH0 (LONG):
+          BYTE:  LDA TMP2; LDY #offset; STA (ptr),Y
+          WORD:  LDA TMP2; LDY #offset; STA (ptr),Y; LDA TMP2+1; INY; STA (ptr),Y
+          LONG:  LDA MATH0; LDY #offset; STA (ptr),Y; … (×4)
+        """
+        if load_only:
+            if field_width == 4:
+                self.emit(f"\tLDY #${field_offset:02X}")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                self.emit("\tSTA MATH0")
+                self.emit("\tINY")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                self.emit("\tSTA MATH0+1")
+                self.emit("\tINY")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                self.emit("\tSTA MATH0+2")
+                self.emit("\tINY")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                self.emit("\tSTA MATH0+3")
+            elif field_width == 2:
+                # Load high byte first (X), then low byte (A) to preserve A/X convention
+                self.emit(f"\tLDY #${field_offset + 1:02X}")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                self.emit("\tTAX")
+                self.emit("\tDEY")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+            else:  # BYTE
+                self.emit(f"\tLDY #${field_offset:02X}")
+                self.emit(f"\tLDA ({ptr_asm}),Y")
+                if not target_is_byte or self.force_word_result:
+                    self.emit("\tLDX #$00")
+        else:
+            # Store path — RHS already in TMP2 (BYTE/WORD) or MATH0 (LONG)
+            if field_width == 4:
+                self.emit(f"\tLDA MATH0")
+                self.emit(f"\tLDY #${field_offset:02X}")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+                self.emit(f"\tLDA MATH0+1")
+                self.emit("\tINY")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+                self.emit(f"\tLDA MATH0+2")
+                self.emit("\tINY")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+                self.emit(f"\tLDA MATH0+3")
+                self.emit("\tINY")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+            elif field_width == 2:
+                self.emit(f"\tLDA TMP2")
+                self.emit(f"\tLDY #${field_offset:02X}")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+                self.emit(f"\tLDA TMP2+1")
+                self.emit("\tINY")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+            else:  # BYTE
+                self.emit(f"\tLDA TMP2")
+                self.emit(f"\tLDY #${field_offset:02X}")
+                self.emit(f"\tSTA ({ptr_asm}),Y")
+
     def _gen_field_access(self, expr: FieldAccess, load_only: bool) -> None:
         """Generate code for struct field access (obj.field or ptr^.field).
         
@@ -7392,93 +7545,47 @@ class CodeGen:
             field_width = 4
         else:
             field_width = 1
-        
+
+        # Helper: is the current assignment target a plain BYTE (skip LDX #0)?
+        _tgt_is_byte: bool = bool(
+            self.assign_target_type and
+            hasattr(self.assign_target_type, 'base') and
+            self.assign_target_type.base == "BYTE" and
+            not getattr(self.assign_target_type, 'is_pointer', False))
+
+        # Local saved pointer for Phase 2 deref optimisation (set below, used in store section).
+        _deref_ptr_asm: str | None = None
+
         if expr.is_deref:
             # ptr^.field - expr.object should be a DerefExpr(pointer)
-            # We need to get the address that the pointer points to
             if not isinstance(expr.object, DerefExpr):
                 self._raise_error(f"Expected DerefExpr for is_deref=True, got {type(expr.object).__name__}")
-            
+
             if isinstance(expr.object.pointer, Identifier):
-                # Simple case: pp^.field where pp is a pointer variable
                 ptr_name: str = expr.object.pointer.name
                 sym: Symbol = self.current_symtab.lookup(ptr_name)
                 ptr_asm: str = sym.asm_name()
-                
-                # Load the pointer value (which is the struct address)
-                self.emit(f"\tLDA {ptr_asm}")
-                self.emit(f"\tLDX {ptr_asm}+1")
-            else:
-                # Complex case: generate the pointer expression
-                # This will give us the pointer address in A/X
-                self.gen_expr(expr.object.pointer)
-            
-            # Now A/X contains the address of the struct
-            # Store it in TMP0
-            self.emit("\tSTA TMP0")
-            self.emit("\tSTX TMP0+1")
-            
-            # Add field offset to address if needed
-            if field_offset > 0:
-                self.emit(f"\tLDA #${field_offset:02X}")
-                self.emit("\tCLC")
-                self.emit("\tADC TMP0")
-                self.emit("\tSTA TMP0")
-                carry_lbl = self.new_label("NOCARRY_FIELD_DEREF")
-                self.emit(f"\tBCC {carry_lbl}")
-                self.emit("\tINC TMP0+1")
-                self.emit(f"{carry_lbl}:")
-            
-            # If only loading field value, load it now
-            if load_only:
-                if field_offset == 0:
-                    # Field at offset 0: just load directly
-                    if field_width == 4:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+1")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+2")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+3")
-                    elif field_width == 2:
-                        self.emit("\tLDY #1")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tTAX")
-                        self.emit("\tDEY")
-                        self.emit("\tLDA (TMP0),Y")
-                    else:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
+                if sym.in_zeropage:
+                    # Phase 2: pointer is a confirmed ZP variable — use (ptr),Y directly,
+                    # no TMP0 needed for loads; store section picks up _deref_ptr_asm.
+                    _deref_ptr_asm = ptr_asm
+                    if load_only:
+                        self._emit_field_via_ptr(ptr_asm, field_offset, field_width, True, _tgt_is_byte)
+                    # else: store section uses _deref_ptr_asm — nothing to emit here
                 else:
-                    # Field at offset > 0, address is already in TMP0
-                    if field_width == 4:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+1")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+2")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+3")
-                    elif field_width == 2:
-                        self.emit("\tLDY #1")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tTAX")
-                        self.emit("\tDEY")
-                        self.emit("\tLDA (TMP0),Y")
-                    else:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
+                    # Non-ZP identifier — evaluate into TMP0 (ca65 requires ZP for (x),Y).
+                    self.gen_expr(expr.object.pointer)
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+                    if load_only:
+                        self._emit_field_via_ptr("TMP0", field_offset, field_width, True, _tgt_is_byte)
+            else:
+                # Complex pointer expression — evaluate into TMP0, then use (TMP0),Y.
+                self.gen_expr(expr.object.pointer)
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
+                if load_only:
+                    self._emit_field_via_ptr("TMP0", field_offset, field_width, True, _tgt_is_byte)
         else:
             # obj.field - direct field access
             # obj can be: Identifier or SubscriptExpr (array[index])
@@ -7519,51 +7626,40 @@ class CodeGen:
                     
             elif isinstance(expr.object, SubscriptExpr):
                 # Array subscript: Point arr[i]; arr[i].x = ...
-                # 1) Generate the address of arr[i] into TMP0/TMP0+1 (no loading)
-                self._gen_subscript(expr.object, load_only=True, calc_addr_only=True)
-                
-                # 2) Add field offset to the address
-                if field_offset > 0:
-                    self.emit(f"\tCLC")
-                    self.emit(f"\tLDA TMP0")
-                    self.emit(f"\tADC #${field_offset:02X}")
+                # Phase 3: check whether TMP0 already holds &arr[i] (element base).
+                # Phase 4: if not in Phase 3 cache, check proc-local memo slot.
+                _cache_key: tuple[str, str] | None = self._make_struct_cache_key(expr.object)
+                if _cache_key is not None and self._struct_base_cache == _cache_key:
+                    pass  # Phase 3 cache hit — TMP0 already has element base address
+                elif (_cache_key is not None
+                        and _cache_key in self._struct_base_memo_valid
+                        and _cache_key in self._struct_base_memo_map):
+                    # Phase 4 memo hit — restore TMP0 from proc-local save slot (4 instr)
+                    _sbm_asm: str = self._struct_base_memo_map[_cache_key]
+                    self.emit(f"\tLDA {_sbm_asm}")
                     self.emit(f"\tSTA TMP0")
-                    carry_lbl = self.new_label("NOCARRY_ARRFIELD")
-                    self.emit(f"\tBCC {carry_lbl}")
-                    self.emit(f"\tINC TMP0+1")
-                    self.emit(f"{carry_lbl}:")
-                
-                # 3) Load field value via indirect addressing (LONG only when reading)
-                if field_width == 4 and load_only:
-                    self.emit("\tLDY #$00")
-                    self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tSTA MATH0")
-                    self.emit("\tINY")
-                    self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tSTA MATH0+1")
-                    self.emit("\tINY")
-                    self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tSTA MATH0+2")
-                    self.emit("\tINY")
-                    self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tSTA MATH0+3")
-                elif field_width == 2:
-                    self.emit("\tLDY #1")
-                    self.emit("\tLDA (TMP0),Y")
-                    self.emit("\tTAX")
-                    self.emit("\tDEY")
-                    self.emit("\tLDA (TMP0),Y")
+                    self.emit(f"\tLDA {_sbm_asm}+1")
+                    self.emit(f"\tSTA TMP0+1")
+                    self._struct_base_cache = _cache_key
                 else:
-                    self.emit("\tLDY #$00")
-                    self.emit("\tLDA (TMP0),Y")
-                    # BYTE field -> X = 0
-                    # Optimization: skip LDX #$00 if assignment target is BYTE
-                    target_is_byte: None | bool = (self.assign_target_type and
-                                    hasattr(self.assign_target_type, 'base') and
-                                    self.assign_target_type.base == "BYTE" and
-                                    not getattr(self.assign_target_type, 'is_pointer', False))
-                    if not target_is_byte or self.force_word_result:
-                        self.emit("\tLDX #$00")
+                    # Cache miss — compute element base address into TMP0.
+                    self._gen_subscript(expr.object, load_only=True, calc_addr_only=True)
+                    if _cache_key is not None:
+                        self._struct_base_cache = _cache_key
+                        # Phase 4: save TMP0 to proc-local memo slot on first compute.
+                        if (_cache_key not in self._struct_base_memo_valid
+                                and _cache_key in self._struct_base_memo_map):
+                            _sbm_save: str = self._struct_base_memo_map[_cache_key]
+                            self.emit(f"\tLDA TMP0")
+                            self.emit(f"\tSTA {_sbm_save}")
+                            self.emit(f"\tLDA TMP0+1")
+                            self.emit(f"\tSTA {_sbm_save}+1")
+                            self._struct_base_memo_valid.add(_cache_key)
+
+                # Phase 1: use LDY #field_offset; (TMP0),Y — no TMP0 modification.
+                if load_only:
+                    self._emit_field_via_ptr("TMP0", field_offset, field_width, True, _tgt_is_byte)
+                # else: store handled in "if not load_only" section below
             elif isinstance(expr.object, FieldAccess):
                 # Nested field access: obj.field1.field2... (e.g., xs.pt.x or o1.md.in.a)
                 # Calculate total offset by traversing the entire chain
@@ -7608,51 +7704,11 @@ class CodeGen:
 
                 elif isinstance(base_expr, SubscriptExpr):
                     # Array subscript case: arr[i].field1.field2.x
+                    # Phase 1: compute element base into TMP0, use LDY #total_offset.
                     self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
-                    
-                    # Add total offset to address
-                    if total_offset > 0:
-                        self.emit(f"\tCLC")
-                        self.emit(f"\tLDA TMP0")
-                        self.emit(f"\tADC #{total_offset}")
-                        self.emit(f"\tSTA TMP0")
-                        carry_lbl = self.new_label("NOCARRY_NESTEDFIELD")
-                        self.emit(f"\tBCC {carry_lbl}")
-                        self.emit(f"\tINC TMP0+1")
-                        self.emit(f"{carry_lbl}:")
-                    
-                    # Load field value via indirect addressing (LONG only when reading)
-                    if field_width == 4 and load_only:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+1")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+2")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+3")
-                    elif field_width != 4:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
-                        if field_width == 2:
-                            self.emit("\tPHA")
-                            self.emit("\tINY")
-                            self.emit("\tLDA (TMP0),Y")
-                            self.emit("\tTAX")
-                            self.emit("\tPLA")
-                        else:
-                            # BYTE field -> X = 0
-                            # Optimization: skip LDX #$00 if assignment target is BYTE
-                            target_is_byte: None | bool = (self.assign_target_type and
-                                            hasattr(self.assign_target_type, 'base') and
-                                            self.assign_target_type.base == "BYTE" and
-                                            not getattr(self.assign_target_type, 'is_pointer', False))
-                            if not target_is_byte or self.force_word_result:
-                                self.emit("\tLDX #$00")
+                    if load_only:
+                        self._emit_field_via_ptr("TMP0", total_offset, field_width, True, _tgt_is_byte)
+                    # else: store handled in "if not load_only" section below
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
             elif isinstance(expr.object, CallExpr):
@@ -7691,83 +7747,41 @@ class CodeGen:
                             self.emit("\tLDX #$00")
             elif isinstance(expr.object, DerefExpr):
                 # fptr^.field parsed as FieldAccess(is_deref=False, object=DerefExpr(fptr))
-                # Happens when parser creates DerefExpr separately, then FieldAccess wraps it.
-                # Treat like is_deref=True: load the pointer into TMP0.
+                # Treat like is_deref=True with Phase 1+2 optimisations.
                 deref_expr: DerefExpr = expr.object
                 if isinstance(deref_expr.pointer, Identifier):
                     ptr_name: str = deref_expr.pointer.name
                     sym: Symbol = self.current_symtab.lookup(ptr_name)
                     ptr_asm: str = sym.asm_name()
-                    self.emit(f"\tLDA {ptr_asm}")
-                    self.emit(f"\tLDX {ptr_asm}+1")
+                    if sym.in_zeropage:
+                        # Phase 2: confirmed ZP pointer — use (ptr),Y directly.
+                        _deref_ptr_asm = ptr_asm
+                        if load_only:
+                            self._emit_field_via_ptr(ptr_asm, field_offset, field_width, True, _tgt_is_byte)
+                        # else: store section uses _deref_ptr_asm
+                    else:
+                        # Non-ZP identifier — fall back through TMP0.
+                        self.gen_expr(deref_expr.pointer)
+                        self.emit("\tSTA TMP0")
+                        self.emit("\tSTX TMP0+1")
+                        if load_only:
+                            self._emit_field_via_ptr("TMP0", field_offset, field_width, True, _tgt_is_byte)
                 else:
                     self.gen_expr(deref_expr.pointer)
-                self.emit("\tSTA TMP0")
-                self.emit("\tSTX TMP0+1")
-                if field_offset > 0:
-                    self.emit(f"\tLDA #${field_offset:02X}")
-                    self.emit("\tCLC")
-                    self.emit("\tADC TMP0")
                     self.emit("\tSTA TMP0")
-                    carry_lbl = self.new_label("NOCARRY_FIELD_DEREF2")
-                    self.emit(f"\tBCC {carry_lbl}")
-                    self.emit("\tINC TMP0+1")
-                    self.emit(f"{carry_lbl}:")
-                if load_only:
-                    if field_width == 4:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+1")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+2")
-                        self.emit("\tINY")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tSTA MATH0+3")
-                    elif field_width == 2:
-                        self.emit("\tLDY #1")
-                        self.emit("\tLDA (TMP0),Y")
-                        self.emit("\tTAX")
-                        self.emit("\tDEY")
-                        self.emit("\tLDA (TMP0),Y")
-                    else:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTX TMP0+1")
+                    if load_only:
+                        self._emit_field_via_ptr("TMP0", field_offset, field_width, True, _tgt_is_byte)
             else:
                 self._raise_error("Direct field access only supported on struct variables or array elements")
 
-        # If storing field (not load_only), RHS should be in TMP2/TMP2+1
+        # If storing field (not load_only), RHS is in TMP2/TMP2+1 (BYTE/WORD) or MATH0 (LONG).
         if not load_only:
             if expr.is_deref:
-                # Store through pointer (TMP0 already has address)
-                if field_width == 4:
-                    self.emit("\tLDA MATH0")
-                    self.emit("\tLDY #$00")
-                    self.emit("\tSTA (TMP0),Y")
-                    self.emit("\tLDA MATH0+1")
-                    self.emit("\tINY")
-                    self.emit("\tSTA (TMP0),Y")
-                    self.emit("\tLDA MATH0+2")
-                    self.emit("\tINY")
-                    self.emit("\tSTA (TMP0),Y")
-                    self.emit("\tLDA MATH0+3")
-                    self.emit("\tINY")
-                    self.emit("\tSTA (TMP0),Y")
-                else:
-                    self.emit("\tLDA TMP2")
-                    if field_width == 2:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tSTA (TMP0),Y")
-                    else:
-                        self._emit_indirect_store_zero("TMP0")
-
-                    if field_width == 2:
-                        self.emit("\tINY")
-                        self.emit("\tLDA TMP2+1")
-                        self.emit("\tSTA (TMP0),Y")
+                # Phase 2: if pointer was a simple ZP identifier, use (ptr),Y directly.
+                # Otherwise TMP0 was set in the is_deref block above — use (TMP0),Y.
+                _store_ptr: str = _deref_ptr_asm if _deref_ptr_asm is not None else "TMP0"
+                self._emit_field_via_ptr(_store_ptr, field_offset, field_width, False, False)
             elif isinstance(expr.object, Identifier):
                 # Direct store to simple variable
                 sym: Symbol = self.current_symtab.lookup(expr.object.name)
@@ -7790,32 +7804,9 @@ class CodeGen:
                         self.emit(f"\tLDA TMP2+1")
                         self.emit(f"\tSTA {field_asm}+1")
             elif isinstance(expr.object, SubscriptExpr):
-                # Direct store to array element (TMP0 already has address)
-                if field_width == 4:
-                    self.emit(f"\tLDA MATH0")
-                    self.emit(f"\tLDY #$00")
-                    self.emit(f"\tSTA (TMP0),Y")
-                    self.emit(f"\tLDA MATH0+1")
-                    self.emit(f"\tINY")
-                    self.emit(f"\tSTA (TMP0),Y")
-                    self.emit(f"\tLDA MATH0+2")
-                    self.emit(f"\tINY")
-                    self.emit(f"\tSTA (TMP0),Y")
-                    self.emit(f"\tLDA MATH0+3")
-                    self.emit(f"\tINY")
-                    self.emit(f"\tSTA (TMP0),Y")
-                else:
-                    self.emit(f"\tLDA TMP2")
-                    if field_width == 2:
-                        self.emit("\tLDY #$00")
-                        self.emit(f"\tSTA (TMP0),Y")
-                    else:
-                        self._emit_indirect_store_zero("TMP0")
-
-                    if field_width == 2:
-                        self.emit(f"\tINY")
-                        self.emit(f"\tLDA TMP2+1")
-                        self.emit(f"\tSTA (TMP0),Y")
+                # TMP0 holds element base (from the load section above).
+                # Phase 1: use LDY #field_offset; (TMP0),Y — no TMP0 modification.
+                self._emit_field_via_ptr("TMP0", field_offset, field_width, False, False)
             elif isinstance(expr.object, FieldAccess):
                 # Nested field access store: obj.field1.field2... = value
                 # Calculate total offset by traversing the entire chain
@@ -7848,68 +7839,16 @@ class CodeGen:
 
                 elif isinstance(base_expr, SubscriptExpr):
                     # Array subscript case: arr[i].field1.field2... = value
+                    # Phase 1: compute element base into TMP0, use LDY #total_offset.
                     self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
-
-                    # Add total offset to address
-                    if total_offset > 0:
-                        self.emit(f"\tCLC")
-                        self.emit(f"\tLDA TMP0")
-                        self.emit(f"\tADC #${total_offset:02X}")
-                        self.emit(f"\tSTA TMP0")
-                        carry_lbl = self.new_label("NOCARRY_NESTEDFIELD_STORE")
-                        self.emit(f"\tBCC {carry_lbl}")
-                        self.emit(f"\tINC TMP0+1")
-                        self.emit(f"{carry_lbl}:")
-
-                    # Store field value via indirect addressing
-                    if field_width == 4:
-                        self.emit(f"\tLDA MATH0")
-                        self.emit(f"\tLDY #$00")
-                        self.emit(f"\tSTA (TMP0),Y")
-                        self.emit(f"\tLDA MATH0+1")
-                        self.emit(f"\tINY")
-                        self.emit(f"\tSTA (TMP0),Y")
-                        self.emit(f"\tLDA MATH0+2")
-                        self.emit(f"\tINY")
-                        self.emit(f"\tSTA (TMP0),Y")
-                        self.emit(f"\tLDA MATH0+3")
-                        self.emit(f"\tINY")
-                        self.emit(f"\tSTA (TMP0),Y")
-                    else:
-                        self.emit("\tLDY #$00")
-                        self.emit(f"\tLDA TMP2")
-                        self.emit(f"\tSTA (TMP0),Y")
-                        if field_width == 2:
-                            self.emit(f"\tINY")
-                            self.emit(f"\tLDA TMP2+1")
-                            self.emit(f"\tSTA (TMP0),Y")
+                    self._emit_field_via_ptr("TMP0", total_offset, field_width, False, False)
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
             elif isinstance(expr.object, DerefExpr):
-                # ptr^.field store: TMP0 set up by DerefExpr case in load section above
-                if field_width == 4:
-                    self.emit("\tLDA MATH0")
-                    self.emit("\tLDY #$00")
-                    self.emit("\tSTA (TMP0),Y")
-                    self.emit("\tLDA MATH0+1")
-                    self.emit("\tINY")
-                    self.emit("\tSTA (TMP0),Y")
-                    self.emit("\tLDA MATH0+2")
-                    self.emit("\tINY")
-                    self.emit("\tSTA (TMP0),Y")
-                    self.emit("\tLDA MATH0+3")
-                    self.emit("\tINY")
-                    self.emit("\tSTA (TMP0),Y")
-                else:
-                    self.emit("\tLDA TMP2")
-                    if field_width == 2:
-                        self.emit("\tLDY #$00")
-                        self.emit("\tSTA (TMP0),Y")
-                        self.emit("\tINY")
-                        self.emit("\tLDA TMP2+1")
-                        self.emit("\tSTA (TMP0),Y")
-                    else:
-                        self._emit_indirect_store_zero("TMP0")
+                # ptr^.field store (is_deref=False, DerefExpr object).
+                # Phase 2: if pointer was a simple ZP identifier use (ptr),Y directly.
+                _store_ptr2: str = _deref_ptr_asm if _deref_ptr_asm is not None else "TMP0"
+                self._emit_field_via_ptr(_store_ptr2, field_offset, field_width, False, False)
 
     def _collect_array_subscript_chain(self, expr: BinaryExpr) -> list | None:
         """
@@ -11803,6 +11742,23 @@ class CodeGen:
         self.current_symtab = cast(SymbolTable, proc.symtab)
         self.tc.symtab = proc.symtab
 
+        # Build Phase 4 struct base memo map for this proc.
+        # Translate (proc_name_upper, arr_name_upper, idx_name_upper) source-name keys
+        # into (arr_asm, idx_asm) -> sbm_asm runtime keys.
+        self._struct_base_memo_map = {}
+        self._struct_base_memo_valid = set()
+        proc_name_upper = proc.ast.name.upper()
+        for (pname, arr_src, idx_src), sbm_local in self.struct_base_memo_src_map.items():
+            if pname != proc_name_upper:
+                continue
+            try:
+                arr_sym: Symbol = self.current_symtab.lookup(arr_src)
+                idx_sym: Symbol = self.current_symtab.lookup(idx_src)
+                sbm_sym: Symbol = self.current_symtab.lookup(sbm_local)
+                self._struct_base_memo_map[(arr_sym.asm_name(), idx_sym.asm_name())] = sbm_sym.asm_name()
+            except Exception:
+                pass  # Symbol not visible in this proc — skip
+
         # Emit procedure source comment
         pinfo = self.proc_src.get(proc.ast.name)
         if pinfo:
@@ -12957,6 +12913,21 @@ class CodeGen:
         else:
             self.current_func_return_buf = None
             self.current_func_return_struct = None
+
+        # Build Phase 4 struct base memo map for this func.
+        self._struct_base_memo_map = {}
+        self._struct_base_memo_valid = set()
+        func_name_upper = func.ast.name.upper()
+        for (pname, arr_src, idx_src), sbm_local in self.struct_base_memo_src_map.items():
+            if pname != func_name_upper:
+                continue
+            try:
+                arr_sym2: Symbol = self.current_symtab.lookup(arr_src)
+                idx_sym2: Symbol = self.current_symtab.lookup(idx_src)
+                sbm_sym2: Symbol = self.current_symtab.lookup(sbm_local)
+                self._struct_base_memo_map[(arr_sym2.asm_name(), idx_sym2.asm_name())] = sbm_sym2.asm_name()
+            except Exception:
+                pass
 
         self.emit("; -- Function " + func.ast.name + " --")
         self.emit(f"{self.asm_symbol_name(func.ast.name)}:")
