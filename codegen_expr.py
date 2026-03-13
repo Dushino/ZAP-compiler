@@ -1907,9 +1907,239 @@ class CodeGen:
             i += 1
         return result
 
+    def _pre_optimize_reorder_stores(self) -> None:
+        """Pre-peephole reordering pass: sink non-immediate load-store blocks past immediate-store blocks.
+
+        Detects the pattern:
+            LDA #imm   [LDX/LDY #imm]  STA/STX/STY/STZ ...   ; Block A (immediate stores)
+            LDA src_b  STA/STX/STY ...                         ; Block B (non-immediate load+stores)
+            LDA #imm   [LDX/LDY #imm]  STA/STX/STY/STZ ...   ; Block C (same immediate as A)
+
+        and reorders to [A][C][B] so the subsequent peephole eliminates the redundant LDA #imm.
+
+        Extended block definition: a block starting with LDA #imm may also contain
+        LDX/LDY #same_imm lines (they are part of the same value being stored).
+        Transparent lines (blanks, comments, ca65 equates) are skipped within blocks.
+
+        Safety conditions:
+        - No PORT variables in any of the store destinations or Block B's load source
+        - Block C does not write to Block B's load address
+        - Block B and Block C destinations do not overlap
+        - No labels between the blocks (they would indicate control-flow entry points)
+
+        Iterates until no more changes (allows multiple consecutive optimizations).
+        """
+
+        def _is_eq(s: str) -> bool:
+            """True if stripped line is a ca65 equate (symbol = value)."""
+            p = s.split(';')[0].strip()
+            return bool(p) and '=' in p and not p.endswith(':')
+
+        def _get_instr(s: str) -> str:
+            """Non-comment portion of a stripped line."""
+            return s.split(';')[0].strip()
+
+        _PURE_STORE_OPS = {'STA', 'STX', 'STY', 'STZ'}
+
+        # Collect a "store block" beginning at index start.
+        # Returns (block_indices, next_j) where block_indices includes all lines of the block
+        # (transparent + real), and next_j is the first index outside the block.
+        # An "immediate store block" may also contain LDX/LDY #same_imm.
+        def _collect_imm_block(code: list[str], start: int) -> tuple[list[int], str, int] | None:
+            """Try to collect an immediate-store block at code[start].
+            Returns (indices, imm_str, next_j) or None if code[start] is not LDA #imm.
+            imm_str is the normalized (upper) immediate operand (e.g. '#$00').
+            Block must contain at least one STA/STX/STY/STZ.
+            """
+            s0 = _get_instr(code[start].strip()).upper()
+            if not s0.startswith('LDA #'):
+                return None
+            parts0 = s0.split(maxsplit=1)
+            lda_imm = parts0[1].strip()           # e.g. '#$00'
+            block: list[int] = [start]
+            j = start + 1
+            has_store = False
+            while j < len(code):
+                sj = code[j].strip()
+                ij = _get_instr(sj)
+                if not ij or _is_eq(sj):           # transparent
+                    block.append(j)
+                    j += 1
+                    continue
+                if sj.endswith(':'):               # label → end of block
+                    break
+                ij_up = ij.upper()
+                op = ij_up.split(maxsplit=1)[0]
+                if op in _PURE_STORE_OPS:
+                    block.append(j)
+                    has_store = True
+                    j += 1
+                    continue
+                # LDX/LDY with the same immediate: part of this block
+                if op in ('LDX', 'LDY'):
+                    rest = ij_up.split(maxsplit=1)
+                    if len(rest) > 1 and rest[1].strip() == lda_imm:
+                        block.append(j)
+                        j += 1
+                        continue
+                break                              # any other instruction → end
+            if not has_store:
+                return None
+            return block, lda_imm, j
+
+        def _collect_mem_block(code: list[str], start: int) -> tuple[list[int], str, int] | None:
+            """Try to collect a non-immediate load+store block at code[start].
+            Returns (indices, src_upper, next_j) or None.
+            src_upper is the (normalized upper) memory address that LDA reads from.
+            Block must contain at least one STA/STX/STY.
+            """
+            s0 = _get_instr(code[start].strip()).upper()
+            if not s0.startswith('LDA '):
+                return None
+            parts0 = s0.split(maxsplit=1)
+            if len(parts0) < 2 or parts0[1].strip().startswith('#'):
+                return None                        # immediate → not a mem block
+            b_src = parts0[1].strip()
+            block: list[int] = [start]
+            j = start + 1
+            has_store = False
+            while j < len(code):
+                sj = code[j].strip()
+                ij = _get_instr(sj)
+                if not ij or _is_eq(sj):
+                    block.append(j)
+                    j += 1
+                    continue
+                if sj.endswith(':'):
+                    break
+                ij_up = ij.upper()
+                op = ij_up.split(maxsplit=1)[0]
+                if op in ('STA', 'STX', 'STY'):
+                    block.append(j)
+                    has_store = True
+                    j += 1
+                    continue
+                break
+            if not has_store:
+                return None
+            return block, b_src, j
+
+        def _store_addrs(block: list[int], code: list[str]) -> set[str]:
+            """Collect all destination addresses from STA/STX/STY/STZ instructions in block."""
+            addrs: set[str] = set()
+            for idx in block:
+                ln = _get_instr(code[idx].strip()).upper()
+                parts = ln.split(maxsplit=1)
+                if len(parts) == 2 and parts[0] in _PURE_STORE_OPS:
+                    addrs.add(parts[1].strip())
+            return addrs
+
+        def _skip_transparent(code: list[str], j: int) -> tuple[list[int], int]:
+            """Advance past blanks/comments/equates; stop at labels or real instructions."""
+            transparent: list[int] = []
+            while j < len(code):
+                sj = code[j].strip()
+                ij = _get_instr(sj)
+                if not ij or _is_eq(sj):
+                    transparent.append(j)
+                    j += 1
+                    continue
+                break
+            return transparent, j
+
+        code = self.code
+        in_asm = False
+        changed = True
+        while changed:
+            changed = False
+            i = 0
+            while i < len(code):
+                s = code[i].strip()
+                if s == '; ASM_BLOCK_BEGIN':
+                    in_asm = True
+                elif s == '; ASM_BLOCK_END':
+                    in_asm = False
+                if in_asm:
+                    i += 1
+                    continue
+
+                # Try Block A (immediate store block)
+                res_a = _collect_imm_block(code, i)
+                if res_a is None:
+                    i += 1
+                    continue
+                block_a, lda_imm, j_after_a = res_a
+
+                # Skip transparent lines between A and B
+                inter_ab, j = _skip_transparent(code, j_after_a)
+                if j >= len(code):
+                    i += 1
+                    continue
+
+                # Try Block B (non-immediate load+store)
+                res_b = _collect_mem_block(code, j)
+                if res_b is None:
+                    i += 1
+                    continue
+                block_b, b_src, j_after_b = res_b
+
+                # Skip transparent lines between B and C
+                inter_bc, j = _skip_transparent(code, j_after_b)
+                if j >= len(code):
+                    i += 1
+                    continue
+
+                # Try Block C (immediate store block with same immediate as A)
+                res_c = _collect_imm_block(code, j)
+                if res_c is None:
+                    i += 1
+                    continue
+                block_c, c_imm, _j_after_c = res_c
+                if c_imm != lda_imm:
+                    i += 1
+                    continue
+
+                # --- Safety checks ---
+                set_a = _store_addrs(block_a, code)
+                set_b = _store_addrs(block_b, code)
+                set_c = _store_addrs(block_c, code)
+
+                # 1. No PORT variables in any destination or B's source
+                if (any(self._is_port_variable(a) for a in set_a)
+                        or any(self._is_port_variable(a) for a in set_b)
+                        or self._is_port_variable(b_src)
+                        or any(self._is_port_variable(a) for a in set_c)):
+                    i += 1
+                    continue
+
+                # 2. Block C must not write to Block B's load source
+                if b_src in set_c:
+                    i += 1
+                    continue
+
+                # 3. Block B and C destinations must not overlap
+                if set_b & set_c:
+                    i += 1
+                    continue
+
+                # --- Reorder: emit [A] [inter_AB] [C] [inter_BC] [B] ---
+                start = block_a[0]
+                end = block_c[-1] + 1
+                reordered = (
+                    [code[x] for x in block_a]
+                    + [code[x] for x in inter_ab]
+                    + [code[x] for x in block_c]
+                    + [code[x] for x in inter_bc]
+                    + [code[x] for x in block_b]
+                )
+                code = code[:start] + reordered + code[end:]
+                self.code = code
+                changed = True
+                i = start  # re-examine same position for chained optimizations
+
     def _is_port_variable(self, operand: str) -> bool:
         """Check if operand references a PORT (hardware port-mapped) variable.
-        
+
         PORT variables are hardware port-mapped and cannot be optimized.
         """
         if not operand:

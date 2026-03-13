@@ -1940,6 +1940,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     cg.legalize_illegal_ops()
     # Apply peephole optimizations only when explicitly enabled
     if enable_peephole:
+        cg._pre_optimize_reorder_stores()
         cg.peephole_optimize()
     # Post-process assembly text: thread redundant jump chains, then remove
     # labels that became unreferenced as a result.

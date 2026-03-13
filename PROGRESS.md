@@ -2,6 +2,23 @@
 
 ---
 
+## Optimization: Pre-peephole store-reordering pass (2026-03-13)
+
+New `_pre_optimize_reorder_stores()` method (runs before `peephole_optimize()`) detects:
+
+    [Block A: LDA #imm + LDX/LDY #imm + STA/STX/STY/STZ stores]
+    [Block B: LDA mem_src + STA/STX/STY stores]
+    [Block C: LDA #same_imm + LDX/LDY #imm + STA/STX/STY/STZ stores]
+
+and reorders to [A][C][B] so the subsequent peephole eliminates redundant `LDA #imm`.
+Handles `LDX #same_imm` within blocks; safety checks: no PORT, no source/dest overlap; iterates to convergence.
+
+**Effect on fopen() CIO call**: 4 instructions → 7 stores in one A-load.
+
+**Test results:** 165 pass / 125 fail — all OK.
+
+---
+
 ## Optimization: Peephole equate-line transparency for redundant LDA elimination (2026-03-13)
 
 ca65 equate lines (e.g. `_FOPEN_I = __LVSLOT_16`) emitted between a `STA addr / STX addr+1` pair and a subsequent `LDA addr` were blocking the peephole redundant-load elimination. Added `_is_equate_line()` helper and made three scan paths treat equates as transparent (like blanks/comments): the STA/STX special-case scan, the general backward scan, and the forward clobber-check. The redundant `LDA _FOPEN_FD` in atari_stdio is now correctly eliminated.
