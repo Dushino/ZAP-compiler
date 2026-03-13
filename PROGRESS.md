@@ -2,6 +2,29 @@
 
 ---
 
+## Optimization: Phase 4 struct base memoization + O1 zero-word-store peephole (2026-03-13)
+
+### Phase 4: Struct Base Address Memoization
+
+When `arr[idx].field` appears 2+ times in a proc (across branches or JSR calls), the compiler now:
+1. Pre-scans the proc body in `_predeclare_struct_base_memos()` (compiler_pipeline.py) and declares a proc-local `WORD` variable `__SBM_N` for each unique `(arr, idx)` pair.
+2. On first compute: saves TMP0 to `__SBM_N` (4 extra instructions).
+3. On subsequent uses (after branch/label/JSR): restores TMP0 from `__SBM_N` (4 instructions) instead of recomputing from scratch (~23 instructions).
+
+Memo is invalidated only when `idx` is written (e.g. `i = 5`). Unlike Phase 3 (in-register cache), Phase 4 memo is in a proc-local variable that survives JSR calls.
+
+**Net savings** for `cio()`: 2 recomputes eliminated → ~34 instructions saved.
+
+### O1 Peephole Rule G: Redundant LDX elimination for same-immediate pair
+
+Pattern: `LDA #imm / LDX #imm / STA addr / STX addr+1` → `LDA #imm / STA addr / STA addr+1`
+
+When A and X hold the same immediate (most common case: #$00), LDX is redundant because STA can store both bytes. Saves 1 instruction per zero WORD store. Works on both 6502 and 65C02.
+
+**Test results:** 165 pass / 125 fail — all OK.
+
+---
+
 ## Feature: Struct array field access optimization + 255-byte struct limit (2026-03-13)
 
 ### Three-Phase Struct Field Access Optimization

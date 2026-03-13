@@ -2022,6 +2022,7 @@ class CodeGen:
         - Replace LDA TMP0; TAY; LDA label,Y with LDY TMP0; LDA label,Y
         - STA addr followed by STZ addr → STZ addr  (dead store before zero)
         - STZ addr followed by STZ addr → single STZ addr  (duplicate zero store)
+        - LDA #imm / LDX #imm / STA addr / STX addr+1 → LDA #imm / STA addr / STA addr+1  (drop redundant LDX when same immediate)
         """
         optimized: list[str] = []
         i = 0
@@ -2088,6 +2089,22 @@ class CodeGen:
                 operand = parts[1].strip() if len(parts) > 1 else None
                 return op, operand, True
             return None, None, False
+
+        def _next_real_idx(start_idx: int) -> int:
+            """Return the index of the next non-blank, non-comment, non-label line.
+            Returns -1 if none found before a label or end of code.
+            """
+            k = start_idx
+            while k < len(self.code):
+                p = self.code[k].strip()
+                pi = p.split(';')[0].strip()
+                if not pi:
+                    k += 1
+                    continue
+                if pi.endswith(':'):
+                    return -1
+                return k
+            return -1
 
         # 8-bit math routines that don't use X as an input operand
         _8BIT_ROUTINES_NO_X = {
@@ -2497,6 +2514,49 @@ class CodeGen:
                     i += 1
                     continue
 
+
+            # Rule G: LDA #imm / LDX #imm / STA addr / STX addr+1 → LDA #imm / STA addr / STA addr+1
+            # When A and X hold the same immediate, LDX is redundant: STA can store both bytes.
+            # Applies to 6502 and 65C02. Most common case: storing zero into a WORD variable.
+            if cur_op == "LDA" and cur_operand and cur_operand.startswith("#"):
+                lda_imm: str = cur_operand.upper()
+                # Step 1: next real instruction must be LDX #same_imm
+                ldx_idx: int = _next_real_idx(i + 1)
+                if ldx_idx >= 0:
+                    ldx_raw: str = self.code[ldx_idx].strip().split(';')[0].strip().upper()
+                    ldx_parts: list[str] = ldx_raw.split(maxsplit=1)
+                    if (ldx_parts[0] == "LDX" and len(ldx_parts) > 1
+                            and ldx_parts[1].strip() == lda_imm):
+                        # Step 2: next real instruction must be STA addr
+                        sta_idx: int = _next_real_idx(ldx_idx + 1)
+                        if sta_idx >= 0:
+                            sta_raw: str = self.code[sta_idx].strip().split(';')[0].strip().upper()
+                            sta_parts: list[str] = sta_raw.split(maxsplit=1)
+                            if sta_parts[0] == "STA" and len(sta_parts) > 1:
+                                sta_addr_g: str = sta_parts[1].strip()
+                                # Step 3: next real instruction must be STX addr+1
+                                stx_idx: int = _next_real_idx(sta_idx + 1)
+                                if stx_idx >= 0:
+                                    stx_raw: str = self.code[stx_idx].strip().split(';')[0].strip().upper()
+                                    stx_parts: list[str] = stx_raw.split(maxsplit=1)
+                                    if (stx_parts[0] == "STX" and len(stx_parts) > 1
+                                            and stx_parts[1].strip() == sta_addr_g + "+1"
+                                            and not _operand_is_port(sta_addr_g)):
+                                        # Emit: LDA #imm / STA addr / STA addr+1 (drop LDX)
+                                        indent_stx: str = self.code[stx_idx][: len(self.code[stx_idx]) - len(self.code[stx_idx].lstrip())]
+                                        optimized.append(self.code[i])            # LDA #imm
+                                        # Preserve any blank/comment lines between LDX and STA
+                                        for k in range(ldx_idx + 1, sta_idx):
+                                            if not self.code[k].strip().split(';')[0].strip():
+                                                optimized.append(self.code[k])
+                                        optimized.append(self.code[sta_idx])     # STA addr
+                                        # Preserve any blank/comment lines between STA and STX
+                                        for k in range(sta_idx + 1, stx_idx):
+                                            if not self.code[k].strip().split(';')[0].strip():
+                                                optimized.append(self.code[k])
+                                        optimized.append(f"{indent_stx}STA {sta_addr_g}+1\n")
+                                        i = stx_idx + 1
+                                        continue
 
             # 65c02: Replace LDX #$00; STA addr; STX addr+1 → STA addr; STZ addr+1
 
