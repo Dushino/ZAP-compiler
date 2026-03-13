@@ -2,6 +2,14 @@
 
 ---
 
+## Optimization: Peephole equate-line transparency for redundant LDA elimination (2026-03-13)
+
+ca65 equate lines (e.g. `_FOPEN_I = __LVSLOT_16`) emitted between a `STA addr / STX addr+1` pair and a subsequent `LDA addr` were blocking the peephole redundant-load elimination. Added `_is_equate_line()` helper and made three scan paths treat equates as transparent (like blanks/comments): the STA/STX special-case scan, the general backward scan, and the forward clobber-check. The redundant `LDA _FOPEN_FD` in atari_stdio is now correctly eliminated.
+
+**Test results:** 165 pass / 125 fail — all OK.
+
+---
+
 ## Optimization: Phase 4 struct base memoization + O1 zero-word-store peephole (2026-03-13)
 
 ### Phase 4: Struct Base Address Memoization

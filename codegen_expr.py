@@ -2106,6 +2106,14 @@ class CodeGen:
                 return k
             return -1
 
+        def _is_equate_line(s: str) -> bool:
+            """Return True if line is a ca65 symbol equate (e.g. '_FOO = __LVSLOT_16').
+            Equate lines contain '=' in the non-comment part but are not labels.
+            They are transparent to redundant-load elimination.
+            """
+            code_part = s.split(';')[0].strip()
+            return bool(code_part) and '=' in code_part and not code_part.endswith(':')
+
         # 8-bit math routines that don't use X as an input operand
         _8BIT_ROUTINES_NO_X = {
             "__MUL8_A", "__DIV8_A", "__MOD8_A",
@@ -2274,7 +2282,7 @@ class CodeGen:
                             prior_instrs: list[str] = []
                             while k >= 0 and len(prior_instrs) < 2:
                                 prev_line = optimized[k].strip()
-                                if not prev_line or prev_line.startswith(";"):
+                                if not prev_line or prev_line.startswith(";") or _is_equate_line(prev_line):
                                     k -= 1
                                     continue
                                 if prev_line.endswith(":"):
@@ -2311,9 +2319,9 @@ class CodeGen:
                         
                         while k >= 0 and instructions_back < 6:  # Only look back 6 actual instructions
                             prev_line = optimized[k].strip()
-                            
-                            # Skip comments and blanks
-                            if not prev_line or prev_line.startswith(";"):
+
+                            # Skip comments, blanks, and ca65 equate lines (transparent to load tracking)
+                            if not prev_line or prev_line.startswith(";") or _is_equate_line(prev_line):
                                 k -= 1
                                 continue
                             
@@ -2339,7 +2347,7 @@ class CodeGen:
                                         verify_line = optimized[verify_idx].strip()
                                         if verify_line == line_stripped:
                                             break
-                                        if verify_line and not verify_line.startswith(";"):
+                                        if verify_line and not verify_line.startswith(";") and not _is_equate_line(verify_line):
                                             verify_op = verify_line.split(maxsplit=1)[0].upper()
                                             # If ANY instruction that loads into our register, can't remove
                                             if verify_op == load_op:  # LDA, LDX, or LDY
