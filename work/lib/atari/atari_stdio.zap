@@ -605,10 +605,15 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         asl
         asl        
         tax        
-        jsr $E456           ; call CIO handler     
+        jsr $E456           ; call CIO handler    
+        sta _CIO_RV 
     end
 
-    rv = IOCB[ch].ICSTA        
+    if command != ICCOM_COMMANDS.GetChr ||
+            adr != 0 ||
+            len != 0
+        rv = IOCB[ch].ICSTA        
+    end
 
 .ifdef DEBUG_CIO
     putchar(' ')
@@ -806,12 +811,22 @@ end
     fgetc - get character from file
 */
 func byte fgetc(FILE^ fd)
-    ; TODO: implement file reading  
+    byte rv
+    byte buffer = 0
+
     if fd == NULL        
-        return 0
-    end 
-    set_fderror(fd, ERRNO.ENODEV)
-    return 0
+        return ERRNO.EBADF
+    end
+
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr)        
+    if rv != 1
+        set_fderror(fd, rv)
+        return rv
+    end
+
+    checkeof(fd, rv)
+    set_fderror(fd, ERRNO.OK)    
+    return buffer    
 end
 
 

@@ -51,6 +51,9 @@ proc main()
     name[5] = 0
     puts(name)
 
+    rv = fgetc(@fd)
+    putchar(rv)
+
     puts("\nClose:  ")
     fclose(@fd)
     putx(rv)
