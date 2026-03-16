@@ -1,5 +1,5 @@
 ; da65 V2.19 - N/A
-; Created:    2026-03-13 22:22:05
+; Created:    2026-03-16 08:04:52
 ; Input file: test_stdio.xex
 ; Page:       1
 
@@ -10,9 +10,9 @@
 L0020           := $0020
 L2020           := $2020
 L216F           := $216F
-L4770           := $4770
-L4773           := $4773
-L4792           := $4792
+L4787           := $4787
+L478A           := $478A
+L47A9           := $47A9
 L736F           := $736F
 LE456           := $E456
 ; ----------------------------------------------------------------------------
@@ -22,11 +22,10 @@ LE456           := $E456
         rti                                     ; 4003 40
 
 ; ----------------------------------------------------------------------------
-        .byte   $5F                             ; 4004 5F
-        .byte   $47                             ; 4005 47
+        ror     $47,x                           ; 4004 76 47
         jsr     L40A7                           ; 4006 20 A7 40
-L4009:  jsr     L4635                           ; 4009 20 35 46
-L400C:  jsr     L4636                           ; 400C 20 36 46
+L4009:  jsr     L464C                           ; 4009 20 4C 46
+L400C:  jsr     L464D                           ; 400C 20 4D 46
         jmp     L4009                           ; 400F 4C 09 40
 
 ; ----------------------------------------------------------------------------
@@ -194,12 +193,12 @@ L40FE:  cpy     a:$A0                           ; 40FE CC A0 00
         lsr     a                               ; 4108 4A
         lsr     a                               ; 4109 4A
         tay                                     ; 410A A8
-        lda     L4737,y                         ; 410B B9 37 47
+        lda     L474E,y                         ; 410B B9 4E 47
         jsr     L41DA                           ; 410E 20 DA 41
         lda     $C8                             ; 4111 A5 C8
         and     #$0F                            ; 4113 29 0F
         tay                                     ; 4115 A8
-L4116:  lda     L4737,y                         ; 4116 B9 37 47
+L4116:  lda     L474E,y                         ; 4116 B9 4E 47
         jmp     L41DA                           ; 4119 4C DA 41
 
 ; ----------------------------------------------------------------------------
@@ -610,7 +609,7 @@ L43AB:  lda     #$01                            ; 43AB A9 01
         sta     $8C                             ; 43AF 85 8C
         lda     $BF                             ; 43B1 A5 BF
         ldx     $C0                             ; 43B3 A6 C0
-        jsr     L475B                           ; 43B5 20 5B 47
+        jsr     L4772                           ; 43B5 20 72 47
         lda     #$00                            ; 43B8 A9 00
         sta     $B3                             ; 43BA 85 B3
         lda     $AF                             ; 43BC A5 AF
@@ -642,7 +641,7 @@ L43E2:  lda     #$01                            ; 43E2 A9 01
         sta     $8C                             ; 43E6 85 8C
         lda     $C1                             ; 43E8 A5 C1
         ldx     $C2                             ; 43EA A6 C2
-        jsr     L475B                           ; 43EC 20 5B 47
+        jsr     L4772                           ; 43EC 20 72 47
         lda     #$00                            ; 43EF A9 00
         sta     $B3                             ; 43F1 85 B3
         lda     $AF                             ; 43F3 A5 AF
@@ -765,414 +764,425 @@ L449A:  lda     #$22                            ; 449A A9 22
         sta     $B9                             ; 449F 85 B9
         ldy     #$00                            ; 44A1 A0 00
         sta     ($AC),y                         ; 44A3 91 AC
-        lda     $82                             ; 44A5 A5 82
-        ldx     $83                             ; 44A7 A6 83
-        sta     $BF                             ; 44A9 85 BF
-        stx     $C0                             ; 44AB 86 C0
-        sty     $C1                             ; 44AD 84 C1
-        sty     $C2                             ; 44AF 84 C2
-        sty     $87                             ; 44B1 84 87
-        sty     $88                             ; 44B3 84 88
-        lda     $8A                             ; 44B5 A5 8A
-        sta     $86                             ; 44B7 85 86
-        lda     $8B                             ; 44B9 A5 8B
-        ldx     #$03                            ; 44BB A2 03
-        jsr     L42FA                           ; 44BD 20 FA 42
-        sta     $8A                             ; 44C0 85 8A
-        lda     $AC                             ; 44C2 A5 AC
-        ldx     $AD                             ; 44C4 A6 AD
-        ldy     $8A                             ; 44C6 A4 8A
-        jsr     L443A                           ; 44C8 20 3A 44
-        lda     $AC                             ; 44CB A5 AC
-        ldx     $AD                             ; 44CD A6 AD
-        ldy     #$00                            ; 44CF A0 00
-L44D1:  jsr     L428C                           ; 44D1 20 8C 42
-        lda     #$00                            ; 44D4 A9 00
-        rts                                     ; 44D6 60
+        sty     $BF                             ; 44A5 84 BF
+        sty     $C0                             ; 44A7 84 C0
+        sty     $C1                             ; 44A9 84 C1
+        sty     $C2                             ; 44AB 84 C2
+        sty     $86                             ; 44AD 84 86
+        sty     $87                             ; 44AF 84 87
+        sty     $88                             ; 44B1 84 88
+        lda     $8B                             ; 44B3 A5 8B
+        ldx     #$0C                            ; 44B5 A2 0C
+        jsr     L42FA                           ; 44B7 20 FA 42
+        lda     $82                             ; 44BA A5 82
+        ldx     $83                             ; 44BC A6 83
+        sta     $BF                             ; 44BE 85 BF
+        stx     $C0                             ; 44C0 86 C0
+        lda     #$00                            ; 44C2 A9 00
+        sta     $C1                             ; 44C4 85 C1
+        sta     $C2                             ; 44C6 85 C2
+        sta     $87                             ; 44C8 85 87
+        sta     $88                             ; 44CA 85 88
+        lda     $8A                             ; 44CC A5 8A
+        sta     $86                             ; 44CE 85 86
+        lda     $8B                             ; 44D0 A5 8B
+        ldx     #$03                            ; 44D2 A2 03
+        jsr     L42FA                           ; 44D4 20 FA 42
+        sta     $8A                             ; 44D7 85 8A
+        lda     $AC                             ; 44D9 A5 AC
+        ldx     $AD                             ; 44DB A6 AD
+        ldy     $8A                             ; 44DD A4 8A
+        jsr     L443A                           ; 44DF 20 3A 44
+        lda     $AC                             ; 44E2 A5 AC
+        ldx     $AD                             ; 44E4 A6 AD
+        ldy     #$00                            ; 44E6 A0 00
+L44E8:  jsr     L428C                           ; 44E8 20 8C 42
+        lda     #$00                            ; 44EB A9 00
+        rts                                     ; 44ED 60
 
 ; ----------------------------------------------------------------------------
-        sta     $AC                             ; 44D7 85 AC
-        stx     $AD                             ; 44D9 86 AD
-        cpx     #$00                            ; 44DB E0 00
-        bne     L44E3                           ; 44DD D0 04
-        cmp     #$00                            ; 44DF C9 00
-        beq     L44E6                           ; 44E1 F0 03
-L44E3:  jmp     L44E3                           ; 44E3 4C E3 44
+        sta     $AC                             ; 44EE 85 AC
+        stx     $AD                             ; 44F0 86 AD
+        cpx     #$00                            ; 44F2 E0 00
+        bne     L44FA                           ; 44F4 D0 04
+        cmp     #$00                            ; 44F6 C9 00
+        beq     L44FD                           ; 44F8 F0 03
+L44FA:  jmp     L44FA                           ; 44FA 4C FA 44
 
 ; ----------------------------------------------------------------------------
-L44E6:  lda     #$05                            ; 44E6 A9 05
-        rts                                     ; 44E8 60
+L44FD:  lda     #$05                            ; 44FD A9 05
+        rts                                     ; 44FF 60
 
 ; ----------------------------------------------------------------------------
-        lda     #$00                            ; 44E9 A9 00
-        sta     $BF                             ; 44EB 85 BF
-        sta     $C0                             ; 44ED 85 C0
-        sta     $C1                             ; 44EF 85 C1
-        sta     $C2                             ; 44F1 85 C2
-        sta     $86                             ; 44F3 85 86
-        sta     $87                             ; 44F5 85 87
-        sta     $88                             ; 44F7 85 88
-        tay                                     ; 44F9 A8
-        lda     ($AC),y                         ; 44FA B1 AC
-        ldx     #$0C                            ; 44FC A2 0C
-        jsr     L42FA                           ; 44FE 20 FA 42
-        sta     $8A                             ; 4501 85 8A
-        cmp     #$01                            ; 4503 C9 01
-        bne     L450A                           ; 4505 D0 03
-        jmp     L4510                           ; 4507 4C 10 45
+        lda     #$00                            ; 4500 A9 00
+        sta     $BF                             ; 4502 85 BF
+        sta     $C0                             ; 4504 85 C0
+        sta     $C1                             ; 4506 85 C1
+        sta     $C2                             ; 4508 85 C2
+        sta     $86                             ; 450A 85 86
+        sta     $87                             ; 450C 85 87
+        sta     $88                             ; 450E 85 88
+        tay                                     ; 4510 A8
+        lda     ($AC),y                         ; 4511 B1 AC
+        ldx     #$0C                            ; 4513 A2 0C
+        jsr     L42FA                           ; 4515 20 FA 42
+        sta     $8A                             ; 4518 85 8A
+        cmp     #$01                            ; 451A C9 01
+        bne     L4521                           ; 451C D0 03
+        jmp     L4527                           ; 451E 4C 27 45
 
 ; ----------------------------------------------------------------------------
-L450A:  lda     $AC                             ; 450A A5 AC
-        ldx     $AD                             ; 450C A6 AD
-        ldy     $8A                             ; 450E A4 8A
-L4510:  jsr     L428C                           ; 4510 20 8C 42
-        lda     $8A                             ; 4513 A5 8A
-        rts                                     ; 4515 60
+L4521:  lda     $AC                             ; 4521 A5 AC
+        ldx     $AD                             ; 4523 A6 AD
+        ldy     $8A                             ; 4525 A4 8A
+L4527:  jsr     L428C                           ; 4527 20 8C 42
+        lda     $8A                             ; 452A A5 8A
+        rts                                     ; 452C 60
 
 ; ----------------------------------------------------------------------------
-        lda     $AC                             ; 4516 A5 AC
-        ldx     $AD                             ; 4518 A6 AD
-        ldy     #$00                            ; 451A A0 00
-L451C:  jsr     L428C                           ; 451C 20 8C 42
-        lda     #$00                            ; 451F A9 00
-        rts                                     ; 4521 60
+        lda     $AC                             ; 452D A5 AC
+        ldx     $AD                             ; 452F A6 AD
+        ldy     #$00                            ; 4531 A0 00
+L4533:  jsr     L428C                           ; 4533 20 8C 42
+        lda     #$00                            ; 4536 A9 00
+        rts                                     ; 4538 60
 
 ; ----------------------------------------------------------------------------
-        sta     $AC                             ; 4522 85 AC
-        stx     $AD                             ; 4524 86 AD
-        cpx     #$00                            ; 4526 E0 00
-        bne     L452E                           ; 4528 D0 04
-        cmp     #$00                            ; 452A C9 00
-        beq     L4531                           ; 452C F0 03
-L452E:  jmp     L452E                           ; 452E 4C 2E 45
+        sta     $AC                             ; 4539 85 AC
+        stx     $AD                             ; 453B 86 AD
+        cpx     #$00                            ; 453D E0 00
+        bne     L4545                           ; 453F D0 04
+        cmp     #$00                            ; 4541 C9 00
+        beq     L4548                           ; 4543 F0 03
+L4545:  jmp     L4545                           ; 4545 4C 45 45
 
 ; ----------------------------------------------------------------------------
-L4531:  lda     #$05                            ; 4531 A9 05
-        rts                                     ; 4533 60
+L4548:  lda     #$05                            ; 4548 A9 05
+        rts                                     ; 454A 60
 
 ; ----------------------------------------------------------------------------
-        lda     $82                             ; 4534 A5 82
-        ldx     $83                             ; 4536 A6 83
-        sta     $BF                             ; 4538 85 BF
-        stx     $C0                             ; 453A 86 C0
-        lda     $C5                             ; 453C A5 C5
-        ldx     $C6                             ; 453E A6 C6
-        sta     $C1                             ; 4540 85 C1
-        stx     $C2                             ; 4542 86 C2
-        lda     #$00                            ; 4544 A9 00
-        sta     $86                             ; 4546 85 86
-        sta     $87                             ; 4548 85 87
-        sta     $88                             ; 454A 85 88
-        tay                                     ; 454C A8
-        lda     ($AC),y                         ; 454D B1 AC
-        ldx     #$07                            ; 454F A2 07
-        jsr     L42FA                           ; 4551 20 FA 42
-        sta     $8A                             ; 4554 85 8A
-        cmp     #$01                            ; 4556 C9 01
-        bne     L455D                           ; 4558 D0 03
-        jmp     L4563                           ; 455A 4C 63 45
+        lda     $82                             ; 454B A5 82
+        ldx     $83                             ; 454D A6 83
+        sta     $BF                             ; 454F 85 BF
+        stx     $C0                             ; 4551 86 C0
+        lda     $C5                             ; 4553 A5 C5
+        ldx     $C6                             ; 4555 A6 C6
+        sta     $C1                             ; 4557 85 C1
+        stx     $C2                             ; 4559 86 C2
+        lda     #$00                            ; 455B A9 00
+        sta     $86                             ; 455D 85 86
+        sta     $87                             ; 455F 85 87
+        sta     $88                             ; 4561 85 88
+        tay                                     ; 4563 A8
+        lda     ($AC),y                         ; 4564 B1 AC
+        ldx     #$07                            ; 4566 A2 07
+        jsr     L42FA                           ; 4568 20 FA 42
+        sta     $8A                             ; 456B 85 8A
+        cmp     #$01                            ; 456D C9 01
+        bne     L4574                           ; 456F D0 03
+        jmp     L457A                           ; 4571 4C 7A 45
 
 ; ----------------------------------------------------------------------------
-L455D:  lda     $AC                             ; 455D A5 AC
-        ldx     $AD                             ; 455F A6 AD
-        ldy     $8A                             ; 4561 A4 8A
-L4563:  jsr     L428C                           ; 4563 20 8C 42
-        lda     $8A                             ; 4566 A5 8A
-        rts                                     ; 4568 60
+L4574:  lda     $AC                             ; 4574 A5 AC
+        ldx     $AD                             ; 4576 A6 AD
+        ldy     $8A                             ; 4578 A4 8A
+L457A:  jsr     L428C                           ; 457A 20 8C 42
+        lda     $8A                             ; 457D A5 8A
+        rts                                     ; 457F 60
 
 ; ----------------------------------------------------------------------------
-        lda     $AC                             ; 4569 A5 AC
-        ldx     $AD                             ; 456B A6 AD
-        ldy     $8A                             ; 456D A4 8A
-        jsr     L443A                           ; 456F 20 3A 44
-        lda     $AC                             ; 4572 A5 AC
-        ldx     $AD                             ; 4574 A6 AD
-        ldy     #$00                            ; 4576 A0 00
-L4578:  jsr     L428C                           ; 4578 20 8C 42
-        lda     #$00                            ; 457B A9 00
-        rts                                     ; 457D 60
+        lda     $AC                             ; 4580 A5 AC
+        ldx     $AD                             ; 4582 A6 AD
+        ldy     $8A                             ; 4584 A4 8A
+        jsr     L443A                           ; 4586 20 3A 44
+        lda     $AC                             ; 4589 A5 AC
+        ldx     $AD                             ; 458B A6 AD
+        ldy     #$00                            ; 458D A0 00
+L458F:  jsr     L428C                           ; 458F 20 8C 42
+        lda     #$00                            ; 4592 A9 00
+        rts                                     ; 4594 60
 
 ; ----------------------------------------------------------------------------
-        sta     $AC                             ; 457E 85 AC
-        stx     $AD                             ; 4580 86 AD
-        cpx     #$00                            ; 4582 E0 00
-        bne     L458A                           ; 4584 D0 04
-        cmp     #$00                            ; 4586 C9 00
-        beq     L458D                           ; 4588 F0 03
-L458A:  .byte   $4C                             ; 458A 4C
-        .byte   $8C                             ; 458B 8C
-L458C:  .byte   $45                             ; 458C 45
-L458D:  lda     #$05                            ; 458D A9 05
-        ldx     #$00                            ; 458F A2 00
-        rts                                     ; 4591 60
+        sta     $AC                             ; 4595 85 AC
+        stx     $AD                             ; 4597 86 AD
+        cpx     #$00                            ; 4599 E0 00
+        bne     L45A1                           ; 459B D0 04
+        cmp     #$00                            ; 459D C9 00
+        beq     L45A4                           ; 459F F0 03
+L45A1:  .byte   $4C                             ; 45A1 4C
+        .byte   $A3                             ; 45A2 A3
+L45A3:  .byte   $45                             ; 45A3 45
+L45A4:  lda     #$05                            ; 45A4 A9 05
+        ldx     #$00                            ; 45A6 A2 00
+        rts                                     ; 45A8 60
 
 ; ----------------------------------------------------------------------------
-        lda     $82                             ; 4592 A5 82
-        ldx     $83                             ; 4594 A6 83
-        sta     $BF                             ; 4596 85 BF
-        stx     $C0                             ; 4598 86 C0
-        lda     $C5                             ; 459A A5 C5
-        ldx     $C6                             ; 459C A6 C6
-        sta     $C1                             ; 459E 85 C1
-        stx     $C2                             ; 45A0 86 C2
-        lda     #$00                            ; 45A2 A9 00
-        sta     $86                             ; 45A4 85 86
-        sta     $87                             ; 45A6 85 87
-        sta     $88                             ; 45A8 85 88
-        tay                                     ; 45AA A8
-        lda     ($AC),y                         ; 45AB B1 AC
-        ldx     #$0B                            ; 45AD A2 0B
-        jsr     L42FA                           ; 45AF 20 FA 42
-        sta     $8A                             ; 45B2 85 8A
-        cmp     #$01                            ; 45B4 C9 01
-        bne     L45BB                           ; 45B6 D0 03
-        jmp     L45C3                           ; 45B8 4C C3 45
+        lda     $82                             ; 45A9 A5 82
+        ldx     $83                             ; 45AB A6 83
+        sta     $BF                             ; 45AD 85 BF
+        stx     $C0                             ; 45AF 86 C0
+        lda     $C5                             ; 45B1 A5 C5
+        ldx     $C6                             ; 45B3 A6 C6
+        sta     $C1                             ; 45B5 85 C1
+        stx     $C2                             ; 45B7 86 C2
+        lda     #$00                            ; 45B9 A9 00
+        sta     $86                             ; 45BB 85 86
+        sta     $87                             ; 45BD 85 87
+        sta     $88                             ; 45BF 85 88
+        tay                                     ; 45C1 A8
+        lda     ($AC),y                         ; 45C2 B1 AC
+        ldx     #$0B                            ; 45C4 A2 0B
+        jsr     L42FA                           ; 45C6 20 FA 42
+        sta     $8A                             ; 45C9 85 8A
+        cmp     #$01                            ; 45CB C9 01
+        bne     L45D2                           ; 45CD D0 03
+        jmp     L45DA                           ; 45CF 4C DA 45
 
 ; ----------------------------------------------------------------------------
-L45BB:  lda     $AC                             ; 45BB A5 AC
-        ldx     $AD                             ; 45BD A6 AD
-        ldy     $8A                             ; 45BF A4 8A
-        .byte   $20                             ; 45C1 20
-        .byte   $8C                             ; 45C2 8C
-L45C3:  .byte   $42                             ; 45C3 42
-        lda     $8A                             ; 45C4 A5 8A
-        ldx     #$00                            ; 45C6 A2 00
-        rts                                     ; 45C8 60
-
-; ----------------------------------------------------------------------------
-        lda     $AC                             ; 45C9 A5 AC
-        ldx     $AD                             ; 45CB A6 AD
-        ldy     $8A                             ; 45CD A4 8A
-        jsr     L443A                           ; 45CF 20 3A 44
-        lda     $AC                             ; 45D2 A5 AC
+L45D2:  lda     $AC                             ; 45D2 A5 AC
         ldx     $AD                             ; 45D4 A6 AD
-        ldy     #$00                            ; 45D6 A0 00
+        ldy     $8A                             ; 45D6 A4 8A
         .byte   $20                             ; 45D8 20
-L45D9:  sty     $A942                           ; 45D9 8C 42 A9
-        brk                                     ; 45DC 00
-        tax                                     ; 45DD AA
-        rts                                     ; 45DE 60
+        .byte   $8C                             ; 45D9 8C
+L45DA:  .byte   $42                             ; 45DA 42
+        lda     $8A                             ; 45DB A5 8A
+        ldx     #$00                            ; 45DD A2 00
+        rts                                     ; 45DF 60
 
 ; ----------------------------------------------------------------------------
-        sta     $AC                             ; 45DF 85 AC
-        stx     $AD                             ; 45E1 86 AD
-        lda     #$00                            ; 45E3 A9 00
-        sta     $8B                             ; 45E5 85 8B
-        lda     $AC                             ; 45E7 A5 AC
-        ldx     $AD                             ; 45E9 A6 AD
-        cpx     #$00                            ; 45EB E0 00
-        bne     L45F3                           ; 45ED D0 04
-        cmp     #$00                            ; 45EF C9 00
-        beq     L45F6                           ; 45F1 F0 03
-L45F3:  jmp     L45F3                           ; 45F3 4C F3 45
+        lda     $AC                             ; 45E0 A5 AC
+        ldx     $AD                             ; 45E2 A6 AD
+        ldy     $8A                             ; 45E4 A4 8A
+        jsr     L443A                           ; 45E6 20 3A 44
+        lda     $AC                             ; 45E9 A5 AC
+        ldx     $AD                             ; 45EB A6 AD
+        ldy     #$00                            ; 45ED A0 00
+        .byte   $20                             ; 45EF 20
+L45F0:  sty     $A942                           ; 45F0 8C 42 A9
+        brk                                     ; 45F3 00
+        tax                                     ; 45F4 AA
+        rts                                     ; 45F5 60
 
 ; ----------------------------------------------------------------------------
-L45F6:  lda     #$05                            ; 45F6 A9 05
-        rts                                     ; 45F8 60
+        sta     $AC                             ; 45F6 85 AC
+        stx     $AD                             ; 45F8 86 AD
+        lda     #$00                            ; 45FA A9 00
+        sta     $8B                             ; 45FC 85 8B
+        lda     $AC                             ; 45FE A5 AC
+        ldx     $AD                             ; 4600 A6 AD
+        cpx     #$00                            ; 4602 E0 00
+        bne     L460A                           ; 4604 D0 04
+        cmp     #$00                            ; 4606 C9 00
+        beq     L460D                           ; 4608 F0 03
+L460A:  jmp     L460A                           ; 460A 4C 0A 46
 
 ; ----------------------------------------------------------------------------
-        lda     #$00                            ; 45F9 A9 00
-        sta     $BF                             ; 45FB 85 BF
-        sta     $C0                             ; 45FD 85 C0
-        sta     $C1                             ; 45FF 85 C1
-        sta     $C2                             ; 4601 85 C2
-        sta     $86                             ; 4603 85 86
-        sta     $87                             ; 4605 85 87
-        sta     $88                             ; 4607 85 88
-        tay                                     ; 4609 A8
-        lda     ($AC),y                         ; 460A B1 AC
-        ldx     #$07                            ; 460C A2 07
-        jsr     L42FA                           ; 460E 20 FA 42
-        sta     $8A                             ; 4611 85 8A
-        cmp     #$01                            ; 4613 C9 01
-        bne     L461A                           ; 4615 D0 03
-        jmp     L4620                           ; 4617 4C 20 46
+L460D:  lda     #$05                            ; 460D A9 05
+        rts                                     ; 460F 60
 
 ; ----------------------------------------------------------------------------
-L461A:  lda     $AC                             ; 461A A5 AC
-        ldx     $AD                             ; 461C A6 AD
-        ldy     $8A                             ; 461E A4 8A
-L4620:  jsr     L428C                           ; 4620 20 8C 42
-        lda     $8A                             ; 4623 A5 8A
-        rts                                     ; 4625 60
+        lda     #$00                            ; 4610 A9 00
+        sta     $BF                             ; 4612 85 BF
+        sta     $C0                             ; 4614 85 C0
+        sta     $C1                             ; 4616 85 C1
+        sta     $C2                             ; 4618 85 C2
+        sta     $86                             ; 461A 85 86
+        sta     $87                             ; 461C 85 87
+        sta     $88                             ; 461E 85 88
+        tay                                     ; 4620 A8
+        lda     ($AC),y                         ; 4621 B1 AC
+        ldx     #$07                            ; 4623 A2 07
+        jsr     L42FA                           ; 4625 20 FA 42
+        sta     $8A                             ; 4628 85 8A
+        cmp     #$01                            ; 462A C9 01
+        bne     L4631                           ; 462C D0 03
+        jmp     L4637                           ; 462E 4C 37 46
 
 ; ----------------------------------------------------------------------------
-        lda     $AC                             ; 4626 A5 AC
-        ldx     $AD                             ; 4628 A6 AD
-        ldy     $8A                             ; 462A A4 8A
-        jsr     L443A                           ; 462C 20 3A 44
-        lda     $AC                             ; 462F A5 AC
-        ldx     $AD                             ; 4631 A6 AD
-        ldy     #$00                            ; 4633 A0 00
-L4635:  .byte   $20                             ; 4635 20
-L4636:  sty     $A542                           ; 4636 8C 42 A5
-        .byte   $8B                             ; 4639 8B
-        rts                                     ; 463A 60
+L4631:  lda     $AC                             ; 4631 A5 AC
+        ldx     $AD                             ; 4633 A6 AD
+        ldy     $8A                             ; 4635 A4 8A
+L4637:  jsr     L428C                           ; 4637 20 8C 42
+        lda     $8A                             ; 463A A5 8A
+        rts                                     ; 463C 60
 
 ; ----------------------------------------------------------------------------
-        rts                                     ; 463B 60
+        lda     $AC                             ; 463D A5 AC
+        ldx     $AD                             ; 463F A6 AD
+        ldy     $8A                             ; 4641 A4 8A
+        jsr     L443A                           ; 4643 20 3A 44
+        lda     $AC                             ; 4646 A5 AC
+        ldx     $AD                             ; 4648 A6 AD
+        ldy     #$00                            ; 464A A0 00
+L464C:  .byte   $20                             ; 464C 20
+L464D:  sty     $A542                           ; 464D 8C 42 A5
+        .byte   $8B                             ; 4650 8B
+        rts                                     ; 4651 60
 
 ; ----------------------------------------------------------------------------
-        lda     #$05                            ; 463C A9 05
-        ldx     #$47                            ; 463E A2 47
-        jsr     L4266                           ; 4640 20 66 42
-        lda     #$48                            ; 4643 A9 48
-        ldx     #$47                            ; 4645 A2 47
-        sta     $82                             ; 4647 85 82
-        stx     $83                             ; 4649 86 83
-        lda     #$08                            ; 464B A9 08
-        sta     $8A                             ; 464D 85 8A
-        lda     #$60                            ; 464F A9 60
-        ldx     #$47                            ; 4651 A2 47
-        jsr     L4476                           ; 4653 20 76 44
-        sta     $C7                             ; 4656 85 C7
-        jsr     L40FE                           ; 4658 20 FE 40
-        lda     #$0E                            ; 465B A9 0E
-        ldx     #$47                            ; 465D A2 47
-        jsr     L4266                           ; 465F 20 66 42
-        lda     #$54                            ; 4662 A9 54
-        ldx     #$47                            ; 4664 A2 47
-        sta     $82                             ; 4666 85 82
-        stx     $83                             ; 4668 86 83
-        lda     #$54                            ; 466A A9 54
-        ldx     #$47                            ; 466C A2 47
-        ldy     #$FF                            ; 466E A0 FF
-        jsr     L4078                           ; 4670 20 78 40
-        ldx     #$00                            ; 4673 A2 00
-        sta     $C5                             ; 4675 85 C5
-        stx     $C6                             ; 4677 86 C6
-        lda     #$60                            ; 4679 A9 60
+        rts                                     ; 4652 60
+
+; ----------------------------------------------------------------------------
+        lda     #$1C                            ; 4653 A9 1C
+        ldx     #$47                            ; 4655 A2 47
+        jsr     L4266                           ; 4657 20 66 42
+        lda     #$5F                            ; 465A A9 5F
+        ldx     #$47                            ; 465C A2 47
+        sta     $82                             ; 465E 85 82
+        stx     $83                             ; 4660 86 83
+        lda     #$08                            ; 4662 A9 08
+        sta     $8A                             ; 4664 85 8A
+        lda     #$77                            ; 4666 A9 77
+        ldx     #$47                            ; 4668 A2 47
+        jsr     L4476                           ; 466A 20 76 44
+        sta     $C7                             ; 466D 85 C7
+        jsr     L40FE                           ; 466F 20 FE 40
+        lda     #$25                            ; 4672 A9 25
+        ldx     #$47                            ; 4674 A2 47
+        jsr     L4266                           ; 4676 20 66 42
+        lda     #$6B                            ; 4679 A9 6B
         ldx     #$47                            ; 467B A2 47
-        jsr     L4578                           ; 467D 20 78 45
-        sta     $C7                             ; 4680 85 C7
-        jsr     L40FE                           ; 4682 20 FE 40
-        lda     #$18                            ; 4685 A9 18
-        ldx     #$47                            ; 4687 A2 47
-        jsr     L4266                           ; 4689 20 66 42
-        lda     #$60                            ; 468C A9 60
-        ldx     #$47                            ; 468E A2 47
-        jsr     L44D1                           ; 4690 20 D1 44
-        lda     $C7                             ; 4693 A5 C7
-        jsr     L40FE                           ; 4695 20 FE 40
-        lda     #$22                            ; 4698 A9 22
-        ldx     #$47                            ; 469A A2 47
-        jsr     L4266                           ; 469C 20 66 42
-        lda     #$48                            ; 469F A9 48
-        ldx     #$47                            ; 46A1 A2 47
-        sta     $82                             ; 46A3 85 82
-        stx     $83                             ; 46A5 86 83
-        lda     #$04                            ; 46A7 A9 04
-        sta     $8A                             ; 46A9 85 8A
-        lda     #$60                            ; 46AB A9 60
-        ldx     #$47                            ; 46AD A2 47
-        jsr     L4476                           ; 46AF 20 76 44
-        sta     $C7                             ; 46B2 85 C7
-        jsr     L40FE                           ; 46B4 20 FE 40
-        lda     #$2D                            ; 46B7 A9 2D
-        ldx     #$47                            ; 46B9 A2 47
-        jsr     L4266                           ; 46BB 20 66 42
-        lda     #$63                            ; 46BE A9 63
-        ldx     #$47                            ; 46C0 A2 47
-        sta     $82                             ; 46C2 85 82
-        stx     $83                             ; 46C4 86 83
-        lda     #$05                            ; 46C6 A9 05
-        sta     $C5                             ; 46C8 85 C5
-        lda     #$00                            ; 46CA A9 00
-        sta     $C6                             ; 46CC 85 C6
-        lda     #$60                            ; 46CE A9 60
+        sta     $82                             ; 467D 85 82
+        stx     $83                             ; 467F 86 83
+        lda     #$6B                            ; 4681 A9 6B
+        ldx     #$47                            ; 4683 A2 47
+        ldy     #$FF                            ; 4685 A0 FF
+        jsr     L4078                           ; 4687 20 78 40
+        ldx     #$00                            ; 468A A2 00
+        sta     $C5                             ; 468C 85 C5
+        stx     $C6                             ; 468E 86 C6
+        lda     #$77                            ; 4690 A9 77
+        ldx     #$47                            ; 4692 A2 47
+        jsr     L458F                           ; 4694 20 8F 45
+        sta     $C7                             ; 4697 85 C7
+        jsr     L40FE                           ; 4699 20 FE 40
+        lda     #$2F                            ; 469C A9 2F
+        ldx     #$47                            ; 469E A2 47
+        jsr     L4266                           ; 46A0 20 66 42
+        lda     #$77                            ; 46A3 A9 77
+        ldx     #$47                            ; 46A5 A2 47
+        jsr     L44E8                           ; 46A7 20 E8 44
+        lda     $C7                             ; 46AA A5 C7
+        jsr     L40FE                           ; 46AC 20 FE 40
+        lda     #$39                            ; 46AF A9 39
+        ldx     #$47                            ; 46B1 A2 47
+        jsr     L4266                           ; 46B3 20 66 42
+        lda     #$5F                            ; 46B6 A9 5F
+        ldx     #$47                            ; 46B8 A2 47
+        sta     $82                             ; 46BA 85 82
+        stx     $83                             ; 46BC 86 83
+        lda     #$04                            ; 46BE A9 04
+        sta     $8A                             ; 46C0 85 8A
+        lda     #$77                            ; 46C2 A9 77
+        ldx     #$47                            ; 46C4 A2 47
+        jsr     L4476                           ; 46C6 20 76 44
+        sta     $C7                             ; 46C9 85 C7
+        jsr     L40FE                           ; 46CB 20 FE 40
+        lda     #$44                            ; 46CE A9 44
         ldx     #$47                            ; 46D0 A2 47
-        jsr     L451C                           ; 46D2 20 1C 45
-        sta     $C7                             ; 46D5 85 C7
-        jsr     L40FE                           ; 46D7 20 FE 40
-        lda     #$00                            ; 46DA A9 00
-        sta     L4768                           ; 46DC 8D 68 47
-        lda     #$63                            ; 46DF A9 63
-        ldx     #$47                            ; 46E1 A2 47
-        jsr     L4266                           ; 46E3 20 66 42
-        lda     #$60                            ; 46E6 A9 60
-        ldx     #$47                            ; 46E8 A2 47
-        jsr     L45D9                           ; 46EA 20 D9 45
-        sta     $C7                             ; 46ED 85 C7
-        jsr     L41DA                           ; 46EF 20 DA 41
-        lda     #$18                            ; 46F2 A9 18
-        ldx     #$47                            ; 46F4 A2 47
-        jsr     L4266                           ; 46F6 20 66 42
-        lda     #$60                            ; 46F9 A9 60
-        ldx     #$47                            ; 46FB A2 47
-        jsr     L44D1                           ; 46FD 20 D1 44
-        lda     $C7                             ; 4700 A5 C7
-        jsr     L40FE                           ; 4702 20 FE 40
-        lda     #$C8                            ; 4705 A9 C8
-        sta     $02C8                           ; 4707 8D C8 02
-        rts                                     ; 470A 60
+        jsr     L4266                           ; 46D2 20 66 42
+        lda     #$7A                            ; 46D5 A9 7A
+        ldx     #$47                            ; 46D7 A2 47
+        sta     $82                             ; 46D9 85 82
+        stx     $83                             ; 46DB 86 83
+        lda     #$05                            ; 46DD A9 05
+        sta     $C5                             ; 46DF 85 C5
+        lda     #$00                            ; 46E1 A9 00
+        sta     $C6                             ; 46E3 85 C6
+        lda     #$77                            ; 46E5 A9 77
+        ldx     #$47                            ; 46E7 A2 47
+        jsr     L4533                           ; 46E9 20 33 45
+        sta     $C7                             ; 46EC 85 C7
+        jsr     L40FE                           ; 46EE 20 FE 40
+        lda     #$00                            ; 46F1 A9 00
+        sta     L477F                           ; 46F3 8D 7F 47
+        lda     #$7A                            ; 46F6 A9 7A
+        ldx     #$47                            ; 46F8 A2 47
+        jsr     L4266                           ; 46FA 20 66 42
+        lda     #$77                            ; 46FD A9 77
+        ldx     #$47                            ; 46FF A2 47
+        jsr     L45F0                           ; 4701 20 F0 45
+        sta     $C7                             ; 4704 85 C7
+        jsr     L41DA                           ; 4706 20 DA 41
+        lda     #$2F                            ; 4709 A9 2F
+        ldx     #$47                            ; 470B A2 47
+        jsr     L4266                           ; 470D 20 66 42
+        lda     #$77                            ; 4710 A9 77
+        ldx     #$47                            ; 4712 A2 47
+        jsr     L44E8                           ; 4714 20 E8 44
+        lda     $C7                             ; 4717 A5 C7
+        jsr     L40FE                           ; 4719 20 FE 40
+        lda     #$C8                            ; 471C A9 C8
+        sta     $02C8                           ; 471E 8D C8 02
+        rts                                     ; 4721 60
 
 ; ----------------------------------------------------------------------------
-        .byte   $4F                             ; 470B 4F
-        bvs     L4773                           ; 470C 70 65
-        ror     $203A                           ; 470E 6E 3A 20
-        jsr     L0020                           ; 4711 20 20 00
-        asl     a                               ; 4714 0A
-        .byte   $57                             ; 4715 57
-        .byte   $72                             ; 4716 72
-        adc     #$74                            ; 4717 69 74
-        adc     $3A                             ; 4719 65 3A
-        jsr     L0020                           ; 471B 20 20 00
-        asl     a                               ; 471E 0A
-        .byte   $43                             ; 471F 43
-        jmp     (L736F)                         ; 4720 6C 6F 73
+        .byte   $4F                             ; 4722 4F
+        bvs     L478A                           ; 4723 70 65
+        ror     $203A                           ; 4725 6E 3A 20
+        jsr     L0020                           ; 4728 20 20 00
+        asl     a                               ; 472B 0A
+        .byte   $57                             ; 472C 57
+        .byte   $72                             ; 472D 72
+        adc     #$74                            ; 472E 69 74
+        adc     $3A                             ; 4730 65 3A
+        jsr     L0020                           ; 4732 20 20 00
+        asl     a                               ; 4735 0A
+        .byte   $43                             ; 4736 43
+        jmp     (L736F)                         ; 4737 6C 6F 73
 
 ; ----------------------------------------------------------------------------
-        adc     $3A                             ; 4723 65 3A
-        jsr     L0020                           ; 4725 20 20 00
-        asl     a                               ; 4728 0A
-        asl     a                               ; 4729 0A
-        .byte   $4F                             ; 472A 4F
-        bvs     L4792                           ; 472B 70 65
-        ror     $203A                           ; 472D 6E 3A 20
-        jsr     L0020                           ; 4730 20 20 00
-        asl     a                               ; 4733 0A
-        .byte   $52                             ; 4734 52
-        adc     $61                             ; 4735 65 61
-L4737:  .byte   $64                             ; 4737 64
-        .byte   $3A                             ; 4738 3A
-        jsr     L2020                           ; 4739 20 20 20
-        brk                                     ; 473C 00
-        bmi     L4770                           ; 473D 30 31
-        .byte   $32                             ; 473F 32
-        .byte   $33                             ; 4740 33
-        .byte   $34                             ; 4741 34
-        and     $36,x                           ; 4742 35 36
-        .byte   $37                             ; 4744 37
-        sec                                     ; 4745 38
-        and     L4241,y                         ; 4746 39 41 42
-        .byte   $43                             ; 4749 43
-        .byte   $44                             ; 474A 44
-        eor     $46                             ; 474B 45 46
-        brk                                     ; 474D 00
-        .byte   $44                             ; 474E 44
-        and     ($3A),y                         ; 474F 31 3A
-        .byte   $54                             ; 4751 54
-        eor     $53                             ; 4752 45 53
-        .byte   $54                             ; 4754 54
-        rol     $5854                           ; 4755 2E 54 58
-        .byte   $54                             ; 4758 54
-        brk                                     ; 4759 00
-        pha                                     ; 475A 48
-L475B:  adc     $6C                             ; 475B 65 6C
-        jmp     (L216F)                         ; 475D 6C 6F 21
+        adc     $3A                             ; 473A 65 3A
+        jsr     L0020                           ; 473C 20 20 00
+        asl     a                               ; 473F 0A
+        asl     a                               ; 4740 0A
+        .byte   $4F                             ; 4741 4F
+        bvs     L47A9                           ; 4742 70 65
+        ror     $203A                           ; 4744 6E 3A 20
+        jsr     L0020                           ; 4747 20 20 00
+        asl     a                               ; 474A 0A
+        .byte   $52                             ; 474B 52
+        adc     $61                             ; 474C 65 61
+L474E:  .byte   $64                             ; 474E 64
+        .byte   $3A                             ; 474F 3A
+        jsr     L2020                           ; 4750 20 20 20
+        brk                                     ; 4753 00
+        bmi     L4787                           ; 4754 30 31
+        .byte   $32                             ; 4756 32
+        .byte   $33                             ; 4757 33
+        .byte   $34                             ; 4758 34
+        and     $36,x                           ; 4759 35 36
+        .byte   $37                             ; 475B 37
+        sec                                     ; 475C 38
+        and     L4241,y                         ; 475D 39 41 42
+        .byte   $43                             ; 4760 43
+        .byte   $44                             ; 4761 44
+        eor     $46                             ; 4762 45 46
+        brk                                     ; 4764 00
+        .byte   $44                             ; 4765 44
+        and     ($3A),y                         ; 4766 31 3A
+        .byte   $54                             ; 4768 54
+        eor     $53                             ; 4769 45 53
+        .byte   $54                             ; 476B 54
+        rol     $5854                           ; 476C 2E 54 58
+        .byte   $54                             ; 476F 54
+        brk                                     ; 4770 00
+        pha                                     ; 4771 48
+L4772:  adc     $6C                             ; 4772 65 6C
+        jmp     (L216F)                         ; 4774 6C 6F 21
 
 ; ----------------------------------------------------------------------------
-        brk                                     ; 4760 00
-        sta     $AF                             ; 4761 85 AF
-        stx     $B0                             ; 4763 86 B0
-        rts                                     ; 4765 60
+        brk                                     ; 4777 00
+        sta     $AF                             ; 4778 85 AF
+        stx     $B0                             ; 477A 86 B0
+        rts                                     ; 477C 60
 
 ; ----------------------------------------------------------------------------
-        .byte   $E2                             ; 4766 E2
-        .byte   $02                             ; 4767 02
-L4768:  .byte   $E3                             ; 4768 E3
-        .byte   $02                             ; 4769 02
-        brk                                     ; 476A 00
-        rti                                     ; 476B 40
+        .byte   $E2                             ; 477D E2
+        .byte   $02                             ; 477E 02
+L477F:  .byte   $E3                             ; 477F E3
+        .byte   $02                             ; 4780 02
+        brk                                     ; 4781 00
+        rti                                     ; 4782 40
 
 ; ----------------------------------------------------------------------------

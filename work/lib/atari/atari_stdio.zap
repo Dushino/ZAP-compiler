@@ -75,12 +75,13 @@
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40
 const byte SCREEN_Y_SIZE = 24
-
 byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
 byte ^curptr                    #noexport   ; current position in the screen memory for output
 
+
 byte KBHIT @764
 byte TIMER @20
+
 
 const byte ATARI_KEY_RETURN         = $9B
 const byte ATARI_KEY_LEFT           = $1E
@@ -118,6 +119,7 @@ struct IOCB_Block
     byte ICAX6      ; -
 end
 
+
 IOCB_Block IOCB[8] @$0340
 
 
@@ -135,6 +137,7 @@ enum ICCOM_COMMANDS
     Rename      = $20
     Delete      = $21    
 end
+
 
 enum ICAX1_Mode
     ; DOS 2.0
@@ -216,6 +219,7 @@ func byte getchar()
 
     return ch
 end
+
 
 /*
     getc	    čtení jednoho znaku ze souboru
@@ -628,6 +632,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     return rv
 end
 
+
 /*
     Check and set EOF flag in FILE struct
 */
@@ -643,24 +648,26 @@ proc checkeof(FILE ^fd, byte errno) #noexport
     end
 end
 
+
 /*
     fopen - open file
 */
 func byte fopen(FILE^ fd, byte^ filename, byte mode)
     
-    byte i, rv
+    byte id, rv
 
     if fd == NULL        
         return ERRNO.EBADF
     end
     
-    i = find_free_IOCB()
-    if i == 255
+    id = find_free_IOCB()
+    if id == 255
         return ERRNO.ENODEV
     end
 
-    fd^.fd = i
-    rv = CIO(i, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
+    fd^.fd = id
+    CIO(id, ICCOM_COMMANDS.Close)    
+    rv = CIO(id, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
 
     checkeof(fd, rv)
 
