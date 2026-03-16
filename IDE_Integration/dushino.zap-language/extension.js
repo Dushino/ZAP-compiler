@@ -14,11 +14,20 @@ function stripLineComment(raw) {
 }
 
 // ZAP keywords that cannot be type names in a variable declaration.
+// Includes primitive types (byte/word/long) so parseVarDecls only captures struct-typed vars.
 const ZAP_KEYWORDS = new Set([
     'proc', 'func', 'if', 'else', 'elseif', 'while', 'for', 'repeat',
     'switch', 'case', 'default', 'break', 'continue', 'return', 'end',
     'until', 'struct', 'enum', 'const', 'asm', 'byte', 'word', 'long',
     'and', 'or', 'not', 'true', 'false', 'nil'
+]);
+
+// Flow/control keywords that cannot be a type name — does NOT include byte/word/long
+// so that primitive-typed variable declarations are captured in parseAllSymbols.
+const ZAP_FLOW_KW = new Set([
+    'proc', 'func', 'if', 'else', 'elseif', 'while', 'for', 'repeat',
+    'switch', 'case', 'default', 'break', 'continue', 'return', 'end',
+    'until', 'struct', 'enum', 'const', 'asm', 'and', 'or', 'not', 'true', 'false', 'nil'
 ]);
 
 // Recursively read lines from a .zap file, following .include directives.
@@ -158,6 +167,73 @@ function parseParams(paramStr) {
         const pm = p.trim().match(/^(\w+\^?)\s+(\w+)/);
         return pm ? { type: pm[1], name: pm[2] } : null;
     }).filter(Boolean);
+}
+
+// Build a snippet insert string for a call: name(${1:p1}, ${2:p2}) or name() if no params.
+function buildCallSnippet(name, params) {
+    if (!params || params.length === 0) return `${name}()`;
+    const args = params.map((p, i) => `\${${i + 1}:${p.name}}`).join(', ');
+    return `${name}(${args})`;
+}
+
+// Parse ALL named symbols from lines for bare-identifier completion.
+// Returns array of {kind, name, type?, retType?, params?}
+// Handles: proc, func, const, variables of any type (byte/word/long/struct), struct names, enum names.
+function parseAllSymbols(lines) {
+    const seen = new Map(); // name → symbol (last definition wins, dedup across includes)
+    let inStructOrEnum = false;
+
+    for (const raw of lines) {
+        const code = stripLineComment(raw).trim();
+        if (!code) continue;
+
+        // Struct/enum body — capture the type name, skip internal field lines
+        if (/^struct\b/i.test(code)) {
+            const sm = code.match(/^struct\s+(\w+)/i);
+            if (sm) seen.set(sm[1], { kind: 'struct', name: sm[1] });
+            inStructOrEnum = true; continue;
+        }
+        if (/^enum\b/i.test(code)) {
+            const em = code.match(/^enum\s+(\w+)/i);
+            if (em) seen.set(em[1], { kind: 'enum', name: em[1] });
+            inStructOrEnum = true; continue;
+        }
+        if (inStructOrEnum) {
+            if (/^end\b/i.test(code)) inStructOrEnum = false;
+            continue;
+        }
+
+        // proc name(params)
+        const procM = code.match(/^proc\s+(\w+)\s*\(([^)]*)\)/i);
+        if (procM) {
+            seen.set(procM[1], { kind: 'proc', name: procM[1], params: parseParams(procM[2]) });
+            continue;
+        }
+
+        // func rettype name(params)
+        const funcM = code.match(/^func\s+(\w+)\s+(\w+)\s*\(([^)]*)\)/i);
+        if (funcM) {
+            seen.set(funcM[2], { kind: 'func', name: funcM[2], retType: funcM[1], params: parseParams(funcM[3]) });
+            continue;
+        }
+
+        // const TYPE name [= value | [...]]
+        const constM = code.match(/^const\s+(\w+\^?)\s+(\w+)/i);
+        if (constM) {
+            seen.set(constM[2], { kind: 'const', name: constM[2], type: constM[1] });
+            continue;
+        }
+
+        // TYPE[^] name  (variable of any type, including byte/word/long)
+        const varM = code.match(/^(\w+)(\^?)\s+(\w+)\s*(?:\[|=|@|$)/);
+        if (varM) {
+            const type = varM[1], name = varM[3];
+            if (!ZAP_FLOW_KW.has(type.toLowerCase()) && !ZAP_KEYWORDS.has(name.toLowerCase())) {
+                if (!seen.has(name)) seen.set(name, { kind: 'var', name, type: type + varM[2] });
+            }
+        }
+    }
+    return [...seen.values()];
 }
 
 // ---- VS Code Extension ----
@@ -331,6 +407,68 @@ function activate(context) {
                 }
             },
             '.'  // trigger character
+        )
+    );
+
+    // 6. Completion provider — bare-identifier completions (vars, consts, procs, funcs, structs, enums)
+    //    Triggered by normal typing; skipped when cursor is in a dot-access context.
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(
+            'zap',
+            {
+                provideCompletionItems(document, position) {
+                    const linePrefix = document.lineAt(position).text.slice(0, position.character);
+
+                    // Skip — dot provider handles "identifier." contexts
+                    if (/\.\s*\w*$/.test(linePrefix)) return undefined;
+
+                    const docDir  = path.dirname(document.uri.fsPath);
+                    const allLines = collectAllLines(document.getText(), docDir);
+                    const symbols  = parseAllSymbols(allLines);
+
+                    return symbols.map(sym => {
+                        switch (sym.kind) {
+                            case 'var': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Variable);
+                                item.detail = `${sym.type} ${sym.name}`;
+                                return item;
+                            }
+                            case 'const': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Constant);
+                                item.detail = `const ${sym.type} ${sym.name}`;
+                                return item;
+                            }
+                            case 'proc': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Function);
+                                const paramStr = sym.params.map(p => `${p.type} ${p.name}`).join(', ');
+                                item.detail = `proc ${sym.name}(${paramStr})`;
+                                item.insertText = new vscode.SnippetString(buildCallSnippet(sym.name, sym.params));
+                                return item;
+                            }
+                            case 'func': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Function);
+                                const paramStr = sym.params.map(p => `${p.type} ${p.name}`).join(', ');
+                                item.detail = `func ${sym.retType} ${sym.name}(${paramStr})`;
+                                item.insertText = new vscode.SnippetString(buildCallSnippet(sym.name, sym.params));
+                                return item;
+                            }
+                            case 'struct': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Class);
+                                item.detail = `struct ${sym.name}`;
+                                return item;
+                            }
+                            case 'enum': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Enum);
+                                item.detail = `enum ${sym.name}`;
+                                return item;
+                            }
+                            default:
+                                return null;
+                        }
+                    }).filter(Boolean);
+                }
+            }
+            // No trigger character — VS Code calls this during normal word typing
         )
     );
 }

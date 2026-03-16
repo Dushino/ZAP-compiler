@@ -769,5 +769,19 @@ Total: 75 bytes reserved, 20 computed as needed. Not counting global variables.
 
 
 
+IDE integration 
 
-
+Feature	Difficulty	How
+- [x] Struct member completions (fd.)	Medium	CompletionItemProvider — parse struct defs, resolve variable type
+- [x] Variable/function completions	Easy	CompletionItemProvider — scan proc/func/byte/word/FILE declarations
+Hover info	Easy	HoverProvider — show type + struct fields on hover over identifiers
+- [x] Enum member completions (ICAX1_Mode.)	Medium	Same CompletionItemProvider — scan enum blocks
+- [ ] Hover info
+- [ ] Signature help (func args)	Medium	SignatureHelpProvider — show fopen(@fd, name, mode) on (
+- [ ] Go to Definition (F12)	Medium	DefinitionProvider — scan for declaration, follow .include
+- [ ] Find all References	Hard	ReferenceProvider — text search across files
+- [ ] Error squiggles (real-time)	Hard	DiagnosticsProvider — run zapc in background, parse output
+- [ ] Inline compiler errors	Medium	Parse zapc output already (problemMatcher exists) — add diagnostic push
+- [ ] Document symbols (outline)	Easy	DocumentSymbolProvider — list procs/funcs/structs/enums
+- [ ] Code formatting	Hard	DocumentFormattingProvider — needs indentation rules
+- [ ] Snippets	Easy	package.json snippets contribution
