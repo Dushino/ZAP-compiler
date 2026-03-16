@@ -534,9 +534,9 @@ to:
 
 [x] Check array copy
 
-[ ] Check array of structs and arrays in struct
+[x] Check array of structs and arrays in struct
 
-[ ] Auto short branches?
+[x] Auto short branches?
 
 [x] Syntax sugar = compound assignent
 <var> <operator>= <expr>
@@ -581,7 +581,7 @@ __ZAP_then_20:
     
 
 Closure tasks
-[ ] Cosmetics in generated code
+[x] Cosmetics in generated code
     [x] Unify generated LDA #$00 and #0
     [x] Empty lines
     [x] Double -- MAIN
