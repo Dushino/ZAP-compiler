@@ -913,7 +913,7 @@ proc dce_example()
     byte unused = 42    ; Never reaches here - removed!
     
     if 0           ; Condition always false
-        byte x = 1      ; Removed
+        unused = 1      ; Removed
     end
 end
 ```
