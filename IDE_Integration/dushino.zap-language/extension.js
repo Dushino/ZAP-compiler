@@ -233,6 +233,33 @@ function parseAllSymbols(lines) {
     return [...seen.values()];
 }
 
+// Walk the line prefix backwards to find the enclosing function call context.
+// Returns { funcName, activeParam } where activeParam is the 0-based index of
+// the parameter the cursor is currently inside, or null if not inside a call.
+function getFunctionCallContext(linePrefix) {
+    let depth = 0;
+    for (let i = linePrefix.length - 1; i >= 0; i--) {
+        const c = linePrefix[i];
+        if (c === ')') { depth++; continue; }
+        if (c === '(' ) {
+            if (depth > 0) { depth--; continue; }
+            // This is the opening paren of the enclosing call.
+            // Count commas at depth 0 between here and the cursor.
+            let activeParam = 0, d = 0;
+            for (const ch of linePrefix.slice(i + 1)) {
+                if      (ch === '(') d++;
+                else if (ch === ')') d--;
+                else if (ch === ',' && d === 0) activeParam++;
+            }
+            // Extract function name immediately before the paren.
+            const nameMatch = linePrefix.slice(0, i).trimEnd().match(/(\w+)\s*$/);
+            if (nameMatch) return { funcName: nameMatch[1], activeParam };
+            return null;
+        }
+    }
+    return null;
+}
+
 // ---- VS Code Extension ----
 
 function activate(context) {
@@ -469,7 +496,52 @@ function activate(context) {
         )
     );
 
-    // 7. Hover provider — show type/signature/struct-fields/enum-members on hover
+    // 7. Signature help provider — shows parameter hints when typing inside a call
+    //    Triggered by '(' and ',' — highlights the active parameter as cursor moves.
+    context.subscriptions.push(
+        vscode.languages.registerSignatureHelpProvider(
+            'zap',
+            {
+                provideSignatureHelp(document, position) {
+                    const linePrefix = document.lineAt(position).text.slice(0, position.character);
+                    const ctx = getFunctionCallContext(linePrefix);
+                    if (!ctx) return undefined;
+
+                    const docDir  = path.dirname(document.uri.fsPath);
+                    const allLines = collectAllLines(document.getText(), docDir);
+                    const symbols  = parseAllSymbols(allLines);
+                    const sym = symbols.find(s => s.name.toLowerCase() === ctx.funcName.toLowerCase());
+                    if (!sym || (sym.kind !== 'proc' && sym.kind !== 'func')) return undefined;
+
+                    const paramStr = sym.params.map(formatParam).join(', ');
+                    const label = sym.kind === 'func'
+                        ? `func ${sym.retType} ${sym.name}(${paramStr})`
+                        : `proc ${sym.name}(${paramStr})`;
+
+                    const sigInfo = new vscode.SignatureInformation(label);
+
+                    // Each ParameterInformation spans the exact substring in label so VS Code
+                    // can bold/highlight it. We locate each param's text inside label.
+                    let searchFrom = label.indexOf('(') + 1;
+                    sigInfo.parameters = sym.params.map(p => {
+                        const pLabel = formatParam(p);
+                        const start  = label.indexOf(pLabel, searchFrom);
+                        searchFrom   = start + pLabel.length;
+                        return new vscode.ParameterInformation([start, searchFrom]);
+                    });
+
+                    const sigHelp = new vscode.SignatureHelp();
+                    sigHelp.signatures    = [sigInfo];
+                    sigHelp.activeSignature = 0;
+                    sigHelp.activeParameter = Math.min(ctx.activeParam, Math.max(0, sym.params.length - 1));
+                    return sigHelp;
+                }
+            },
+            '(', ','  // trigger characters
+        )
+    );
+
+    // 8. Hover provider — show type/signature/struct-fields/enum-members on hover
     context.subscriptions.push(
         vscode.languages.registerHoverProvider('zap', {
             provideHover(document, position) {
