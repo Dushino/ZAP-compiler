@@ -86,6 +86,13 @@
 - `.ref` files must have exactly ONE trailing newline (two newlines → OUTPUT_MISMATCH)
 - Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
 
+## OPT-7/OPT-8 correctness fixes (2026-03-16)
+- **OPT-8 indexed addressing** — don't track `known_a_mem` for operands ending in `,X` or `,Y` (index register changes between uses, operand string alone is not sufficient to prove same address)
+- **OPT-8 loop iteration** — reset `known_a_mem = None` on conditional branches (`BNE`/`BEQ`/`BMI`/`BPL`/`BVC`/`BVS`/`BCS`/`BCC`); `known_a` (immediate) is kept since A register value is unchanged by the branch
+- **OPT-7 carry flag safety** — enhanced forward scan after `CMP #$00` candidate elimination: when encountering a conditional branch (`BNE`/`BEQ`/etc.), follow the branch target label and scan first 5 instructions for carry-users (`BCS`/`BCC`); stop scan at target if carry-setter or control-flow found
+- **Pylance fix**: `self._line_mapped: bool = False` added to `CompileError.__init__` in `errors.py`; attribute now recognized on all subclasses (`SemanticError`, etc.)
+- **Test results**: 166 pass / 125 fail — all OK
+
 ## Recent additions (2026-03-10)
 - **Shift-add index multiply** (`_gen_index_multiply(n)`): replaces repeated-addition loops for array index scaling. Power-of-2 → pure shifts; ≤3 set bits (e.g. 3,5,6,10,12) → shift-add; fallback repeated-add. Used in `_gen_subscript`, pointer arithmetic, `@array[index]`, RPN MUL evaluator. Tests: `pass/164`, `pass/165`.
 - **Compile-time constant array index folding** (`_try_eval_const`): when index is a const expression, offset computed at compile time — emits `LDA #<offset` directly. Covers `_gen_subscript` (both paths), `_gen_multidim_subscript` (per-index), `@array[index]`. Test: `pass/171`.

@@ -21,6 +21,7 @@ class CompileError(Exception):
         node_filename = getattr(node, "filename", None) if node is not None else None
         self.filename: str | None = node_filename if node_filename else None
         self.source_text: str | None = None
+        self._line_mapped: bool = False
 
 
 class SyntaxError(CompileError):

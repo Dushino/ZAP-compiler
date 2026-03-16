@@ -2,6 +2,22 @@
 
 ---
 
+## Bug Fix: OPT-7/OPT-8 Peephole Optimizer Correctness (2026-03-16)
+
+Three correctness bugs fixed in peephole optimizations:
+
+1. **OPT-8 indexed addressing** — `LDA (_MAIN_VRAM),Y` was tracked as `known_a_mem`. After `DEY`, a subsequent `LDA (_MAIN_VRAM),Y` was incorrectly eliminated (same operand string, but Y changed). Fix: don't track or eliminate indexed operands (ending in `,X` or `,Y`).
+
+2. **OPT-8 loop iteration** — `known_a_mem` was not reset on conditional branches (`BNE`, `BEQ`, etc.), so state persisted into post-loop code, causing incorrect LDA elimination across loop iterations. Fix: reset `known_a_mem = None` on conditional branches (keep `known_a` since A register is unchanged by the branch itself).
+
+3. **OPT-7 carry flag safety** — In LONG for-loops, the step-direction check uses `LDA addr; CMP #$00; BNE label` where `label:` has `BEQ ...; BCS ...`. OPT-7 eliminated `CMP #$00` (BNE only uses Z flag), but `CMP #$00` always sets C=1 and the `BCS` at the branch target relied on it. Fix: enhanced OPT-7 forward scan to follow conditional branch targets and check for carry-using instructions (`BCS`/`BCC`) there.
+
+**Pylance fix**: Added `self._line_mapped: bool = False` to `CompileError.__init__` in `errors.py` so the attribute is recognized on all subclasses including `SemanticError`.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Bug Fix: Struct WORD/pointer field initialisation (2026-03-13)
 
 Two related bugs fixed:

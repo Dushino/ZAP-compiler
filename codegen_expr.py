@@ -408,20 +408,26 @@ class CodeGen:
             self.suppress_byte_return_x = prev
 
         def emit_set_math0_from_ax(is_16bit: bool, *, force_word: bool = False) -> None:
-            """Store A/X into MATH0, inlining for byte values."""
+            """Store A/X into MATH0, inlining for byte values.
+            For 16-bit: uses A-only stores (STA/TXA/STA) to enable downstream peephole opts.
+            """
             if is_16bit:
-                self.emit("\tJSR SET_MATH0")
-                self.rpn_helper_routines_needed.add("SET_MATH0")
+                self.emit("\tSTA MATH0")
+                self.emit("\tTXA")
+                self.emit("\tSTA MATH0+1")
             else:
                 self.emit("\tSTA MATH0")
                 if force_word:
                     self._stz("MATH0+1")
 
         def emit_set_math1_from_ax(is_16bit: bool, *, force_word: bool = False) -> None:
-            """Store A/X into MATH1, inlining for byte values."""
+            """Store A/X into MATH1, inlining for byte values.
+            For 16-bit: uses A-only stores (STA/TXA/STA) to enable downstream peephole opts.
+            """
             if is_16bit:
-                self.emit("\tJSR SET_MATH1")
-                self.rpn_helper_routines_needed.add("SET_MATH1")
+                self.emit("\tSTA MATH1")
+                self.emit("\tTXA")
+                self.emit("\tSTA MATH1+1")
             else:
                 self.emit("\tSTA MATH1")
                 if force_word:
@@ -2387,6 +2393,25 @@ class CodeGen:
                     or operand.startswith(addr_upper + ",")
                     or operand.startswith(addr_upper + "+"))
 
+        def _next_exec_idx(start_idx: int) -> int:
+            """Return index of next executable instruction, skipping blanks/comments/equates.
+            Returns -1 if a label is reached or end of code.
+            """
+            k = start_idx
+            while k < len(self.code):
+                s = self.code[k].strip()
+                c = s.split(';')[0].strip()
+                if not c:
+                    k += 1
+                    continue
+                if c.endswith(':') and ' ' not in c.split(':')[0]:
+                    return -1
+                if _is_equate_line(self.code[k]):
+                    k += 1
+                    continue
+                return k
+            return -1
+
         while i < len(self.code):
             line = self.code[i]
             line_stripped = line.strip()
@@ -3616,6 +3641,161 @@ class CodeGen:
                     i += 1
                     continue
             
+            # OPT-10: LDA addr; TAX/TAY → LDX/LDY addr (when A is dead after transfer)
+            if (not in_asm_block
+                    and line_upper.startswith("LDA ")
+                    and not line_upper.startswith("LDA #")
+                    and "(" not in line_upper):
+                _lda10_op = line_stripped.split(None, 1)[1].strip() if " " in line_stripped else ""
+                _j10 = _next_exec_idx(i + 1)
+                if _j10 >= 0 and self.code[_j10].strip().upper() in ("TAX", "TAY"):
+                    _transfer10 = self.code[_j10].strip().upper()
+                    _dest_load10 = "LDX" if _transfer10 == "TAX" else "LDY"
+                    # Scan forward from after TAX/TAY to check if A is dead
+                    _A_PURE_WRITE = {"LDA", "TXA", "TYA", "PLA"}
+                    _A_READ_OPS = {"STA", "CMP", "BIT", "PHA", "ADC", "SBC", "AND", "ORA", "EOR"}
+                    _A_CF = {"JSR", "JMP", "RTS", "RTI", "BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC", "BRA"}
+                    _j11 = _j10 + 1
+                    _a10_dead = False
+                    while _j11 < len(self.code):
+                        _sl11 = self.code[_j11].strip()
+                        if not _sl11 or _sl11.startswith(";"):
+                            _j11 += 1
+                            continue
+                        if _is_equate_line(self.code[_j11]):
+                            _j11 += 1
+                            continue
+                        _cp11 = _sl11.split(';')[0].strip()
+                        if _cp11.endswith(':') and ' ' not in _cp11.split(':')[0]:
+                            break  # label: stop
+                        _mn11 = _cp11.split(None, 1)[0].upper()
+                        _op11 = _cp11.split(None, 1)[1].strip() if ' ' in _cp11 else ""
+                        if _mn11 in _A_PURE_WRITE:
+                            _a10_dead = True
+                            break
+                        if _mn11 in ("ASL", "LSR", "ROL", "ROR") and _op11.upper() in ("", "A"):
+                            break  # accumulator form: A read-modify-write
+                        if _mn11 in _A_READ_OPS or _mn11 in _A_CF:
+                            break
+                        _j11 += 1
+                    if _a10_dead:
+                        _indent10 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                        optimized.append(f"{_indent10}{_dest_load10} {_lda10_op}\n")
+                        for _k10 in range(i + 1, _j10):
+                            optimized.append(self.code[_k10])  # keep blanks between LDA and TAX
+                        i = _j10 + 1  # skip the TAX/TAY
+                        continue
+
+            # OPT-11: Dead code elimination after unconditional JMP/RTS/RTI
+            if not in_asm_block and (line_upper == "RTS" or line_upper == "RTI"
+                    or (line_upper.startswith("JMP ") and "(" not in line_upper)):
+                optimized.append(self.code[i])
+                i += 1
+                while i < len(self.code):
+                    _dl = self.code[i].strip()
+                    _dc = _dl.split(';')[0].strip()
+                    # Label: stop dead code elimination
+                    if _dc.endswith(':') and ' ' not in _dc.split(':')[0]:
+                        break
+                    # Equate line: keep (defines symbols used elsewhere)
+                    if _dc and '=' in _dc and not _dc.endswith(':'):
+                        optimized.append(self.code[i])
+                    # All other lines (instructions, blanks, comments): skip
+                    i += 1
+                continue
+
+            # OPT-7: Eliminate CMP/CPX/CPY #$00 after non-immediate LDA/LDX/LDY
+            # (the load already sets N/Z flags identically to CMP/CPX/CPY #$00)
+            # SAFETY: LDA/LDX/LDY do NOT set the carry flag; CMP #$00 ALWAYS sets C=1.
+            # Only safe to eliminate when the instruction after CMP uses only N/Z flags,
+            # not C (BCS/BCC) or V (BVS/BVC).
+            if not in_asm_block:
+                _opt7_reg: str | None = None
+                if line_upper.startswith("LDA ") and not line_upper.startswith("LDA #") and "(" not in line_upper:
+                    _opt7_reg = "A"
+                elif line_upper.startswith("LDX ") and not line_upper.startswith("LDX #"):
+                    _opt7_reg = "X"
+                elif line_upper.startswith("LDY ") and not line_upper.startswith("LDY #"):
+                    _opt7_reg = "Y"
+                if _opt7_reg is not None:
+                    _cmp_for_reg = {"A": "CMP #$00", "X": "CPX #$00", "Y": "CPY #$00"}
+                    _nxi = _next_exec_idx(i + 1)
+                    if _nxi >= 0:
+                        _nxu = self.code[_nxi].strip().upper()
+                        if _nxu == _cmp_for_reg[_opt7_reg] or _nxu == _cmp_for_reg[_opt7_reg].replace("$00", "0"):
+                            # Only safe if no subsequent code path uses carry (C) before
+                            # a carry-setting instruction. CMP #$00 always sets C=1; LDA/LDX/LDY
+                            # do not set C. Scan forward from CMP for BCS/BCC/BVS/BVC.
+                            # Also check branch targets (for BNE/BEQ patterns that jump to a
+                            # label whose first instruction is BCS/BCC).
+                            _c_users = {"BCS", "BCC", "BVS", "BVC"}
+                            _c_setters = {"SEC", "CLC", "ADC", "SBC", "ASL", "LSR", "ROL", "ROR",
+                                          "CMP", "CPX", "CPY"}
+                            _uses_carry = False
+                            # Forward scan from after the CMP
+                            _scan_j = _nxi + 1
+                            _scan_limit = 10
+                            while _scan_j < len(self.code) and _scan_limit > 0:
+                                _sl = self.code[_scan_j].strip()
+                                _slc = _sl.split(";")[0].strip().upper()
+                                if not _slc or _slc.endswith(":"):
+                                    _scan_j += 1
+                                    continue
+                                if _is_equate_line(self.code[_scan_j]):
+                                    _scan_j += 1
+                                    continue
+                                _s_op = _slc.split()[0] if _slc.split() else ""
+                                if _s_op in _c_users:
+                                    _uses_carry = True
+                                    break
+                                if _s_op in _c_setters:
+                                    break  # carry re-established, safe to stop
+                                if _s_op in {"JSR", "JMP", "RTS", "RTI", "BRA"}:
+                                    break
+                                # If this is a conditional branch, also check the target label
+                                # (scan a few instructions there for carry users)
+                                if _s_op in {"BNE", "BEQ", "BMI", "BPL"}:
+                                    _tgt_label = _slc.split()[-1] if _slc.split() else ""
+                                    if _tgt_label:
+                                        # Find where this label is defined in the current code
+                                        _tgt_def = _tgt_label + ":"
+                                        for _ti, _tl in enumerate(self.code):
+                                            _tlc = _tl.strip().upper()
+                                            if _tlc == _tgt_def or _tlc.startswith(_tgt_def + " "):
+                                                # Scan a few instructions at the target for carry users
+                                                _tgt_j = _ti + 1
+                                                _tgt_limit = 5
+                                                while _tgt_j < len(self.code) and _tgt_limit > 0:
+                                                    _tl2 = self.code[_tgt_j].strip()
+                                                    _tlc2 = _tl2.split(";")[0].strip().upper()
+                                                    if not _tlc2 or _tlc2.endswith(":"):
+                                                        _tgt_j += 1
+                                                        continue
+                                                    if _is_equate_line(self.code[_tgt_j]):
+                                                        _tgt_j += 1
+                                                        continue
+                                                    _t_op = _tlc2.split()[0] if _tlc2.split() else ""
+                                                    if _t_op in _c_users:
+                                                        _uses_carry = True
+                                                        break
+                                                    if _t_op in _c_setters:
+                                                        break
+                                                    if _t_op in {"JSR", "JMP", "RTS", "RTI", "BRA"}:
+                                                        break
+                                                    _tgt_j += 1
+                                                    _tgt_limit -= 1
+                                                break
+                                    break  # stop forward scan after conditional branch
+                                _scan_j += 1
+                                _scan_limit -= 1
+                            if not _uses_carry:
+                                # Emit load + any intervening transparent lines, skip the compare
+                                optimized.append(self.code[i])
+                                for _k7 in range(i + 1, _nxi):
+                                    optimized.append(self.code[_k7])
+                                i = _nxi + 1
+                                continue
+
             # Default: keep the line as-is
             optimized.append(self.code[i])
             i += 1
@@ -3634,17 +3814,21 @@ class CodeGen:
         # Also handles reverse: TAX + STX* → STA*, TAY + STY* → STA*.
         optimized = self._replace_transfer_sta_with_direct_store(optimized)
 
+        # Fifth pass: branch inversion — Bxx skip; JMP target → B~xx target (when in range).
+        # Also removes unreferenced labels, enabling OPT-12 (switch reload elimination)
+        # to emerge via OPT-8's memory-address tracking.
+        optimized = self._branch_inversion(optimized)
+
         self.code = optimized
 
     def _eliminate_redundant_imm_lda(self, code: list[str]) -> list[str]:
-        """Second-pass peephole: remove LDA #imm when A is already known to hold that value.
+        """Second-pass peephole: remove LDA #imm when A already holds that value, and
+        remove LDA addr when A already holds the value at that address (after STA addr).
 
-        Tracks A's known immediate value across A-safe instructions (STA/STX/STY/STZ/LDX/LDY/
-        CLC/SEC/TAX/TAY/CPX/CPY/CMP/BIT/NOP/PHA/PHX/PHY/INX/INY/DEX/DEY etc.).
-        Resets known_a on control-flow (JSR/JMP/RTS/RTI/branches/labels) and on any
-        instruction that modifies A (TXA, TYA, PLA, ADC, SBC, AND, ORA, EOR, shifts, LDA mem).
+        Also tracks A's known immediate value. Does NOT reset tracking on conditional
+        branches (BEQ/BNE/etc.) since A is unchanged on the fallthrough path; only
+        resets on unconditional control-flow (JSR/JMP/RTS/RTI/BRA) and label definitions.
         """
-        # Instructions that do NOT modify A (A-safe).
         A_SAFE_MNEMONICS = {
             "STA", "STX", "STY", "STZ",
             "LDX", "LDY",
@@ -3656,38 +3840,40 @@ class CodeGen:
             "INX", "INY", "DEX", "DEY",
             "INC", "DEC",
         }
-        # Control-flow mnemonics that invalidate A tracking.
-        CONTROL_FLOW_MNEMONICS = {
-            "JSR", "JMP", "RTS", "RTI",
-            "BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC", "BRA",
-        }
+        UNCONDITIONAL_CONTROL_FLOW = {"JSR", "JMP", "RTS", "RTI", "BRA"}
+        CONDITIONAL_BRANCHES = {"BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC"}
 
         result: list[str] = []
         known_a: int | None = None
+        known_a_mem: str | None = None  # address whose value A holds (after STA addr)
 
         for line in code:
             stripped = line.strip()
 
-            # Labels (or blank/comment lines) reset A tracking.
             if not stripped or stripped.startswith(";"):
                 result.append(line)
                 continue
 
-            # Label definition (ends with ':' and no space before ':').
-            if stripped.endswith(":") and " " not in stripped.split(":")[0]:
-                known_a = None
+            # Equate lines: transparent
+            code_part = stripped.split(';')[0].strip()
+            if code_part and '=' in code_part and not code_part.endswith(':'):
                 result.append(line)
                 continue
 
-            # Parse mnemonic.
+            # Label definition: reset all A tracking (entry point, A state unknown)
+            if stripped.endswith(":") and " " not in stripped.split(":")[0]:
+                known_a = None
+                known_a_mem = None
+                result.append(line)
+                continue
+
             parts = stripped.split(None, 1)
             mnemonic = parts[0].upper()
             operand = parts[1].strip() if len(parts) > 1 else ""
 
-            # Check for LDA #imm.
+            # LDA #imm — check if A already holds it
             if mnemonic == "LDA" and operand.startswith("#"):
-                # Try to parse the immediate value.
-                imm_str = operand[1:]  # strip '#'
+                imm_str = operand[1:]
                 imm_val: int | None = None
                 try:
                     if imm_str.startswith("$"):
@@ -3697,35 +3883,73 @@ class CodeGen:
                     elif imm_str.lstrip("-").isdigit():
                         imm_val = int(imm_str) & 0xFF
                 except ValueError:
-                    pass  # Complex expression — cannot determine value; fall through
-
+                    pass
                 if imm_val is not None:
                     if known_a == imm_val:
-                        # A already holds this value — skip the redundant LDA.
-                        continue
+                        continue  # redundant
                     known_a = imm_val
-                    result.append(line)
-                    continue
+                    known_a_mem = None
                 else:
-                    # Non-trivial immediate (e.g. #<label+offset) — keep but reset tracking.
                     known_a = None
-                    result.append(line)
-                    continue
+                    known_a_mem = None
+                result.append(line)
+                continue
 
-            # Control-flow resets A tracking.
-            if mnemonic in CONTROL_FLOW_MNEMONICS:
+            # LDA addr (non-immediate) — check if A already holds mem[addr]
+            if mnemonic == "LDA" and not operand.startswith("#"):
+                # Don't track indexed addressing (,X / ,Y): the actual address
+                # changes when X/Y changes, so same operand string ≠ same address.
+                operand_upper = operand.upper()
+                is_indexed = operand_upper.endswith(",X") or operand_upper.endswith(",Y")
+                if not is_indexed and known_a_mem is not None and operand == known_a_mem:
+                    continue  # A already holds this address's value
+                # Loads from memory: A now holds mem[addr]; reset imm tracking
                 known_a = None
+                known_a_mem = None if is_indexed else operand  # track: A = mem[operand]
                 result.append(line)
                 continue
 
-            # A-safe instructions: keep known_a.
+            # STA addr — A still holds its value; update known_a_mem
+            if mnemonic == "STA":
+                # A is written to addr; track that A holds mem[addr].
+                # Don't track indexed stores — actual address depends on X/Y.
+                operand_upper = operand.upper()
+                is_indexed = operand_upper.endswith(",X") or operand_upper.endswith(",Y")
+                known_a_mem = None if is_indexed else operand
+                # known_a (imm) unchanged — A still holds same immediate if set
+                result.append(line)
+                continue
+
+            # Unconditional control-flow: reset all tracking
+            if mnemonic in UNCONDITIONAL_CONTROL_FLOW:
+                known_a = None
+                known_a_mem = None
+                result.append(line)
+                continue
+
+            # Conditional branches: reset memory tracking (can't safely track across branch targets)
+            # but keep known_a (immediate) — A register value is unchanged by the branch itself
+            if mnemonic in CONDITIONAL_BRANCHES:
+                known_a_mem = None
+                result.append(line)
+                continue
+
+            # A-safe instructions (do not modify A): keep tracking
             if mnemonic in A_SAFE_MNEMONICS:
+                # Any instruction that WRITES to the tracked memory address invalidates it.
+                # INC/DEC modify the value at addr (but not A); STX/STY/STZ write a different value.
+                # ASL/LSR/ROL/ROR in memory form also modify addr.
+                if known_a_mem is not None and operand == known_a_mem:
+                    if mnemonic in ("INC", "DEC", "STX", "STY", "STZ"):
+                        known_a_mem = None
+                    elif mnemonic in ("ASL", "LSR", "ROL", "ROR") and operand.upper() not in ("", "A"):
+                        known_a_mem = None  # memory-form shift modifies addr
                 result.append(line)
                 continue
 
-            # Everything else modifies A (TXA, TYA, PLA, ADC, SBC, AND, ORA, EOR,
-            # accumulator shifts, LDA mem, etc.) — reset tracking.
+            # Everything else modifies A: reset tracking
             known_a = None
+            known_a_mem = None
             result.append(line)
 
         return result
@@ -3829,6 +4053,8 @@ class CodeGen:
             if mnemonic == "LDX":
                 imm_val = _parse_imm(operand)
                 if imm_val is not None:
+                    if known_x == imm_val:
+                        continue  # OPT-9: X already holds this value — skip redundant load
                     if known_a == imm_val:
                         result.append(f"{indent}TAX\n")
                         known_x = imm_val
@@ -3844,6 +4070,8 @@ class CodeGen:
             if mnemonic == "LDY":
                 imm_val = _parse_imm(operand)
                 if imm_val is not None:
+                    if known_y == imm_val:
+                        continue  # OPT-9: Y already holds this value — skip redundant load
                     if known_a == imm_val:
                         result.append(f"{indent}TAY\n")
                         known_y = imm_val
@@ -4069,6 +4297,207 @@ class CodeGen:
 
             result.append(line)
             i += 1
+
+        return result
+
+    @staticmethod
+    def _instr_byte_size(line: str) -> int:
+        """Conservative upper-bound byte size of a 6502/65C02 assembly line.
+        Returns 0 for blank, comment, equate, and label-definition lines.
+        Uses 3 bytes as upper bound for absolute-addressed instructions (safe for
+        branch range computation — real size <= estimated size).
+        """
+        stripped = line.strip()
+        if not stripped or stripped.startswith(";"):
+            return 0
+        code_part = stripped.split(";")[0].strip()
+        if not code_part:
+            return 0
+        # Equate: symbol = value (not a label)
+        if "=" in code_part and not code_part.endswith(":"):
+            return 0
+        # Label definition
+        if code_part.endswith(":") and " " not in code_part.split(":")[0]:
+            return 0
+        parts = code_part.split(None, 1)
+        mnemonic = parts[0].upper()
+        operand = (parts[1].strip() if len(parts) > 1 else "").split(";")[0].strip()
+        # Implied / accumulator: 1 byte
+        IMPLIED = {
+            "NOP", "TAX", "TAY", "TXA", "TYA", "TSX", "TXS",
+            "PHA", "PLA", "PHP", "PLP", "PHX", "PHY", "PLX", "PLY",
+            "RTS", "RTI", "BRK", "SEC", "CLC", "SEI", "CLI", "SED", "CLD", "CLV",
+            "INX", "DEX", "INY", "DEY",
+        }
+        if mnemonic in IMPLIED:
+            return 1
+        if mnemonic in ("ASL", "LSR", "ROL", "ROR") and operand.upper() in ("", "A"):
+            return 1
+        # Relative branches: 2 bytes
+        BRANCHES = {"BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC", "BRA"}
+        if mnemonic in BRANCHES:
+            return 2
+        # Immediate: 2 bytes
+        if operand.startswith("#"):
+            return 2
+        # ZP indirect (addr,X) or (addr),Y: 2 bytes
+        if operand.startswith("(") and mnemonic not in ("JMP",):
+            return 2
+        # JMP absolute / JMP indirect / JSR: 3 bytes
+        if mnemonic in ("JMP", "JSR"):
+            return 3
+        # Everything else: 3 bytes (conservative for absolute addressing)
+        # Note: ZP instructions are 2 bytes but we use 3 as safe upper bound
+        return 3
+
+    def _branch_inversion(self, code: list[str]) -> list[str]:
+        """Fifth-pass peephole: invert short-branch-over-JMP patterns.
+
+        Pattern:  Bxx skip_label    (conditional branch)
+                  JMP far_target    (unconditional jump)
+        skip_label:
+                  ...
+
+        When far_target is within +-127 bytes of the branch instruction, replace with:
+                  B~xx far_target   (negated conditional branch directly to target)
+        skip_label:                 (kept unless it becomes unreferenced)
+                  ...
+
+        Also removes unreferenced labels, which enables OPT-8 to eliminate
+        reload patterns in switch dispatch (OPT-12 emerges automatically).
+
+        Byte distance is computed using _instr_byte_size() with conservative
+        upper bounds — if estimated distance <= 127, actual distance is also <= 127.
+        """
+        BRANCH_NEGATE = {
+            "BEQ": "BNE", "BNE": "BEQ",
+            "BCC": "BCS", "BCS": "BCC",
+            "BMI": "BPL", "BPL": "BMI",
+            "BVS": "BVC", "BVC": "BVS",
+        }
+        BRANCH_MNEMONICS = set(BRANCH_NEGATE.keys())
+        ALL_BRANCHES = BRANCH_MNEMONICS | {"BRA"}
+        JUMP_OPS = ALL_BRANCHES | {"JMP", "JSR"}
+
+        def _label_name(s: str) -> str | None:
+            """Extract label name from a label definition line, or None."""
+            stripped = s.strip()
+            code_p = stripped.split(";")[0].strip()
+            if code_p.endswith(":") and " " not in code_p.split(":")[0]:
+                return code_p[:-1]
+            return None
+
+        def _branch_target(s: str) -> str | None:
+            """Extract target label from a branch/jump line, or None."""
+            stripped = s.strip().split(";")[0].strip()
+            parts = stripped.split(None, 1)
+            if len(parts) < 2:
+                return None
+            mn = parts[0].upper()
+            if mn in JUMP_OPS:
+                tgt = parts[1].strip()
+                # Ignore indirect JMP like JMP (addr)
+                if tgt.startswith("("):
+                    return None
+                return tgt
+            return None
+
+        def _is_transparent(s: str) -> bool:
+            stripped = s.strip()
+            c = stripped.split(";")[0].strip()
+            if not c:
+                return True
+            if "=" in c and not c.endswith(":"):
+                return True  # equate
+            return False
+
+        result: list[str] = list(code)  # work on a copy
+
+        changed = True
+        while changed:
+            changed = False
+            new_result: list[str] = []
+            # Recompute cumulative offsets for current result
+            cum: list[int] = []
+            tot = 0
+            for ln in result:
+                cum.append(tot)
+                tot += self._instr_byte_size(ln)
+
+            # Recount label refs in current result
+            cur_refs: dict[str, int] = {}
+            for ln in result:
+                tgt = _branch_target(ln)
+                if tgt is not None:
+                    cur_refs[tgt] = cur_refs.get(tgt, 0) + 1
+
+            i = 0
+            while i < len(result):
+                ln = result[i]
+
+                # Check for Bxx pattern
+                stripped = ln.strip().split(";")[0].strip()
+                parts = stripped.split(None, 1)
+                if len(parts) == 2:
+                    mn = parts[0].upper()
+                    skip_lbl = parts[1].strip()
+                    if mn in BRANCH_MNEMONICS and not skip_lbl.startswith("("):
+                        # Find next non-transparent line
+                        j = i + 1
+                        while j < len(result) and _is_transparent(result[j]):
+                            j += 1
+                        if j < len(result):
+                            jstripped = result[j].strip().split(";")[0].strip()
+                            jparts = jstripped.split(None, 1)
+                            if (len(jparts) == 2 and jparts[0].upper() == "JMP"
+                                    and not jparts[1].strip().startswith("(")):
+                                far_target = jparts[1].strip()
+                                # Find the label right after the JMP
+                                k = j + 1
+                                while k < len(result) and _is_transparent(result[k]):
+                                    k += 1
+                                if k < len(result) and _label_name(result[k]) == skip_lbl:
+                                    # Compute byte distance: branch -> far_target
+                                    far_pos = -1
+                                    for fi, fln in enumerate(result):
+                                        if _label_name(fln) == far_target:
+                                            far_pos = fi
+                                            break
+                                    if far_pos >= 0:
+                                        branch_byte_pos = cum[i] if i < len(cum) else 0
+                                        target_byte_pos = cum[far_pos] if far_pos < len(cum) else 0
+                                        # Displacement: target - (branch_instr + 2)
+                                        # Branch is 2 bytes; displacement from end of branch instr
+                                        displacement = target_byte_pos - (branch_byte_pos + 2)
+                                        if -128 <= displacement <= 127:
+                                            # Safe to invert!
+                                            negated_branch = BRANCH_NEGATE[mn]
+                                            indent = ln[:len(ln) - len(ln.lstrip())]
+                                            new_result.append(f"{indent}{negated_branch} {far_target}\n")
+                                            # Skip transparent lines between Bxx and JMP
+                                            for ti in range(i + 1, j):
+                                                if _is_transparent(result[ti]):
+                                                    new_result.append(result[ti])
+                                            # Skip the JMP line
+                                            # Emit skip_label: only if still referenced by others
+                                            # Decrement its ref count
+                                            new_ref_count = cur_refs.get(skip_lbl, 0) - 1
+                                            # Skip transparent lines between JMP and skip_label:
+                                            for ti in range(j + 1, k):
+                                                if _is_transparent(result[ti]):
+                                                    new_result.append(result[ti])
+                                            # Emit skip_label: if still referenced
+                                            if new_ref_count > 0:
+                                                new_result.append(result[k])
+                                            # Skip it otherwise
+                                            i = k + 1
+                                            changed = True
+                                            continue
+
+                new_result.append(ln)
+                i += 1
+
+            result = new_result
 
         return result
 
@@ -14002,7 +14431,43 @@ class CodeGen:
 
         # Fast path: compare-to-zero simplification (unsigned)
         if isinstance(cond.right, IntLiteral) and (cond.right.value & 0xFFFF) == 0:
-            prev_suppress: bool = self.suppress_byte_return_x
+            if is_16bit and cond.op in {BinOp.EQ, BinOp.LE, BinOp.NE, BinOp.GT}:
+                # OPT-13: Use ORA to test WORD == 0 / != 0 in 3 instructions.
+                # For simple identifiers: LDA var; ORA var+1; BEQ/BNE
+                # For complex: gen_expr -> A=lo, X=hi; STA TMP4; TXA; ORA TMP4; BEQ/BNE
+                branch_if_zero = cond.op in {BinOp.EQ, BinOp.LE}
+                if isinstance(cond.left, Identifier):
+                    _sym13 = self.current_symtab.lookup(cond.left.name)
+                    if (not _sym13.is_array and _sym13.address is None
+                            and not _sym13.is_volatile and not _sym13.is_port):
+                        _asm13 = _sym13.asm_name()
+                        self.emit(f"\tLDA {_asm13}")
+                        self.emit(f"\tORA {_asm13}+1")
+                        if branch_if_zero:
+                            self.emit(f"\tBEQ {lbl_true}")
+                        else:
+                            self.emit(f"\tBNE {lbl_true}")
+                        self.emit(f"\tJMP {lbl_false}")
+                        return
+                # General case: evaluate expression, result in A (lo) / X (hi)
+                prev_suppress: bool = self.suppress_byte_return_x
+                try:
+                    self.gen_expr(cond.left)
+                finally:
+                    self.suppress_byte_return_x = prev_suppress
+                if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
+                    self.emit("\tLDX #$00")
+                self.used_temps.add("TMP4")
+                self.emit("\tSTA TMP4")
+                self.emit("\tTXA")
+                self.emit("\tORA TMP4")
+                if branch_if_zero:
+                    self.emit(f"\tBEQ {lbl_true}")
+                else:
+                    self.emit(f"\tBNE {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+                return
+            prev_suppress = self.suppress_byte_return_x
             if not is_16bit:
                 self.suppress_byte_return_x = True
             try:
@@ -14012,22 +14477,6 @@ class CodeGen:
             if is_16bit:
                 if left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:
                     self.emit("\tLDX #$00")
-                if cond.op in {BinOp.EQ, BinOp.LE}:
-                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    self.emit("\tCPX #$00")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
-                    self.emit("\tCMP #$00")
-                    self.emit(f"\tBEQ {lbl_true}")
-                    self.emit(f"{lbl_else_tmp}:")
-                    self.emit(f"\tJMP {lbl_false}")
-                    return
-                if cond.op in {BinOp.NE, BinOp.GT}:
-                    self.emit("\tCPX #$00")
-                    self.emit(f"\tBNE {lbl_true}")
-                    self.emit("\tCMP #$00")
-                    self.emit(f"\tBNE {lbl_true}")
-                    self.emit(f"\tJMP {lbl_false}")
-                    return
                 if cond.op == BinOp.GE:
                     self.emit(f"\tJMP {lbl_true}")
                     return
