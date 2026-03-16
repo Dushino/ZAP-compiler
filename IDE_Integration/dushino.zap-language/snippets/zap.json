@@ -1,0 +1,250 @@
+{
+    "Procedure": {
+        "prefix": "proc",
+        "body": [
+            "proc ${1:name}(${2:})",
+            "\t$0",
+            "end"
+        ],
+        "description": "Procedure declaration"
+    },
+
+    "Function": {
+        "prefix": "func",
+        "body": [
+            "func ${1:byte} ${2:name}(${3:})",
+            "\t$0",
+            "\treturn ${4:0}",
+            "end"
+        ],
+        "description": "Function declaration with return value"
+    },
+
+    "Struct": {
+        "prefix": "struct",
+        "body": [
+            "struct ${1:Name}",
+            "\t${2:byte} ${3:field}",
+            "end"
+        ],
+        "description": "Struct type declaration"
+    },
+
+    "Enum": {
+        "prefix": "enum",
+        "body": [
+            "enum ${1:Name}",
+            "\t${2:Member1},",
+            "\t${3:Member2}",
+            "end"
+        ],
+        "description": "Enum type declaration"
+    },
+
+    "If": {
+        "prefix": "if",
+        "body": [
+            "if ${1:condition}",
+            "\t$0",
+            "end"
+        ],
+        "description": "If statement"
+    },
+
+    "If / Else": {
+        "prefix": "ife",
+        "body": [
+            "if ${1:condition}",
+            "\t$2",
+            "else",
+            "\t$0",
+            "end"
+        ],
+        "description": "If / else statement"
+    },
+
+    "If / Elseif / Else": {
+        "prefix": "ifee",
+        "body": [
+            "if ${1:condition}",
+            "\t$2",
+            "elseif ${3:condition2}",
+            "\t$4",
+            "else",
+            "\t$0",
+            "end"
+        ],
+        "description": "If / elseif / else chain"
+    },
+
+    "While": {
+        "prefix": "while",
+        "body": [
+            "while ${1:condition}",
+            "\t$0",
+            "end"
+        ],
+        "description": "While loop"
+    },
+
+    "For (to)": {
+        "prefix": "for",
+        "body": [
+            "for ${1:i} = ${2:0} to ${3:N}",
+            "\t$0",
+            "end"
+        ],
+        "description": "For loop with literal step"
+    },
+
+    "For (downto)": {
+        "prefix": "ford",
+        "body": [
+            "for ${1:i} = ${2:N} downto ${3:0}",
+            "\t$0",
+            "end"
+        ],
+        "description": "For loop counting down"
+    },
+
+    "For (step)": {
+        "prefix": "fors",
+        "body": [
+            "for ${1:i} = ${2:0} to ${3:N} step ${4:2}",
+            "\t$0",
+            "end"
+        ],
+        "description": "For loop with explicit step"
+    },
+
+    "Repeat / Until": {
+        "prefix": "repeat",
+        "body": [
+            "repeat",
+            "\t$0",
+            "until ${1:condition}"
+        ],
+        "description": "Repeat / until loop (post-condition)"
+    },
+
+    "Switch": {
+        "prefix": "switch",
+        "body": [
+            "switch ${1:variable}",
+            "\tcase ${2:value}",
+            "\t\t$0",
+            "\tbreak",
+            "\tdefault",
+            "\t\t",
+            "\tbreak",
+            "end"
+        ],
+        "description": "Switch statement with case and default"
+    },
+
+    "Case": {
+        "prefix": "case",
+        "body": [
+            "case ${1:value}",
+            "\t$0",
+            "break"
+        ],
+        "description": "Single case block inside a switch"
+    },
+
+    "Asm block": {
+        "prefix": "asm",
+        "body": [
+            "asm",
+            "\t$0",
+            "end"
+        ],
+        "description": "Inline assembly block"
+    },
+
+    "Byte variable": {
+        "prefix": "byte",
+        "body": "byte ${1:name}${2: = ${3:0}}",
+        "description": "Byte variable declaration"
+    },
+
+    "Word variable": {
+        "prefix": "word",
+        "body": "word ${1:name}${2: = ${3:0}}",
+        "description": "Word variable declaration"
+    },
+
+    "Long variable": {
+        "prefix": "long",
+        "body": "long ${1:name}${2: = ${3:0}}",
+        "description": "Long (32-bit) variable declaration"
+    },
+
+    "Byte array": {
+        "prefix": "bytearr",
+        "body": "byte ${1:name}[${2:size}]",
+        "description": "Byte array declaration"
+    },
+
+    "Word array": {
+        "prefix": "wordarr",
+        "body": "word ${1:name}[${2:size}]",
+        "description": "Word array declaration"
+    },
+
+    "Const byte": {
+        "prefix": "constb",
+        "body": "const byte ${1:NAME} = ${2:0}",
+        "description": "Constant byte declaration"
+    },
+
+    "Const word": {
+        "prefix": "constw",
+        "body": "const word ${1:NAME} = ${2:0}",
+        "description": "Constant word declaration"
+    },
+
+    "Const string": {
+        "prefix": "consts",
+        "body": "const byte ${1:NAME}[] = \"${2:text}\"",
+        "description": "Constant string declaration"
+    },
+
+    "Module": {
+        "prefix": ".module",
+        "body": ".module \"${1:name}\"",
+        "description": "Module declaration"
+    },
+
+    "Include": {
+        "prefix": ".include",
+        "body": ".include \"${1:file.zap}\"",
+        "description": "Include another ZAP file"
+    },
+
+    "ifdef": {
+        "prefix": ".ifdef",
+        "body": [
+            ".ifdef ${1:SYMBOL}",
+            "\t$0",
+            ".endif"
+        ],
+        "description": "Conditional compilation ifdef"
+    },
+
+    "ifndef": {
+        "prefix": ".ifndef",
+        "body": [
+            ".ifndef ${1:SYMBOL}",
+            "\t$0",
+            ".endif"
+        ],
+        "description": "Conditional compilation ifndef"
+    },
+
+    "define": {
+        "prefix": ".define",
+        "body": ".define ${1:SYMBOL}",
+        "description": "Define a preprocessor symbol"
+    }
+}

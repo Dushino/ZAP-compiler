@@ -72,6 +72,12 @@
                 ]
             }
         ],
+        "snippets": [
+            {
+                "language": "zap",
+                "path": "./snippets/zap.json"
+            }
+        ],
         "taskDefinitions": [
             {
                 "type": "zap"
