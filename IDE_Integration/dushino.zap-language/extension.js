@@ -390,6 +390,124 @@ function getFunctionCallContext(linePrefix) {
     return null;
 }
 
+// Keywords that open a new nesting level (each needs a matching end/until).
+const BLOCK_OPEN_RX  = /^(proc|func|if|while|for|repeat|switch|asm|struct|enum)\b/i;
+// Keywords that close a nesting level.
+const BLOCK_CLOSE_RX = /^(end|until)\b/i;
+
+// Scan forward from startLine to find the line that closes the block opened at startLine.
+// Returns the line index of the closing end/until, or the last line if not found.
+function findBlockEnd(lines, startLine) {
+    let depth = 1;
+    for (let i = startLine + 1; i < lines.length; i++) {
+        const code = stripLineComment(lines[i]).trim();
+        if (BLOCK_OPEN_RX.test(code))  depth++;
+        if (BLOCK_CLOSE_RX.test(code)) { depth--; if (depth === 0) return i; }
+    }
+    return lines.length - 1;
+}
+
+// Build a DocumentSymbol whose full range spans startLine..endLine and whose
+// selection range is the name token on startLine.
+function makeSymbol(name, detail, kind, lines, startLine, endLine) {
+    const nameLine  = lines[startLine] ?? '';
+    const nameStart = wordCol(nameLine, name);
+    const selRange  = new vscode.Range(startLine, nameStart, startLine, nameStart + name.length);
+    const fullRange = new vscode.Range(startLine, 0, endLine, (lines[endLine] ?? '').length);
+    return new vscode.DocumentSymbol(name, detail, kind, fullRange, selRange);
+}
+
+// Parse the current document into a DocumentSymbol tree (current file only, not includes).
+// Top-level: proc, func, struct, enum, const, global var.
+// Children:  struct fields, enum members, proc/func params.
+function buildDocumentSymbols(document) {
+    const text  = document.getText();
+    const lines = text.split('\n');
+    const symbols = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const raw  = lines[i];
+        const code = stripLineComment(raw).trim();
+        if (!code) { i++; continue; }
+
+        // --- struct NAME ---
+        const structM = code.match(/^struct\s+(\w+)/i);
+        if (structM) {
+            const endLine = findBlockEnd(lines, i);
+            const sym = makeSymbol(structM[1], 'struct', vscode.SymbolKind.Class, lines, i, endLine);
+            // Children: field declarations inside the struct body
+            for (let j = i + 1; j < endLine; j++) {
+                const fc = stripLineComment(lines[j]).trim();
+                const fm = fc.match(/^(\w+)\s+(\w+)/);
+                if (fm && !ZAP_FLOW_KW.has(fm[1].toLowerCase())) {
+                    sym.children.push(makeSymbol(fm[2], fm[1], vscode.SymbolKind.Field, lines, j, j));
+                }
+            }
+            symbols.push(sym); i = endLine + 1; continue;
+        }
+
+        // --- enum NAME ---
+        const enumM = code.match(/^enum\s+(\w+)/i);
+        if (enumM) {
+            const endLine = findBlockEnd(lines, i);
+            const sym = makeSymbol(enumM[1], 'enum', vscode.SymbolKind.Enum, lines, i, endLine);
+            for (let j = i + 1; j < endLine; j++) {
+                const ec = stripLineComment(lines[j]).trim();
+                for (const part of ec.replace(/,$/, '').split(',')) {
+                    const em = part.trim().match(/^(\w+)(?:\s*=\s*(\S+))?/);
+                    if (em) sym.children.push(
+                        makeSymbol(em[1], em[2] ? `= ${em[2]}` : '', vscode.SymbolKind.EnumMember, lines, j, j)
+                    );
+                }
+            }
+            symbols.push(sym); i = endLine + 1; continue;
+        }
+
+        // --- proc NAME(...) ---
+        const procM = code.match(/^proc\s+(\w+)\s*\(([^)]*)\)/i);
+        if (procM) {
+            const endLine = findBlockEnd(lines, i);
+            const params  = parseParams(procM[2]);
+            const detail  = `(${params.map(formatParam).join(', ')})`;
+            const sym = makeSymbol(procM[1], detail, vscode.SymbolKind.Function, lines, i, endLine);
+            params.forEach(p => sym.children.push(
+                makeSymbol(p.name, p.type, vscode.SymbolKind.TypeParameter, lines, i, i)
+            ));
+            symbols.push(sym); i = endLine + 1; continue;
+        }
+
+        // --- func RETTYPE NAME(...) ---
+        const funcM = code.match(/^func\s+(\w+)\s+(\w+)\s*\(([^)]*)\)/i);
+        if (funcM) {
+            const endLine = findBlockEnd(lines, i);
+            const params  = parseParams(funcM[3]);
+            const detail  = `${funcM[1]} (${params.map(formatParam).join(', ')})`;
+            const sym = makeSymbol(funcM[2], detail, vscode.SymbolKind.Function, lines, i, endLine);
+            params.forEach(p => sym.children.push(
+                makeSymbol(p.name, p.type, vscode.SymbolKind.TypeParameter, lines, i, i)
+            ));
+            symbols.push(sym); i = endLine + 1; continue;
+        }
+
+        // --- const TYPE NAME ---
+        const constM = code.match(/^const\s+(\w+\^?)\s+(\w+)/i);
+        if (constM) {
+            symbols.push(makeSymbol(constM[2], `const ${constM[1]}`, vscode.SymbolKind.Constant, lines, i, i));
+            i++; continue;
+        }
+
+        // --- global variable TYPE[^] NAME ---
+        const varM = code.match(/^(\w+)(\^?)\s+(\w+)\s*(?:\[|=|@|$)/);
+        if (varM && !ZAP_FLOW_KW.has(varM[1].toLowerCase()) && !ZAP_KEYWORDS.has(varM[3].toLowerCase())) {
+            symbols.push(makeSymbol(varM[3], varM[1] + varM[2], vscode.SymbolKind.Variable, lines, i, i));
+        }
+
+        i++;
+    }
+    return symbols;
+}
+
 // ---- VS Code Extension ----
 
 function activate(context) {
@@ -626,7 +744,18 @@ function activate(context) {
         )
     );
 
-    // 7. Find All References provider (Shift+F12 / right-click → Find All References)
+    // 7. Document symbol provider — populates the Outline panel and breadcrumb navigation.
+    //    Top-level: proc, func, struct, enum, const, global var.
+    //    Children:  struct fields, enum members, proc/func parameters.
+    context.subscriptions.push(
+        vscode.languages.registerDocumentSymbolProvider('zap', {
+            provideDocumentSymbols(document) {
+                return buildDocumentSymbols(document);
+            }
+        })
+    );
+
+    // 8. Find All References provider (Shift+F12 / right-click → Find All References)
     //    Plain identifier → all word-boundary matches in code (comments excluded).
     //    Dot-member (cursor on "field" in "owner.field") → all ".field" accesses.
     context.subscriptions.push(
