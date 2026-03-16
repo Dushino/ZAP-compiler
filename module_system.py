@@ -432,7 +432,7 @@ class ModuleSystem:
         err.filename = relative_to_dir
         raise err
 
-    def _scan_file_directives(self, filepath: str) -> tuple[bool, Optional[str], list[str], Optional[Set[str]], Optional[tuple[int, int, str]]]:
+    def _scan_file_directives(self, filepath: str) -> tuple[bool, Optional[str], list[tuple[str, int, int]], Optional[Set[str]], Optional[tuple[int, int, str]]]:
         """Scan .module/.include directives without parsing declarations/statements."""
         with open(filepath, 'r', encoding='utf-8-sig') as f:
             raw_source: str = f.read()
@@ -459,7 +459,7 @@ class ModuleSystem:
 
         is_module: bool = False
         module_name: Optional[str] = None
-        includes: list[str] = []
+        includes: list[tuple[str, int, int]] = []
         module_directive_info: Optional[tuple[int, int, str]] = None
 
         orig_lines: List[str] = raw_source.split('\n')
@@ -488,7 +488,8 @@ class ModuleSystem:
                 elif stripped.startswith('.include'):
                     parts: List[str] = line.split('"')
                     if len(parts) >= 2:
-                        includes.append(parts[1])
+                        first_q: int = line.find('"')
+                        includes.append((parts[1], ln, first_q + 1 if first_q != -1 else 1))
         else:
             lines: List[str] = processed_source.split('\n')
             for ln, line in enumerate(lines, start=1):
@@ -512,7 +513,8 @@ class ModuleSystem:
                 elif stripped.startswith('.include'):
                     parts: List[str] = line.split('"')
                     if len(parts) >= 2:
-                        includes.append(parts[1])
+                        first_q: int = line.find('"')
+                        includes.append((parts[1], ln, first_q + 1 if first_q != -1 else 1))
 
         return is_module, module_name, includes, defined_symbols, module_directive_info
     
@@ -575,13 +577,13 @@ class ModuleSystem:
 
             # Load and resolve dependencies, store absolute paths
             resolved_includes: list[str] = []
-            for inc in includes:
+            for inc_name, inc_line, inc_col in includes:
                 # Resolve include path relative to current file's directory
                 inc_dir: str = os.path.dirname(full_path)
                 try:
-                    inc_path: str = self._find_file(inc, inc_dir)
+                    inc_path: str = self._find_file(inc_name, inc_dir)
                 except SemanticError as e:
-                    err = SemanticError(f"Error loading include '{inc}': {e.message}", line=getattr(e, 'line', None), col=getattr(e, 'col', None))
+                    err = SemanticError(f"Error loading include '{inc_name}': {e.message}", line=inc_line, col=inc_col)
                     err.filename = full_path
                     raise err
                 # Ensure dependency is loaded

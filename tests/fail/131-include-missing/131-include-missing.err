@@ -1,1 +1,1 @@
-1:1: error: Error loading include 'no_such_file.zap': File not found: no_such_file.zap (searched in: current dir, and 0 include directories)
+1:10: error: Error loading include 'no_such_file.zap': File not found: no_such_file.zap (searched in: current dir, and 0 include directories)

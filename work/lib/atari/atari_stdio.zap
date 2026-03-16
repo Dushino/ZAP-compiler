@@ -69,6 +69,7 @@
 .include "../errno.zap"
 .include "../types.zap"
 .include "../string.zap"
+.include "../keys.zap"
 
 ; .define DEBUG_CIO
 
@@ -83,21 +84,22 @@ byte KBHIT @764
 byte TIMER @20
 
 
-const byte ATARI_KEY_RETURN         = $9B
-const byte ATARI_KEY_LEFT           = $1E
-const byte ATARI_KEY_RIGHT          = $1F
-const byte ATARI_KEY_UP             = $1C
-const byte ATARI_KEY_DOWN           = $1D
-const byte ATARI_KEY_CTRL_LEFT      = $2B
-const byte ATARI_KEY_CTRL_RIGHT     = $2A
-const byte ATARI_KEY_CTRL_UP        = $2D
-const byte ATARI_KEY_CTRL_DOWN      = $3D
-const byte ATARI_KEY_HOME           = $7D
-const byte ATARI_KEY_DELETE         = $FE
-const byte ATARI_KEY_INSERT         = $FF
-const byte ATARI_KEY_BACKSPACE      = $7E
-const byte ATARI_KEY_ESCAPE         = $1B
-
+enum KEY
+    ENTER          = $9B
+    LEFT           = $1E
+    RIGHT          = $1F
+    UP             = $1C
+    DOWN           = $1D
+    CTRL_LEFT      = $2B
+    CTRL_RIGHT     = $2A
+    CTRL_UP        = $2D
+    CTRL_DOWN      = $3D
+    HOME           = $7D
+    DELETE         = $FE
+    INSERT         = $FF
+    BACKSPACE      = $7E
+    ESCAPE         = $1B
+end
 
 byte kbcode @$D209
 
@@ -140,8 +142,6 @@ end
 
 
 enum ICAX1_Mode
-    ; DOS 2.0
-    ; https://www.atarimania.com/documents/Atari_1050_disk_operating_system_II_reference_manual.pdf
     Read        = 4       ; input operation; positions file pointer to start of file.
     Directory   = 6       ; disk directory input operation.
     Write       = 8       ; output operation; positions file pointer to start of file.
@@ -424,14 +424,14 @@ func byte gets(const byte ^buffer, const byte max_len)
 
         switch ch
 
-            case ATARI_KEY_RETURN
-            case ATARI_KEY_ESCAPE
-            case ATARI_KEY_UP
-            case ATARI_KEY_DOWN
+            case Key.ENTER
+            case Key.ESCAPE
+            case Key.UP
+            case Key.DOWN
                 COLOR4 = COLOR_MEDIUM_GREEN + 14                
                 return ch
 
-            case ATARI_KEY_BACKSPACE
+            case Key.BACKSPACE
                 if pos > 0
                     pos -= 1
                     ; screen
@@ -465,7 +465,7 @@ func byte gets(const byte ^buffer, const byte max_len)
                 end
                 break
 
-            case ATARI_KEY_DELETE
+            case Key.DELETE
                 if pos < max_len
                     ; screen
                     i = pos
@@ -496,7 +496,7 @@ func byte gets(const byte ^buffer, const byte max_len)
                 end
                 break
             
-            case ATARI_KEY_LEFT
+            case Key.LEFT
                 if pos > 0
                     ; screen
                     cur_xpos -= 1
@@ -507,7 +507,7 @@ func byte gets(const byte ^buffer, const byte max_len)
                 end
                 break
 
-            case ATARI_KEY_RIGHT
+            case Key.RIGHT
                 if (cur_xpos < SCREEN_X_SIZE - 1) && (pos < max_len - 1)
                     ; screen
                     cur_xpos += 1
