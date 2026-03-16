@@ -86,6 +86,13 @@
 - `.ref` files must have exactly ONE trailing newline (two newlines → OUTPUT_MISMATCH)
 - Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
 
+## LONG Datatype Gap Fixes + Subscript Speed-Up (2026-03-16)
+- **Phase 1** (`_gen_subscript`): element_size=2 + constant base label: uses `ASL A / TAX / LDA #$00 / ROL A / TAY / CLC / TXA / ADC #<lbl / STA TMP0 / TYA / ADC #>lbl / STA TMP0+1` — eliminates TMP3 memory ops, saves ~10 cycles per subscript.
+- **Phase 2a** (`_gen_subscript` struct field element_width ~L8357): Added `elif field_info.base_type == "LONG": element_width = 4` — was falling through to `else → nested_struct.size or 2`.
+- **Phase 2b** (`gen_vars_block` ZP allocation ~L6685): Added `elif sym.type.base == "LONG": element_size = 4` — was allocating 1 byte per LONG element.
+- **Phase 2c** (`_gen_multidim_subscript` ~L7997): Added `element_width == 4` LONG load/store branches using `(TMP0),Y` → MATH0 pattern.
+- **Phase 3** (RPNNode `width == 2` audit): No changes needed — all `== 2` checks are preceded by `> 2` guards; LONG always hits `is_32 = left_width > 2 or right_width > 2` path first.
+
 ## OPT-7/OPT-8 correctness fixes (2026-03-16)
 - **OPT-8 indexed addressing** — don't track `known_a_mem` for operands ending in `,X` or `,Y` (index register changes between uses, operand string alone is not sufficient to prove same address)
 - **OPT-8 loop iteration** — reset `known_a_mem = None` on conditional branches (`BNE`/`BEQ`/`BMI`/`BPL`/`BVC`/`BVS`/`BCS`/`BCC`); `known_a` (immediate) is kept since A register value is unchanged by the branch

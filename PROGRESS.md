@@ -2,6 +2,28 @@
 
 ---
 
+## LONG Datatype Gap Fixes + Subscript Speed-Up (2026-03-16)
+
+### Phase 1: element_size=2 TAY fast path in `_gen_subscript`
+
+For `array[var_index]` where element_size=2 and base is a constant label, added a dedicated fast path that uses direct register shifts instead of TMP3 memory operations. Replaces `STA TMP3 / LDA #$00 / ASL TMP3 / ROL A / TAX / LDA TMP3` with `ASL A / TAX / LDA #$00 / ROL A / TAY / CLC / TXA / ADC #<label / STA TMP0 / TYA / ADC #>label / STA TMP0+1`. Same instruction count but eliminates 3 ZP memory accesses (~10 cycles saved per subscript). Frees TMP3 slot.
+
+### Phase 2: LONG datatype gap fixes
+
+Four concrete LONG gaps fixed:
+1. **`_gen_subscript` struct field element_width** (`codegen_expr.py:8357`): Added `elif field_info.base_type == "LONG": element_width = 4`. Previously fell to `else → nested_struct.size or 2`.
+2. **`gen_vars_block` ZP allocation** (`codegen_expr.py:6685`): Added `elif sym.type.base == "LONG": element_size = 4`. Previously allocated 1 byte per LONG element.
+3. **`_gen_multidim_subscript` LONG load** (`codegen_expr.py`): Added `element_width == 4` branch for multi-dimensional LONG array subscript load (4 bytes via `(TMP0),Y` → MATH0).
+4. **`_gen_multidim_subscript` LONG store**: Added `element_width == 4` branch for multi-dimensional LONG array subscript store (MATH0 → 4 bytes via `(TMP0),Y`).
+
+### Phase 3: RPNNode `width == 2` audit
+
+All `width == 2` comparisons in `gen_rpn_expr` are **correctly guarded** — every `== 2` check is preceded by a `> 2` guard that handles LONG first. The `is_16bit = (width >= 2)` pattern routes LONG through `is_32 = left_width > 2 or right_width > 2` before any 16-bit path. No code changes required.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimization: Constant-Base Array Subscript + Carry Tracking (2026-03-16)
 
 ### `_gen_subscript` constant-base optimization

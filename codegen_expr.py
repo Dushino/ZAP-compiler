@@ -6682,6 +6682,8 @@ class CodeGen:
                                 element_size: int = sym.type.struct_info.size
                             elif sym.type.base == "WORD":
                                 element_size = 2
+                            elif sym.type.base == "LONG":
+                                element_size = 4
                             else:
                                 element_size = 1
                             total_size: int = size * element_size
@@ -7993,7 +7995,21 @@ class CodeGen:
                 return
 
             if load_only:
-                if element_width == 2:
+                if element_width == 4:
+                    # LONG element: load 4 bytes into MATH0
+                    self.emit("\tLDY #$00")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0+1")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0+2")
+                    self.emit("\tINY")
+                    self.emit("\tLDA (TMP0),Y")
+                    self.emit("\tSTA MATH0+3")
+                elif element_width == 2:
                     self.emit("\tLDY #1")
                     self.emit("\tLDA (TMP0),Y")
                     self.emit("\tTAX")  # X = high byte
@@ -8007,21 +8023,36 @@ class CodeGen:
                     need_x = True
                     if self.assign_target_type:
                         if hasattr(self.assign_target_type, 'base'):
-                            if (self.assign_target_type.base == "BYTE" and 
+                            if (self.assign_target_type.base == "BYTE" and
                                 not getattr(self.assign_target_type, 'is_pointer', False)):
                                 need_x = False
                     if need_x:
                         self.emit("\tLDX #$00")
             else:
-                # Store RHS value (in TMP2/TMP2+1)
-                self.emit("\tLDA TMP2")
-                if element_width == 2:
+                # Store RHS value (in TMP2/TMP2+1 for WORD/BYTE, MATH0 for LONG)
+                if element_width == 4:
+                    # LONG element: store 4 bytes from MATH0
+                    self.emit("\tLDY #$00")
+                    self.emit("\tLDA MATH0")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA MATH0+1")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA MATH0+2")
+                    self.emit("\tSTA (TMP0),Y")
+                    self.emit("\tINY")
+                    self.emit("\tLDA MATH0+3")
+                    self.emit("\tSTA (TMP0),Y")
+                elif element_width == 2:
+                    self.emit("\tLDA TMP2")
                     self.emit("\tLDY #$00")
                     self.emit("\tSTA (TMP0),Y")
                     self.emit("\tINY")
                     self.emit("\tLDA TMP2+1")
                     self.emit("\tSTA (TMP0),Y")
                 else:
+                    self.emit("\tLDA TMP2")
                     self._emit_indirect_store_zero("TMP0")
             return
         
@@ -8354,6 +8385,8 @@ class CodeGen:
                 element_width = 1
             elif field_info.base_type == "WORD":
                 element_width = 2
+            elif field_info.base_type == "LONG":
+                element_width = 4
             else:
                 nested_struct = self.struct_registry.lookup(field_info.base_type)
                 element_width = nested_struct.size if nested_struct else 2
@@ -8367,27 +8400,51 @@ class CodeGen:
 
         # Multiply index by element width and store result.
         # Skip when const-fold already produced the fully-scaled A/X above.
-        if not _index_prescaled:
-            if element_width > 1:
-                self._gen_index_multiply(element_width)
-            else:
-                self.emit("\tLDX #$00")  # BYTE element, X = 0
-        
-        # Now A/X contains (scaled) index; add to base address.
-        # When base is a constant label, use immediate addressing instead of TMP0 memory
-        # reads (saves 2 instructions and avoids the 4-instruction upfront TMP0 load).
-        self.emit("\tCLC")
-        if _const_base_label is not None:
+        #
+        # FAST PATH (element_size=2 + constant base label, non-prescaled index):
+        # Use direct register shifts (ASL A) instead of TMP3 memory ops, and fold the
+        # base address add into the same sequence.  Saves ~10 cycles and frees TMP3.
+        #   ASL A            → A=low_offset, C=high_offset bit
+        #   TAX              → X=low_offset
+        #   LDA #$00; ROL A  → A=high_offset (captures carry from ASL)
+        #   TAY              → Y=high_offset (preserved for high-byte add)
+        #   CLC; TXA; ADC #<lbl → TMP0 low
+        #   TYA; ADC #>lbl      → TMP0 high (carry from low propagates naturally)
+        if not _index_prescaled and element_width == 2 and _const_base_label is not None:
+            self.emit("\tASL A")
+            self.emit("\tTAX")
+            self.emit("\tLDA #$00")
+            self.emit("\tROL A")
+            self.emit("\tTAY")
+            self.emit("\tCLC")
+            self.emit("\tTXA")
             self.emit(f"\tADC #<{_const_base_label}")
             self.emit("\tSTA TMP0")
-            self.emit("\tTXA")
+            self.emit("\tTYA")
             self.emit(f"\tADC #>{_const_base_label}")
+            self.emit("\tSTA TMP0+1")
         else:
-            self.emit("\tADC TMP0")
-            self.emit("\tSTA TMP0")
-            self.emit("\tTXA")
-            self.emit("\tADC TMP0+1")
-        self.emit("\tSTA TMP0+1")
+            if not _index_prescaled:
+                if element_width > 1:
+                    self._gen_index_multiply(element_width)
+                else:
+                    self.emit("\tLDX #$00")  # BYTE element, X = 0
+
+            # Now A/X contains (scaled) index; add to base address.
+            # When base is a constant label, use immediate addressing instead of TMP0 memory
+            # reads (saves 2 instructions and avoids the 4-instruction upfront TMP0 load).
+            self.emit("\tCLC")
+            if _const_base_label is not None:
+                self.emit(f"\tADC #<{_const_base_label}")
+                self.emit("\tSTA TMP0")
+                self.emit("\tTXA")
+                self.emit(f"\tADC #>{_const_base_label}")
+            else:
+                self.emit("\tADC TMP0")
+                self.emit("\tSTA TMP0")
+                self.emit("\tTXA")
+                self.emit("\tADC TMP0+1")
+            self.emit("\tSTA TMP0+1")
         
         # If only calculating address, stop here - TMP0 has the address
         if calc_addr_only:

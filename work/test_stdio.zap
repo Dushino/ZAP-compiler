@@ -15,7 +15,7 @@ const byte Text1[] = "Hello!"
 const byte FName[] = "D1:TEST.TXT"
 
 
-proc main()
+proc main() 
 
     byte rv
     FILE fd
