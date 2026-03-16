@@ -2,6 +2,31 @@
 
 ---
 
+## Optimization: Constant-Base Array Subscript + Carry Tracking (2026-03-16)
+
+### `_gen_subscript` constant-base optimization
+
+For non-const, non-pointer array identifiers (the common case), the old code loaded the array's base address into `TMP0` (4 instructions: `LDA #<label; LDX #>label; STA TMP0; STX TMP0+1`), then evaluated the index expression, then added the scaled offset to `TMP0`. This had a latent bug: any `JSR` called during index evaluation (e.g., `MUL8_A`) would clobber `TMP0`, corrupting the base address. **Test 121 (`arr[a * b + 1]`) was returning 0 instead of 88 due to exactly this bug** — `MUL8_A` overwrites `TMP0` at its entry point.
+
+The fix: skip the upfront `TMP0` load entirely. Instead, evaluate the index first (in the correct order), then use `ADC #<label; ADC #>label` immediate addressing in the ADD phase. Saves 4 instructions and eliminates the register-clobber hazard.
+
+**Conditions**: `isinstance(base, Identifier)` and `not (sym.type.is_pointer and not sym.is_array)` — i.e., a static array symbol (not a pointer variable with a runtime-determined address).
+
+### OPT-3: Carry-zero tracking after `ROL A` with A=#$00
+
+In `_eliminate_redundant_imm_lda`, added `known_carry_zero: bool` tracking:
+- After `ROL A` when `known_a == 0`: carry is provably 0 (old bit 7 of `#$00` = 0). Set `known_carry_zero = True`.
+- When `CLC` and `known_carry_zero == True`: CLC is redundant — skip it.
+- Reset on: labels, unconditional control flow, conditional branches, `SEC`/`CMP`/`CPX`/`CPY`, and any A-modifying instruction.
+
+This fires for all power-of-2 element sizes (`_gen_index_multiply` emits `LDA #$00; [ASL TMP3; ROL A]×k`) — the `CLC` in the ADD phase is eliminated, saving 1 instruction per array subscript with power-of-2 element size.
+
+**Bug fixed**: `tests/pass/121-expr-contexts/121-expr-contexts.ref` updated: `9C43: 00 → 58` (88 is the correct value of `arr[a*b+1]` = `arr[7]` after `arr[7] = 88`).
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Bug Fix: OPT-7/OPT-8 Peephole Optimizer Correctness (2026-03-16)
 
 Three correctness bugs fixed in peephole optimizations:

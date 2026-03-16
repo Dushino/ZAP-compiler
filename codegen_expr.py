@@ -3843,9 +3843,13 @@ class CodeGen:
         UNCONDITIONAL_CONTROL_FLOW = {"JSR", "JMP", "RTS", "RTI", "BRA"}
         CONDITIONAL_BRANCHES = {"BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC"}
 
+        # Carry-resetting subset of A_SAFE_MNEMONICS (SEC/CMP/CPX/CPY modify carry).
+        CARRY_RESETTING_A_SAFE = {"SEC", "CMP", "CPX", "CPY"}
+
         result: list[str] = []
         known_a: int | None = None
         known_a_mem: str | None = None  # address whose value A holds (after STA addr)
+        known_carry_zero: bool = False   # carry is provably 0 at this point
 
         for line in code:
             stripped = line.strip()
@@ -3860,10 +3864,11 @@ class CodeGen:
                 result.append(line)
                 continue
 
-            # Label definition: reset all A tracking (entry point, A state unknown)
+            # Label definition: reset all tracking (entry point, state unknown)
             if stripped.endswith(":") and " " not in stripped.split(":")[0]:
                 known_a = None
                 known_a_mem = None
+                known_carry_zero = False
                 result.append(line)
                 continue
 
@@ -3920,17 +3925,36 @@ class CodeGen:
                 result.append(line)
                 continue
 
-            # Unconditional control-flow: reset all tracking
-            if mnemonic in UNCONDITIONAL_CONTROL_FLOW:
-                known_a = None
+            # ROL A: when A is known #$00, bit 7 of A is 0 so new carry = 0 after rotate.
+            # This makes a subsequent CLC redundant.
+            if mnemonic == "ROL" and operand.upper() == "A":
+                known_carry_zero = (known_a == 0)
+                known_a = None      # A becomes old carry (unknown)
                 known_a_mem = None
                 result.append(line)
                 continue
 
-            # Conditional branches: reset memory tracking (can't safely track across branch targets)
-            # but keep known_a (immediate) — A register value is unchanged by the branch itself
+            # CLC: redundant if carry is already proven to be 0.
+            if mnemonic == "CLC":
+                if known_carry_zero:
+                    continue  # carry already 0 — skip redundant CLC
+                known_carry_zero = True
+                result.append(line)
+                continue
+
+            # Unconditional control-flow: reset all tracking
+            if mnemonic in UNCONDITIONAL_CONTROL_FLOW:
+                known_a = None
+                known_a_mem = None
+                known_carry_zero = False
+                result.append(line)
+                continue
+
+            # Conditional branches: reset memory and carry tracking (may arrive from a
+            # different code path at the target label with different carry state).
             if mnemonic in CONDITIONAL_BRANCHES:
                 known_a_mem = None
+                known_carry_zero = False
                 result.append(line)
                 continue
 
@@ -3944,12 +3968,16 @@ class CodeGen:
                         known_a_mem = None
                     elif mnemonic in ("ASL", "LSR", "ROL", "ROR") and operand.upper() not in ("", "A"):
                         known_a_mem = None  # memory-form shift modifies addr
+                # SEC/CMP/CPX/CPY modify carry — reset carry tracking.
+                if mnemonic in CARRY_RESETTING_A_SAFE:
+                    known_carry_zero = False
                 result.append(line)
                 continue
 
-            # Everything else modifies A: reset tracking
+            # Everything else modifies A: reset all tracking
             known_a = None
             known_a_mem = None
+            known_carry_zero = False
             result.append(line)
 
         return result
@@ -8201,6 +8229,11 @@ class CodeGen:
                 return
         
         # Single index or FieldAccess base - use original 1D implementation
+        # When the array base is a static label (not a runtime pointer), we can fold
+        # it directly into the ADD phase using immediate addressing, skipping the
+        # 4-instruction TMP0 load (LDA/LDX/STA/STX).  Set to None for FieldAccess.
+        _const_base_label: str | None = None
+
         if isinstance(base, Identifier):
             # Original code for array identifiers
             sym: Symbol = self.current_symtab.lookup(base.name)
@@ -8256,12 +8289,20 @@ class CodeGen:
                 if arr_label is None:
                     self._raise_error(f"Const array '{sym.name}' has no initialization")
                 self._load_sym_addr(arr_label)
+                self.emit("\tSTA TMP0")
+                self.emit("\tSTX TMP0+1")
             else:
-                # base address -> TMP0/TMP0+1
-                self._load_sym_base_addr(sym)
-            
-            self.emit("\tSTA TMP0")
-            self.emit("\tSTX TMP0+1")
+                # Non-const array: base address is a compile-time constant label.
+                # For pointer variables (e.g. byte^ ptr) the runtime value IS the address,
+                # so we must load it and spill to TMP0 as before.
+                # For static arrays (direct or array-of-pointers), the label itself is the
+                # compile-time constant — fold it into the ADD phase (saves 4 instructions).
+                if sym.type.is_pointer and not sym.is_array:
+                    self._load_sym_base_addr(sym)
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tSTX TMP0+1")
+                else:
+                    _const_base_label = sym.asm_name()
 
             # index -> calculate scaled offset
             # Try to evaluate index as a compile-time constant first.
@@ -8332,14 +8373,20 @@ class CodeGen:
             else:
                 self.emit("\tLDX #$00")  # BYTE element, X = 0
         
-        # Now A/X contains (scaled) index, add to base address in TMP0
+        # Now A/X contains (scaled) index; add to base address.
+        # When base is a constant label, use immediate addressing instead of TMP0 memory
+        # reads (saves 2 instructions and avoids the 4-instruction upfront TMP0 load).
         self.emit("\tCLC")
-        self.emit("\tADC TMP0")
-        self.emit("\tSTA TMP0")
-        
-        # Now add X (high byte of scaled index) to TMP0+1 with carry from low byte addition
-        self.emit("\tTXA")
-        self.emit("\tADC TMP0+1")
+        if _const_base_label is not None:
+            self.emit(f"\tADC #<{_const_base_label}")
+            self.emit("\tSTA TMP0")
+            self.emit("\tTXA")
+            self.emit(f"\tADC #>{_const_base_label}")
+        else:
+            self.emit("\tADC TMP0")
+            self.emit("\tSTA TMP0")
+            self.emit("\tTXA")
+            self.emit("\tADC TMP0+1")
         self.emit("\tSTA TMP0+1")
         
         # If only calculating address, stop here - TMP0 has the address
