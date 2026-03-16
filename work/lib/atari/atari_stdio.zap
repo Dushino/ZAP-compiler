@@ -69,7 +69,7 @@
 .include "../errno.zap"
 .include "../types.zap"
 .include "../string.zap"
-.include "../keys.zap"
+;.include "../keys.zap"
 
 ; .define DEBUG_CIO
 
