@@ -690,7 +690,7 @@ cat myprogram.s | grep "^__"    # See all compiler-generated symbols
 ### Calling Procedures from Assembly
 
 All procedures and functions are prefixed with `_` in assembly. See [Assembly Label Naming Convention](#assembly-label-naming-convention) for complete details. 
-Please note that parameters passing is optimized to maximize register ussage - see particular procedure call from other ZAP code. Note that this can change between ZAP compilations, so general suggestion si to avoid calling procedures with more than 3 bytes in parameters at all.
+Note: parameter passing is register-optimized and the register assignment (A, X, Y) can change between compilations. When calling ZAP procedures **from inside an `asm` block**, check the generated assembly for the actual calling convention. Avoid calling procedures with more than 3 bytes of total parameters from inline assembly — the compiler has no way to verify correctness of hand-written calls. Accessing local variables by name (e.g. `_PROCNAME_VAR`) is always safe.
 
 ```zap
 proc setup()
