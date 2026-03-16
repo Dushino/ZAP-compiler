@@ -800,12 +800,15 @@ function activate(context) {
     context.subscriptions.push(diagCollection);
 
     // Return the best available range for a given file/line/col.
-    // Uses the open document's word-range API when the file is already loaded.
+    // Tries patterns in order: quoted string, directive (.word), plain word.
     function diagRange(line, col, fsPath) {
         const doc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === fsPath);
         if (doc) {
-            const wr = doc.getWordRangeAtPosition(new vscode.Position(line, col), /\w+/);
-            if (wr) return wr;
+            const pos = new vscode.Position(line, col);
+            for (const pat of [/"[^"]*"/, /\.\w+/, /\w+/]) {
+                const wr = doc.getWordRangeAtPosition(pos, pat);
+                if (wr) return wr;
+            }
         }
         return new vscode.Range(line, col, line, col + 1);
     }
