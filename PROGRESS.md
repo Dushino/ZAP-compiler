@@ -2,6 +2,16 @@
 
 ---
 
+## IDE: Code Formatting (2026-03-16)
+
+**Document formatter** (`extension.js`): `formatZapDocument()` registered via `registerDocumentFormattingEditProvider`. Triggered by Shift+Alt+F / right-click → Format Document. Normalises indentation using two regex rules:
+- Decrease level **before** line: `end`, `else`, `elseif`, `until`, `case`, `.else`, `.endif`
+- Increase level **after** line: `proc`, `func`, `if`, `elseif`, `else`, `while`, `for`, `repeat`, `switch`, `case`, `asm`, `struct`, `enum`, `.ifdef`, `.ifndef`, `.else`
+
+**Auto-indent on Enter** (`language-configuration.json`): Added `indentationRules` with `increaseIndentPattern` and `decreaseIndentPattern`. Pressing Enter after a block-opening keyword automatically indents the next line; typing `end`/`else`/etc. auto-de-indents the current line. Patterns are case-insensitive (character class style, consistent with existing folding markers).
+
+---
+
 ## Bug Fix: Unknown Type Name Not Detected (2026-03-16)
 
 **Symptom**: Writing `char abc` or `int abc` as a global variable produced no compiler error. The invalid type name was silently ignored.

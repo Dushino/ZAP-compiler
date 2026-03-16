@@ -783,5 +783,5 @@ Hover info	Easy	HoverProvider — show type + struct fields on hover over identi
 - [x] Error squiggles (real-time)	Hard	DiagnosticsProvider — run zapc in background, parse output
 - [x] Inline compiler errors	Medium	Parse zapc output already (problemMatcher exists) — add diagnostic push
 - [x] Document symbols (outline)	Easy	DocumentSymbolProvider — list procs/funcs/structs/enums
-- [ ] Code formatting	Hard	DocumentFormattingProvider — needs indentation rules
+- [x] Code formatting	Hard	DocumentFormattingProvider — needs indentation rules
 - [x] Snippets	Easy	package.json snippets contribution

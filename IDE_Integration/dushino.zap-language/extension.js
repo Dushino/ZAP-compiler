@@ -509,6 +509,56 @@ function buildDocumentSymbols(document) {
     return symbols;
 }
 
+// ---- ZAP Document Formatter ----
+
+// Format a ZAP document by normalising indentation based on block keywords.
+// Rules derived from the folding markers in language-configuration.json:
+//   Decrease indent BEFORE: end, else, elseif, until, case, .else, .endif
+//   Increase indent AFTER : proc, func, if, elseif, else, while, for, repeat,
+//                            switch, case, asm, struct, enum, .ifdef, .ifndef, .else
+function formatZapDocument(document, tabSize, insertSpaces) {
+    const unit = insertSpaces ? ' '.repeat(tabSize) : '\t';
+
+    // Matches keywords that de-indent the current line (decrease level before emitting)
+    const reDecrease = /^(end|else|elseif|until|case|\.else|\.endif)\b/i;
+    // Matches keywords that open a new block (increase level after emitting)
+    const reIncrease = /^(proc|func|if|elseif|else|while|for|repeat|switch|case|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/i;
+
+    const outLines = [];
+    let level = 0;
+
+    for (let i = 0; i < document.lineCount; i++) {
+        const raw = document.lineAt(i).text;
+        const trimmed = raw.trim();
+
+        if (trimmed === '') {
+            outLines.push('');
+            continue;
+        }
+
+        // Strip comment to get just the code part for keyword detection
+        const code = stripLineComment(trimmed).trim();
+
+        // De-indent before emitting (else, elseif, end, until, case, .else, .endif)
+        if (code && reDecrease.test(code)) {
+            level = Math.max(0, level - 1);
+        }
+
+        outLines.push(unit.repeat(level) + trimmed);
+
+        // Indent after emitting (proc, func, if, while, for, repeat, switch, case, …)
+        if (code && reIncrease.test(code)) {
+            level++;
+        }
+    }
+
+    const fullRange = new vscode.Range(
+        document.positionAt(0),
+        document.positionAt(document.getText().length)
+    );
+    return [vscode.TextEdit.replace(fullRange, outLines.join('\n'))];
+}
+
 // ---- VS Code Extension ----
 
 function activate(context) {
@@ -1087,6 +1137,15 @@ function activate(context) {
                 }
 
                 return undefined;
+            }
+        })
+    );
+
+    // 11. Document Formatting provider (Shift+Alt+F / Format Document)
+    context.subscriptions.push(
+        vscode.languages.registerDocumentFormattingEditProvider('zap', {
+            provideDocumentFormattingEdits(document, options) {
+                return formatZapDocument(document, options.tabSize, options.insertSpaces);
             }
         })
     );
