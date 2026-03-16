@@ -39,7 +39,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False) -> str:
     """Compile a source file with module resolution enabled."""
     try:
         # Get base directory for resolving includes
@@ -52,7 +52,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         program, defined_symbols = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code, module_mode=module_mode)
     
     except CompileError as e:
         # If we have the parsed/linked program available, attempt to remap the
@@ -146,6 +146,7 @@ if __name__ == "__main__":
         predefined_symbols = set()
         include_dirs = []
         enable_peephole = False
+        module_mode = False
         seg_zp = "ZEROPAGE"
         seg_bss = "BSS"
         seg_code = "CODE"
@@ -190,6 +191,10 @@ if __name__ == "__main__":
                 enable_peephole = True
                 i += 1
                 continue
+            if a == "--module":
+                module_mode = True
+                i += 1
+                continue
             if a == "-SEGZ":
                 if i + 1 >= len(args):
                     print("<cli>:1:1: error: -SEGZ requires a segment name", file=sys.stderr)
@@ -220,7 +225,7 @@ if __name__ == "__main__":
             i += 1
 
         if src_file is None:
-            print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
+            print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] <source.zap>")
             sys.exit(1)
 
         if target_6502:
@@ -239,6 +244,7 @@ if __name__ == "__main__":
             seg_zp=seg_zp,
             seg_bss=seg_bss,
             seg_code=seg_code,
+            module_mode=module_mode,
         )
 
         # Write to file if requested, else print to stdout

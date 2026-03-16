@@ -65,7 +65,7 @@
 
 .module "atari_stdio"
 
-; .include "atari_gtia.zap"
+.include "atari_gtia.zap"
 .include "../errno.zap"
 .include "../types.zap"
 .include "../string.zap"

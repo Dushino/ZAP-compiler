@@ -1532,7 +1532,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             sym.zp_priority = -1  # Mark as "not allocated to ZP"
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False) -> str:
     """Run the full compile pipeline from AST to assembly output."""
     # --- symbol tables ---
     global_symtab = SymbolTable()
@@ -1672,12 +1672,15 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     raise e
                 raise SemanticError(f"Function '{p.name}' conflicts with .define symbol", node=p)
     
-    # Ensure main() procedure exists (required for initialization code)
-    try:
-        proc_table.lookup("MAIN")
-    except (KeyError, SemanticError):
-        # Give a stable fallback location if main() is missing
-        raise SemanticError("Program must have a 'main()' procedure", line=1, col=1)
+    # Ensure main() procedure exists (required for initialization code).
+    # Skipped in --module mode: module files are library components and never
+    # define main() — requiring it would always produce a spurious error.
+    if not module_mode:
+        try:
+            proc_table.lookup("MAIN")
+        except (KeyError, SemanticError):
+            # Give a stable fallback location if main() is missing
+            raise SemanticError("Program must have a 'main()' procedure", line=1, col=1)
     
     # second pass: analyze bodies
     for p in program.procs:

@@ -283,6 +283,8 @@ class DeclarationAnalyzer:
 
         for d in decl.declarators:
             try:
+                if not is_struct and base_name not in {"BYTE", "WORD", "LONG"}:
+                    raise SemanticError(f"Unknown type '{decl.type.base}'")
                 self._analyze_declarator(decl, d, sem_type)
             except SemanticError as e:
                 if getattr(e, "filename", None) is None:

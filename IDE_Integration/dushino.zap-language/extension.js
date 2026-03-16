@@ -766,7 +766,12 @@ function activate(context) {
         const filePath  = document.uri.fsPath;
         const compiler  = process.platform === 'win32' ? 'zapc.exe' : 'zapc';
 
-        exec(`"${compiler}" "${filePath}"`, { timeout: 15000 }, (_err, stdout, stderr) => {
+        // Module files are library components — pass --module so the compiler
+        // skips the "no main() procedure" check while still reporting all other errors.
+        const isModule = /^\s*\.module\b/im.test(document.getText());
+        const modeFlag = isModule ? '--module' : '';
+
+        exec(`"${compiler}" ${modeFlag} "${filePath}"`, { timeout: 15000 }, (_err, stdout, stderr) => {
             const output  = (stdout || '') + '\n' + (stderr || '');
             const diagMap = new Map(); // absPath → Diagnostic[]
 

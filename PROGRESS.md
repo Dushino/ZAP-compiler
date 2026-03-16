@@ -2,6 +2,22 @@
 
 ---
 
+## Bug Fix: Unknown Type Name Not Detected (2026-03-16)
+
+**Symptom**: Writing `char abc` or `int abc` as a global variable produced no compiler error. The invalid type name was silently ignored.
+
+**Root Cause**: The parser's global-scope loop had a catch-all `elif self.cur.type == TOK_IDENT: self.advance()` branch intended for stray BOM characters. When `char` (an IDENT, not a TOK_TYPE) was followed by `abc` (another IDENT), both were silently skipped.
+
+**Fix** (`parser.py`): In the stray-identifier branch, peek at the next token. If the next token is also `TOK_IDENT` or `TOK_TYPE`, raise `"Unknown type 'X'"` immediately — this is an invalid type declaration, not a stray BOM.
+
+**Secondary fix** (`sema.py`): Added a validation guard in `DeclarationAnalyzer.analyze()` — if the type is not a known struct and not in `{"BYTE", "WORD", "LONG"}`, raise `"Unknown type 'X'"`. This is a defense-in-depth check for declarations that reach sema with invalid types.
+
+**New test**: `tests/fail/invalid-type-name/` — `char abc` at global scope → `1:1: error: Unknown type 'CHAR'`.
+
+**Test results:** 166 pass / 126 fail — all OK.
+
+---
+
 ## LONG Datatype Gap Fixes + Subscript Speed-Up (2026-03-16)
 
 ### Phase 1: element_size=2 TAY fast path in `_gen_subscript`

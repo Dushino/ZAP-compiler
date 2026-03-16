@@ -234,7 +234,11 @@ class Parser:
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "FUNC":
                 procs.append(self.parse_func())
             elif self.cur.type == TOK_IDENT:
-                # Skip stray identifiers (like BOM misinterpreted as 'Ï')
+                # If followed by another identifier, looks like an invalid type declaration
+                nxt = self._peek_next()
+                if nxt is not None and nxt.type in (TOK_IDENT, TOK_TYPE):
+                    self.error(f"Unknown type '{self.cur.value}'")
+                # Otherwise skip stray identifier (e.g. BOM misinterpreted as 'Ï')
                 self.advance()
             else:
                 self.error("Expected declaration, PROC, FUNC, or STRUCT")
