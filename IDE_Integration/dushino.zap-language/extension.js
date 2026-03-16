@@ -233,6 +233,117 @@ function parseAllSymbols(lines) {
     return [...seen.values()];
 }
 
+// Like collectAllLines but also records the source file path and original line number.
+// Returns Array<{text: string, file: string, lineNum: number}>
+function collectAllLinesWithSource(text, filePath, visited = new Set()) {
+    const lines = text.split('\n');
+    const result = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        result.push({ text: line, file: filePath, lineNum: i });
+        const m = line.match(/^\s*\.include\s+"([^"]+)"/i);
+        if (m) {
+            const inclPath = path.resolve(path.dirname(filePath), m[1]);
+            if (!visited.has(inclPath)) {
+                visited.add(inclPath);
+                try {
+                    const inclText = fs.readFileSync(inclPath, 'utf8');
+                    result.push(...collectAllLinesWithSource(inclText, inclPath, visited));
+                } catch (_) { /* file not found – skip */ }
+            }
+        }
+    }
+    return result;
+}
+
+// Find the column of the first word-boundary match for `word` in `text` (case-insensitive).
+function wordCol(text, word) {
+    const m = text.search(new RegExp(`\\b${word}\\b`, 'i'));
+    return m >= 0 ? m : 0;
+}
+
+// Search linesWithSource for the declaration of a plain identifier.
+// Returns vscode.Location or undefined.
+function findDefinitionLocation(word, linesWithSource) {
+    const wl = word.toLowerCase();
+    for (const { text, file, lineNum } of linesWithSource) {
+        const code = stripLineComment(text).trim();
+
+        // proc name(
+        const procM = code.match(/^proc\s+(\w+)\s*\(/i);
+        if (procM && procM[1].toLowerCase() === wl)
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+
+        // func TYPE name(
+        const funcM = code.match(/^func\s+\w+\s+(\w+)\s*\(/i);
+        if (funcM && funcM[1].toLowerCase() === wl)
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+
+        // struct NAME
+        const structM = code.match(/^struct\s+(\w+)/i);
+        if (structM && structM[1].toLowerCase() === wl)
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+
+        // enum NAME
+        const enumM = code.match(/^enum\s+(\w+)/i);
+        if (enumM && enumM[1].toLowerCase() === wl)
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+
+        // const TYPE name
+        const constM = code.match(/^const\s+\w+\^?\s+(\w+)/i);
+        if (constM && constM[1].toLowerCase() === wl)
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+
+        // TYPE[^] [^]name (variable declaration — all primitive and struct types)
+        const varM = code.match(/^(\w+)\^?\s+\^?(\w+)\s*(?:\[|=|@|$)/);
+        if (varM && varM[2].toLowerCase() === wl && !ZAP_FLOW_KW.has(varM[1].toLowerCase()))
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+    }
+    return undefined;
+}
+
+// Navigate to a specific field inside a struct definition.
+// Returns vscode.Location or undefined.
+function findStructFieldDefinition(linesWithSource, structName, fieldName) {
+    let inStruct = false;
+    const snl = structName.toLowerCase(), fnl = fieldName.toLowerCase();
+    for (const { text, file, lineNum } of linesWithSource) {
+        const code = stripLineComment(text).trim();
+        if (!inStruct) {
+            const m = code.match(/^struct\s+(\w+)/i);
+            if (m && m[1].toLowerCase() === snl) inStruct = true;
+        } else {
+            if (/^end\b/i.test(code)) { inStruct = false; continue; }
+            const fm = code.match(/^(\w+)\s+(\w+)/);
+            if (fm && fm[2].toLowerCase() === fnl)
+                return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, fieldName)));
+        }
+    }
+    return undefined;
+}
+
+// Navigate to a specific member inside an enum definition.
+// Returns vscode.Location or undefined.
+function findEnumMemberDefinition(linesWithSource, enumName, memberName) {
+    let inEnum = false;
+    const enl = enumName.toLowerCase(), mnl = memberName.toLowerCase();
+    for (const { text, file, lineNum } of linesWithSource) {
+        const code = stripLineComment(text).trim();
+        if (!inEnum) {
+            const m = code.match(/^enum\s+(\w+)/i);
+            if (m && m[1].toLowerCase() === enl) inEnum = true;
+        } else {
+            if (/^end\b/i.test(code)) { inEnum = false; continue; }
+            for (const part of code.replace(/,$/, '').split(',')) {
+                const em = part.trim().match(/^(\w+)/);
+                if (em && em[1].toLowerCase() === mnl)
+                    return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, memberName)));
+            }
+        }
+    }
+    return undefined;
+}
+
 // Walk the line prefix backwards to find the enclosing function call context.
 // Returns { funcName, activeParam } where activeParam is the 0-based index of
 // the parameter the cursor is currently inside, or null if not inside a call.
@@ -496,7 +607,41 @@ function activate(context) {
         )
     );
 
-    // 7. Signature help provider — shows parameter hints when typing inside a call
+    // 7. Go to Definition provider (F12 / Ctrl+Click)
+    //    Plain identifier → its declaration line; "owner.member" → field/enum-member line.
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider('zap', {
+            provideDefinition(document, position) {
+                const range = document.getWordRangeAtPosition(position, /\w+/);
+                if (!range) return undefined;
+                const word = document.getText(range);
+
+                const lineText    = document.lineAt(position.line).text;
+                const charBefore  = range.start.character > 0 ? lineText[range.start.character - 1] : '';
+                const linesWithSource = collectAllLinesWithSource(document.getText(), document.uri.fsPath);
+
+                // Dot context: "owner.member" → navigate to field or enum member
+                if (charBefore === '.') {
+                    const ownerMatch = lineText.slice(0, range.start.character - 1).match(/(\w+)\s*$/);
+                    if (ownerMatch) {
+                        const owner   = ownerMatch[1];
+                        const allLines = linesWithSource.map(l => l.text);
+                        // Struct field?
+                        const decl = parseVarDecls(allLines).get(owner);
+                        if (decl) return findStructFieldDefinition(linesWithSource, decl.typeName, word);
+                        // Enum member?
+                        return findEnumMemberDefinition(linesWithSource, owner, word);
+                    }
+                    return undefined;
+                }
+
+                // Plain identifier → find its declaration
+                return findDefinitionLocation(word, linesWithSource);
+            }
+        })
+    );
+
+    // 8. Signature help provider — shows parameter hints when typing inside a call
     //    Triggered by '(' and ',' — highlights the active parameter as cursor moves.
     context.subscriptions.push(
         vscode.languages.registerSignatureHelpProvider(
