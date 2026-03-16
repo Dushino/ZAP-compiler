@@ -344,6 +344,25 @@ function findEnumMemberDefinition(linesWithSource, enumName, memberName) {
     return undefined;
 }
 
+// Search linesWithSource for all code occurrences of a pattern (comments stripped).
+// pattern must have the 'g' flag. match.index is used as the column directly.
+// Returns Array<vscode.Location>.
+function searchAllOccurrences(pattern, linesWithSource) {
+    const locations = [];
+    for (const { text, file, lineNum } of linesWithSource) {
+        const code = stripLineComment(text);
+        pattern.lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(code)) !== null) {
+            locations.push(new vscode.Location(
+                vscode.Uri.file(file),
+                new vscode.Position(lineNum, match.index)
+            ));
+        }
+    }
+    return locations;
+}
+
 // Walk the line prefix backwards to find the enclosing function call context.
 // Returns { funcName, activeParam } where activeParam is the 0-based index of
 // the parameter the cursor is currently inside, or null if not inside a call.
@@ -607,7 +626,52 @@ function activate(context) {
         )
     );
 
-    // 7. Go to Definition provider (F12 / Ctrl+Click)
+    // 7. Find All References provider (Shift+F12 / right-click → Find All References)
+    //    Plain identifier → all word-boundary matches in code (comments excluded).
+    //    Dot-member (cursor on "field" in "owner.field") → all ".field" accesses.
+    context.subscriptions.push(
+        vscode.languages.registerReferenceProvider('zap', {
+            provideReferences(document, position, refContext) {
+                const range = document.getWordRangeAtPosition(position, /\w+/);
+                if (!range) return [];
+                const word = document.getText(range);
+
+                const lineText   = document.lineAt(position.line).text;
+                const charBefore = range.start.character > 0 ? lineText[range.start.character - 1] : '';
+                const linesWithSource = collectAllLinesWithSource(document.getText(), document.uri.fsPath);
+
+                let pattern;
+                if (charBefore === '.') {
+                    // Member access: match "." followed by the word — column lands on the dot,
+                    // so we offset each result by 1 to point at the member name.
+                    pattern = new RegExp(`\\.\\s*(${word})\\b`, 'gi');
+                    const raw = searchAllOccurrences(pattern, linesWithSource);
+                    // Adjust column: skip past the dot (and any spaces) to the word itself.
+                    return raw.map(loc => {
+                        const lineText2 = linesWithSource.find(
+                            l => l.file === loc.uri.fsPath && l.lineNum === loc.range.start.line
+                        )?.text ?? '';
+                        const adjusted = wordCol(lineText2, word);
+                        return new vscode.Location(loc.uri, new vscode.Position(loc.range.start.line, adjusted));
+                    });
+                } else {
+                    // Plain identifier: whole-word match anywhere in code lines.
+                    pattern = new RegExp(`\\b${word}\\b`, 'gi');
+                    const all = searchAllOccurrences(pattern, linesWithSource);
+                    if (refContext.includeDeclaration) return all;
+                    // Exclude the declaration line (first definition found).
+                    const defLoc = findDefinitionLocation(word, linesWithSource);
+                    if (!defLoc) return all;
+                    return all.filter(loc =>
+                        !(loc.uri.fsPath === defLoc.uri.fsPath &&
+                          loc.range.start.line === defLoc.range.start.line)
+                    );
+                }
+            }
+        })
+    );
+
+    // 8. Go to Definition provider (F12 / Ctrl+Click)
     //    Plain identifier → its declaration line; "owner.member" → field/enum-member line.
     context.subscriptions.push(
         vscode.languages.registerDefinitionProvider('zap', {
