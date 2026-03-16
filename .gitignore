@@ -10,8 +10,12 @@ python_venv/*
 # ZAP! compiler and ca65 artifacts
 **/*.o
 **/*.com
+**/*.xex
+**/*.atr
 **/*.s
 **/*.da65
+**/*.map
+**/*.d65
 **/*.cut
 **/*.txt
 
