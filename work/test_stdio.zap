@@ -21,7 +21,7 @@ proc main()
     FILE fd
     byte oldname[] = "D1:TEST.TXT"
     byte newname[] = "NEWN.ABC"
-    byte name[64]
+    byte name[64]    
             
     puts("Open:   ")    
     rv = fopen(@fd, FName, ICAX1_Mode.Write)  

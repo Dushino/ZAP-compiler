@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 // ---- ZAP source analysis helpers ----
 
@@ -744,7 +745,86 @@ function activate(context) {
         )
     );
 
-    // 7. Document symbol provider — populates the Outline panel and breadcrumb navigation.
+    // 5. Inline diagnostics — run zapc on save/open/change, show error squiggles.
+    const diagCollection = vscode.languages.createDiagnosticCollection('zap');
+    context.subscriptions.push(diagCollection);
+
+    // Return the best available range for a given file/line/col.
+    // Uses the open document's word-range API when the file is already loaded.
+    function diagRange(line, col, fsPath) {
+        const doc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === fsPath);
+        if (doc) {
+            const wr = doc.getWordRangeAtPosition(new vscode.Position(line, col), /\w+/);
+            if (wr) return wr;
+        }
+        return new vscode.Range(line, col, line, col + 1);
+    }
+
+    // Run the compiler, parse its output, and populate diagCollection.
+    function runDiagnostics(document) {
+        if (document.languageId !== 'zap') return;
+        const filePath  = document.uri.fsPath;
+        const compiler  = process.platform === 'win32' ? 'zapc.exe' : 'zapc';
+
+        exec(`"${compiler}" "${filePath}"`, { timeout: 15000 }, (_err, stdout, stderr) => {
+            const output  = (stdout || '') + '\n' + (stderr || '');
+            const diagMap = new Map(); // absPath → Diagnostic[]
+
+            // Match:  file.zap:line:col: error: message
+            const rx = /^(.+\.zap):(\d+):(\d+):\s+(error|warning|info):\s+(.+)$/gim;
+            let m;
+            while ((m = rx.exec(output)) !== null) {
+                const [, file, lineStr, colStr, sev, msg] = m;
+                const line = Math.max(0, parseInt(lineStr, 10) - 1);
+                const col  = Math.max(0, parseInt(colStr,  10) - 1);
+                const absPath = path.isAbsolute(file)
+                    ? file : path.resolve(path.dirname(filePath), file);
+
+                const severity = sev.toLowerCase() === 'error'   ? vscode.DiagnosticSeverity.Error
+                               : sev.toLowerCase() === 'warning' ? vscode.DiagnosticSeverity.Warning
+                               : vscode.DiagnosticSeverity.Information;
+
+                const diag = new vscode.Diagnostic(diagRange(line, col, absPath), msg, severity);
+                diag.source = 'zapc';
+
+                if (!diagMap.has(absPath)) diagMap.set(absPath, []);
+                diagMap.get(absPath).push(diag);
+            }
+
+            // Replace all previous diagnostics for this compilation run.
+            diagCollection.clear();
+            for (const [absPath, diags] of diagMap)
+                diagCollection.set(vscode.Uri.file(absPath), diags);
+
+            // Explicitly mark the main file clean if no errors were found in it.
+            if (!diagMap.has(filePath))
+                diagCollection.set(document.uri, []);
+        });
+    }
+
+    let debounceTimer = null;
+
+    // On save — run immediately.
+    context.subscriptions.push(
+        vscode.workspace.onDidSaveTextDocument(doc => runDiagnostics(doc))
+    );
+    // On open — run immediately.
+    context.subscriptions.push(
+        vscode.workspace.onDidOpenTextDocument(doc => runDiagnostics(doc))
+    );
+    // On change — run after 1.5 s of inactivity (avoids running on every keystroke).
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(e => {
+            if (e.document.languageId !== 'zap') return;
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => runDiagnostics(e.document), 1500);
+        })
+    );
+    // Run on the currently active file right away.
+    if (vscode.window.activeTextEditor?.document.languageId === 'zap')
+        runDiagnostics(vscode.window.activeTextEditor.document);
+
+    // 6. Task Provider (Ctrl+Shift+B / task list) — populates the Outline panel and breadcrumb navigation.
     //    Top-level: proc, func, struct, enum, const, global var.
     //    Children:  struct fields, enum members, proc/func parameters.
     context.subscriptions.push(
