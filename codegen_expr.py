@@ -10230,34 +10230,19 @@ class CodeGen:
                 self.emit(f"\tLDA {left_tmp}")
                 self.emit(f"\tLDX {left_tmp}+1")
             else:
-                # For BYTE operands, the high byte is always 0
-                # For WORD operands, we need to use X correctly
+                # A = right_low, X = right_high (or irrelevant when not right_16).
+                # A is never clobbered before CLC; ADC, so no need to spill to TMP3.
+                # After TAY, X is unchanged — use TXA to recover right_high (right_16 case).
+                self.emit("\tCLC")
+                self.emit(f"\tADC {left_tmp}")           # A = right_low + left_low
+                self.emit("\tTAY")                       # Y = low result; X still = right_high
                 if not right_16:
-                    # BYTE operand: high byte is 0, don't rely on X
-                    # Save only the low byte and use 0 for high byte
-                    self.emit("\tSTA TMP3")
-                    # self.emit("\tLDA TMP3")    # Restore low byte
-                    self.emit("\tCLC")
-                    self.emit(f"\tADC {left_tmp}")     # Add low bytes
-                    self.emit("\tTAY")
-                    self.emit("\tLDA #$00")       # High byte is 0
-                    self.emit(f"\tADC {left_tmp}+1")   # Add high bytes with carry
-                    self.emit("\tTAX")
-                    self.emit("\tTYA")
+                    self.emit("\tLDA #$00")              # high byte of BYTE operand is 0
                 else:
-                    # WORD operand: both bytes are in A/X
-                    # Save right operand (A,X) to TMP3/TMP4
-                    self.emit("\tSTA TMP3")
-                    self.emit("\tSTX TMP3+1")
-                    # Now do the addition with proper handling
-                    self.emit("\tLDA TMP3")    # Restore low byte of right operand
-                    self.emit("\tCLC")
-                    self.emit(f"\tADC {left_tmp}")     # Add low bytes
-                    self.emit("\tTAY")
-                    self.emit("\tLDA TMP3+1")   # Get high byte of right operand
-                    self.emit(f"\tADC {left_tmp}+1")   # Add high bytes with carry
-                    self.emit("\tTAX")
-                    self.emit("\tTYA")
+                    self.emit("\tTXA")                   # A = right_high (X unchanged since entry)
+                self.emit(f"\tADC {left_tmp}+1")        # A = right_high + left_high + carry
+                self.emit("\tTAX")                       # X = high result
+                self.emit("\tTYA")                       # A = low result
         else:
             # 8-bit: A + left_tmp → A
             if use_inc and ptr_elem_size == 1:
