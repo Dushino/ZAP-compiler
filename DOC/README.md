@@ -32,6 +32,7 @@ ZAP! compiles ZAP! source code into optimized 6502 assembly for Atari 8-bit comp
 - Detailed error messages with line numbers
 - Source-level debugging comments in generated assembly
 - Optimized code generation for both speed and size
+- Full VS Code integration: IntelliSense, hover, go-to-definition, inline diagnostics, snippets
 
 ## Quick Start
 
@@ -276,7 +277,15 @@ STA _MAIN_X
 
 ## Standard Library
 
-ZAP! ships a standard library in `work/lib/`. For full API documentation see [DOC/STDLIB.md](STDLIB.md).
+ZAP! ships a standard library in `work/lib/`. For full API documentation see [STDLIB.md](STDLIB.md).
+
+## IDE Integration
+
+The VS Code extension (`IDE_Integration/dushino.zap-language/`) provides full language support:
+syntax highlighting, IntelliSense completions, hover info, signature help, go-to-definition,
+find references, outline, inline diagnostics, and code snippets.
+
+See the [IDE Integration Guide](IDE_INTEGRATION.md) for full details and installation instructions.
 
 | Module | File | Description |
 |--------|------|-------------|
