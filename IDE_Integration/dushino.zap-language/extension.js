@@ -30,6 +30,14 @@ const ZAP_FLOW_KW = new Set([
     'until', 'struct', 'enum', 'const', 'asm', 'and', 'or', 'not', 'true', 'false', 'nil'
 ]);
 
+// Case-insensitive Map: normalizes all string keys to lowercase automatically.
+// Allows lookups and storage to work regardless of identifier casing in ZAP source.
+class CIMap extends Map {
+    set(k, v) { return super.set(typeof k === 'string' ? k.toLowerCase() : k, v); }
+    get(k)    { return super.get(typeof k === 'string' ? k.toLowerCase() : k); }
+    has(k)    { return super.has(typeof k === 'string' ? k.toLowerCase() : k); }
+}
+
 // Recursively read lines from a .zap file, following .include directives.
 // visited prevents cycles.
 function collectAllLines(text, dir, visited = new Set()) {
@@ -55,7 +63,7 @@ function collectAllLines(text, dir, visited = new Set()) {
 // Parse all struct definitions.
 // Returns Map<structName, Array<{name, type, comment}>>
 function parseStructs(lines) {
-    const structs = new Map();
+    const structs = new CIMap();
     let current = null;
     let fields = [];
     for (const raw of lines) {
@@ -87,7 +95,7 @@ function parseStructs(lines) {
 // Parse all enum definitions.
 // Returns Map<enumName, Array<{member, value?}>>
 function parseEnums(lines) {
-    const enums = new Map();
+    const enums = new CIMap();
     let current = null;
     let members = [];
     let nextVal = 0;
@@ -124,7 +132,7 @@ function parseEnums(lines) {
 // Returns Map<varName, {typeName, isPointer}>
 // Handles: TYPE varname, TYPE^ varname, TYPE varname[n], TYPE varname = ...
 function parseVarDecls(lines) {
-    const vars = new Map();
+    const vars = new CIMap();
     for (const raw of lines) {
         const code = stripLineComment(raw).trim();
         // Match: TYPE[^] varname  (optional pointer caret)
@@ -140,33 +148,22 @@ function parseVarDecls(lines) {
     return vars;
 }
 
-// Parse all proc/func signatures.
-// Returns Map<name, {kind:'proc'|'func', retType:string|null, params:[{type,name}]}>
-function parseProcsAndFuncs(lines) {
-    const subs = new Map();
-    for (const raw of lines) {
-        const code = stripLineComment(raw).trim();
-        // func rettype name(params) or proc name(params)
-        const funcM = code.match(/^func\s+(\w+)\s+(\w+)\s*\(([^)]*)\)/i);
-        if (funcM) {
-            subs.set(funcM[2], { kind: 'func', retType: funcM[1], params: parseParams(funcM[3]) });
-            continue;
-        }
-        const procM = code.match(/^proc\s+(\w+)\s*\(([^)]*)\)/i);
-        if (procM) {
-            subs.set(procM[1], { kind: 'proc', retType: null, params: parseParams(procM[2]) });
-        }
-    }
-    return subs;
-}
-
-// Parse parameter list string "byte a, word b" into [{type, name}]
+// Parse parameter list string into [{type, name, defaultVal?}]
+// Handles both "byte^ name" and "byte ^name" pointer styles, plus "word n = 0" defaults.
 function parseParams(paramStr) {
     if (!paramStr.trim()) return [];
     return paramStr.split(',').map(p => {
-        const pm = p.trim().match(/^(\w+\^?)\s+(\w+)/);
-        return pm ? { type: pm[1], name: pm[2] } : null;
+        // type[^] [^]name [= defaultVal]
+        const pm = p.trim().match(/^(\w+)(\^?)\s+(\^?)(\w+)(?:\s*=\s*(\S+))?/);
+        if (!pm) return null;
+        const type = pm[1] + (pm[2] || pm[3] ? '^' : '');
+        return { type, name: pm[4], defaultVal: pm[5] };
     }).filter(Boolean);
+}
+
+// Format a single parameter for display: "byte^ str" or "word adr = 0"
+function formatParam(p) {
+    return p.defaultVal ? `${p.type} ${p.name} = ${p.defaultVal}` : `${p.type} ${p.name}`;
 }
 
 // Build a snippet insert string for a call: name(${1:p1}, ${2:p2}) or name() if no params.
@@ -180,7 +177,7 @@ function buildCallSnippet(name, params) {
 // Returns array of {kind, name, type?, retType?, params?}
 // Handles: proc, func, const, variables of any type (byte/word/long/struct), struct names, enum names.
 function parseAllSymbols(lines) {
-    const seen = new Map(); // name → symbol (last definition wins, dedup across includes)
+    const seen = new CIMap(); // name → symbol (last definition wins, dedup across includes)
     let inStructOrEnum = false;
 
     for (const raw of lines) {
@@ -440,14 +437,14 @@ function activate(context) {
                             }
                             case 'proc': {
                                 const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Function);
-                                const paramStr = sym.params.map(p => `${p.type} ${p.name}`).join(', ');
+                                const paramStr = sym.params.map(formatParam).join(', ');
                                 item.detail = `proc ${sym.name}(${paramStr})`;
                                 item.insertText = new vscode.SnippetString(buildCallSnippet(sym.name, sym.params));
                                 return item;
                             }
                             case 'func': {
                                 const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Function);
-                                const paramStr = sym.params.map(p => `${p.type} ${p.name}`).join(', ');
+                                const paramStr = sym.params.map(formatParam).join(', ');
                                 item.detail = `func ${sym.retType} ${sym.name}(${paramStr})`;
                                 item.insertText = new vscode.SnippetString(buildCallSnippet(sym.name, sym.params));
                                 return item;
@@ -470,6 +467,133 @@ function activate(context) {
             }
             // No trigger character — VS Code calls this during normal word typing
         )
+    );
+
+    // 7. Hover provider — show type/signature/struct-fields/enum-members on hover
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider('zap', {
+            provideHover(document, position) {
+                const range = document.getWordRangeAtPosition(position, /[\w]+/);
+                if (!range) return undefined;
+                const word = document.getText(range);
+
+                // Check if this word is immediately preceded by a dot  → hover on a member
+                const beforeRange = new vscode.Position(position.line, range.start.character - 1);
+                const charBefore  = range.start.character > 0
+                    ? document.getText(new vscode.Range(beforeRange, range.start))
+                    : '';
+
+                const docDir   = path.dirname(document.uri.fsPath);
+                const allLines = collectAllLines(document.getText(), docDir);
+
+                // --- Hovering over "field" in "varname.field" ---
+                if (charBefore === '.') {
+                    // Find the owner identifier: text before the dot on the same line
+                    const lineText  = document.lineAt(position.line).text;
+                    const ownerMatch = lineText.slice(0, range.start.character - 1).match(/(\w+)\s*$/);
+                    if (ownerMatch) {
+                        const owner = ownerMatch[1];
+
+                        // Struct field hover
+                        const vars    = parseVarDecls(allLines);
+                        const decl    = vars.get(owner);
+                        if (decl) {
+                            const structs = parseStructs(allLines);
+                            const fields  = structs.get(decl.typeName) || [];
+                            const field   = fields.find(f => f.name.toLowerCase() === word.toLowerCase());
+                            if (field) {
+                                const md = new vscode.MarkdownString();
+                                md.appendCodeblock(`${decl.typeName}.${field.name} : ${field.type}`, 'zap');
+                                if (field.comment) md.appendMarkdown(`*${field.comment}*`);
+                                return new vscode.Hover(md, range);
+                            }
+                        }
+
+                        // Enum member hover
+                        const allEnums = parseEnums(allLines);
+                        const members  = allEnums.get(owner);
+                        if (members) {
+                            const em = members.find(m => m.member.toLowerCase() === word.toLowerCase());
+                            if (em) {
+                                const md = new vscode.MarkdownString();
+                                md.appendCodeblock(`${owner}.${em.member} = ${em.rawValue}`, 'zap');
+                                md.appendMarkdown(`Member of enum \`${owner}\``);
+                                return new vscode.Hover(md, range);
+                            }
+                        }
+                    }
+                    return undefined;
+                }
+
+                // --- Hovering over a bare identifier ---
+                const symbols = parseAllSymbols(allLines);
+                const sym = symbols.find(s => s.name.toLowerCase() === word.toLowerCase());
+
+                if (sym) {
+                    const md = new vscode.MarkdownString();
+                    switch (sym.kind) {
+                        case 'var':
+                            md.appendCodeblock(`${sym.type} ${sym.name}`, 'zap');
+                            // If it's a struct type, also show its fields
+                            if (sym.type) {
+                                const structs = parseStructs(allLines);
+                                const fields  = structs.get(sym.type.replace('^', ''));
+                                if (fields && fields.length > 0) {
+                                    md.appendMarkdown('\n\n**Fields:**\n');
+                                    fields.forEach(f => {
+                                        const c = f.comment ? ` — ${f.comment}` : '';
+                                        md.appendMarkdown(`- \`${f.type} ${f.name}\`${c}\n`);
+                                    });
+                                }
+                            }
+                            break;
+                        case 'const':
+                            md.appendCodeblock(`const ${sym.type} ${sym.name}`, 'zap');
+                            break;
+                        case 'proc': {
+                            const paramStr = sym.params.map(formatParam).join(', ');
+                            md.appendCodeblock(`proc ${sym.name}(${paramStr})`, 'zap');
+                            break;
+                        }
+                        case 'func': {
+                            const paramStr = sym.params.map(formatParam).join(', ');
+                            md.appendCodeblock(`func ${sym.retType} ${sym.name}(${paramStr})`, 'zap');
+                            break;
+                        }
+                        case 'struct': {
+                            const structs = parseStructs(allLines);
+                            const fields  = structs.get(sym.name) || [];
+                            md.appendCodeblock(`struct ${sym.name}`, 'zap');
+                            if (fields.length > 0) {
+                                md.appendMarkdown('\n\n**Fields:**\n');
+                                fields.forEach(f => {
+                                    const c = f.comment ? ` — ${f.comment}` : '';
+                                    md.appendMarkdown(`- \`${f.type} ${f.name}\`${c}\n`);
+                                });
+                            }
+                            break;
+                        }
+                        case 'enum': {
+                            const allEnums = parseEnums(allLines);
+                            const members  = allEnums.get(sym.name) || [];
+                            md.appendCodeblock(`enum ${sym.name}`, 'zap');
+                            if (members.length > 0) {
+                                md.appendMarkdown('\n\n**Members:**\n');
+                                members.forEach(em => {
+                                    md.appendMarkdown(`- \`${em.member}\` = ${em.rawValue}\n`);
+                                });
+                            }
+                            break;
+                        }
+                        default:
+                            return undefined;
+                    }
+                    return new vscode.Hover(md, range);
+                }
+
+                return undefined;
+            }
+        })
     );
 }
 

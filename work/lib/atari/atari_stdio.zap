@@ -601,7 +601,6 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         IOCB[ch].ICAX3 = aux3
     end
 
-
     asm
         lda _CIO_CH
         asl

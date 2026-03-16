@@ -26,21 +26,20 @@ proc main()
     puts("Open:   ")    
     rv = fopen(@fd, FName, ICAX1_Mode.Write)  
     putx(rv)
-
+    
     puts("\nWrite:  ")
     rv = fwrite(@fd, Text1, strlen(Text1))
     putx(rv)
     
     puts("\nClose:  ")
     fclose(@fd)
-    putx(rv)
-
+    putx(rv)    
+    
     ; puts("Rename: ")
     ; rv = rename(FName, newname)
 
     ;puts("Remove: ")
-    ;rv = remove(FName)
-
+    ;rv = remove(FName)    
     puts("\n\nOpen:   ")    
     rv = fopen(@fd, FName, ICAX1_Mode.Read)  
     putx(rv)
