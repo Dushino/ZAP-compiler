@@ -2,6 +2,46 @@
 
 ---
 
+## Optimisation: Eliminate TMP2 Round-Trip for Struct Field Stores (2026-03-17)
+
+**Symptom**: Assigning a simple variable or constant to a struct field accessed via pointer/subscript (e.g., `IOCB[ch].ICBL = len`) generated unnecessary `STA __TMP2` / `STX __TMP2+1` stores followed by loads from TMP2. The 9-instruction sequence could be reduced to 6.
+
+**Root Cause**: `gen_assign` always saved the RHS value (A/X) to TMP2 before calling `_gen_field_access`, even when the RHS was a simple variable that could be reloaded directly. The store path in `_emit_field_via_ptr` then loaded from TMP2 instead of the original source.
+
+**Fix** (`codegen_expr.py`):
+1. Added `rhs_asm` / `rhs_hi_asm` optional parameters to `_emit_field_via_ptr` — when provided, loads from the original source instead of TMP2.
+2. Propagated these parameters through `_gen_field_access` to all store paths (SubscriptExpr, DerefExpr, Identifier base, nested FieldAccess).
+3. Added early-exit in `gen_assign` before `gen_expr(rhs)`: when LHS is FieldAccess and RHS is Identifier or IntLiteral, skip `gen_expr(rhs)` and TMP2 save entirely, passing the source ASM name directly.
+
+**Before** (9 instructions):
+```asm
+LDA _CIO_LEN      ; gen_expr
+LDX _CIO_LEN+1
+STA __TMP2         ; save to TMP2
+STX __TMP2+1
+LDY #$08
+STA (__TMP0),Y     ; A still had low byte
+LDA __TMP2+1       ; reload high byte from TMP2
+INY
+STA (__TMP0),Y
+```
+
+**After** (6 instructions):
+```asm
+LDA _CIO_LEN       ; load directly from source
+LDY #$08
+STA (__TMP0),Y
+LDA _CIO_LEN+1     ; load high byte directly
+INY
+STA (__TMP0),Y
+```
+
+**Applies to**: All struct field stores via pointer/subscript with Identifier or IntLiteral RHS (BYTE and WORD types). LONG fields are unaffected (use MATH0).
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## IDE: Code Formatting (2026-03-16)
 
 **Document formatter** (`extension.js`): `formatZapDocument()` registered via `registerDocumentFormattingEditProvider`. Triggered by Shift+Alt+F / right-click → Format Document. Normalises indentation using two regex rules:

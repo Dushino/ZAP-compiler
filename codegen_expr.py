@@ -8575,7 +8575,9 @@ class CodeGen:
 
     def _emit_field_via_ptr(self, ptr_asm: str, field_offset: int,
                             field_width: int, load_only: bool,
-                            target_is_byte: bool) -> None:
+                            target_is_byte: bool,
+                            rhs_asm: str | None = None,
+                            rhs_hi_asm: str | None = None) -> None:
         """Emit efficient field load or store using (ptr_asm),Y addressing.
 
         Phase 1: ptr_asm = "TMP0"  — TMP0 holds the struct element base address.
@@ -8590,6 +8592,10 @@ class CodeGen:
           BYTE:  LDA TMP2; LDY #offset; STA (ptr),Y
           WORD:  LDA TMP2; LDY #offset; STA (ptr),Y; LDA TMP2+1; INY; STA (ptr),Y
           LONG:  LDA MATH0; LDY #offset; STA (ptr),Y; … (×4)
+
+        When rhs_asm/rhs_hi_asm are provided (direct-source optimisation),
+        loads are emitted from the original variable instead of TMP2,
+        eliminating the TMP2 round-trip.
         """
         if load_only:
             if field_width == 4:
@@ -8633,28 +8639,36 @@ class CodeGen:
                 self.emit("\tINY")
                 self.emit(f"\tSTA ({ptr_asm}),Y")
             elif field_width == 2:
-                self.emit(f"\tLDA TMP2")
+                _src_lo: str = rhs_asm if rhs_asm else "TMP2"
+                _src_hi: str = rhs_hi_asm if rhs_hi_asm else "TMP2+1"
+                self.emit(f"\tLDA {_src_lo}")
                 self.emit(f"\tLDY #${field_offset:02X}")
                 self.emit(f"\tSTA ({ptr_asm}),Y")
-                self.emit(f"\tLDA TMP2+1")
+                self.emit(f"\tLDA {_src_hi}")
                 self.emit("\tINY")
                 self.emit(f"\tSTA ({ptr_asm}),Y")
             else:  # BYTE
-                self.emit(f"\tLDA TMP2")
+                _src: str = rhs_asm if rhs_asm else "TMP2"
+                self.emit(f"\tLDA {_src}")
                 self.emit(f"\tLDY #${field_offset:02X}")
                 self.emit(f"\tSTA ({ptr_asm}),Y")
 
-    def _gen_field_access(self, expr: FieldAccess, load_only: bool) -> None:
+    def _gen_field_access(self, expr: FieldAccess, load_only: bool,
+                          rhs_asm: str | None = None,
+                          rhs_hi_asm: str | None = None) -> None:
         """Generate code for struct field access (obj.field or ptr^.field).
-        
+
         For direct field access (obj.field):
           - Load field value from struct instance using offset
-          
+
         For pointer field access (ptr^.field):
           - Dereference pointer to get object address
           - Load field from that address using offset
-          
+
         For array fields, return the address instead of value.
+
+        When rhs_asm/rhs_hi_asm are provided (store path only), the store
+        loads from the original source variable instead of TMP2.
         """
         t: ExprType = self.tc_check(expr, read_check_enabled=load_only)
         field_type = t.sem_type
@@ -8972,13 +8986,15 @@ class CodeGen:
             else:
                 self._raise_error("Direct field access only supported on struct variables or array elements")
 
-        # If storing field (not load_only), RHS is in TMP2/TMP2+1 (BYTE/WORD) or MATH0 (LONG).
+        # If storing field (not load_only), RHS is in TMP2/TMP2+1 (BYTE/WORD) or MATH0 (LONG),
+        # unless rhs_asm/rhs_hi_asm are provided (direct-source optimisation).
         if not load_only:
             if expr.is_deref:
                 # Phase 2: if pointer was a simple ZP identifier, use (ptr),Y directly.
                 # Otherwise TMP0 was set in the is_deref block above — use (TMP0),Y.
                 _store_ptr: str = _deref_ptr_asm if _deref_ptr_asm is not None else "TMP0"
-                self._emit_field_via_ptr(_store_ptr, field_offset, field_width, False, False)
+                self._emit_field_via_ptr(_store_ptr, field_offset, field_width, False, False,
+                                         rhs_asm=rhs_asm, rhs_hi_asm=rhs_hi_asm)
             elif isinstance(expr.object, Identifier):
                 # Direct store to simple variable
                 sym: Symbol = self.current_symtab.lookup(expr.object.name)
@@ -8995,23 +9011,26 @@ class CodeGen:
                     self.emit(f"\tLDA MATH0+3")
                     self.emit(f"\tSTA {field_asm}+3")
                 else:
-                    self.emit(f"\tLDA TMP2")
+                    _src_lo: str = rhs_asm if rhs_asm else "TMP2"
+                    self.emit(f"\tLDA {_src_lo}")
                     self.emit(f"\tSTA {field_asm}")
                     if field_width == 2:
-                        self.emit(f"\tLDA TMP2+1")
+                        _src_hi: str = rhs_hi_asm if rhs_hi_asm else "TMP2+1"
+                        self.emit(f"\tLDA {_src_hi}")
                         self.emit(f"\tSTA {field_asm}+1")
             elif isinstance(expr.object, SubscriptExpr):
                 # TMP0 holds element base (from the load section above).
                 # Phase 1: use LDY #field_offset; (TMP0),Y — no TMP0 modification.
-                self._emit_field_via_ptr("TMP0", field_offset, field_width, False, False)
+                self._emit_field_via_ptr("TMP0", field_offset, field_width, False, False,
+                                         rhs_asm=rhs_asm, rhs_hi_asm=rhs_hi_asm)
             elif isinstance(expr.object, FieldAccess):
                 # Nested field access store: obj.field1.field2... = value
                 # Calculate total offset by traversing the entire chain
                 total_offset, base_expr = self._calculate_nested_field_offset(expr.object)
-                
+
                 # Add the final field offset
                 total_offset += field_offset
-                
+
                 if isinstance(base_expr, Identifier):
                     # Base case: simple variable
                     sym: Symbol = self.current_symtab.lookup(base_expr.name)
@@ -9028,24 +9047,28 @@ class CodeGen:
                         self.emit(f"\tLDA MATH0+3")
                         self.emit(f"\tSTA {field_asm}+3")
                     else:
-                        self.emit(f"\tLDA TMP2")
+                        _src_lo2: str = rhs_asm if rhs_asm else "TMP2"
+                        self.emit(f"\tLDA {_src_lo2}")
                         self.emit(f"\tSTA {field_asm}")
                         if field_width == 2:
-                            self.emit(f"\tLDA TMP2+1")
+                            _src_hi2: str = rhs_hi_asm if rhs_hi_asm else "TMP2+1"
+                            self.emit(f"\tLDA {_src_hi2}")
                             self.emit(f"\tSTA {field_asm}+1")
 
                 elif isinstance(base_expr, SubscriptExpr):
                     # Array subscript case: arr[i].field1.field2... = value
                     # Phase 1: compute element base into TMP0, use LDY #total_offset.
                     self._gen_subscript(base_expr, load_only=True, calc_addr_only=True)
-                    self._emit_field_via_ptr("TMP0", total_offset, field_width, False, False)
+                    self._emit_field_via_ptr("TMP0", total_offset, field_width, False, False,
+                                             rhs_asm=rhs_asm, rhs_hi_asm=rhs_hi_asm)
                 else:
                     self._raise_error("Nested field access base must be identifier or array subscript")
             elif isinstance(expr.object, DerefExpr):
                 # ptr^.field store (is_deref=False, DerefExpr object).
                 # Phase 2: if pointer was a simple ZP identifier use (ptr),Y directly.
                 _store_ptr2: str = _deref_ptr_asm if _deref_ptr_asm is not None else "TMP0"
-                self._emit_field_via_ptr(_store_ptr2, field_offset, field_width, False, False)
+                self._emit_field_via_ptr(_store_ptr2, field_offset, field_width, False, False,
+                                         rhs_asm=rhs_asm, rhs_hi_asm=rhs_hi_asm)
 
     def _collect_array_subscript_chain(self, expr: BinaryExpr) -> list | None:
         """
@@ -12588,6 +12611,40 @@ class CodeGen:
             # Store at computed address
             self._emit_indirect_store_zero("TMP0")
             return
+
+        # Optimisation: FieldAccess LHS + simple RHS (Identifier or IntLiteral) —
+        # skip gen_expr(rhs) and TMP2 round-trip; load directly from source.
+        if (isinstance(lhs, FieldAccess) and isinstance(rhs, (Identifier, IntLiteral))
+                and lhs_t.sem_type.base != "LONG"):
+            _fa_use_direct: bool = True
+            if not lhs.is_deref:
+                _, _fa_base = self._calculate_nested_field_offset(lhs)
+                if isinstance(_fa_base, Identifier):
+                    _fa_use_direct = False  # fast path at line 12734 handles this
+            if _fa_use_direct:
+                _fa_field_is_word: bool = (lhs_t.sem_type.base == "WORD"
+                                           or lhs_t.sem_type.is_pointer)
+                if isinstance(rhs, Identifier):
+                    _fa_rhs_sym: Symbol = self.current_symtab.lookup(rhs.name)
+                    _fa_rhs_asm: str = _fa_rhs_sym.asm_name()
+                    _fa_rhs_is_word: bool = (rhs_t.sem_type.base == "WORD"
+                                             or rhs_t.sem_type.is_pointer)
+                    _fa_rhs_hi: str | None = None
+                    if _fa_field_is_word:
+                        _fa_rhs_hi = f"{_fa_rhs_asm}+1" if _fa_rhs_is_word else "#$00"
+                else:  # IntLiteral
+                    _fa_val: int = rhs.value
+                    _fa_rhs_asm = f"#${_fa_val & 0xFF:02X}"
+                    _fa_rhs_hi = f"#${(_fa_val >> 8) & 0xFF:02X}" if _fa_field_is_word else None
+                _prev_at: SemType | None = self.assign_target_type
+                self.assign_target_type = lhs_t.sem_type
+                try:
+                    self._gen_field_access(lhs, load_only=False,
+                                           rhs_asm=_fa_rhs_asm,
+                                           rhs_hi_asm=_fa_rhs_hi)
+                finally:
+                    self.assign_target_type = _prev_at
+                return
 
         # vygeneruj RHS
         # Set assignment target context for optimizations
