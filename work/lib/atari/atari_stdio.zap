@@ -71,7 +71,7 @@
 .include "../string.zap"
 ; .include "../keys.zap"
 
- ; .define DEBUG_CIO
+; .define DEBUG_CIO
 
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40

@@ -1,1 +1,1 @@
-3:1: error: Struct 'BIGSTRUCT' is 256 bytes — maximum struct size is 255 bytes
+3:1: error: Struct 'BIGSTRUCT' is 256 bytes - maximum struct size is 255 bytes
