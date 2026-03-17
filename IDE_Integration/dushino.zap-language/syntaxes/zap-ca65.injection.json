@@ -5,8 +5,14 @@
   "patterns": [
     {
       "name": "meta.embedded.asm.ca65.zap",
-      "begin": "^\\s*[Aa][Ss][Mm]\\b",
-      "end": "^\\s*[Ee][Nn][Dd]\\b",
+      "begin": "^\\s*([Aa][Ss][Mm])\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.zap" }
+      },
+      "end": "^\\s*([Ee][Nn][Dd])\\b",
+      "endCaptures": {
+        "1": { "name": "keyword.control.zap" }
+      },
       "patterns": [
         {
           "include": "source.ca65"
