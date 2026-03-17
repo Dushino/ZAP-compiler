@@ -8455,31 +8455,58 @@ class CodeGen:
             self._raise_error("Subscript array must be identifier or field access")
             _index_prescaled = False  # unreachable; keeps type checker happy
 
+        # Compute maximum byte offset for 8-bit narrowing optimisations.
+        # When max_byte_offset <= 255, the scaled index always fits in a single byte,
+        # so carry propagation (ROL/BCC+INX) can be skipped entirely.
+        _max_byte_offset: int | None = None
+        if isinstance(base, Identifier):
+            if sym.array_dims and len(sym.array_dims) > 0:
+                _max_byte_offset = sym.array_dims[0] * element_width
+            elif sym.array_len is not None:
+                _max_byte_offset = sym.array_len * element_width
+        elif isinstance(base, FieldAccess) and field_info is not None:
+            if field_info.array_sizes and len(field_info.array_sizes) > 0:
+                _max_byte_offset = field_info.array_sizes[0] * element_width
+        _offset_fits_byte: bool = _max_byte_offset is not None and _max_byte_offset <= 255
+
         # Multiply index by element width and store result.
         # Skip when const-fold already produced the fully-scaled A/X above.
         #
         # FAST PATH (element_size=2 + constant base label, non-prescaled index):
         # Use direct register shifts (ASL A) instead of TMP3 memory ops, and fold the
         # base address add into the same sequence.  Saves ~10 cycles and frees TMP3.
-        #   ASL A            → A=low_offset, C=high_offset bit
-        #   TAX              → X=low_offset
-        #   LDA #$00; ROL A  → A=high_offset (captures carry from ASL)
-        #   TAY              → Y=high_offset (preserved for high-byte add)
-        #   CLC; TXA; ADC #<lbl → TMP0 low
-        #   TYA; ADC #>lbl      → TMP0 high (carry from low propagates naturally)
+        #
+        # When _offset_fits_byte is True (array_size * 2 <= 255), the ASL never sets
+        # carry, so the high-byte computation (LDA #$00; ROL A; TAY; TXA; TYA) is
+        # unnecessary — the high byte of the offset is always 0.
         if not _index_prescaled and element_width == 2 and _const_base_label is not None:
             self.emit("\tASL A")
-            self.emit("\tTAX")
-            self.emit("\tLDA #$00")
-            self.emit("\tROL A")
-            self.emit("\tTAY")
-            self.emit("\tCLC")
-            self.emit("\tTXA")
-            self.emit(f"\tADC #<{_const_base_label}")
-            self.emit("\tSTA TMP0")
-            self.emit("\tTYA")
-            self.emit(f"\tADC #>{_const_base_label}")
-            self.emit("\tSTA TMP0+1")
+            if _offset_fits_byte:
+                # 8-bit path: offset fits in a byte, no carry from ASL possible.
+                #   ASL A; CLC; ADC #<lbl → TMP0 low
+                #   LDA #>lbl; ADC #$00   → TMP0 high (only carry from low-byte ADC)
+                self.emit("\tCLC")
+                self.emit(f"\tADC #<{_const_base_label}")
+                self.emit("\tSTA TMP0")
+                self.emit(f"\tLDA #>{_const_base_label}")
+                self.emit("\tADC #$00")
+                self.emit("\tSTA TMP0+1")
+            else:
+                # 16-bit path: carry from ASL may be set, must propagate to high byte.
+                #   TAX; LDA #$00; ROL A; TAY → save offset bytes
+                #   CLC; TXA; ADC #<lbl → TMP0 low
+                #   TYA; ADC #>lbl      → TMP0 high
+                self.emit("\tTAX")
+                self.emit("\tLDA #$00")
+                self.emit("\tROL A")
+                self.emit("\tTAY")
+                self.emit("\tCLC")
+                self.emit("\tTXA")
+                self.emit(f"\tADC #<{_const_base_label}")
+                self.emit("\tSTA TMP0")
+                self.emit("\tTYA")
+                self.emit(f"\tADC #>{_const_base_label}")
+                self.emit("\tSTA TMP0+1")
         else:
             if not _index_prescaled:
                 if element_width > 1:
