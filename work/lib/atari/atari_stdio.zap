@@ -570,7 +570,7 @@ end
 /*
     CIO - call CIO handler with the specified parameters and return status
 */
-func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0, byte aux3 = 0)
+func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0)
     byte rv = 0
     
     ch &= $07
@@ -598,7 +598,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     if command == ICCOM_COMMANDS.Open
         IOCB[ch].ICAX1 = aux1
         IOCB[ch].ICAX2 = aux2
-        IOCB[ch].ICAX3 = aux3
+        IOCB[ch].ICAX3 = 0
     end
 
     asm
