@@ -2,6 +2,39 @@
 
 ---
 
+## Optimisation: Branch Inversion Now Runs Unconditionally (2026-03-17)
+
+**Change**: Moved `_branch_inversion()` from `-O1`-only (inside `peephole_optimize()`) to always run in the pipeline (before jump threading and label cleanup). This is a safe, size-reducing pass — replaces `Bxx skip; JMP target; skip:` with `B~xx target` when the target is within ±127 bytes.
+
+**Example** (`repeat/until` loop):
+```asm
+; Before:                    ; After:
+CMP #$03                    CMP #$03
+BEQ __ZAP_endrepeat_36      BNE __ZAP_repeat_34
+JMP __ZAP_repeat_34
+__ZAP_endrepeat_36:
+```
+Saves 3 bytes per inverted branch (the JMP is eliminated).
+
+**Fix** (`compiler_pipeline.py`): Added `cg.code = cg._branch_inversion(cg.code)` unconditionally before `jump_threading()`.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
+## Optimisation: Eliminate Redundant RTS Before RTS (2026-03-17)
+
+**Pattern**: `RTS` followed by labels/comments then another `RTS` — the first `RTS` is redundant because fall-through reaches the second one. Common in `switch/case` with `return` statements.
+
+**Fix** (`jump_threading.py`): Added rule that scans past labels, comments, and blank lines after `RTS`. If the next real instruction is also `RTS`, the first one is dropped.
+
+**Before**: Two separate `RTS` instructions with a label between them.
+**After**: Single `RTS` after the label — serves both paths.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimisation: Eliminate Unnecessary LDX #$00 for BYTE Values (2026-03-17)
 
 **Symptom**: `LDX #$00` was emitted after loading BYTE values in contexts where X is never used:

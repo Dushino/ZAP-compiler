@@ -1945,6 +1945,9 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
     if enable_peephole:
         cg._pre_optimize_reorder_stores()
         cg.peephole_optimize()
+    # Branch inversion: Bxx skip; JMP target; skip: → B~xx target (always safe,
+    # runs unconditionally — saves 3 bytes per inverted branch).
+    cg.code = cg._branch_inversion(cg.code)
     # Post-process assembly text: thread redundant jump chains, then remove
     # labels that became unreferenced as a result.
     from jump_threading import jump_threading

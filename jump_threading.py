@@ -7,6 +7,7 @@ Eliminates redundant branches and trivial jump chains in the generated assembly:
     as ``JMP L2`` (one-level threading)
   * ``BEQ L ; JMP L`` → collapse to ``JMP L``
   * ``ORA X ; JMP L`` → collapse to ``JMP L`` (legacy pattern, kept for safety)
+  * ``RTS`` followed by (labels/comments) then ``RTS`` → drop the first ``RTS``
 
 Usage in the pipeline (compiler_pipeline.py)
 ---------------------------------------------
@@ -80,6 +81,21 @@ def jump_threading(lines: list[str]) -> list[str]:
                     out.append(f"\tJMP {new_target}")
                     i += 1
                     continue
+
+        # RTS followed by (labels/comments/blanks) then RTS → drop the first RTS.
+        # The fall-through will reach the second RTS, so the first is redundant.
+        if line.strip().upper() == "RTS":
+            j = i + 1
+            while j < len(lines):
+                s = lines[j].strip()
+                if not s or s.startswith(";") or LABEL_RE.match(s):
+                    j += 1
+                    continue
+                break
+            if j < len(lines) and lines[j].strip().upper() == "RTS":
+                # Skip the first RTS — fall-through reaches the second one
+                i += 1
+                continue
 
         out.append(line)
         i += 1
