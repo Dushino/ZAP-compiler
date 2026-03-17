@@ -175,14 +175,14 @@ proc atari_file_data_area() #keep #noexport
         .segment "COMHEADER"
         .import __RAM_START__, __BSS_LOAD__
         .word $FFFF     		; first block marker
-        .word __RAM_START__		; RUN address
+        .word __RAM_START__		; starting address
         .word __BSS_LOAD__ - 1 	; last byte  
     end
 
     .ifdef AUTOSTART
     asm
         .segment "AUTOSTRT" 
-        .word   $02e2, $02e3, $4000 ; _MAIN
+        .word   $02e2, $02e3, __RAM_START__
     end
     .endif
 
