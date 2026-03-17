@@ -2,6 +2,42 @@
 
 ---
 
+## Optimisation: 16-bit → 8-bit Narrowing (OPT-A/B/C/E) (2026-03-17)
+
+**Goal**: Minimise 16-bit operations to 8-bit when the compiler can prove at compile time that values fit in a byte.
+
+### PREREQ: Array bounds info at codegen time
+- Computed `_max_byte_offset = array_size * element_width` from `sym.array_dims` / `sym.array_len` in `_gen_subscript()`.
+- `_offset_fits_byte = True` when max offset ≤ 255.
+
+### OPT-A: Array subscript carry elimination
+**Where**: `_gen_subscript()` fast path (element_width==2, const base label).
+**Before** (12 instr): `ASL A; TAX; LDA #$00; ROL A; TAY; CLC; TXA; ADC #<lbl; STA TMP0; TYA; ADC #>lbl; STA TMP0+1`
+**After** (7 instr): `ASL A; CLC; ADC #<lbl; STA TMP0; LDA #>lbl; ADC #$00; STA TMP0+1`
+**Savings**: 5 instr × 3 instances in test_stdio = 15 instructions.
+
+### OPT-B: Shift-multiply carry elimination
+**Where**: `_gen_index_multiply()` power-of-2 and shift-add paths.
+**Before** (e.g. ×16): `STA TMP3; LDA #$00; (ASL TMP3; ROL A)×4; TAX; LDA TMP3` (12 instr)
+**After**: `(ASL A)×4; LDX #$00` (5 instr)
+**Savings**: 7 instr × 2 instances = 14 instructions.
+
+### OPT-C: WORD == 0 / != 0 → ORA pattern
+**Where**: RPN evaluator (16-bit comparison), `_gen_relational()`, `_emit_relational_branch_impl()`.
+**Before**: `LDA MATH0; CMP MATH1; BNE ...; LDA MATH0+1; CMP MATH1+1; BNE ...`
+**After**: `LDA MATH0; ORA MATH0+1; BNE/BEQ ...`
+**Savings**: 2 instr per comparison, 2 instances in test_stdio.
+
+### OPT-E: WORD array index carry elimination
+**Where**: `gen_assign()` subscript store path (element_width==2).
+**Before**: `ASL A; LDX #$00; BCC skip; INX; skip:` (5 instr)
+**After**: `ASL A; LDX #$00` (2 instr)
+**Savings**: 3 instr per occurrence.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimisation: Indirect WORD Load-Store — Eliminate TAX Round-Trip (2026-03-17)
 
 **Pattern**: When loading a WORD value from `(ptr),Y` (high byte first, then low byte) and immediately storing to a variable, the `TAX` / `STX var+1` round-trip is unnecessary — the high byte can be stored directly from A.

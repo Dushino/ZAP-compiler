@@ -11750,11 +11750,22 @@ class CodeGen:
                     elif element_width == 2:
                         # WORD elements: address = arr_addr + index * 2
                         self.emit(f"\tASL A")  # Multiply index by 2
-                        self.emit("\tLDX #$00")
-                        carry_lbl: str = self.new_label("ARR_CARRY")
-                        self.emit(f"\tBCC {carry_lbl}")
-                        self.emit("\tINX")
-                        self.emit(f"{carry_lbl}:")
+                        # Check if max offset fits in a byte (no carry from ASL possible)
+                        _e_max_off: int | None = None
+                        if arr_sym.array_dims and len(arr_sym.array_dims) > 0:
+                            _e_max_off = arr_sym.array_dims[0] * element_width
+                        elif arr_sym.array_len is not None:
+                            _e_max_off = arr_sym.array_len * element_width
+                        if _e_max_off is not None and _e_max_off <= 255:
+                            # 8-bit path: carry impossible, skip BCC/INX
+                            self.emit("\tLDX #$00")
+                        else:
+                            # 16-bit path: carry from ASL may be set
+                            self.emit("\tLDX #$00")
+                            carry_lbl: str = self.new_label("ARR_CARRY")
+                            self.emit(f"\tBCC {carry_lbl}")
+                            self.emit("\tINX")
+                            self.emit(f"{carry_lbl}:")
                         self.emit(f"\tCLC")
                         self.emit(f"\tADC #<{arr_addr}")
                         self.emit(f"\tSTA TMP0")
