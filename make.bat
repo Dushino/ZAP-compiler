@@ -214,8 +214,15 @@ if not "%2"=="" (
         echo   e.g. make test pass/015-for-loop
         exit /b 1
     )
-    set "PASS_DIRS=!TEST_DIR!"
-    set "FAIL_DIRS="
+    rem Detect whether this is a pass or fail test directory
+    echo !TEST_DIR! | findstr /C:"tests\fail" /C:"fail\" >nul 2>&1
+    if !errorlevel! equ 0 (
+        set "PASS_DIRS="
+        set "FAIL_DIRS=!TEST_DIR!"
+    ) else (
+        set "PASS_DIRS=!TEST_DIR!"
+        set "FAIL_DIRS="
+    )
     echo Testing single directory: !TEST_DIR!
     echo.
 ) else (
@@ -526,8 +533,8 @@ if not "%2"=="" (
     )
 )
 
-rem Only test FAIL directory if running full test suite
-if "%2"=="" (
+rem Test FAIL directory if running full test suite or single fail directory
+if defined FAIL_DIRS (
     echo.
     echo Testing files that SHOULD FAIL...
     echo ------------------------------------------
@@ -536,74 +543,15 @@ if "%2"=="" (
     set "fail_msg_bad=0"
     set "fail_no_err=0"
 
-    for /R "tests\fail" %%f in (*.zap) do (
-        set "base=%%~nf"
-        set "testdir=%%~dpf"
-        set "testdir=!testdir:~0,-1!"
-        set "result_msg=!base!.zap: "
-        set "padded_msg=!result_msg!!spaces!"
-        set "padded_msg=!padded_msg:~0,40!"
-        set "err_file=!testdir!\!base!.err"
-        set "actual_err_file=!testdir!\!base!_actual.err"
-
-        set "variant_fail=0"
-        set "err_checked=0"
-        set "err_match=1"
-        for %%v in (0 1 2 3) do (
-            if %%v equ 0 (
-                set "variant_flags="
-                set "variant_name=_default"
-            ) else if %%v equ 1 (
-                set "variant_flags=-6502"
-                set "variant_name=_6502"
-            ) else if %%v equ 2 (
-                set "variant_flags=-O1"
-                set "variant_name=_O1"
-            ) else (
-                set "variant_flags=-6502 -O1"
-                set "variant_name=_6502_O1"
-            )
-            %ZC% !variant_flags! "%%f" -o "!testdir!\!base!!variant_name!.s" >"!actual_err_file!" 2>&1
-            if !errorlevel! equ 0 (
-                set /a variant_fail+=1
-            ) else (
-                rem Check error message on first rejected variant
-                if !err_checked! equ 0 (
-                    if exist "!err_file!" (
-                        set "err_checked=1"
-                        rem Strip path prefix from actual error: everything up to .zap: followed by digit
-                        rem Use python for reliable cross-platform path stripping
-                        python -c "import re,sys; actual=open(sys.argv[1],encoding='utf-8',errors='replace').read().strip(); expected=open(sys.argv[2],encoding='utf-8',errors='replace').read().strip(); actual_stripped=re.sub(r'^.*\.zap:(?=\d)','',actual); sys.exit(0 if actual_stripped[:len(expected)]==expected else 1)" "!actual_err_file!" "!err_file!"
-                        if !errorlevel! neq 0 (
-                            set "err_match=0"
-                        )
-                    )
-                )
-            )
+    if not "%2"=="" (
+        rem Single directory mode - use non-recursive for loop
+        for %%f in ("!FAIL_DIRS!\*.zap") do (
+            call :run_fail_test "%%f"
         )
-        rem Clean up temp file
-        if exist "!actual_err_file!" del /Q "!actual_err_file!" 2>nul
-
-        if !variant_fail! neq 0 (
-            echo !padded_msg!❌ FAIL: ^(!variant_fail!/4 variants passed^)
-            set /a error_count+=1
-        ) else if !err_match! equ 0 (
-            echo !padded_msg!❌ FAIL: ^(wrong error message^)
-            rem Show expected vs actual
-            if exist "!err_file!" (
-                for /F "usebackq delims=" %%e in ("!err_file!") do echo   Expected: %%e
-            )
-            set /a fail_msg_bad+=1
-            set /a error_count+=1
-        ) else (
-            if exist "!err_file!" (
-                echo !padded_msg!✅ PASS ^(correctly rejected, error message verified^)
-                set /a fail_msg_ok+=1
-            ) else (
-                echo !padded_msg!✅ PASS ^(correctly rejected, no .err reference^)
-                set /a fail_no_err+=1
-            )
-            set /a fail_count+=1
+    ) else (
+        rem Full recursive directory mode
+        for /R "tests\fail" %%f in (*.zap) do (
+            call :run_fail_test "%%f"
         )
     )
 )
@@ -627,6 +575,81 @@ if !error_count! equ 0 (
     echo !error_count! test^(s^) behaved incorrectly
     exit /b 1
 )
+
+
+rem ======================================================================
+rem Subroutine: run_fail_test - test a single .zap file that should fail
+rem ======================================================================
+:run_fail_test
+set "_ff=%~1"
+set "base=%~n1"
+set "testdir=%~dp1"
+set "testdir=!testdir:~0,-1!"
+set "result_msg=!base!.zap: "
+set "padded_msg=!result_msg!!spaces!"
+set "padded_msg=!padded_msg:~0,40!"
+set "err_file=!testdir!\!base!.err"
+set "actual_err_file=!testdir!\!base!_actual.err"
+
+set "variant_fail=0"
+set "err_checked=0"
+set "err_match=1"
+for %%v in (0 1 2 3) do (
+    if %%v equ 0 (
+        set "variant_flags="
+        set "variant_name=_default"
+    ) else if %%v equ 1 (
+        set "variant_flags=-6502"
+        set "variant_name=_6502"
+    ) else if %%v equ 2 (
+        set "variant_flags=-O1"
+        set "variant_name=_O1"
+    ) else (
+        set "variant_flags=-6502 -O1"
+        set "variant_name=_6502_O1"
+    )
+    %ZC% !variant_flags! "!_ff!" -o "!testdir!\!base!!variant_name!.s" >"!actual_err_file!" 2>&1
+    if !errorlevel! equ 0 (
+        set /a variant_fail+=1
+    ) else (
+        rem Check error message on first rejected variant
+        if !err_checked! equ 0 (
+            if exist "!err_file!" (
+                set "err_checked=1"
+                rem Strip path prefix from actual error: everything up to .zap: followed by digit
+                python -c "import re,sys; actual=open(sys.argv[1],encoding='utf-8',errors='replace').read().strip(); expected=open(sys.argv[2],encoding='utf-8',errors='replace').read().strip(); actual_stripped=re.sub(r'^.*\.zap:(?=\d)','',actual); sys.exit(0 if actual_stripped[:len(expected)]==expected else 1)" "!actual_err_file!" "!err_file!"
+                if !errorlevel! neq 0 (
+                    set "err_match=0"
+                )
+            )
+        )
+    )
+)
+rem Clean up temp file
+if exist "!actual_err_file!" del /Q "!actual_err_file!" 2>nul
+
+if !variant_fail! neq 0 (
+    echo !padded_msg!❌ FAIL: ^(!variant_fail!/4 variants passed^)
+    set /a error_count+=1
+) else if !err_match! equ 0 (
+    echo !padded_msg!❌ FAIL: ^(wrong error message^)
+    rem Show expected vs actual
+    if exist "!err_file!" (
+        for /F "usebackq delims=" %%e in ("!err_file!") do echo   Expected: %%e
+    )
+    set /a fail_msg_bad+=1
+    set /a error_count+=1
+) else (
+    if exist "!err_file!" (
+        echo !padded_msg!✅ PASS ^(correctly rejected, error message verified^)
+        set /a fail_msg_ok+=1
+    ) else (
+        echo !padded_msg!✅ PASS ^(correctly rejected, no .err reference^)
+        set /a fail_no_err+=1
+    )
+    set /a fail_count+=1
+)
+exit /b 0
 
 
 rem ======================================================================
