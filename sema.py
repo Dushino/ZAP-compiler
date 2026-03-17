@@ -230,7 +230,7 @@ class StructAnalyzer:
         # Enforce 255-byte limit: field offsets must fit in a single byte (LDY #offset)
         if current_offset > 255:
             raise SemanticError(
-                f"Struct '{struct_def.name}' is {current_offset} bytes — maximum struct size is 255 bytes",
+                f"Struct '{struct_def.name}' is {current_offset} bytes - maximum struct size is 255 bytes",
                 node=struct_def,
             )
 

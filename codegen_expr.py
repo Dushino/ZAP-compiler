@@ -3866,6 +3866,28 @@ class CodeGen:
           LDA (ptr),Y    ; load low byte
           STA addr       ; store low byte
         """
+        # Build equate map from the code to resolve label aliases.
+        # E.g. _MAIN_DATA = __LVSLOT_1  →  equates["_MAIN_DATA"] = "__LVSLOT_1"
+        equates: dict[str, str] = {}
+        for ln in code:
+            s = ln.strip()
+            if s and '=' in s and not s.startswith(";") and not s.endswith(":"):
+                code_part = s.split(';')[0].strip()
+                if '=' in code_part:
+                    lhs, rhs = code_part.split('=', 1)
+                    lhs, rhs = lhs.strip(), rhs.strip()
+                    if lhs and rhs and ' ' not in lhs:
+                        equates[lhs.upper()] = rhs.upper()
+
+        def _resolve_base(label: str) -> str:
+            """Resolve label through equate chain to its base."""
+            seen: set[str] = set()
+            cur = label.upper()
+            while cur in equates and cur not in seen:
+                seen.add(cur)
+                cur = equates[cur]
+            return cur
+
         result: list[str] = []
         i = 0
         while i < len(code):
@@ -3887,8 +3909,15 @@ class CodeGen:
                         and l5.upper().startswith("STX ")):
                     sta_addr = l4[4:].strip()
                     stx_addr = l5[4:].strip()
+                    # Extract the pointer base from LDA (ptr),Y
+                    ptr_base = l0[l0.index("(") + 1 : l0.index(")")].strip()
+                    # Safety: addr must not overlap ptr — if they alias the same
+                    # zero-page slot (possibly via equates like _DATA = __LVSLOT_1,
+                    # _VRAM = __LVSLOT_1), writing addr+1 before the second
+                    # LDA (ptr),Y corrupts the pointer and produces wrong results.
+                    addr_aliases_ptr = (_resolve_base(sta_addr) == _resolve_base(ptr_base))
                     # Verify STX addr matches STA addr + "+1"
-                    if stx_addr.upper() == (sta_addr + "+1").upper():
+                    if stx_addr.upper() == (sta_addr + "+1").upper() and not addr_aliases_ptr:
                         indent = code[i][:len(code[i]) - len(code[i].lstrip())]
                         result.append(code[i])                          # LDA (ptr),Y
                         result.append(f"{indent}STA {stx_addr}")        # STA addr+1
@@ -4252,10 +4281,10 @@ class CodeGen:
         For TAX/TAY → STA direction A is preserved so no liveness check is needed.
         """
         # Instructions that reload A completely (A is dead before these).
+        # NOTE: ASL/LSR/ROL/ROR in accumulator form read A first, so A is LIVE
+        # before them — they must NOT appear here.
         A_LOAD_MNEMONICS = {
             "LDA", "TXA", "TYA", "PLA",
-            "ADC", "SBC", "AND", "ORA", "EOR",
-            "ASL", "LSR", "ROL", "ROR",   # accumulator form (operand empty or "A")
         }
         # Unconditional exits where A value is irrelevant.
         UNCONDITIONAL_EXIT = {"JMP"}
@@ -4292,9 +4321,6 @@ class CodeGen:
                     continue
                 mn, op = _parse_mnemonic_operand(code[j])
                 if mn in A_LOAD_MNEMONICS:
-                    # For accumulator-form shift/inc/dec: check operand is empty or 'A'
-                    if mn in ("ASL", "LSR", "ROL", "ROR") and op not in ("", "A"):
-                        return False  # memory form: A not written
                     return True
                 if mn in UNCONDITIONAL_EXIT:
                     return True
