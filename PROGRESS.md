@@ -2,6 +2,28 @@
 
 ---
 
+## Optimisation: Eliminate Unnecessary LDX #$00 for BYTE Values (2026-03-17)
+
+**Symptom**: `LDX #$00` was emitted after loading BYTE values in contexts where X is never used:
+1. BYTE struct field loads in 8-bit comparisons (`if IOCB[i].ICHID == 255` — X unused by CMP)
+2. BYTE variable loads before pointer stores (`dst^ = val` — only A stored via `STA (ptr),Y`)
+
+**Root Cause**: Three locations did not honour `suppress_byte_return_x`:
+1. `_emit_field_via_ptr` (BYTE load path) checked `target_is_byte` and `force_word_result` but NOT `suppress_byte_return_x`
+2. `_gen_relational` did not set `suppress_byte_return_x` for 8-bit comparisons before evaluating operands
+3. `_emit_relational_branch` (used by `if`/`while`) — same issue as above
+4. DerefExpr ZP assignment path did not set `suppress_byte_return_x` before `gen_expr(rhs)` for BYTE targets
+
+**Fix** (`codegen_expr.py`):
+1. `_emit_field_via_ptr`: Added `and not self.suppress_byte_return_x` to the LDX #$00 guard
+2. `_gen_relational`: Set `suppress_byte_return_x = True` for 8-bit comparisons around operand evaluation
+3. `_emit_relational_branch`: Wrapper sets `suppress_byte_return_x = True` when both operands are BYTE (non-pointer)
+4. DerefExpr ZP assignment: Set `suppress_byte_return_x = True` before `gen_expr(rhs)` when target is BYTE
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimisation: Eliminate TMP2 Round-Trip for Struct Field Stores (2026-03-17)
 
 **Symptom**: Assigning a simple variable or constant to a struct field accessed via pointer/subscript (e.g., `IOCB[ch].ICBL = len`) generated unnecessary `STA __TMP2` / `STX __TMP2+1` stores followed by loads from TMP2. The 9-instruction sequence could be reduced to 6.

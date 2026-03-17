@@ -8621,7 +8621,7 @@ class CodeGen:
             else:  # BYTE
                 self.emit(f"\tLDY #${field_offset:02X}")
                 self.emit(f"\tLDA ({ptr_asm}),Y")
-                if not target_is_byte or self.force_word_result:
+                if (not target_is_byte or self.force_word_result) and not self.suppress_byte_return_x:
                     self.emit("\tLDX #$00")
         else:
             # Store path — RHS already in TMP2 (BYTE/WORD) or MATH0 (LONG)
@@ -12465,9 +12465,13 @@ class CodeGen:
                 # Pointer is in zero page, can use direct indirect addressing
                 ptr_addr: str = ptr_sym.asm_name()
                 
-                # 1. Compute RHS
+                # 1. Compute RHS (suppress LDX #$00 for BYTE targets)
+                _prev_suppress_deref: bool = self.suppress_byte_return_x
+                if lhs_t.sem_type.base == "BYTE" and not lhs_t.sem_type.is_pointer:
+                    self.suppress_byte_return_x = True
                 self.gen_expr(rhs)
-                
+                self.suppress_byte_return_x = _prev_suppress_deref
+
                 # 2. Store to dereferenced pointer directly (no TMP0 needed)
                 if lhs_t.sem_type.base == "LONG":
                     # LONG: RHS result is in MATH0; store all 4 bytes
@@ -14212,6 +14216,11 @@ class CodeGen:
 
         cmp_operand = self._simple_byte_operand(expr.right, is_16bit)
 
+        # For 8-bit comparisons, suppress LDX #$00 — only A matters for CMP.
+        _prev_suppress_rel: bool = self.suppress_byte_return_x
+        if not is_16bit:
+            self.suppress_byte_return_x = True
+
         if cmp_operand is not None:
             # Left operand only; right is accessed directly in CMP
             self.gen_expr(expr.left)
@@ -14232,6 +14241,8 @@ class CodeGen:
                 self.emit("\tLDX #$00")
 
             cmp_operand = "TMP0"
+
+        self.suppress_byte_return_x = _prev_suppress_rel
 
         lbl_true: str = self.new_label("REL_TRUE")
         lbl_end: str  = self.new_label("REL_END")
@@ -14320,7 +14331,19 @@ class CodeGen:
         lbl_true is always a nearby forward label (short branches reach it directly).
         lbl_false is always reached via JMP inside the impl (full 16-bit range).
         """
-        self._emit_relational_branch_impl(cond, lbl_true=lbl_true, lbl_false=lbl_false)
+        # For 8-bit comparisons, suppress LDX #$00 — only A matters for CMP.
+        left_t_br: ExprType = self.tc_check(cond.left)
+        right_t_br: ExprType = self.tc_check(cond.right)
+        _is_8bit_cmp: bool = (
+            left_t_br.sem_type.width <= 1 and right_t_br.sem_type.width <= 1
+            and not left_t_br.sem_type.is_pointer and not right_t_br.sem_type.is_pointer)
+        _prev_suppress_br: bool = self.suppress_byte_return_x
+        if _is_8bit_cmp:
+            self.suppress_byte_return_x = True
+        try:
+            self._emit_relational_branch_impl(cond, lbl_true=lbl_true, lbl_false=lbl_false)
+        finally:
+            self.suppress_byte_return_x = _prev_suppress_br
 
     def _emit_relational_branch_impl(self, cond: BinaryExpr, *, lbl_true: str, lbl_false: str) -> None:
         """Internal implementation for _emit_relational_branch."""
