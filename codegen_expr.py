@@ -8182,13 +8182,19 @@ class CodeGen:
             else:
                 self._emit_indirect_store_zero("TMP0")
 
-    def _gen_index_multiply(self, n: int) -> None:
+    def _gen_index_multiply(self, n: int, offset_fits_byte: bool = False) -> None:
         """Multiply 8-bit index (currently in A) by compile-time constant n.
         Result lands in A (low byte) and X (high byte).
+
+        When offset_fits_byte is True, the product is guaranteed to fit in 8 bits,
+        so carry tracking and high-byte computation are skipped entirely.
+
         Uses optimal code sequence:
           n == 1         : LDX #$00                        (0 shifts)
           n power-of-2  : STA TMP3 / LDA #0 / ASL+ROL×k / TAX / LDA TMP3
+                          (8-bit: ASL A × k / LDX #$00)
           n with ≤3 bits : shift-add decomposition (save partials via TMP3/TMP4)
+                          (8-bit: same but no carry tracking)
           otherwise      : repeated addition loop (fallback)
         """
         if n == 1:
@@ -8198,13 +8204,20 @@ class CodeGen:
         if n & (n - 1) == 0:
             # Pure power of 2: log2(n) shifts
             shifts = n.bit_length() - 1
-            self.emit("\tSTA TMP3")
-            self.emit("\tLDA #$00")
-            for _ in range(shifts):
-                self.emit("\tASL TMP3")
-                self.emit("\tROL A")
-            self.emit("\tTAX")
-            self.emit("\tLDA TMP3")
+            if offset_fits_byte:
+                # 8-bit path: result fits in A, no carry tracking needed.
+                for _ in range(shifts):
+                    self.emit("\tASL A")
+                self.emit("\tLDX #$00")
+            else:
+                # 16-bit path: carry from shifts goes into high byte via ROL.
+                self.emit("\tSTA TMP3")
+                self.emit("\tLDA #$00")
+                for _ in range(shifts):
+                    self.emit("\tASL TMP3")
+                    self.emit("\tROL A")
+                self.emit("\tTAX")
+                self.emit("\tLDA TMP3")
             return
 
         # Decompose n into powers of 2 (set bits).  Use shift-add when the
@@ -8213,33 +8226,49 @@ class CodeGen:
         # Repeated-add costs: n × 5 instructions.  Use shift-add when #terms ≤ 3.
         terms = sorted([1 << b for b in range(n.bit_length()) if n & (1 << b)])
         if len(terms) <= 3:
-            # Save original index; build result in TMP4 (16-bit) using shift-add.
-            self.emit("\tSTA TMP3")          # TMP3 = original index
-            self.emit("\tLDA #$00")
-            self.emit("\tSTA TMP4")
-            self.emit("\tSTA TMP4+1")        # TMP4:TMP4+1 = 0 (accumulator)
-            cur_shift = 0                    # tracks how many times TMP3 has been shifted
-            for term in terms:
-                target_shift = term.bit_length() - 1
-                # Shift TMP3 from cur_shift to target_shift
-                for _ in range(target_shift - cur_shift):
-                    self.emit("\tASL TMP3")
-                    lbl = self.new_label("SHIFTADD_CARRY")
-                    self.emit(f"\tBCC {lbl}")
-                    self.emit("\tINC TMP4+1")
-                    self.emit(f"{lbl}:")
-                cur_shift = target_shift
-                # Add TMP3 to TMP4
-                self.emit("\tCLC")
-                self.emit("\tLDA TMP3")
-                self.emit("\tADC TMP4")
+            if offset_fits_byte:
+                # 8-bit shift-add: all in TMP3/TMP4, no carry tracking.
+                self.emit("\tSTA TMP3")          # TMP3 = original index
+                self.emit("\tLDA #$00")
+                self.emit("\tSTA TMP4")          # TMP4 = accumulator (8-bit)
+                cur_shift = 0
+                for term in terms:
+                    target_shift = term.bit_length() - 1
+                    for _ in range(target_shift - cur_shift):
+                        self.emit("\tASL TMP3")
+                    cur_shift = target_shift
+                    self.emit("\tCLC")
+                    self.emit("\tLDA TMP3")
+                    self.emit("\tADC TMP4")
+                    self.emit("\tSTA TMP4")
+                self.emit("\tLDA TMP4")
+                self.emit("\tLDX #$00")
+            else:
+                # 16-bit shift-add with carry tracking.
+                self.emit("\tSTA TMP3")          # TMP3 = original index
+                self.emit("\tLDA #$00")
                 self.emit("\tSTA TMP4")
-                lbl2 = self.new_label("SHIFTADD_CARRY")
-                self.emit(f"\tBCC {lbl2}")
-                self.emit("\tINC TMP4+1")
-                self.emit(f"{lbl2}:")
-            self.emit("\tLDA TMP4")
-            self.emit("\tLDX TMP4+1")
+                self.emit("\tSTA TMP4+1")        # TMP4:TMP4+1 = 0 (accumulator)
+                cur_shift = 0
+                for term in terms:
+                    target_shift = term.bit_length() - 1
+                    for _ in range(target_shift - cur_shift):
+                        self.emit("\tASL TMP3")
+                        lbl = self.new_label("SHIFTADD_CARRY")
+                        self.emit(f"\tBCC {lbl}")
+                        self.emit("\tINC TMP4+1")
+                        self.emit(f"{lbl}:")
+                    cur_shift = target_shift
+                    self.emit("\tCLC")
+                    self.emit("\tLDA TMP3")
+                    self.emit("\tADC TMP4")
+                    self.emit("\tSTA TMP4")
+                    lbl2 = self.new_label("SHIFTADD_CARRY")
+                    self.emit(f"\tBCC {lbl2}")
+                    self.emit("\tINC TMP4+1")
+                    self.emit(f"{lbl2}:")
+                self.emit("\tLDA TMP4")
+                self.emit("\tLDX TMP4+1")
             return
 
         # Fallback: repeated addition  (n iterations: result += index)
@@ -8510,7 +8539,7 @@ class CodeGen:
         else:
             if not _index_prescaled:
                 if element_width > 1:
-                    self._gen_index_multiply(element_width)
+                    self._gen_index_multiply(element_width, offset_fits_byte=_offset_fits_byte)
                 else:
                     self.emit("\tLDX #$00")  # BYTE element, X = 0
 
