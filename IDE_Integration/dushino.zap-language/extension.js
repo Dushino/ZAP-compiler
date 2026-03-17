@@ -878,6 +878,14 @@ function activate(context) {
             debounceTimer = setTimeout(() => runDiagnostics(e.document), 1500);
         })
     );
+    // On close — remove diagnostics so stale errors don't linger in PROBLEMS.
+    context.subscriptions.push(
+        vscode.workspace.onDidCloseTextDocument(doc => {
+            if (doc.languageId === 'zap') {
+                diagCollection.delete(doc.uri);
+            }
+        })
+    );
     // Run on the currently active file right away.
     if (vscode.window.activeTextEditor?.document.languageId === 'zap')
         runDiagnostics(vscode.window.activeTextEditor.document);
