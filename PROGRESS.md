@@ -38,6 +38,42 @@
 
 ---
 
+## Bugfix: Two Peephole Optimizer Safety Issues (2026-03-17)
+
+### Bug 1: `_replace_transfer_sta_with_direct_store` — wrong A-liveness check
+**Symptom**: `-6502 -O1` variant of test 164 (struct-array-pow2-index) produced wrong values. The peephole removed `TXA; STA addr` → `STX addr`, but A's value (set by TXA) was needed by a subsequent `ASL A` sequence.
+
+**Root cause**: `A_LOAD_MNEMONICS` included `ASL`, `LSR`, `ROL`, `ROR`, `ADC`, `SBC`, `AND`, `ORA`, `EOR`. These all **read A first** (A = A op operand), so A is live before them — they are not dead-A points. Only `LDA`, `TXA`, `TYA`, `PLA` truly reload A from scratch.
+
+**Fix** (`codegen_expr.py`): Removed all read-modify-write mnemonics from `A_LOAD_MNEMONICS`, keeping only `{"LDA", "TXA", "TYA", "PLA"}`.
+
+### Bug 2: `_indirect_word_load_store` — aliased pointer/store corruption
+**Symptom**: `-6502 -O1` variant of test 103 (array_of_pointers) produced wrong pointer dereferences. The peephole reordered stores to write `addr+1` before the second `LDA (ptr),Y`, but `addr` and `ptr` were aliased via equates (both = `__LVSLOT_1`).
+
+**Root cause**: Writing `addr+1` corrupted the pointer before the second indirect load when the store destination and the pointer variable shared the same zero-page slot.
+
+**Fix** (`codegen_expr.py`): Added equate-aware alias detection — builds a map of label equates from the assembly, resolves both the pointer base and store address through the equate chain, and skips the optimization when they resolve to the same base.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
+## Bugfix: Em-dash Encoding in Error Messages (2026-03-17)
+
+**Symptom**: `struct-too-large` fail test showed `[MSG_MISMATCH]` — the em-dash character (`—`, U+2014) in the error message was corrupted by Windows console encoding (byte `0x97` instead of UTF-8 `0xE2 0x80 0x94`).
+
+**Fix** (`sema.py`): Replaced em-dash with ASCII dash (`-`) in the struct-too-large error message. Updated `.err` and `.ref` files to match.
+
+---
+
+## IDE: ASM/END Keyword Highlighting in VS Code (2026-03-17)
+
+**Symptom**: `asm` and `end` keywords inside ASM blocks were not syntax-highlighted as ZAP keywords — the injection grammar took over the entire region without preserving keyword scoping.
+
+**Fix** (`zap-ca65.injection.json`): Added `beginCaptures` and `endCaptures` to explicitly assign `keyword.control.zap` scope to the `asm` and `end` keywords within the injection pattern.
+
+---
+
 ## Optimisation: Indirect WORD Load-Store — Eliminate TAX Round-Trip (2026-03-17)
 
 **Pattern**: When loading a WORD value from `(ptr),Y` (high byte first, then low byte) and immediately storing to a variable, the `TAX` / `STX var+1` round-trip is unnecessary — the high byte can be stored directly from A.
