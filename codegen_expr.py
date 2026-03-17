@@ -1172,8 +1172,29 @@ class CodeGen:
                                 self.emit("\tLDA #$01")
 
                         elif left_width == 2 or right_width == 2:
-                            # 16-bit comparison - more complex
-                            if node.value == BinOp.EQ:
+                            # 16-bit comparison
+                            # Fast path: WORD == 0 / != 0  →  ORA low+high bytes
+                            _rpn_is_zero_cmp: bool = (
+                                node.value in (BinOp.EQ, BinOp.NE)
+                                and right_loc.startswith("CONST:")
+                                and int(right_loc.split(":")[1]) == 0)
+                            if _rpn_is_zero_cmp and node.value == BinOp.NE:
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tORA MATH0+1")
+                                self.emit(f"\tBNE {lbl_true}")
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                self.emit(f"{lbl_true}:")
+                                self.emit("\tLDA #$01")
+                            elif _rpn_is_zero_cmp and node.value == BinOp.EQ:
+                                self.emit("\tLDA MATH0")
+                                self.emit("\tORA MATH0+1")
+                                self.emit(f"\tBEQ {lbl_true}")
+                                self.emit("\tLDA #$00")
+                                self.emit(f"\tJMP {lbl_end}")
+                                self.emit(f"{lbl_true}:")
+                                self.emit("\tLDA #$01")
+                            elif node.value == BinOp.EQ:
                                 self.emit("\tLDA MATH0")
                                 self.emit("\tCMP MATH1")
                                 self.emit(f"\tBNE {lbl_true}")
@@ -14324,6 +14345,38 @@ class CodeGen:
         right_t: ExprType = self.tc_check(expr.right)
         is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
 
+        # Fast path: WORD == 0 / WORD != 0  →  LDA lo; ORA hi; BEQ/BNE
+        if is_16bit and expr.op in (BinOp.EQ, BinOp.NE):
+            _zero_cmp_word_expr: Expr | None = None
+            if isinstance(expr.right, IntLiteral) and expr.right.value == 0:
+                _zero_cmp_word_expr = expr.left
+            elif isinstance(expr.left, IntLiteral) and expr.left.value == 0:
+                _zero_cmp_word_expr = expr.right
+            if _zero_cmp_word_expr is not None:
+                lbl_true = self.new_label("REL_TRUE")
+                lbl_end = self.new_label("REL_END")
+                if isinstance(_zero_cmp_word_expr, Identifier):
+                    _zc_sym: Symbol = self.current_symtab.lookup(_zero_cmp_word_expr.name)
+                    _zc_asm: str = _zc_sym.asm_name()
+                    self.emit(f"\tLDA {_zc_asm}")
+                    self.emit(f"\tORA {_zc_asm}+1")
+                else:
+                    self.gen_expr(_zero_cmp_word_expr)
+                    self.emit("\tSTX TMP0")
+                    self.emit("\tORA TMP0")
+                if expr.op == BinOp.NE:
+                    self.emit(f"\tBNE {lbl_true}")
+                else:
+                    self.emit(f"\tBEQ {lbl_true}")
+                self.emit("\tLDA #$00")
+                self.emit(f"\tJMP {lbl_end}")
+                self.emit(f"{lbl_true}:")
+                self.emit("\tLDA #1")
+                self.emit(f"{lbl_end}:")
+                if self.force_word_result:
+                    self.emit("\tLDX #$00")
+                return
+
         # Try a fast 8-bit compare when the right operand is a simple byte value
         cmp_operand: str | None = None
 
@@ -14469,6 +14522,32 @@ class CodeGen:
         
         is_32bit: bool = left_width > 2 or right_width > 2
         is_16bit: bool = not is_32bit and (left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer or right_t.sem_type.is_pointer)
+
+        # Fast path: WORD == 0 / WORD != 0  →  LDA lo; ORA hi; BEQ/BNE
+        if is_16bit and not is_32bit and cond.op in (BinOp.EQ, BinOp.NE):
+            _zb_word_expr: Expr | None = None
+            if isinstance(cond.right, IntLiteral) and cond.right.value == 0:
+                _zb_word_expr = cond.left
+            elif isinstance(cond.left, IntLiteral) and cond.left.value == 0:
+                _zb_word_expr = cond.right
+            if _zb_word_expr is not None:
+                if isinstance(_zb_word_expr, Identifier):
+                    _zb_sym: Symbol = self.current_symtab.lookup(_zb_word_expr.name)
+                    _zb_asm: str = _zb_sym.asm_name()
+                    self.emit(f"\tLDA {_zb_asm}")
+                    self.emit(f"\tORA {_zb_asm}+1")
+                else:
+                    self.gen_expr(_zb_word_expr)
+                    self.emit("\tSTX TMP0")
+                    self.emit("\tORA TMP0")
+                if cond.op == BinOp.NE:
+                    self.emit(f"\tBNE {lbl_true}")
+                    self.emit(f"\tJMP {lbl_false}")
+                else:  # EQ
+                    self.emit(f"\tBNE {lbl_false}")
+                    # fall through to lbl_true handled by caller
+                    self.emit(f"\tJMP {lbl_true}")
+                return
 
         if is_32bit:
             # --- Fast path: direct 32-bit comparison for simple operands (no MATH0/MATH1) ---
