@@ -2,6 +2,35 @@
 
 ---
 
+## Optimisation: Indirect WORD Load-Store — Eliminate TAX Round-Trip (2026-03-17)
+
+**Pattern**: When loading a WORD value from `(ptr),Y` (high byte first, then low byte) and immediately storing to a variable, the `TAX` / `STX var+1` round-trip is unnecessary — the high byte can be stored directly from A.
+
+**Before** (7 instructions):
+```asm
+LDA (__TMP0),Y   ; high byte
+TAX              ; save in X (unnecessary)
+DEY
+LDA (__TMP0),Y   ; low byte
+STA _CURPTR
+STX _CURPTR+1    ; from X (unnecessary round-trip)
+```
+
+**After** (5 instructions):
+```asm
+LDA (__TMP0),Y   ; high byte
+STA _CURPTR+1    ; store directly from A
+DEY
+LDA (__TMP0),Y   ; low byte
+STA _CURPTR
+```
+
+**Fix** (`codegen_expr.py`): Added `_indirect_word_load_store()` peephole pass (5th pass). Detects `LDA (ptr),Y; TAX; DEY; LDA (ptr),Y; STA addr; STX addr+1` and replaces with direct store pattern.
+
+**Test results:** 166 pass / 125 fail — all OK.
+
+---
+
 ## Optimisation: Branch Inversion Now Runs Unconditionally (2026-03-17)
 
 **Change**: Moved `_branch_inversion()` from `-O1`-only (inside `peephole_optimize()`) to always run in the pipeline (before jump threading and label cleanup). This is a safe, size-reducing pass — replaces `Bxx skip; JMP target; skip:` with `B~xx target` when the target is within ±127 bytes.

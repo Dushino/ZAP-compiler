@@ -3814,12 +3814,69 @@ class CodeGen:
         # Also handles reverse: TAX + STX* → STA*, TAY + STY* → STA*.
         optimized = self._replace_transfer_sta_with_direct_store(optimized)
 
-        # Fifth pass: branch inversion — Bxx skip; JMP target → B~xx target (when in range).
+        # Fifth pass: indirect WORD load → direct store (eliminate TAX round-trip).
+        optimized = self._indirect_word_load_store(optimized)
+
+        # Sixth pass: branch inversion — Bxx skip; JMP target → B~xx target (when in range).
         # Also removes unreferenced labels, enabling OPT-12 (switch reload elimination)
         # to emerge via OPT-8's memory-address tracking.
         optimized = self._branch_inversion(optimized)
 
         self.code = optimized
+
+    def _indirect_word_load_store(self, code: list[str]) -> list[str]:
+        """Fifth-pass peephole: optimise indirect WORD load followed by store.
+
+        Pattern (6502 indirect-indexed WORD load into A/X, then store):
+          LDA (ptr),Y    ; load high byte
+          TAX            ; save high byte in X
+          DEY            ; Y-- to reach low byte
+          LDA (ptr),Y    ; load low byte
+          STA addr       ; store low byte
+          STX addr+1     ; store high byte
+
+        Replaced with (eliminates TAX, stores high byte directly from A):
+          LDA (ptr),Y    ; load high byte
+          STA addr+1     ; store high byte directly
+          DEY
+          LDA (ptr),Y    ; load low byte
+          STA addr       ; store low byte
+        """
+        result: list[str] = []
+        i = 0
+        while i < len(code):
+            # Need at least 6 lines from position i
+            if i + 5 < len(code):
+                l0 = code[i].strip()
+                l1 = code[i + 1].strip()
+                l2 = code[i + 2].strip()
+                l3 = code[i + 3].strip()
+                l4 = code[i + 4].strip()
+                l5 = code[i + 5].strip()
+
+                # Match: LDA (ptr),Y / TAX / DEY / LDA (ptr),Y / STA addr / STX addr+1
+                if (l0.upper().startswith("LDA (") and l0.endswith("),Y")
+                        and l1.upper() == "TAX"
+                        and l2.upper() == "DEY"
+                        and l3.upper() == l0.upper()  # same LDA (ptr),Y
+                        and l4.upper().startswith("STA ")
+                        and l5.upper().startswith("STX ")):
+                    sta_addr = l4[4:].strip()
+                    stx_addr = l5[4:].strip()
+                    # Verify STX addr matches STA addr + "+1"
+                    if stx_addr.upper() == (sta_addr + "+1").upper():
+                        indent = code[i][:len(code[i]) - len(code[i].lstrip())]
+                        result.append(code[i])                          # LDA (ptr),Y
+                        result.append(f"{indent}STA {stx_addr}")        # STA addr+1
+                        result.append(code[i + 2])                      # DEY
+                        result.append(code[i + 3])                      # LDA (ptr),Y
+                        result.append(code[i + 4])                      # STA addr
+                        i += 6
+                        continue
+
+            result.append(code[i])
+            i += 1
+        return result
 
     def _eliminate_redundant_imm_lda(self, code: list[str]) -> list[str]:
         """Second-pass peephole: remove LDA #imm when A already holds that value, and
