@@ -240,8 +240,19 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
         )
 
     out: list[str] = []
+    in_asm_block: bool = False
     for ln in compact:
         stripped = ln.strip()
+
+        # Track ASM_BLOCK regions — suppress blank-line insertion inside them.
+        # Stay suppressed for the .segment restore line that follows ASM_BLOCK_END.
+        _was_asm_cooldown: bool = (in_asm_block == "cooldown")
+        if stripped == "; ASM_BLOCK_BEGIN":
+            in_asm_block = "inside"
+        elif stripped == "; ASM_BLOCK_END":
+            in_asm_block = "cooldown"  # suppress blanks for the next .segment restore
+        elif in_asm_block == "cooldown":
+            in_asm_block = False
 
         # Change 3: footer block marker — insert 2 blank lines then discard the marker
         if stripped in _STRIP_MARKERS:
@@ -255,16 +266,21 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
             ln.startswith("; -- Function ")
         )
 
-        if is_block_start(ln) and out:
+        if is_block_start(ln) and out and not in_asm_block and not _was_asm_cooldown:
             # Change 4: if the last emitted line is a source-path comment and we're
             # about to open a procedure/function block, move the comment to sit
-            # directly above the header (after the 2 blank lines).
+            # directly above the header (after the 2 blank lines + divider).
             if is_proc_or_func and _is_source_comment(out[-1]):
                 src_comment = out.pop()
                 out.append("")
                 out.append("")
+                out.append("; ---------------------------------------------------------------------------")
                 out.append(src_comment)
                 # No extra blanks — the comment now immediately precedes the header
+            elif is_proc_or_func:
+                out.append("")
+                out.append("")
+                out.append("; ---------------------------------------------------------------------------")
             else:
                 out.append("")
                 out.append("")

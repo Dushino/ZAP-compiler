@@ -3718,6 +3718,9 @@ class CodeGen:
                     # Label: stop dead code elimination
                     if _dc.endswith(':') and ' ' not in _dc.split(':')[0]:
                         break
+                    # Proc/Func header comment: stop (next proc/func begins here)
+                    if _dl.startswith("; -- Procedure ") or _dl.startswith("; -- Function "):
+                        break
                     # Equate line: keep (defines symbols used elsewhere)
                     if _dc and '=' in _dc and not _dc.endswith(':'):
                         optimized.append(self.code[i])
