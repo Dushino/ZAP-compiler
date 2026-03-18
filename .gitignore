@@ -18,6 +18,7 @@ python_venv/*
 **/*.d65
 **/*.cut
 **/*.txt
+**/.*.sys
 
 tests.txt
 
