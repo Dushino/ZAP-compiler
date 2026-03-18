@@ -1548,7 +1548,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             sym.zp_priority = -1  # Mark as "not allocated to ZP"
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False, zp_start: int = 0) -> str:
     """Run the full compile pipeline from AST to assembly output."""
     # --- symbol tables ---
     global_symtab = SymbolTable()
@@ -1811,6 +1811,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         seg_zp=seg_zp,
         seg_bss=seg_bss,
         seg_code=seg_code,
+        zp_start=zp_start,
     )
     # Recompute exports to reflect pruned (removed) procs/funcs and globals
     original_exports = set(getattr(program, 'exports', set()) or set())

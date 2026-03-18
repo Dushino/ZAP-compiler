@@ -19,7 +19,7 @@ All pointers are 2 bytes (WORD). The maximum addressable memory is 64 KB ($0000-
 
 ### 256-Byte Zero-Page Limit
 
-The 6502 zero-page ($00-$FF) is shared between system temporaries (MATH_STACK, TMP0-TMP5) and user variables. Programs with many pointers or small variables can exhaust it.
+The 6502 zero-page ($00-$FF) is shared between system temporaries (MATH_STACK, TMP0-TMP5) and user variables. Programs with many pointers or small variables can exhaust it. Use `-ZPSTART <addr>` to match your linker configuration's ZP area (e.g., `-ZPSTART 0x82` for Atari 8-bit).
 
 **Workaround:** Reduce pointer count; use WORD variables instead of extra pointers where possible:
 ```zap

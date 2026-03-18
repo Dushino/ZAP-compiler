@@ -2,6 +2,16 @@
 
 ---
 
+## `-ZPSTART` CLI parameter for Zero Page budget control (2026-03-18)
+
+**Problem**: The compiler hardcoded `ZEROPAGE_SIZE = 256` and a heuristic offset of 64 bytes for system use, but real linker configs (e.g., Atari 8-bit: `$82`–`$FF` = 126 bytes) have much less ZP available. This caused `ld65` overflow errors.
+
+**Solution**: New `-ZPSTART <addr>` CLI flag sets the first usable ZP address. Budget = `256 - addr`. Supports decimal and hex (`0x82`). The compiler now also accounts for shared ZP slot sizes when computing the ZP budget, preventing over-allocation.
+
+**Files changed**: `compiler.py`, `compiler_pipeline.py`, `codegen_expr.py`, `work/go.bat`, `DOC/README.md`, `DOC/ARCHITECTURE.md`, `DOC/KNOWN_LIMITATIONS.md`.
+
+---
+
 ## Optimisation: 16-bit → 8-bit Narrowing (OPT-A/B/C/E) (2026-03-17)
 
 **Goal**: Minimise 16-bit operations to 8-bit when the compiler can prove at compile time that values fit in a byte.

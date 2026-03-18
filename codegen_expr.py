@@ -37,7 +37,7 @@ class CodeGen:
     loop_stack = []
     internal_label_prefix = "__ZAP_"
 
-    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, func_return_buffers: dict[str, tuple[str, StructInfo]] | None = None, system_temp_slots: dict[str, str] | None = None, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> None:
+    def __init__(self, symtab: SymbolTable, type_checker: ExprTypeChecker, *, is_65c02: bool = True, used_globals: set[str] | None = None, debug_info: dict | None = None, command_line: str | None = None, proc_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, func_param_specs: dict[str, list[tuple[str, int, object, SemType]]] | None = None, pruned_procs: list[str] | None = None, struct_registry: StructRegistry | None = None, func_return_buffers: dict[str, tuple[str, StructInfo]] | None = None, system_temp_slots: dict[str, str] | None = None, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", zp_start: int = 0) -> None:
         """Initialize code generation state.
         Stores symbol tables, options, and debug maps.
         """
@@ -65,6 +65,7 @@ class CodeGen:
         self.seg_zp: str = seg_zp
         self.seg_bss: str = seg_bss
         self.seg_code: str = seg_code
+        self.zp_start: int = zp_start  # first usable ZP address (0 = use heuristic)
         self.math_stack_depth: int = 0
         self.system_temp_slots: dict[str, str] = system_temp_slots or {}  # Maps temp name to shared slot
         
@@ -5936,9 +5937,33 @@ class CodeGen:
         for sym in all_vars:
             sym.in_zeropage = False
 
-        # Assume up to 64 bytes used by system + fixed vars to be extremely conservative
-        zp_offset: int = 64
+        # ZP budget: if -ZPSTART is given, available bytes = 256 - zp_start;
+        # otherwise use a conservative heuristic (64 bytes reserved for system).
         ZEROPAGE_SIZE = 256
+        if self.zp_start > 0:
+            zp_offset: int = self.zp_start
+        else:
+            zp_offset: int = 64
+
+        # Account for shared ZP slots (system temps + local slots that go to ZP)
+        shared_zp_sizes: dict[str, int] = {}
+        for temp_name, slot_label in self.system_temp_slots.items():
+            temp_sizes_map = {"MATH_STACK": 32, "MATH0": 4, "MATH1": 4,
+                              "TMP0": 2, "TMP1": 2, "TMP2": 2, "TMP3": 2, "TMP4": 2, "TMP5": 2}
+            ts = temp_sizes_map.get(temp_name, 2)
+            if slot_label in shared_zp_sizes:
+                shared_zp_sizes[slot_label] = max(shared_zp_sizes[slot_label], ts)
+            else:
+                shared_zp_sizes[slot_label] = ts
+        for sym in all_vars:
+            sl = getattr(sym, 'shared_slot', None)
+            if sl and not sym.is_array and not sym.type.is_struct:
+                sz = 2 if (sym.type.is_pointer or sym.type.base == "WORD") else (4 if sym.type.base == "LONG" else 1)
+                if sl in shared_zp_sizes:
+                    shared_zp_sizes[sl] = max(shared_zp_sizes[sl], sz)
+                else:
+                    shared_zp_sizes[sl] = sz
+        zp_offset += sum(shared_zp_sizes.values())
 
         # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
         pointer_scalars: list[Symbol] = [
@@ -6503,8 +6528,13 @@ class CodeGen:
                 self.emit("")
 
             # Zero page offset tracking (starts after emitted system variables)
-            zp_offset: int = sum(temp_sizes[n] for n in temps_in_use)
+            # If -ZPSTART is given, use it as the base; otherwise start after system temps.
             ZEROPAGE_SIZE = 256
+            temps_size = sum(temp_sizes[n] for n in temps_in_use)
+            if self.zp_start > 0:
+                zp_offset: int = max(self.zp_start, temps_size)
+            else:
+                zp_offset: int = temps_size
 
             # Reset per-symbol ZP placement hints
             for sym in all_vars:

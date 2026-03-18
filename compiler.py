@@ -8,7 +8,7 @@ import sys
 from version import __version__
 from typing import Optional, Set, List
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE") -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", zp_start: int = 0) -> str:
     """Compile ZAP source text to assembly output."""
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
@@ -25,7 +25,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         parser = Parser(src, filename="<input.zap>")
         parser_filename = getattr(parser, "filename", None)
         program = parser.parse_program()
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code, zp_start=zp_start)
 
     except CompileError as e:
         if e.line is not None:
@@ -39,7 +39,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False, zp_start: int = 0) -> str:
     """Compile a source file with module resolution enabled."""
     try:
         # Get base directory for resolving includes
@@ -52,7 +52,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
         program, defined_symbols = module_sys.build_program(filepath)
         
         # Compile the complete program
-        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code, module_mode=module_mode)
+        return compile_program(program, target_6502=target_6502, command_line=command_line, defined_symbols=defined_symbols, enable_peephole=enable_peephole, seg_zp=seg_zp, seg_bss=seg_bss, seg_code=seg_code, module_mode=module_mode, zp_start=zp_start)
     
     except CompileError as e:
         # If we have the parsed/linked program available, attempt to remap the
@@ -150,6 +150,7 @@ if __name__ == "__main__":
         seg_zp = "ZEROPAGE"
         seg_bss = "BSS"
         seg_code = "CODE"
+        zp_start = 0
 
         # Simple CLI parsing to support -6502, -o <file>, -D <symbol>, and -I <directory>
         i = 0
@@ -216,6 +217,20 @@ if __name__ == "__main__":
                 seg_code = args[i + 1]
                 i += 2
                 continue
+            if a == "-ZPSTART":
+                if i + 1 >= len(args):
+                    print("<cli>:1:1: error: -ZPSTART requires a start address (0-255)", file=sys.stderr)
+                    sys.exit(1)
+                try:
+                    zp_start = int(args[i + 1], 0)  # supports decimal, 0x hex, etc.
+                except ValueError:
+                    print(f"<cli>:1:1: error: -ZPSTART value '{args[i + 1]}' is not a valid integer", file=sys.stderr)
+                    sys.exit(1)
+                if zp_start < 0 or zp_start > 255:
+                    print(f"<cli>:1:1: error: -ZPSTART value must be 0-255, got {zp_start}", file=sys.stderr)
+                    sys.exit(1)
+                i += 2
+                continue
             # First non-option is the source file
             if src_file is None:
                 src_file = a
@@ -225,7 +240,7 @@ if __name__ == "__main__":
             i += 1
 
         if src_file is None:
-            print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] <source.zap>")
+            print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] [-ZPSTART <addr>] <source.zap>")
             sys.exit(1)
 
         if target_6502:
@@ -245,6 +260,7 @@ if __name__ == "__main__":
             seg_bss=seg_bss,
             seg_code=seg_code,
             module_mode=module_mode,
+            zp_start=zp_start,
         )
 
         # Write to file if requested, else print to stdout

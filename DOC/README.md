@@ -167,6 +167,17 @@ Overrides the name of the **code** segment (default: `CODE`). Use this when your
 python compiler.py program.zap -SEGC PROG -o program.s
 ```
 
+#### `-ZPSTART <addr>`
+Sets the first usable zero-page address. The compiler will not allocate any zero-page variable below this address, limiting the ZP budget to `256 - addr` bytes. The value can be decimal or hex (with `0x` prefix). When not specified, the compiler uses a built-in heuristic (reserving 64 bytes for system use).
+
+Use this to match your linker configuration's ZP memory area. For example, Atari 8-bit with BASIC disabled typically starts at `$82` (130).
+
+**Example:**
+```bash
+# Atari 8-bit: ZP available from $82 to $FF (126 bytes)
+python compiler.py program.zap -ZPSTART 0x82 -o program.s
+```
+
 ### Combining Options
 
 All options can be combined as needed:
@@ -183,6 +194,9 @@ python compiler.py program.zap --peepholes -D SBC_PLATFORM -o program.s
 
 # Custom segment names for a non-standard linker config
 python compiler.py program.zap -SEGZ ZP -SEGB VARS -SEGC PROG -o program.s
+
+# Atari 8-bit build with correct ZP budget
+python compiler.py program.zap -6502 -ZPSTART 0x82 -SEGC CODE -o program.s
 ```
 
 ### Usage Examples
