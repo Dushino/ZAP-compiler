@@ -806,6 +806,7 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
+    puts(buffer)
     rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)        
     if rv != 1
         set_fderror(fd, rv)

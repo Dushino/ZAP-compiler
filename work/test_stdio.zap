@@ -35,10 +35,11 @@ func byte test_files()
     
     puts("Open:   ")    
     rv += fopen(@fd, FName, ICAX1_Mode.Write)  
-    putx(rv)
+    putx(rv)            
     
     puts("\nWrite:  ")
     rv += fwrite(@fd, Text1, strlen(Text1))
+    ; puts(Text1)
     putx(rv)
     
     puts("\nClose:  ")
