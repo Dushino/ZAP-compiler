@@ -9,7 +9,7 @@ from sema_expr import ExprTypeChecker
 from sema_shared import (
     map_debug_line, attach_source_text, map_stmt_info,
     build_local_symtab, build_init_set,
-    validate_body_exprs,
+    validate_body_exprs, check_uninitialized,
 )
 
 
@@ -125,6 +125,35 @@ class FuncAnalyzer:
                     raise err
                 raise
 
+        def _on_call_stmt(st, cur_initialized):
+            """Validate each proc/func call argument for type errors and uninitialized reads."""
+            from ast_nodes import StructLiteral
+            for a in st.args:
+                if a is None:
+                    continue
+                try:
+                    if not isinstance(a, StructLiteral):
+                        self.expr_tc.check(a)
+                    check_uninitialized(a, self.expr_tc.symtab, func.name, cur_initialized)
+                except SemanticError as e:
+                    info = map_stmt_info(self.debug, st)
+                    if info and getattr(e, "filename", None) is None:
+                        fname, line, col = info
+                        e_line = getattr(e, "line", None)
+                        if e_line is not None:
+                            orig_map = (self.debug.get("orig_line_map_per_file") or {}).get(fname)
+                            if orig_map and isinstance(e_line, int) and 1 <= e_line <= len(orig_map):
+                                e_line = orig_map[e_line - 1]
+                        else:
+                            e_line = line
+                        err_col = getattr(e, "col", None) or col
+                        err = SemanticError(e.message, line=e_line, col=err_col)
+                        err.filename = fname
+                        setattr(err, "_line_mapped", True)
+                        attach_source_text(self.debug, err, fname)
+                        raise err
+                    raise
+
         # Type-check all statements in the body.
         # on_return_stmt is None: top-level returns are validated separately
         # below so that full return-type checking can be applied.
@@ -132,6 +161,7 @@ class FuncAnalyzer:
         validate_body_exprs(
             func.body, init_set, validate_expr, self.expr_tc.symtab,
             self.debug, func.name,
+            on_call_stmt=_on_call_stmt,
         )
 
         # Validate return statements: type-check expression and check return type.
