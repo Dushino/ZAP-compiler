@@ -73,16 +73,16 @@
 
 ; .define DEBUG_CIO
 
+
+; Screen
 byte cur_xpos, cur_ypos                     ; cursor position on the screen
 const byte SCREEN_X_SIZE = 40
 const byte SCREEN_Y_SIZE = 24
 byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
 byte ^curptr                    #noexport   ; current position in the screen memory for output
 
-
+; Keyboard
 byte KBHIT @764
-byte TIMER @20
-
 
 enum KEY
     ENTER          = $9B
@@ -102,6 +102,9 @@ enum KEY
 end
 
 byte kbcode @$D209
+
+; Timer
+byte TIMER @20
 
 
 ; IOCB 
@@ -725,7 +728,8 @@ end
     rename - rename file    
 */
 func ERRNO rename(const byte^ oldname, const byte^ newname)
-    byte name[64]
+    const byte max_len = 32
+    byte names[max_len+1]
     byte len, rv
     byte id
 
@@ -735,16 +739,16 @@ func ERRNO rename(const byte^ oldname, const byte^ newname)
     end
     len = strlen(oldname) + strlen(newname) + 1
     
-    if len > 63
+    if len > max_len-1
         return ERRNO.ENAMETOOLONG
     end
     
-    strncpy(name, oldname, 63)    
-    strncat(name, ",", 63)
-    strncat(name, newname, 63)
-    
+    strncpy(names, oldname, max_len)
+    strncat(names, ",", max_len)
+    strncat(names, newname, max_len)
+
     CIO(id, ICCOM_COMMANDS.Close)
-    rv = CIO(id, ICCOM_COMMANDS.Rename, name)
+    rv = CIO(id, ICCOM_COMMANDS.Rename, names)
         
     return rv
 end
