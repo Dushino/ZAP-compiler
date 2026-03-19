@@ -262,7 +262,12 @@ The peephole optimizer runs over the generated assembly string before output. It
 
 After semantic analysis, the compiler computes a priority score for each local variable based on loop-nesting depth and access frequency (`zp_priority`). The highest-priority variables are placed in zero page (faster 2-byte addressing) up to the available ZP budget. All other locals use absolute 3-byte addressing.
 
-The ZP budget is controlled by the `-ZPSTART <addr>` CLI flag, which sets the first usable zero-page address. The available space is `256 - addr` bytes. When not specified, a built-in heuristic reserves 64 bytes for system use.
+The ZP budget is determined by the first usable ZP address:
+- **`-cfg <path>`** (recommended): reads the ld65 linker config and automatically extracts the ZP start address from the `MEMORY`/`SEGMENTS` blocks. This keeps the compiler and linker in sync.
+- **`-ZPSTART <addr>`**: manually sets the first usable ZP address. If both `-cfg` and `-ZPSTART` are given, `-ZPSTART` takes precedence.
+- **Default** (neither given): all 256 bytes of ZP are available (`zp_start = 0`).
+
+The available ZP space is always `256 - zp_start` bytes. The compiler detects ZP overflow at compile time and reports a clear error if allocations exceed the budget.
 
 Locals that are live-range-disjoint are also assigned to shared slots (`__LVSLOT_N`) to reduce total memory usage, with structs and arrays going to BSS slots (`__BSSSLOT_N`) and scalars/pointers going to zero page slots.
 
@@ -300,6 +305,7 @@ The three output segment names are configurable via CLI flags. All default to th
 | `-SEGZ <name>` | `ZEROPAGE` | Zero-page variables (`.zp:` storage, TMP slots, MATH_STACK) |
 | `-SEGB <name>` | `BSS` | Uninitialized data (scalars that overflow ZP, arrays, structs) |
 | `-SEGC <name>` | `CODE` | Executable code and runtime helpers |
-| `-ZPSTART <addr>` | `0` (heuristic) | First usable ZP address; budget = `256 - addr` bytes |
+| `-ZPSTART <addr>` | `0` | First usable ZP address; budget = `256 - addr` bytes |
+| `-cfg <path>` | *(none)* | ld65 linker config file; auto-extracts ZP start address |
 
-These flags affect every `.segment "..."` directive emitted by the code generator (`codegen_expr.py`) and the segment-detection logic in the pipeline (`compiler_pipeline.py`).
+These flags affect every `.segment "..."` directive emitted by the code generator (`codegen_expr.py`) and the segment-detection logic in the pipeline (`compiler_pipeline.py`). The `-cfg` flag is parsed by `cfgparser.py`.

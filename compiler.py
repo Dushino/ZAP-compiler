@@ -151,6 +151,7 @@ if __name__ == "__main__":
         seg_bss = "BSS"
         seg_code = "CODE"
         zp_start = 0
+        cfg_file = None
 
         # Simple CLI parsing to support -6502, -o <file>, -D <symbol>, and -I <directory>
         i = 0
@@ -164,7 +165,7 @@ if __name__ == "__main__":
             if a == "-o":
                 if i + 1 >= len(args):
                     print("<cli>:1:1: error: -o requires an output filename", file=sys.stderr)
-                    print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
+                    print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] [-cfg <ld65.cfg>] [-ZPSTART <addr>] <source.zap>")
                     sys.exit(1)
                 out_file = args[i + 1]
                 i += 2
@@ -175,7 +176,7 @@ if __name__ == "__main__":
             if a == "-D":
                 if i + 1 >= len(args):
                     print("<cli>:1:1: error: -D requires a symbol name", file=sys.stderr)
-                    print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
+                    print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] [-cfg <ld65.cfg>] [-ZPSTART <addr>] <source.zap>")
                     sys.exit(1)
                 predefined_symbols.add(args[i + 1].upper())
                 i += 2
@@ -183,7 +184,7 @@ if __name__ == "__main__":
             if a == "-I":
                 if i + 1 >= len(args):
                     print("<cli>:1:1: error: -I requires a directory path", file=sys.stderr)
-                    print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] <source.act>")
+                    print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] [-cfg <ld65.cfg>] [-ZPSTART <addr>] <source.zap>")
                     sys.exit(1)
                 include_dirs.append(args[i + 1])
                 i += 2
@@ -231,6 +232,13 @@ if __name__ == "__main__":
                     sys.exit(1)
                 i += 2
                 continue
+            if a == "-cfg":
+                if i + 1 >= len(args):
+                    print("<cli>:1:1: error: -cfg requires a path to ld65 linker config file", file=sys.stderr)
+                    sys.exit(1)
+                cfg_file = args[i + 1]
+                i += 2
+                continue
             # First non-option is the source file
             if src_file is None:
                 src_file = a
@@ -240,8 +248,28 @@ if __name__ == "__main__":
             i += 1
 
         if src_file is None:
-            print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] [-ZPSTART <addr>] <source.zap>")
+            print("Usage: zapc [-6502] [-D <symbol>] [-I <directory>] [-o <output.s>] [-O1] [--module] [-cfg <ld65.cfg>] [-ZPSTART <addr>] <source.zap>")
             sys.exit(1)
+
+        # If -cfg is given, parse the linker config to extract ZP start address
+        if cfg_file is not None:
+            from cfgparser import parse_ld65_cfg, CfgParseError
+            try:
+                cfg_info = parse_ld65_cfg(cfg_file)
+            except CfgParseError as e:
+                print(f"<cli>:1:1: error: {e}", file=sys.stderr)
+                sys.exit(1)
+            cfg_zp_start = cfg_info.get("zp_start")
+            if cfg_zp_start is None:
+                print(f"<cli>:1:1: error: Cannot resolve ZEROPAGE start address from '{cfg_file}'. "
+                      f"Ensure MEMORY and SEGMENTS blocks define a ZEROPAGE segment with a literal start address.",
+                      file=sys.stderr)
+                sys.exit(1)
+            # -ZPSTART explicitly overrides -cfg (warn if both given)
+            if zp_start > 0:
+                print(f"<cli>:1:1: warning: Both -cfg and -ZPSTART given; using -ZPSTART={zp_start} (overrides cfg zp_start={cfg_zp_start})", file=sys.stderr)
+            else:
+                zp_start = cfg_zp_start
 
         if target_6502:
             predefined_symbols.add("6502")

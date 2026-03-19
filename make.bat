@@ -277,19 +277,26 @@ if not "%2"=="" (
         set "variant_fail=0"
         set "testdir=!PASS_DIRS!"
 
+    rem Read optional per-test extra compiler flags from .flags file
+    set "extra_flags="
+    set "flags_file=!testdir!\!base!.flags"
+    if exist "!flags_file!" (
+        for /F "usebackq delims=" %%x in ("!flags_file!") do set "extra_flags=%%x"
+    )
+
     rem Test all variants: default, -6502, -O1, -6502 -O1
     for %%v in (0 1 2 3) do (
         if %%v equ 0 (
-            set "variant_flags="
+            set "variant_flags=!extra_flags!"
             set "variant_name=_default"
         ) else if %%v equ 1 (
-            set "variant_flags=-6502"
+            set "variant_flags=-6502 !extra_flags!"
             set "variant_name=_6502"
         ) else if %%v equ 2 (
-            set "variant_flags=-O1"
+            set "variant_flags=-O1 !extra_flags!"
             set "variant_name=_O1"
         ) else (
-            set "variant_flags=-6502 -O1"
+            set "variant_flags=-6502 -O1 !extra_flags!"
             set "variant_name=_6502_O1"
         )
         set "output_file=!testdir!\!base!!variant_name!.s"
@@ -412,19 +419,26 @@ if not "%2"=="" (
         set "testdir=%%~dpf"
         set "testdir=!testdir:~0,-1!"
 
+    rem Read optional per-test extra compiler flags from .flags file
+    set "extra_flags="
+    set "flags_file=!testdir!\!base!.flags"
+    if exist "!flags_file!" (
+        for /F "usebackq delims=" %%x in ("!flags_file!") do set "extra_flags=%%x"
+    )
+
     rem Test all variants: default, -6502, -O1, -6502 -O1
     for %%v in (0 1 2 3) do (
         if %%v equ 0 (
-            set "variant_flags="
+            set "variant_flags=!extra_flags!"
             set "variant_name=_default"
         ) else if %%v equ 1 (
-            set "variant_flags=-6502"
+            set "variant_flags=-6502 !extra_flags!"
             set "variant_name=_6502"
         ) else if %%v equ 2 (
-            set "variant_flags=-O1"
+            set "variant_flags=-O1 !extra_flags!"
             set "variant_name=_O1"
         ) else (
-            set "variant_flags=-6502 -O1"
+            set "variant_flags=-6502 -O1 !extra_flags!"
             set "variant_name=_6502_O1"
         )
         set "output_file=!testdir!\!base!!variant_name!.s"
@@ -594,18 +608,24 @@ set "actual_err_file=!testdir!\!base!_actual.err"
 set "variant_fail=0"
 set "err_checked=0"
 set "err_match=1"
+rem Read optional per-test extra compiler flags from .flags file
+set "extra_flags="
+set "flags_file=!testdir!\!base!.flags"
+if exist "!flags_file!" (
+    for /F "usebackq delims=" %%x in ("!flags_file!") do set "extra_flags=%%x"
+)
 for %%v in (0 1 2 3) do (
     if %%v equ 0 (
-        set "variant_flags="
+        set "variant_flags=!extra_flags!"
         set "variant_name=_default"
     ) else if %%v equ 1 (
-        set "variant_flags=-6502"
+        set "variant_flags=-6502 !extra_flags!"
         set "variant_name=_6502"
     ) else if %%v equ 2 (
-        set "variant_flags=-O1"
+        set "variant_flags=-O1 !extra_flags!"
         set "variant_name=_O1"
     ) else (
-        set "variant_flags=-6502 -O1"
+        set "variant_flags=-6502 -O1 !extra_flags!"
         set "variant_name=_6502_O1"
     )
     %ZC% !variant_flags! "!_ff!" -o "!testdir!\!base!!variant_name!.s" >"!actual_err_file!" 2>&1

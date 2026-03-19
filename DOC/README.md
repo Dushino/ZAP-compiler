@@ -167,16 +167,41 @@ Overrides the name of the **code** segment (default: `CODE`). Use this when your
 python compiler.py program.zap -SEGC PROG -o program.s
 ```
 
+#### `-cfg <path>`
+Reads an **ld65 linker configuration file** and automatically extracts the zero-page start address from the `MEMORY` and `SEGMENTS` blocks. The compiler finds the memory area that the `ZEROPAGE` segment loads into and uses its `start` address as the first usable ZP address.
+
+This eliminates the need to manually specify `-ZPSTART` and keeps the compiler in sync with the linker configuration, reducing the risk of ZP allocation mismatches.
+
+**Example:**
+```bash
+# Automatically read ZP budget from Atari linker config
+python compiler.py program.zap -cfg cfg/my_atari.cfg -o program.s
+```
+
+If the ZP start address cannot be resolved (e.g., the config uses dynamic expressions like `%S`), the compiler reports an error.
+
 #### `-ZPSTART <addr>`
-Sets the first usable zero-page address. The compiler will not allocate any zero-page variable below this address, limiting the ZP budget to `256 - addr` bytes. The value can be decimal or hex (with `0x` prefix). When not specified, the compiler uses a built-in heuristic (reserving 64 bytes for system use).
+Sets the first usable zero-page address manually. The compiler will not allocate any zero-page variable below this address, limiting the ZP budget to `256 - addr` bytes. The value can be decimal or hex (with `0x` prefix). When not specified (and no `-cfg` is given), the compiler assumes all 256 bytes of ZP are available.
 
 Use this to match your linker configuration's ZP memory area. For example, Atari 8-bit with BASIC disabled typically starts at `$82` (130).
+
+If both `-cfg` and `-ZPSTART` are given, `-ZPSTART` takes precedence (with a warning).
 
 **Example:**
 ```bash
 # Atari 8-bit: ZP available from $82 to $FF (126 bytes)
 python compiler.py program.zap -ZPSTART 0x82 -o program.s
 ```
+
+#### Zero Page Overflow Detection
+
+The compiler checks that all zero-page allocations (system temps + user variables) fit within the available ZP budget (`256 - zp_start` bytes). If they exceed the budget, a compile-time error is reported:
+
+```
+error: Zero page overflow: 18 bytes needed but only 2 bytes available (ZP range $FE-$FF)
+```
+
+This catches ZP overflow at compile time rather than at link time, providing clearer error messages.
 
 ### Combining Options
 
@@ -195,7 +220,10 @@ python compiler.py program.zap --peepholes -D SBC_PLATFORM -o program.s
 # Custom segment names for a non-standard linker config
 python compiler.py program.zap -SEGZ ZP -SEGB VARS -SEGC PROG -o program.s
 
-# Atari 8-bit build with correct ZP budget
+# Atari 8-bit build with linker config (recommended)
+python compiler.py program.zap -6502 -cfg cfg/my_atari.cfg -o program.s
+
+# Atari 8-bit build with manual ZP budget
 python compiler.py program.zap -6502 -ZPSTART 0x82 -SEGC CODE -o program.s
 ```
 

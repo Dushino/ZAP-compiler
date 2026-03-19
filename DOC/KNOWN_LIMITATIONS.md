@@ -19,7 +19,7 @@ All pointers are 2 bytes (WORD). The maximum addressable memory is 64 KB ($0000-
 
 ### 256-Byte Zero-Page Limit
 
-The 6502 zero-page ($00-$FF) is shared between system temporaries (MATH_STACK, TMP0-TMP5) and user variables. Programs with many pointers or small variables can exhaust it. Use `-ZPSTART <addr>` to match your linker configuration's ZP area (e.g., `-ZPSTART 0x82` for Atari 8-bit).
+The 6502 zero-page ($00-$FF) is shared between system temporaries (MATH_STACK, TMP0-TMP5) and user variables. Programs with many pointers or small variables can exhaust it. Use `-cfg <path>` to automatically read the ZP budget from your ld65 linker config, or `-ZPSTART <addr>` to set it manually (e.g., `-ZPSTART 0x82` for Atari 8-bit). The compiler detects ZP overflow at compile time and reports a clear error.
 
 **Workaround:** Reduce pointer count; use WORD variables instead of extra pointers where possible:
 ```zap

@@ -1,0 +1,11 @@
+; Test: intentionally overflow zero page with many variables
+proc main()
+    byte a, b, c, d, e, f, g, h
+    word w1, w2, w3, w4, w5, w6, w7, w8, w9, w10
+    word w11, w12, w13, w14, w15, w16, w17, w18, w19, w20
+    word w21, w22, w23, w24, w25, w26, w27, w28, w29, w30
+    word w31, w32, w33, w34, w35, w36, w37, w38, w39, w40
+    word w41, w42, w43, w44, w45, w46, w47, w48, w49, w50
+    word w51, w52, w53, w54, w55, w56, w57, w58, w59, w60
+    a = 1
+end

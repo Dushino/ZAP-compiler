@@ -5937,13 +5937,11 @@ class CodeGen:
         for sym in all_vars:
             sym.in_zeropage = False
 
-        # ZP budget: if -ZPSTART is given, available bytes = 256 - zp_start;
-        # otherwise use a conservative heuristic (64 bytes reserved for system).
+        # ZP budget: available bytes = 256 - zp_start.
+        # zp_start is the first usable ZP address (from -cfg or -ZPSTART).
+        # When zp_start=0 (default), all 256 bytes are available for ZAP use.
         ZEROPAGE_SIZE = 256
-        if self.zp_start > 0:
-            zp_offset: int = self.zp_start
-        else:
-            zp_offset: int = 64
+        zp_offset: int = self.zp_start
 
         # Account for shared ZP slots (system temps + local slots that go to ZP)
         shared_zp_sizes: dict[str, int] = {}
@@ -6330,15 +6328,50 @@ class CodeGen:
                 if not getattr(sym, 'shared_slot', None):
                     self.emit(f"{sym.asm_name()}:\t.res 4")
 
+        # ZP overflow check: compute actual total ZP usage and verify it fits
+        # Count dedicated system temps (not aliases to shared slots)
+        zp_total = 0
+        for temp_name, temp_size in sys_temp_names:
+            internal_name = self._internal_name_map.get(temp_name, temp_name)
+            if internal_name in temps_in_use and temp_name not in self.system_temp_slots:
+                zp_total += temp_size
+        for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11", "TMP12", "TMP13", "TMP14", "TMP15"]:
+            name = self._internal_name_map.get(raw_name, raw_name)
+            if name in temps_in_use and raw_name not in self.system_temp_slots:
+                zp_total += temp_sizes[name]
+        zp_total += sum(shared_slots_zp.values())
+        for sym in pointer_scalars:
+            if sym.in_zeropage and not getattr(sym, 'shared_slot', None):
+                zp_total += 2
+        for sym in pointer_arrays:
+            if sym.in_zeropage and not getattr(sym, 'shared_slot', None):
+                zp_total += sym.get_total_array_size()
+        for sym in zp_byte_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += 1
+        for sym in zp_word_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += 2
+        for sym in zp_long_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += 4
+        zp_budget = 256 - self.zp_start
+        if zp_total > zp_budget:
+            from errors import CompileError
+            raise CompileError(
+                f"Zero page overflow: {zp_total} bytes needed but only {zp_budget} bytes available "
+                f"(ZP range ${self.zp_start:02X}-$FF)"
+            )
+
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
-        struct_vars: list[Symbol] = [s for s in all_vars 
-                    if not s.is_const and s.address is None 
+        struct_vars: list[Symbol] = [s for s in all_vars
+                    if not s.is_const and s.address is None
                     and not s.type.is_pointer and not s.is_array
                     and s.type.is_struct]
-        
+
         bss_struct_vars: list[Symbol] = struct_vars  # All struct vars go to BSS
 
-        
+
         # Step 4: ALL non-pointer ARRAYS must go to BSS segment (pointer arrays were handled in Step 1)
         array_vars: list[Symbol] = [
             s for s in all_vars
@@ -6527,14 +6560,12 @@ class CodeGen:
                         self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
                 self.emit("")
 
-            # Zero page offset tracking (starts after emitted system variables)
-            # If -ZPSTART is given, use it as the base; otherwise start after system temps.
+            # Zero page offset tracking (starts after platform-reserved area + system temps)
+            # zp_start = first usable ZP address (from -cfg or -ZPSTART, default 0)
+            # Compiler temps are placed starting at zp_start.
             ZEROPAGE_SIZE = 256
             temps_size = sum(temp_sizes[n] for n in temps_in_use)
-            if self.zp_start > 0:
-                zp_offset: int = max(self.zp_start, temps_size)
-            else:
-                zp_offset: int = temps_size
+            zp_offset: int = self.zp_start + temps_size
 
             # Reset per-symbol ZP placement hints
             for sym in all_vars:
@@ -6720,12 +6751,38 @@ class CodeGen:
                 if not getattr(sym, 'shared_slot', None):
                     self.emit(f"{sym.asm_name()}:\t.res 4")
 
+        # ZP overflow check: compute actual total ZP usage and verify it fits
+        zp_total = temps_size  # compiler system temps
+        zp_total += sum(shared_slots_zp.values())  # shared slots
+        for sym in pointer_scalars:
+            if sym.in_zeropage and not getattr(sym, 'shared_slot', None):
+                zp_total += 2
+        for sym in pointer_arrays:
+            if sym.in_zeropage and not getattr(sym, 'shared_slot', None):
+                zp_total += sym.get_total_array_size()
+        for sym in zp_byte_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += 1
+        for sym in zp_word_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += 2
+        for sym in zp_long_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += 4
+        zp_budget = ZEROPAGE_SIZE - self.zp_start
+        if zp_total > zp_budget:
+            from errors import CompileError
+            raise CompileError(
+                f"Zero page overflow: {zp_total} bytes needed but only {zp_budget} bytes available "
+                f"(ZP range ${self.zp_start:02X}-$FF)"
+            )
+
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
-        struct_vars: list[Symbol] = [s for s in all_vars 
-                       if not s.is_const and s.address is None 
+        struct_vars: list[Symbol] = [s for s in all_vars
+                       if not s.is_const and s.address is None
                        and not s.type.is_pointer and not s.is_array
                        and s.type.is_struct]
-        
+
         bss_struct_vars: list[Symbol] = struct_vars  # All struct vars go to BSS
 
         

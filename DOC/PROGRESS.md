@@ -1,7 +1,7 @@
 # ZAP! Compiler — Progress & Status
 
 **Current version**: 0.2.0
-**Test suite**: 159 pass-tests · 105 fail-tests · all passing
+**Test suite**: 166 pass-tests · 128 fail-tests · all passing
 
 ---
 
@@ -67,6 +67,9 @@
 | `-I path` include search path | Done |
 | CPU symbols (`_6502` / `_65C02`) auto-defined based on target | Done |
 | `-SEGZ/-SEGB/-SEGC` configurable segment names | Done |
+| `-cfg <path>` auto-read ZP start from ld65 linker config | Done |
+| `-ZPSTART <addr>` manual ZP start address | Done |
+| Zero page overflow detection at compile time | Done |
 
 ### Code Generation & Optimization
 
