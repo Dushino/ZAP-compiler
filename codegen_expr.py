@@ -3778,6 +3778,9 @@ class CodeGen:
                     # Proc/Func header comment: stop (next proc/func begins here)
                     if _dl.startswith("; -- Procedure ") or _dl.startswith("; -- Function "):
                         break
+                    # Segment directive: stop (entering a new segment)
+                    if _dc.startswith(".segment"):
+                        break
                     # Equate line: keep (defines symbols used elsewhere)
                     if _dc and '=' in _dc and not _dc.endswith(':'):
                         optimized.append(self.code[i])
@@ -4781,7 +4784,10 @@ class CodeGen:
         # Ensure runtime helpers and data live in CODE segment.
         # Math/copy routines are emitted BEFORE constant data so that
         # disassemblers don't try to decode .byte data as instructions.
-        self.emit(f"\n\n.segment \"{self.seg_code}\"")
+        self.emit("")
+        self.emit("")
+        self.emit("; ---------------------------------------------------------------------------")
+        self.emit(f".segment \"{self.seg_code}\"")
         self._gen_copy_bytes_routine()
         self._gen_copy_bytes16_routine()
         self._gen_math_routines()
@@ -4858,10 +4864,10 @@ class CodeGen:
         if not self.string_literals and not self.array_literals:
             return
         
-        self.emit("; __ZAPC_FOOTER_BLOCK__")
-        self.emit("; ------------------------------")
+        self.emit("")
+        self.emit("")
+        self.emit("; ---------------------------------------------------------------------------")                
         self.emit("; Constant Data")
-        self.emit("; ------------------------------")
         
         # Generate string data
         for content, label in self.string_literals.items():
@@ -5917,10 +5923,10 @@ class CodeGen:
             ("RSHIFT32", emit_rshift32),
         ]
 
-        self.emit("; __ZAPC_FOOTER_BLOCK__")
-        self.emit("; ------------------------------")
+        self.emit("")
+        self.emit("")
+        self.emit("; ---------------------------------------------------------------------------")
         self.emit("; Math Runtime Routines")
-        self.emit("; ------------------------------")
         self.emit("")
 
         for name, emitter in emitters:
@@ -6155,7 +6161,10 @@ class CodeGen:
         # Capture output into a new list
         saved_code = self.code
         self.code = []
-
+        
+        self.emit("")
+        self.emit("")
+        self.emit("; ---------------------------------------------------------------------------")        
         self.emit(f"\n\n.segment \"{self.seg_zp}\"")
         self.emit("; System variables")
 
@@ -6421,6 +6430,10 @@ class CodeGen:
                 f"(ZP range ${self.zp_start:02X}-$FF)"
             )
 
+        # Emit ZP usage summary
+        zp_end = self.zp_start + zp_total - 1 if zp_total > 0 else self.zp_start
+        self.emit(f"; ZP usage: {zp_total} of {zp_budget} bytes (${self.zp_start:02X}-${zp_end:02X}), {zp_budget - zp_total} free")
+
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
         struct_vars: list[Symbol] = [s for s in all_vars
                     if not s.is_const and s.address is None
@@ -6445,10 +6458,13 @@ class CodeGen:
             s for s in all_vars
             if (not s.is_const and s.address is None and not s.is_array and s.type.is_pointer and not s.in_zeropage)
         ]
-        
+
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
         if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
-            self.emit(f"\n\n.segment \"{self.seg_bss}\"")
+            self.emit("")
+            self.emit("")
+            self.emit("; ---------------------------------------------------------------------------")
+            self.emit(f".segment \"{self.seg_bss}\"")
 
             if shared_slots_bss:
                 self.emit("; Shared slots (BSS)")
@@ -6533,7 +6549,9 @@ class CodeGen:
                       "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11",
                       "TMP12", "TMP13", "TMP14", "TMP15"]
         }
-
+        self.emit("")
+        self.emit("")
+        self.emit("; ---------------------------------------------------------------------------")        
         self.emit(f"\n\n.segment \"{self.seg_zp}\"")
         self.emit("; System variables")
         
@@ -6835,6 +6853,10 @@ class CodeGen:
                 f"(ZP range ${self.zp_start:02X}-$FF)"
             )
 
+        # Emit ZP usage summary
+        zp_end = self.zp_start + zp_total - 1 if zp_total > 0 else self.zp_start
+        self.emit(f"; ZP usage: {zp_total} of {zp_budget} bytes (${self.zp_start:02X}-${zp_end:02X}), {zp_budget - zp_total} free")
+
         # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
         struct_vars: list[Symbol] = [s for s in all_vars
                        if not s.is_const and s.address is None
@@ -6862,7 +6884,10 @@ class CodeGen:
         
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
         if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
-            self.emit(f"\n\n.segment \"{self.seg_bss}\"")
+            self.emit("")
+            self.emit("")
+            self.emit("; ---------------------------------------------------------------------------")
+            self.emit(f".segment \"{self.seg_bss}\"")
 
             if shared_slots_bss:
                 self.emit("; Shared slots (BSS)")
@@ -6946,9 +6971,11 @@ class CodeGen:
         """Generate globals header.
         Internal helper used during code generation.
         """
-        self.emit(f"\n\n.segment \"{self.seg_code}\"")
-        self.emit("\n; Globals initialization")
-        self.emit("; ------------------------------") 
+        self.emit("")
+        self.emit("")
+        self.emit("; ---------------------------------------------------------------------------")        
+        self.emit(f".segment \"{self.seg_code}\"")
+        self.emit("; Globals initialization")
                
 
     def gen_globals_footer(self) -> None:
@@ -6956,7 +6983,6 @@ class CodeGen:
         Internal helper used during code generation.
         """
         self.emit("\n; Call MAIN")
-        self.emit("; ------------------------------")        
         self.emit(f"\tJSR {self.asm_symbol_name('MAIN')}")       
         self.emit("\tJMP *\n")       
 
@@ -14069,7 +14095,7 @@ class CodeGen:
             self.emit("; ASM_BLOCK_BEGIN")
             for line in stmt.text.splitlines():
                 self.emit(line)
-            self.emit("; ASM_BLOCK_END")
+            self.emit("; ASM_BLOCK_END")            
             self.emit(f'\t.segment "{self.seg_code}"')
             return
 
