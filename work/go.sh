@@ -1,7 +1,6 @@
 #!/bin/bash
 rm -f *.s
 rm -f *.o
-rm -f *.com
 rm -f *.xex
 
 python3 ../compiler.py -O1 -I lib -6502 -D AUTOSTART -cfg ../cfg/my_atari.cfg -o test_stdio.s test_stdio.zap || exit
