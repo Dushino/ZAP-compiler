@@ -35,6 +35,8 @@
 ; https://www.atariarchives.org/mapping/memorymap.php
 ;-------------------------------------------------------------------------
 
+.module "atari_gtia.zap"
+
 
 ; Read/Write Addresses
 struct GTIA_RD_struct #port #RD
@@ -149,22 +151,24 @@ byte GPRIOR  @717
 
 
 ; ATARI colors
-const byte COLOR_BLACK          = $00
-const byte COLOR_RUST           = $10
-const byte COLOR_RED_ORANGE     = $20
-const byte COLOR_DARK_ORANGE    = $30
-const byte COLOR_RED            = $40
-const byte COLOR_DARK_LAVENDER  = $50
-const byte COLOR_COBALT_BLUE    = $60
-const byte COLOR_ULTRAMARINE    = $70
-const byte COLOR_MEDIUM_BLUE    = $80
-const byte COLOR_DARK_BLUE      = $90
-const byte COLOR_BLUE_GREY      = $A0
-const byte COLOR_OLIVE_GREEN    = $B0
-const byte COLOR_MEDIUM_GREEN   = $C0
-const byte COLOR_DARK_GREEN     = $D0
-const byte COLOR_ORANGE_GREEN   = $E0
-const byte COLOR_ORANGE         = $F0
+enum GTIA_Colors
+    BLACK          = $00
+    RUST           = $10
+    RED_ORANGE     = $20
+    DARK_ORANGE    = $30
+    RED            = $40
+    DARK_LAVENDER  = $50
+    COBALT_BLUE    = $60
+    ULTRAMARINE    = $70
+    MEDIUM_BLUE    = $80
+    DARK_BLUE      = $90
+    BLUE_GREY      = $A0
+    OLIVE_GREEN    = $B0
+    MEDIUM_GREEN   = $C0
+    DARK_GREEN     = $D0
+    ORANGE_GREEN   = $E0
+    ORANGE         = $F0
+end
 
 
 GTIA_RD_struct GTIA_RD @$D000
