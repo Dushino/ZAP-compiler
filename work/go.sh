@@ -10,4 +10,4 @@ da65 -m -v -v -v -S 0x4000 --comments 3 test_stdio.xex -o test_stdio.d65
 cp test_stdio.xex ./disk/AUTORUN.SYS
 ./dir2atr -E -b Dos25 test_stdio.atr disk
 atari800 -xl -nobasic test_stdio.atr
-./adir -1 test_stdio.atr 
+./adir -1 -r -t test_stdio.atr 
