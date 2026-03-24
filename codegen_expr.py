@@ -2453,6 +2453,48 @@ class CodeGen:
                 optimized.append(line)
                 i += 1
                 continue
+            # OPT-14: TMP0 round-trip elimination for 16-bit add after call
+            # Pattern (11 instr):
+            #   STA __TMP0; STX __TMP0+1; PLA; TAX; PLA; STA __MATH0; STX __MATH0+1;
+            #   LDA __TMP0; STA __MATH1; LDA __TMP0+1; STA __MATH1+1
+            # Replacement (6 instr):
+            #   STA __MATH1; STX __MATH1+1; PLA; STA __MATH0+1; PLA; STA __MATH0
+            # The call result (A/X) goes directly to MATH1 and the stacked value
+            # is popped directly to MATH0, eliminating the TMP0 save/restore.
+            if line_upper == "STA __TMP0" or line_upper.startswith("STA __TMP0 "):
+                # Collect next 10 executable instruction indices
+                _seq: list[int] = [i]
+                _j14 = i + 1
+                while len(_seq) < 11 and _j14 < len(self.code):
+                    _s14 = self.code[_j14].strip()
+                    _c14 = _s14.split(';')[0].strip()
+                    if not _c14:
+                        _j14 += 1
+                        continue
+                    if _c14.endswith(':') and ' ' not in _c14.split(':')[0]:
+                        break
+                    if _is_equate_line(self.code[_j14]):
+                        _j14 += 1
+                        continue
+                    _seq.append(_j14)
+                    _j14 += 1
+                if len(_seq) == 11:
+                    _instrs14 = [self.code[idx].strip().split(';')[0].strip().upper() for idx in _seq]
+                    if (_instrs14 == [
+                        "STA __TMP0", "STX __TMP0+1", "PLA", "TAX", "PLA",
+                        "STA __MATH0", "STX __MATH0+1",
+                        "LDA __TMP0", "STA __MATH1", "LDA __TMP0+1", "STA __MATH1+1"
+                    ]):
+                        _ind14 = self.code[i][:len(self.code[i]) - len(self.code[i].lstrip())]
+                        optimized.append(f"{_ind14}STA __MATH1\n")
+                        optimized.append(f"{_ind14}STX __MATH1+1\n")
+                        optimized.append(f"{_ind14}PLA\n")
+                        optimized.append(f"{_ind14}STA __MATH0+1\n")
+                        optimized.append(f"{_ind14}PLA\n")
+                        optimized.append(f"{_ind14}STA __MATH0\n")
+                        i = _seq[-1] + 1  # skip all 11 original instructions
+                        continue
+
             # Remove redundant immediate loads when the register was not clobbered by intervening instructions
             if line_upper.startswith("LDX #") or line_upper.startswith("LDY #"):
                 load_instr = line_stripped.split(';')[0].strip().upper()

@@ -2,6 +2,25 @@
 
 ---
 
+## OPT-14: TMP0 round-trip elimination for 16-bit add after call (2026-03-24)
+
+**Pattern** (11 instructions):
+```
+STA __TMP0; STX __TMP0+1; PLA; TAX; PLA; STA __MATH0; STX __MATH0+1;
+LDA __TMP0; STA __MATH1; LDA __TMP0+1; STA __MATH1+1
+```
+
+**Replacement** (6 instructions):
+```
+STA __MATH1; STX __MATH1+1; PLA; STA __MATH0+1; PLA; STA __MATH0
+```
+
+**Savings**: 5 instructions per occurrence. Eliminates the TMP0 save/restore round-trip when a function call result (A/X) feeds into a 16-bit addition with a stacked operand (e.g., `rv += fwrite(...)`).
+
+**Files changed**: `codegen_expr.py` (`peephole_optimize`, OPT-14 rule)
+
+---
+
 ## atari_stdio.zap file I/O bug fixes (2026-03-24)
 
 **Problem**: Multiple bugs in the Atari CIO-based file I/O functions prevented correct file read/write operations. The test program `test_stdio.zap` wrote "Hello!" to a file, read it back, but `puts(buf)` showed only 'o' instead of "Hello" (a compiler slot-aliasing bug, fixed separately) and all file operations used wrong success checks.
