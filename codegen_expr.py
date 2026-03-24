@@ -852,6 +852,20 @@ class CodeGen:
                             self.emit("\tSTX MATH1+1")
                         right_loc = "MATH1"
 
+                # -- BYTE-target narrowing --
+                # When the assignment target is BYTE, we only need the low byte of
+                # the result.  For ADD/SUB/AND/OR/XOR the low byte depends only on
+                # the low bytes of the operands, so we can safely narrow WORD
+                # operands to BYTE and use 8-bit inline code instead of JSR __ADD16.
+                _narrow_ops = {BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                if (self.assign_target_type is not None
+                        and self.assign_target_type.base == "BYTE"
+                        and not self.assign_target_type.is_pointer
+                        and node.value in _narrow_ops
+                        and left_width <= 2 and right_width <= 2):
+                    left_width = min(left_width, 1)
+                    right_width = min(right_width, 1)
+
                 routine = get_math_routine_for_op(cast(BinOp, node.value), left_width, right_width)
                 force_word_operands = routine in {"ADD16", "SUB16"}
                 use_ax_right = False
@@ -9852,8 +9866,18 @@ class CodeGen:
         # are evaluated at the correct width before final truncation.
         if self.assign_target_type:
             if self.assign_target_type.base == "BYTE" and not self.assign_target_type.is_pointer:
-                # Only narrow to 8-bit if neither the expression nor its operands are WORD/pointer
-                if not (
+                # For ADD/SUB/AND/OR/XOR, the low byte of the result depends only on
+                # the low bytes of the operands.  So even when one operand is WORD, we
+                # can narrow to 8-bit when the assignment target is BYTE.
+                # GUARD: Do NOT narrow pointer arithmetic — it produces addresses (WORD).
+                # Also do NOT narrow if either operand is a pointer/address.
+                _byte_safe_ops = {BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                _has_ptr = (t.sem_type.is_pointer or
+                            left_t.sem_type.is_pointer or right_t.sem_type.is_pointer or
+                            left_t.kind == ExprKind.ADDR or right_t.kind == ExprKind.ADDR)
+                if expr.op in _byte_safe_ops and not _has_ptr:
+                    result_16_temp = False
+                elif not (
                     t.sem_type.base == "WORD" or
                     left_t.sem_type.base == "WORD" or
                     right_t.sem_type.base == "WORD" or
@@ -9863,7 +9887,13 @@ class CodeGen:
                     result_16_temp = False  # Final assignment is to BYTE and everything is BYTE → don't promote result
             elif self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer:
                 result_16_temp = True  # Final assignment is to WORD, treat as 16-bit
-        
+
+        # Clear assign_target_type so recursive gen_expr calls for sub-expressions
+        # (e.g. pointer arithmetic in LHS of deref-assign) don't accidentally narrow.
+        # The narrowing decision for THIS expression was already captured in result_16_temp.
+        _saved_assign_target_type = self.assign_target_type
+        self.assign_target_type = None
+
         chain = self._collect_array_subscript_chain(expr)
         if chain:
             # chain[0][1] is the array name

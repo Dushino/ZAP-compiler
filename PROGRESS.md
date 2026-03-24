@@ -2,6 +2,25 @@
 
 ---
 
+## BYTE-target narrowing: 16-bit → 8-bit for byte assignments (2026-03-24)
+
+**Problem**: `byte rv += fwrite(...)` generated 16-bit arithmetic (`JSR __ADD16`, stack-save/restore of garbage high byte, TMP0 round-trip) because `fwrite` returns WORD and the type promotion picked ADD16 for BYTE+WORD. But only the low byte of the result is stored — the high byte is wasted.
+
+**Insight**: For ADD, SUB, AND, OR, XOR, the low byte of the result depends only on the low bytes of the operands. When the assignment target is BYTE, we can safely narrow WORD operands to BYTE and use inline 8-bit arithmetic.
+
+**Fix**: In `_gen_binary` (codegen_expr.py), when `assign_target_type.base == "BYTE"` and the operator is ADD/SUB/AND/OR/XOR, set `result_16_temp = False` to force 8-bit path. Guards: do not narrow pointer arithmetic or address expressions. Clear `assign_target_type` after the decision to prevent leakage into sub-expression evaluation (LHS pointer computation).
+
+Also added matching narrowing in the RPN evaluator for when the RPN path is used.
+
+**Before** (14 instructions): `LDA rv; PHA; TXA; PHA; ...; JSR __ADD16; STA rv`
+**After** (7 instructions): `LDA rv; PHA; ...; STA __TMP0; PLA; CLC; ADC __TMP0; STA rv`
+
+**Files changed**: `codegen_expr.py` (`_gen_binary`, `rpn_eval_to_code`)
+
+**Note**: Pre-existing test 167 bit 7 (compound deref-assign `(bptr+1)^ += 1`) fails independently of this change — that's a separate codegen issue.
+
+---
+
 ## OPT-14: TMP0 round-trip elimination for 16-bit add after call (2026-03-24)
 
 **Pattern** (11 instructions):
