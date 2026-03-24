@@ -253,6 +253,7 @@ end
     cursor_on - turn on cursor
 */
 proc cursor_on()
+    
     curptr^ = curptr^ | $80    
 end
 
@@ -261,6 +262,7 @@ end
     cursor_off - turn off cursor
 */
 proc cursor_off()
+
     curptr^ = curptr^ & $7F    
 end
 
@@ -305,6 +307,7 @@ end
     crlf - move cursor to the beginning of the next line, scroll screen if needed
 */
 proc crlf()
+
     cur_xpos = 0
     curptr = vlstart[cur_ypos]
 
@@ -385,6 +388,7 @@ end
 */
 proc puts(byte ^str)
     byte ch
+
     ch = str^
     while ch != 0
         putchar(ch)
@@ -613,6 +617,7 @@ end
     Check and set EOF flag in FILE struct
 */
 proc checkeof(FILE ^fd, byte errno) #noexport
+
     if fd == NULL
         return
     end
@@ -628,8 +633,7 @@ end
 /*
     fopen - open file
 */
-func byte fopen(FILE^ fd, byte^ filename, byte mode)
-    
+func byte fopen(FILE^ fd, byte^ filename, byte mode)    
     byte id, rv
 
     if fd == NULL        
@@ -879,7 +883,6 @@ end
     printb - print 1 Byte decimal number to the screen with optional leading zeroes
 */
 proc printb(byte arg, const byte lzero=1, const byte ralign=1)
-
     byte i, j
     byte divisor = 100
     byte buf[3] = {'0', '0', '0'}

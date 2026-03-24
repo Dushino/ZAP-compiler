@@ -72,6 +72,7 @@ end
 
 proc main() 
     byte rv
+    word temp1
 
     puts(MsgTests)
 
@@ -81,7 +82,9 @@ proc main()
     puts("\n\nVysledek:")
     prnrv(rv)
 
-    COLOR4 = COLOR_MEDIUM_GREEN + 8
+    temp1 = rv + 42
+
+    COLOR4 = rv & $ff
 end
 
 ; EOF
