@@ -13484,6 +13484,33 @@ class CodeGen:
 
         reorder_regs = _can_reorder_regs()
 
+        # -- Deferred-store detection --
+        # When a later argument expression contains a function call, the callee's
+        # parameter slots (shared via __LVSLOT) may collide with this callee's
+        # parameter slots.  If memory param i (i < j) was already stored to its
+        # slot, the nested call in arg j can clobber it.  Detect this and defer
+        # the stores: evaluate arg, push result to 6502 hardware stack, then pop
+        # and store to parameter slots after ALL arguments have been evaluated.
+        needs_defer: set[int] = set()
+        deferred_stores: list[tuple[str, int]] = []   # (asm_name, width) on 6502 stack
+        deferred_literals: list[tuple[str, int, object]] = []  # (asm, width, IntLiteral) late-store
+
+        has_call_at: set[int] = set()
+        for idx, _, _, _, arg_expr in resolved:
+            if self._expr_has_calls(arg_expr):
+                has_call_at.add(idx)
+        if has_call_at:
+            for idx, _, _w, sem, _ in resolved:
+                # Skip register-passed args (already use hardware stack)
+                if idx == reg_a_index or idx == reg_x_index or idx == reg_y_index:
+                    continue
+                # Skip struct args (use COPY_BYTES into separate BSS storage)
+                if sem.is_struct and not sem.is_pointer:
+                    continue
+                # Memory param needs deferral if any LATER arg contains a call
+                if any(c > idx for c in has_call_at):
+                    needs_defer.add(idx)
+
         for index, pname, width, sem_type, arg in resolved:
             asm: str = f"_{callee_name}_{pname}"
 
@@ -13624,6 +13651,44 @@ class CodeGen:
                 restore_ops.append("Y")
                 continue
 
+            # -- Deferred store: a later arg has a call that may clobber this slot --
+            if index in needs_defer:
+                if isinstance(arg, IntLiteral):
+                    # Compile-time constant: just re-emit the store later (no stack)
+                    deferred_literals.append((asm, width, arg))
+                    continue
+                # Evaluate the expression now, push result to 6502 hardware stack
+                if width == 1:
+                    prev_suppress_d: bool = self.suppress_byte_return_x
+                    self.suppress_byte_return_x = True
+                    try:
+                        self.gen_expr(arg)
+                    finally:
+                        self.suppress_byte_return_x = prev_suppress_d
+                    self.emit("\tPHA")
+                    deferred_stores.append((asm, 1))
+                    continue
+                if width == 4:
+                    self.gen_expr(arg)
+                    # Result in MATH0 (4 bytes) — push high-to-low so PLA pops low-first
+                    for bi in range(3, -1, -1):
+                        self.emit(f"\tLDA MATH0+{bi}" if bi else "\tLDA MATH0")
+                        self.emit("\tPHA")
+                    deferred_stores.append((asm, 4))
+                    continue
+                # width == 2: word / pointer
+                prev_force_d: bool = self.force_word_result
+                self.force_word_result = True
+                try:
+                    self.gen_expr(arg)
+                finally:
+                    self.force_word_result = prev_force_d
+                self.emit("\tPHA")          # push A (low byte)
+                self.emit("\tTXA")
+                self.emit("\tPHA")          # push X (high byte)
+                deferred_stores.append((asm, 2))
+                continue
+
             if width == 1:
                 if isinstance(arg, IntLiteral):
                     self.emit(f"\tLDA #${arg.value & 0xFF:02X}")
@@ -13676,6 +13741,32 @@ class CodeGen:
                 self.force_word_result = prev_force
             self.emit(f"\tSTA {asm}")
             self.emit(f"\tSTX {asm}+1")
+
+        # -- Pop deferred stores from 6502 stack (reverse order) --
+        # These were pushed during the main loop above to protect their values
+        # from being clobbered by nested function calls in later arguments.
+        while deferred_stores:
+            d_asm, d_width = deferred_stores.pop()
+            if d_width == 1:
+                self.emit(f"\tPLA")
+                self.emit(f"\tSTA {d_asm}")
+            elif d_width == 2:
+                self.emit(f"\tPLA")
+                self.emit(f"\tSTA {d_asm}+1")    # high byte (pushed last = on top)
+                self.emit(f"\tPLA")
+                self.emit(f"\tSTA {d_asm}")       # low byte
+            elif d_width == 4:
+                for bi in range(4):
+                    self.emit(f"\tPLA")
+                    self.emit(f"\tSTA {d_asm}+{bi}" if bi else f"\tSTA {d_asm}")
+
+        # -- Emit deferred literal stores (compile-time constants) --
+        for d_asm, d_width, d_arg in deferred_literals:
+            if d_width == 1:
+                self.emit(f"\tLDA #${d_arg.value & 0xFF:02X}")
+                self.emit(f"\tSTA {d_asm}")
+            else:
+                self._emit_const_bytes_to_addr(d_asm, d_arg.value, d_width)
 
         if reorder_regs:
             if reg_case == "word0" and reg_a_index is not None:

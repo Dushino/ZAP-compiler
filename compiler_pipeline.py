@@ -1043,6 +1043,87 @@ def share_locals_liveness(analyzed_procs, analyzed_funcs, for_temp_map: dict[int
             for p2 in param_ids[i + 1:]:
                 _add_edge(p1, p2, graph, local_class)
 
+    # --- Cross-callee parameter interference (sibling-call protection) ---
+    # When evaluating arguments for foo(a0, a1, ..., an), the codegen stores
+    # each memory-param result into foo's parameter slots left-to-right.
+    # If arg aj contains a call to bar(), bar's locals/params may share an
+    # __LVSLOT with foo's earlier params (p0..pj-1).  We add interference
+    # edges between foo's params that precede any call-containing arg and
+    # the locals/params of every function called in that later arg.
+    # This is "belt and suspenders" — the codegen also uses deferred stores,
+    # but the liveness layer prevents the allocator from creating conflicts
+    # in the first place.
+
+    from ast_nodes import CallExpr as _CE
+
+    # Build callee → ordered param-ids map (only non-register params, indices ≥ 0)
+    callee_param_ids: dict[str, list[str]] = {}
+    for ap in analyzed_procs:
+        pids = []
+        for param in ap.ast.params:
+            pid = f"{ap.ast.name}::{param.name}"
+            if pid in local_info:
+                pids.append(pid)
+        callee_param_ids[ap.ast.name] = pids
+    for af in analyzed_funcs:
+        pids = []
+        for param in af.ast.params:
+            pid = f"{af.ast.name}::{param.name}"
+            if pid in local_info:
+                pids.append(pid)
+        callee_param_ids[af.ast.name] = pids
+
+    def _arg_call_names(expr) -> set[str]:
+        """Gather function calls within an expression (excluding builtins)."""
+        names: set[str] = set()
+        if expr is None:
+            return names
+        walk_expr(expr, on_call_expr=lambda node: names.add(node.name))
+        return names - _BUILTIN_CALLS
+
+    def _add_sibling_edges_for_call(callee_name: str, args: list) -> None:
+        """For a call foo(a0, ..., an), add interference edges for the
+        sibling-call pattern: params of foo that precede a call-containing
+        arg must interfere with all locals of functions called in that arg."""
+        pids = callee_param_ids.get(callee_name, [])
+        if not pids:
+            return
+        for j, arg in enumerate(args):
+            nested_calls = _arg_call_names(arg)
+            if not nested_calls:
+                continue
+            # All params at index < j must interfere with all locals/params
+            # of the nested callees and their transitive callees.
+            earlier_pids = pids[:j]
+            if not earlier_pids:
+                continue
+            active_routines: set[str] = set()
+            for nc in nested_calls:
+                if nc in valid_callees:
+                    active_routines.add(nc)
+                    active_routines |= transitive_calls.get(nc, set())
+            for routine in active_routines:
+                callee_ids = routine_locals.get(routine, [])
+                for ep in earlier_pids:
+                    for cid in callee_ids:
+                        _add_edge(ep, cid, graph, local_class)
+
+    # Walk all routine bodies to find call expressions with nested calls
+    def _walk_stmts_for_calls(stmts: list) -> None:
+        """Walk statements and collect sibling-call interference."""
+        from ast_nodes import CallStmt as _CS
+        for st in stmts:
+            walk_stmt(
+                st,
+                on_call_stmt=lambda node: _add_sibling_edges_for_call(node.name, node.args),
+                on_call_expr=lambda node: _add_sibling_edges_for_call(node.name, node.args),
+            )
+
+    for ap in analyzed_procs:
+        _walk_stmts_for_calls(ap.ast.body)
+    for af in analyzed_funcs:
+        _walk_stmts_for_calls(af.ast.body)
+
     # System temps MUST have mutual interference because they can be used
     # simultaneously during expression evaluation (e.g., __ARRCPY uses __TMP0, __TMP2, __TMP3 together)
     system_ids = routine_locals.get("__SYSTEM__", [])

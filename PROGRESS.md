@@ -2,6 +2,26 @@
 
 ---
 
+## Slot liveness / argument evaluation order bug fix (2026-03-24)
+
+**Problem**: When a function call like `fwrite(fd, buf, strlen(buf))` had a nested call in a later argument, the codegen stored earlier memory-parameter values to their shared `__LVSLOT` slots before evaluating later arguments. If the nested call (`strlen`) used the same `__LVSLOT` for its own parameter, it clobbered the previously stored value. This caused `fwrite` to receive a corrupted buffer address — the exact bug observed in `test_stdio.zap` where `puts(buf)` showed only 'o' instead of "Hello".
+
+**Root cause**: Two-layer problem:
+1. **Codegen** (`_emit_call_args`): stored parameter slot values left-to-right immediately, without protecting them from nested `gen_expr` calls in later arguments.
+2. **Liveness analysis** (`share_locals_liveness`): did not create interference edges between a callee's earlier parameters and the locals/params of functions called during evaluation of later arguments ("sibling-call" pattern).
+
+**Fix (Layer 1 — codegen)**: Added deferred-store mechanism in `_emit_call_args`. When any later argument expression contains a function call, earlier memory-parameter values are pushed to the 6502 hardware stack instead of stored directly to `__LVSLOT`. After all argument expressions are evaluated, the deferred values are popped and stored to their parameter slots. Compile-time constant (IntLiteral) arguments use a late-store optimization that avoids the stack entirely.
+
+**Fix (Layer 2 — liveness)**: Added a new interference phase in `share_locals_liveness` that walks all call expressions and adds edges between a callee's params `p[0..j-1]` and all locals/params of functions called during evaluation of arg `j`. This prevents the slot allocator from assigning conflicting slots in the first place.
+
+**Files changed**: `codegen_expr.py` (`_emit_call_args`), `compiler_pipeline.py` (`share_locals_liveness`).
+
+**Tests**: 168 pass + 128 fail tests all green. Two new regression tests added:
+- `tests/pass/201-nested-call-args` — pointer/word params with nested calls
+- `tests/pass/202-deferred-param-store` — exact fwrite/strlen pattern with 3 memory params
+
+---
+
 ## `-ZPSTART` CLI parameter for Zero Page budget control (2026-03-18)
 
 **Problem**: The compiler hardcoded `ZEROPAGE_SIZE = 256` and a heuristic offset of 64 bytes for system use, but real linker configs (e.g., Atari 8-bit: `$82`–`$FF` = 126 bytes) have much less ZP available. This caused `ld65` overflow errors.
