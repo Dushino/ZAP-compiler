@@ -808,5 +808,5 @@ to
 	PLA
 	STA __MATH0
 
-- [ ] Why is rv at tests_stdio.zap treated as 16bits?
+- [x] Why is rv at tests_stdio.zap treated as 16bits?
 
