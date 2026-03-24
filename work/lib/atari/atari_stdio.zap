@@ -14,8 +14,6 @@
 ;   Normally included indirectly through stdio.zap when -D ATARI is
 ;   defined.  Can also be included directly if needed.
 ;
-;   Compile-time option:
-;     .define DEBUG_CIO  -- prints CIO call parameters and status to screen
 ;
 ; Exports (screen output):
 ;   proc cls()                                      -- clear screen
@@ -40,13 +38,13 @@
 ;   func byte  fopen  (FILE^ fd, byte^ filename, byte mode)   IMPLEMENTED
 ;   func ERRNO fclose (FILE^ fd)                              IMPLEMENTED
 ;   func word  fwrite (FILE^ fd, byte^ buffer, word size)     IMPLEMENTED
+;   func byte  fread  (FILE^ fd, byte^ buffer, word size)     IMPLEMENTED
+;   func byte  fgetc  (FILE^ fd)                              IMPLEMENTED
 ;   func BOOL  feof   (FILE^ fd)                              IMPLEMENTED
 ;   func ERRNO ferror (FILE^ fd)                              IMPLEMENTED
-;   func word  fread  (...)                                   TODO
-;   func byte  fgetc  (...)                                   TODO
+;   func ERRNO rename (byte^ oldname, byte^ newname)          IMPLEMENTED
+;   func ERRNO remove (byte^ filename)                        IMPLEMENTED
 ;   func byte  fputc  (...)                                   TODO
-;   func ERRNO rename (...)                                   TODO
-;   func ERRNO remove (...)                                   TODO
 ;   func byte  fprintf(...)                                   TODO
 ;   func byte  fputs  (...)                                   TODO
 ;   func byte  fscanf (...)                                   TODO
@@ -70,8 +68,6 @@
 .include "../types.zap"
 .include "../string.zap"
 ; .include "../keys.zap"
-
-; .define DEBUG_CIO
 
 
 ; Screen
@@ -578,23 +574,6 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     
     ch &= $07
 
-.ifdef DEBUG_CIO
-    puts("CIO:")
-    putx(ch)
-    putchar(',')
-    putx(command)
-    putchar(',')
-    putx(high(adr))
-    putx(low(adr))
-    putchar(',')
-    putx(high(len))
-    putx(low(len))
-    putchar('_')
-    putx(aux1)
-    putchar(',')
-    putx(aux2)    
-.endif
-
     IOCB[ch].ICCOM = command
     IOCB[ch].ICBA  = adr
     IOCB[ch].ICBL  = len
@@ -621,11 +600,6 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         rv = IOCB[ch].ICSTA        
     end
 
-.ifdef DEBUG_CIO
-    putchar(' ')
-    putx(rv)
-    puts("\n")
-.endif
 
     if rv == 1  ; remap ATARI OK to 0
         rv = 0
@@ -671,10 +645,10 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     CIO(id, ICCOM_COMMANDS.Close)    
     rv = CIO(id, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
 
+    set_fderror(fd, rv)        
     checkeof(fd, rv)
 
-    set_fderror(fd, ERRNO.OK)        
-    return ERRNO.OK
+    return rv
 end
 
 
@@ -689,13 +663,13 @@ func ERRNO fclose(FILE^ fd)
     end
 
     rv = CIO(fd^.fd, ICCOM_COMMANDS.Close)
-    if rv != 1
+    if rv != 0
         set_fderror(fd, rv)
         return rv
     end
 
-    set_fderror(fd, ERRNO.OK)    
-    return ERRNO.OK    
+    set_fderror(fd, ERRNO.OK)
+    return ERRNO.OK
 end
 
 
@@ -749,7 +723,7 @@ func ERRNO rename(const byte^ oldname, const byte^ newname)
 
     CIO(id, ICCOM_COMMANDS.Close)
     rv = CIO(id, ICCOM_COMMANDS.Rename, names)
-        
+
     return rv
 end
 
@@ -784,15 +758,14 @@ func byte fread(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, buffer, size)        
-    if rv != 1
-        set_fderror(fd, rv)
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, buffer, size)
+    checkeof(fd, rv)
+    set_fderror(fd, rv)
+    if rv != 0
         return rv
     end
 
-    checkeof(fd, rv)
-    set_fderror(fd, ERRNO.OK)    
-    return ERRNO.OK    
+    return ERRNO.OK
 end
 
 
@@ -806,38 +779,45 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
         return ERRNO.EBADF
     end
     
-    puts(buffer)
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)        
-    if rv != 1
-        set_fderror(fd, rv)
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)
+    checkeof(fd, rv)
+    set_fderror(fd, rv)
+    if rv != 0
         return rv
     end
-    checkeof(fd, rv)
-    set_fderror(fd, ERRNO.OK)    
-    return ERRNO.OK    
+
+    return ERRNO.OK
 end
 
 
 /*
     fgetc - get character from file
+    For single-byte GetChr, CIO returns the character in the accumulator
+    (not the status).  We read ICSTA directly for the actual status.
 */
 func byte fgetc(FILE^ fd)
-    byte rv
-    byte buffer = 0
+    byte ch
+    byte status
 
-    if fd == NULL        
+    if fd == NULL
         return ERRNO.EBADF
     end
 
-    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr)        
-    if rv != 1
-        set_fderror(fd, rv)
-        return rv
+    ch = CIO(fd^.fd, ICCOM_COMMANDS.GetChr)
+    status = IOCB[fd^.fd].ICSTA                ; raw Atari status (1=OK, 136=EOF)
+
+    set_fderror(fd, status)
+    if status == 136
+        fd^.eof = BOOL.TRUE
+        return 0
     end
 
-    checkeof(fd, rv)
-    set_fderror(fd, ERRNO.OK)    
-    return buffer    
+    if status != 1                              ; 1 = Atari OK (raw, not CIO-remapped)
+        set_fderror(fd, status)
+        return 0
+    end
+
+    return ch
 end
 
 

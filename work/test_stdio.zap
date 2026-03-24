@@ -35,39 +35,34 @@ func byte test_files()
     
     puts("Open:   ")    
     rv += fopen(@fd, FName, ICAX1_Mode.Write)  
-    putx(rv)            
-    
+    putx(rv)                
     puts("\nWrite:  ")
     rv += fwrite(@fd, Text1, strlen(Text1))
-    ; puts(Text1)
-    putx(rv)
-    
+    putx(rv)    
     puts("\nClose:  ")
     fclose(@fd)
     putx(rv)    
-    
-    ; puts("Rename: ")
-    ; rv = rename(FName, newname)
-
-    ;puts("Remove: ")
-    ;rv = remove(FName)    
+        
     puts("\n\nOpen:   ")    
     rv += fopen(@fd, FName, ICAX1_Mode.Read)  
     putx(rv)
-
     puts("\nRead:   ")    
     rv += fread(@fd, buf, 5)
     putx(rv)
+    putchar('-')
     buf[5] = 0
     puts(buf)
-    putchar("|")
-
     rv += fgetc(@fd)
     putchar(rv)
-
     puts("\nClose:  ")
     fclose(@fd)
     putx(rv)
+    
+
+    ;puts("Rename: ")
+    ;rv = rename(FName, newname)
+    ;puts("Remove: ")
+    ;rv = remove(FName)    
 
     return rv
 end
@@ -82,6 +77,8 @@ proc main()
 
     puts(MsgTest1)
     rv = test_files()
+
+    puts("\n\nVysledek:")
     prnrv(rv)
 
     COLOR4 = COLOR_MEDIUM_GREEN + 8

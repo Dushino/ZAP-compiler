@@ -2,6 +2,21 @@
 
 ---
 
+## atari_stdio.zap file I/O bug fixes (2026-03-24)
+
+**Problem**: Multiple bugs in the Atari CIO-based file I/O functions prevented correct file read/write operations. The test program `test_stdio.zap` wrote "Hello!" to a file, read it back, but `puts(buf)` showed only 'o' instead of "Hello" (a compiler slot-aliasing bug, fixed separately) and all file operations used wrong success checks.
+
+**Bugs fixed**:
+1. `fclose`, `fread`, `fwrite`: checked `rv != 1` for error, but `CIO()` remaps Atari OK (1) → 0, so success = 0. Changed to `rv != 0`. The success path was dead code before this fix.
+2. `checkeof`: checked `errno == 1` to clear EOF, but callers pass CIO's remapped value (0 = OK). Changed to `errno == 0`. EOF flag could never be cleared.
+3. `fread`, `fwrite`: `checkeof` was only called in the (dead) success path. Moved before the error check so EOF (status 136) is always recorded.
+4. `fgetc`: returned `buffer` (always 0) instead of the character. Rewrote to read ICSTA directly for status and return the character from CIO's accumulator result.
+5. Header comment block updated to mark fread, fgetc, rename, remove as IMPLEMENTED.
+
+**Files changed**: `work/lib/atari/atari_stdio.zap`
+
+---
+
 ## Slot liveness / argument evaluation order bug fix (2026-03-24)
 
 **Problem**: When a function call like `fwrite(fd, buf, strlen(buf))` had a nested call in a later argument, the codegen stored earlier memory-parameter values to their shared `__LVSLOT` slots before evaluating later arguments. If the nested call (`strlen`) used the same `__LVSLOT` for its own parameter, it clobbered the previously stored value. This caused `fwrite` to receive a corrupted buffer address — the exact bug observed in `test_stdio.zap` where `puts(buf)` showed only 'o' instead of "Hello".
