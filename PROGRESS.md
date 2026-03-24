@@ -17,7 +17,7 @@ Also added matching narrowing in the RPN evaluator for when the RPN path is used
 
 **Files changed**: `codegen_expr.py` (`_gen_binary`, `rpn_eval_to_code`)
 
-**Note**: Pre-existing test 167 bit 7 (compound deref-assign `(bptr+1)^ += 1`) fails independently of this change — that's a separate codegen issue.
+**Fix for test 167**: The narrowing leaked into pointer sub-expressions via `assign_target_type` not being cleared in `_gen_field_access` before evaluating `gen_expr(expr.object.pointer)`. `(sptr + 1)^.x = 99` narrowed the `sptr + 1` pointer arithmetic to 8-bit, losing the pointer's high byte. Fixed by saving/clearing `assign_target_type` around pointer evaluations in `_gen_field_access`.
 
 ---
 

@@ -7933,7 +7933,7 @@ class CodeGen:
             return
 
         self.emit(f"\tLDA {asm}")
-        if t.sem_type.base == "WORD":
+        if t.sem_type.base == "WORD" or t.sem_type.is_pointer:
             self.emit(f"\tLDX {asm}+1")
         else:
             # BYTE → X = 0
@@ -9091,14 +9091,21 @@ class CodeGen:
                     # else: store section uses _deref_ptr_asm — nothing to emit here
                 else:
                     # Non-ZP identifier — evaluate into TMP0 (ca65 requires ZP for (x),Y).
+                    _saved_att = self.assign_target_type
+                    self.assign_target_type = None
                     self.gen_expr(expr.object.pointer)
+                    self.assign_target_type = _saved_att
                     self.emit("\tSTA TMP0")
                     self.emit("\tSTX TMP0+1")
                     if load_only:
                         self._emit_field_via_ptr("TMP0", field_offset, field_width, True, _tgt_is_byte)
             else:
                 # Complex pointer expression — evaluate into TMP0, then use (TMP0),Y.
+                # Clear assign_target_type so pointer arithmetic is not narrowed to 8-bit.
+                _saved_att = self.assign_target_type
+                self.assign_target_type = None
                 self.gen_expr(expr.object.pointer)
+                self.assign_target_type = _saved_att
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
                 if load_only:
@@ -13729,6 +13736,20 @@ class CodeGen:
                     # Compile-time constant: just re-emit the store later (no stack)
                     deferred_literals.append((asm, width, arg))
                     continue
+                # Check if arg is a compile-time-constant address that can be
+                # re-evaluated later without side effects or register pressure.
+                # This avoids the PHA/TXA/PHA stack round-trip entirely.
+                if isinstance(arg, Identifier):
+                    try:
+                        _ds_sym: Symbol = self.current_symtab.lookup(arg.name)
+                        if _ds_sym.is_array or _ds_sym.is_const or _ds_sym.address is not None:
+                            deferred_literals.append((asm, width, arg))
+                            continue
+                    except KeyError:
+                        pass
+                if isinstance(arg, UnaryExpr) and arg.op == UnOp.ADDROF:
+                    deferred_literals.append((asm, width, arg))
+                    continue
                 # Evaluate the expression now, push result to 6502 hardware stack
                 if width == 1:
                     prev_suppress_d: bool = self.suppress_byte_return_x
@@ -13832,13 +13853,36 @@ class CodeGen:
                     self.emit(f"\tPLA")
                     self.emit(f"\tSTA {d_asm}+{bi}" if bi else f"\tSTA {d_asm}")
 
-        # -- Emit deferred literal stores (compile-time constants) --
+        # -- Emit deferred literal/constant stores --
+        # These are compile-time-constant expressions (IntLiteral, const/array
+        # Identifier, address-of) that were NOT pushed to the 6502 stack.
+        # We simply re-evaluate them now and store to the parameter slot.
         for d_asm, d_width, d_arg in deferred_literals:
-            if d_width == 1:
-                self.emit(f"\tLDA #${d_arg.value & 0xFF:02X}")
-                self.emit(f"\tSTA {d_asm}")
+            if isinstance(d_arg, IntLiteral):
+                if d_width == 1:
+                    self.emit(f"\tLDA #${d_arg.value & 0xFF:02X}")
+                    self.emit(f"\tSTA {d_asm}")
+                else:
+                    self._emit_const_bytes_to_addr(d_asm, d_arg.value, d_width)
             else:
-                self._emit_const_bytes_to_addr(d_asm, d_arg.value, d_width)
+                # Identifier, ADDROF, etc. — re-evaluate via gen_expr
+                if d_width == 1:
+                    prev_suppress_dl: bool = self.suppress_byte_return_x
+                    self.suppress_byte_return_x = True
+                    try:
+                        self.gen_expr(d_arg)
+                    finally:
+                        self.suppress_byte_return_x = prev_suppress_dl
+                    self.emit(f"\tSTA {d_asm}")
+                else:
+                    prev_force_dl: bool = self.force_word_result
+                    self.force_word_result = True
+                    try:
+                        self.gen_expr(d_arg)
+                    finally:
+                        self.force_word_result = prev_force_dl
+                    self.emit(f"\tSTA {d_asm}")
+                    self.emit(f"\tSTX {d_asm}+1")
 
         if reorder_regs:
             if reg_case == "word0" and reg_a_index is not None:
