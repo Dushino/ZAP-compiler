@@ -4778,12 +4778,14 @@ class CodeGen:
         """Generate file footer.
         Internal helper used during code generation.
         """
-        # Ensure runtime helpers and data live in CODE segment
+        # Ensure runtime helpers and data live in CODE segment.
+        # Math/copy routines are emitted BEFORE constant data so that
+        # disassemblers don't try to decode .byte data as instructions.
         self.emit(f"\n\n.segment \"{self.seg_code}\"")
         self._gen_copy_bytes_routine()
         self._gen_copy_bytes16_routine()
-        self._gen_string_data()
         self._gen_math_routines()
+        self._gen_string_data()
         self.emit("\n; End of file")
 
     def _gen_copy_bytes_routine(self) -> None:
