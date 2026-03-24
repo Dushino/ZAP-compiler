@@ -785,3 +785,28 @@ Hover info	Easy	HoverProvider — show type + struct fields on hover over identi
 - [x] Document symbols (outline)	Easy	DocumentSymbolProvider — list procs/funcs/structs/enums
 - [x] Code formatting	Hard	DocumentFormattingProvider — needs indentation rules
 - [x] Snippets	Easy	package.json snippets contribution
+
+- [x] Peephole
+	STA __TMP0
+	STX __TMP0+1
+	PLA
+	TAX
+	PLA
+	STA __MATH0
+	STX __MATH0+1
+	LDA __TMP0
+	STA __MATH1
+	LDA __TMP0+1
+	STA __MATH1+1
+
+to
+
+	STA __MATH1
+	STX __MATH1+1
+	PLA
+	STA __MATH0+1
+	PLA
+	STA __MATH0
+
+- [ ] Why is rv at tests_stdio.zap treated as 16bits?
+
