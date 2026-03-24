@@ -84,7 +84,7 @@ proc main()
 
     temp1 = rv + 42
 
-    COLOR4 = rv & $ff
+    COLOR4 = GTIA_Colors.MEDIUM_GREEN + 4
 end
 
 ; EOF

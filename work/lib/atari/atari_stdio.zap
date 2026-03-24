@@ -63,7 +63,6 @@
 
 .module "atari_stdio"
 
-.include "atari_gtia.zap"
 .include "../errno.zap"
 .include "../types.zap"
 .include "../string.zap"
@@ -431,7 +430,6 @@ func byte gets(const byte ^buffer, const byte max_len)
             case Key.ESCAPE
             case Key.UP
             case Key.DOWN
-                COLOR4 = COLOR_MEDIUM_GREEN + 14                
                 return ch
 
             case Key.BACKSPACE
