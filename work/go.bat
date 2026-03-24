@@ -14,5 +14,5 @@ ld65 -C ..\cfg\my_atari.cfg  -m test_stdio.map test_stdio.o -o test_stdio.xex  |
 da65 -m -v -v -v -S 0x4000 --comments 3 test_stdio.xex -o test_stdio.d65
 copy test_stdio.xex disk\AUTORUN.SYS
 dir2atr -b DOS25 disk.atr disk
-C:\Users\dusan.holub\local\Altirra\Altirra64.exe /w /nobasic disk.atr
+C:\Users\dusan.holub\local\Altirra\Altirra64.exe /w /nobasic /bootrw disk.atr
 adir -1 disk.atr
