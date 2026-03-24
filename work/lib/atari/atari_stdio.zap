@@ -407,7 +407,6 @@ proc gotoxy(byte x, byte y)
 end
 
 
-
 /*
     gets - read characters from keyboard until newline or ESC, store them in buffer
     return: keycode    
@@ -622,7 +621,7 @@ proc checkeof(FILE ^fd, byte errno) #noexport
 
     if errno == 136
         fd^.eof = BOOL.TRUE
-    elseif errno == 1
+    elseif errno == 0
         fd^.eof = BOOL.FALSE
     end
 end
@@ -655,7 +654,7 @@ end
 
 
 /*
-    fclose - close file
+    fclose - close file    
 */
 func ERRNO fclose(FILE^ fd)
     byte rv
@@ -665,12 +664,9 @@ func ERRNO fclose(FILE^ fd)
     end
 
     rv = CIO(fd^.fd, ICCOM_COMMANDS.Close)
-    if rv != 0
-        set_fderror(fd, rv)
-        return rv
-    end
+    rv = ERRNO.OK
+    set_fderror(fd, rv)
 
-    set_fderror(fd, ERRNO.OK)
     return ERRNO.OK
 end
 
@@ -763,11 +759,8 @@ func byte fread(FILE^ fd, byte ^buffer, word size)
     rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, buffer, size)
     checkeof(fd, rv)
     set_fderror(fd, rv)
-    if rv != 0
-        return rv
-    end
 
-    return ERRNO.OK
+    return rv
 end
 
 
@@ -784,11 +777,8 @@ func word fwrite(FILE^ fd, byte ^buffer, word size)
     rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)
     checkeof(fd, rv)
     set_fderror(fd, rv)
-    if rv != 0
-        return rv
-    end
 
-    return ERRNO.OK
+    return rv
 end
 
 
@@ -799,23 +789,22 @@ end
 */
 func byte fgetc(FILE^ fd)
     byte ch
-    byte status
+    byte rv
 
     if fd == NULL
         return ERRNO.EBADF
     end
 
     ch = CIO(fd^.fd, ICCOM_COMMANDS.GetChr)
-    status = IOCB[fd^.fd].ICSTA                ; raw Atari status (1=OK, 136=EOF)
+    rv = IOCB[fd^.fd].ICSTA                ; raw Atari status (1=OK, 136=EOF)
 
-    set_fderror(fd, status)
-    if status == 136
+    set_fderror(fd, rv)
+    if rv == 136
         fd^.eof = BOOL.TRUE
         return 0
     end
 
-    if status != 1                              ; 1 = Atari OK (raw, not CIO-remapped)
-        set_fderror(fd, status)
+    if rv != 1                              ; 1 = Atari OK (raw, not CIO-remapped)
         return 0
     end
 
