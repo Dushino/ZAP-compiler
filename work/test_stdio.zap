@@ -32,7 +32,8 @@ func byte test_files()
     ; byte name[33]       ; 3 (device D1: ) + 14 (filename) + 1 (separator for rename) + 14 (filename) + 1 (0) = 33 
     byte buf[32]
     
-    
+    puts(MsgTest1)
+        
     puts("Open:   ")    
     rv += fopen(@fd, FName, ICAX1_Mode.Write)  
     putx(rv)                
@@ -57,7 +58,9 @@ func byte test_files()
     puts("\nClose:  ")
     fclose(@fd)
     putx(rv)
-    
+
+    puts("\n\nVysledek:")
+    prnrv(rv)
 
     ;puts("Rename: ")
     ;rv = rename(FName, newname)
@@ -67,24 +70,70 @@ func byte test_files()
     return rv
 end
 
+; output: 
+; ZAP!     1899 prime numbers in 1.9 seconds
+; Action!  1899 prime numbers in 0.9 seconds
 
+; benchmarks according to https://github.com/pedromagician/Atari800-benchmarks
+; TEST E:
+; Atari Basic:              16003 = 320.06s
+; Turbo Basic:               6744 = 134.88s
+; Atari Basic compiled I:     950 =  19.00s
+; Atari Basic compiled F:    4660 =  93.20s
+; Turbo Basic compiled:      1906 =  38.12s
+; Action!:                     76 =   1.52s
+; ZAP!                         94 =   1.88s
+proc sieve()
+    byte flags[8192]
+    word count = 0
+    word i 
+    const word max = 8192
+    word prime, k
+
+    for i=0 to max
+        flags[i] = 1
+    end
+
+    for i=0 to max
+        if flags[i]
+            prime = i*2+3
+            k = i + prime
+    
+            while k <= max-1
+                flags[k] = 0
+                k += prime
+            end
+            count += 1
+        end
+    end
+    
+end
 
 
 proc main() 
-    byte rv
-    word temp1
+    byte i
+    byte time[3] @18    ; Atari timer
+    
+    ; puts(MsgTests)
+    COLOR4 = GTIA_Colors.DARK_ORANGE + 4
 
-    puts(MsgTests)
+    ; zero timer
+    time[0] = 0
+    time[1] = 0
+    time[2] = 0
 
-    puts(MsgTest1)
-    rv = test_files()
+    ;for i = 0 to 10
+        sieve()
+    ;end
+    ; rv = test_files()
 
-    puts("\n\nVysledek:")
-    prnrv(rv)
-
-    temp1 = rv + 42
+    ; 10 iterations give $0003B4 (948 dec) = 1.896 sec / iteration
+    putx(time[0])    
+    putx(time[1])
+    putx(time[2])
 
     COLOR4 = GTIA_Colors.MEDIUM_GREEN + 4
+
 end
 
 ; EOF
