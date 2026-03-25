@@ -16,10 +16,20 @@
 
 **Fix**: Rewrote all four relational operators (LT/LE/GT/GE) in the word-vs-constant path to match the correct algorithms already present in the A/X-preloaded path (lines 15607-15665). For the subscript bug, added a type check: only zero X when the index is BYTE-typed.
 
-**Known latent issue**: The `element_width == 2` inline path in `gen_assign()` and the `_gen_index_multiply()` function both assume byte-sized indices. Word arrays with word indices > 255 would produce incorrect addresses. This is a separate fix.
+**Fix (phase 2)**: Comprehensive word-index support across all codegen paths:
 
-**Files changed**: `codegen_expr.py` (`_gen_conditional_branch`, `_gen_subscript`)
-**Tests**: 168 pass, 125 fail (expected) — no regressions
+1. **Dead code elimination in RPN power-of-2 multiply**: `rpn_eval_to_code()` unconditionally stored operands to MATH0/MATH1 before detecting power-of-2 optimization. Added early detection (`_skip_math_for_inline_mul`) to skip dead MATH0/MATH1 stores. Saves 4 instructions per `i * 2` pattern.
+
+2. **`_gen_index_multiply()` upgraded with `word_index` parameter**: New `_gen_index_multiply_word()` handles 16-bit A/X index pairs. All paths (power-of-2, shift-add, fallback) use TMP3/TMP3+1 for 16-bit shift/accumulate.
+
+3. **`_gen_subscript()` element_width==2 fast path guarded**: The `ASL A` fast path (byte index only) now checks index type. Word indices fall through to the general path which calls `_gen_index_multiply(word_index=True)`.
+
+4. **`gen_assign()` element_width==2 inline path unified**: Replaced inline `ASL A / LDX #$00` with `_gen_index_multiply(2, word_index=...)` call, sharing logic with the read path.
+
+5. **All `_gen_index_multiply` callers audited**: Added `word_index=True` for multi-dim stride (line 8368), pointer arithmetic `_gen_add`/`_gen_sub`, and address-of array element. X-indexed store path (`STA arr,X`) now guards against arrays where max offset > 255.
+
+**Files changed**: `codegen_expr.py` (`rpn_eval_to_code`, `_gen_index_multiply`, `_gen_index_multiply_word` (new), `_gen_subscript`, `gen_assign`, `_gen_add`, `_gen_sub`, `_gen_multidim_subscript`, addr-of handler)
+**Tests**: 170 pass (new: 203-word-compare-const, 204-word-index-array), 125 fail (expected) — no regressions
 
 ---
 
