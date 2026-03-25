@@ -83,17 +83,14 @@ end
 ; Turbo Basic compiled:      1906 =  38.12s
 ; FastBasic	Byte-code	              5.50s
 ; Action!:                     76 =   1.52s  with SDMCTL=0
-; ZAP!                         94 =   1.896s with SDMCTL=34 (no change)
-; ZAP!    $270 = 624 / 10 =           1.248s with SDMCTL=0
-; ZAP!    $25A = 602 / 10 =           1.204s with SDMCTL=0
-; ZAP!    $247 = 583 / 10 =           1.166s with SDMCTL=0
+; ZAP!            $247 = 583 / 10 =   1.166s with SDMCTL=0
+; ZAP!            $319 = 793 / 10 =   1.586s with SDMCTL=34 (default)
 proc sieve()
-    byte flags[8192]
-    word count = 0
-    word i 
     const word max = 8192
-    word prime, k
-
+    byte flags[max]
+    word count = 0
+    word i, prime, k
+        
     for i=0 to max
         flags[i] = 1
     end
@@ -121,7 +118,7 @@ proc main()
     
     ; puts(MsgTests)
     COLOR4 = GTIA_Colors.DARK_ORANGE + 4
-    SDMCTL = 0
+    ; SDMCTL = 0
 
     ; zero timer
     time[0] = 0
