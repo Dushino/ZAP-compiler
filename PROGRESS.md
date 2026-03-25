@@ -33,6 +33,23 @@
 
 ---
 
+## Sieve peephole optimizations (2026-03-25)
+
+Targeted optimizations identified by analyzing the Sieve of Eratosthenes generated assembly. Benchmark: ZAP! 1.88s vs Action! 1.52s on PAL Atari 800 (before these opts).
+
+**OPT-D — Dead low-byte comparison when const_lo==0**: For word-vs-constant comparisons where the constant's low byte is $00 (e.g., `i < 8192` where 8192=$2000), the low-byte `CMP #$00 / BCC` is dead code. Eliminated for LT, LE, GT, GE. Saves 4 instructions per loop iteration for aligned constants. Applied in `_gen_conditional_branch()`.
+
+**OPT-B/A — TMP2 round-trip elimination for constant array stores**: When storing a constant to an array element (`flags[i] = 0`), the compiler saved the constant to TMP2, computed the address, then reloaded from TMP2. Now computes the address first and stores the constant directly. Saves 4-6 instructions per store. Added early-return path in `gen_assign()` Case 2 for `IntLiteral` RHS.
+
+**OPT-C — Inline word add-constant**: `JSR __ADD16_AX` for adding a constant (e.g., `i*2+3`) replaced with inline `CLC/ADC #imm/STA/BCC/INC` (or full 16-bit path for hi != 0). Eliminates JSR/RTS overhead + MATH1 loading. Added `_inline_add_sub_const` flag in `rpn_eval_to_code()` with both ADD and SUB support.
+
+**OPT-F — 65C02 indirect addressing peephole**: `LDY #$00 / STA (zp),Y` → `STA (zp)` on 65C02. New `_65c02_indirect_no_y()` pass in `peephole_optimize()`. Guarded by `self.is_65c02`. Saves 2 bytes + 2 cycles per occurrence. 6502 mode unchanged.
+
+**Files changed**: `codegen_expr.py` (`_gen_conditional_branch`, `gen_assign`, `rpn_eval_to_code`, `peephole_optimize`, `_65c02_indirect_no_y` (new))
+**Tests**: 170 pass, 125 fail (expected) — no regressions
+
+---
+
 ## BYTE-target narrowing: 16-bit → 8-bit for byte assignments (2026-03-24)
 
 **Problem**: `byte rv += fwrite(...)` generated 16-bit arithmetic (`JSR __ADD16`, stack-save/restore of garbage high byte, TMP0 round-trip) because `fwrite` returns WORD and the type promotion picked ADD16 for BYTE+WORD. But only the low byte of the result is stored — the high byte is wasted.

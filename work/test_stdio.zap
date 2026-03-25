@@ -71,8 +71,8 @@ func byte test_files()
 end
 
 ; output: 
-; ZAP!     1899 prime numbers in 1.9 seconds
-; Action!  1899 prime numbers in 0.9 seconds
+; ZAP!     1899 prime numbers 
+
 
 ; benchmarks according to https://github.com/pedromagician/Atari800-benchmarks
 ; TEST E:
@@ -81,8 +81,12 @@ end
 ; Atari Basic compiled I:     950 =  19.00s
 ; Atari Basic compiled F:    4660 =  93.20s
 ; Turbo Basic compiled:      1906 =  38.12s
-; Action!:                     76 =   1.52s
-; ZAP!                         94 =   1.88s
+; FastBasic	Byte-code	              5.50s
+; Action!:                     76 =   1.52s  with SDMCTL=0
+; ZAP!                         94 =   1.896s with SDMCTL=34 (no change)
+; ZAP!    $270 = 624 / 10 =           1.248s with SDMCTL=0
+; ZAP!    $25A = 602 / 10 =           1.204s with SDMCTL=0
+; ZAP!    $247 = 583 / 10 =           1.166s with SDMCTL=0
 proc sieve()
     byte flags[8192]
     word count = 0
@@ -113,18 +117,20 @@ end
 proc main() 
     byte i
     byte time[3] @18    ; Atari timer
+    byte SDMCTL @559
     
     ; puts(MsgTests)
     COLOR4 = GTIA_Colors.DARK_ORANGE + 4
+    SDMCTL = 0
 
     ; zero timer
     time[0] = 0
     time[1] = 0
     time[2] = 0
 
-    ;for i = 0 to 10
+    for i = 0 to 10
         sieve()
-    ;end
+    end
     ; rv = test_files()
 
     ; 10 iterations give $0003B4 (948 dec) = 1.896 sec / iteration
@@ -133,6 +139,7 @@ proc main()
     putx(time[2])
 
     COLOR4 = GTIA_Colors.MEDIUM_GREEN + 4
+    SDMCTL = 34
 
 end
 

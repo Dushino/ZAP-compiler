@@ -890,6 +890,15 @@ class CodeGen:
                     elif (node.value == BinOp.MUL and _cv > 0 and
                           left_width == 1 and bin(_cv).count('1') <= 3):
                         _skip_math_for_inline_mul = True  # shift-add decomposition
+
+                # OPTIMIZATION: Inline ADD16/SUB16 with constant right operand.
+                # Avoids JSR overhead and MATH1 loading; directly adds/subs to MATH0.
+                _inline_add_sub_const: bool = False
+                _inline_add_sub_val: int = 0
+                if (node.value in {BinOp.ADD, BinOp.SUB} and right_loc.startswith("CONST:")
+                        and routine in {"ADD16", "SUB16", "ADD16_AX", "SUB16_AX"}):
+                    _inline_add_sub_const = True
+                    _inline_add_sub_val = int(right_loc.split(":")[1]) & 0xFFFF
                 
                 if right_loc == "MATH0" and left_loc != "MATH0":
                     if node.value in commutative_ops:
@@ -919,7 +928,9 @@ class CodeGen:
                             load_to_ax_for_math(left_loc, left_width == 2)
                             if not skip_math0_store:
                                 emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
-                        if use_ax_right:
+                        if _inline_add_sub_const:
+                            pass  # Skip right operand loading — will be inlined
+                        elif use_ax_right:
                             if right_loc != "AX":
                                 # For _AX entrypoints, always load both A and X (even for byte operands)
                                 prev = self.suppress_byte_return_x
@@ -976,6 +987,39 @@ class CodeGen:
                 # 3. Perform operation
                 if math_optimized:
                     pass
+                elif _inline_add_sub_const:
+                    # Inline ADD16/SUB16 with constant — avoids JSR overhead
+                    _iac_lo: int = _inline_add_sub_val & 0xFF
+                    _iac_hi: int = (_inline_add_sub_val >> 8) & 0xFF
+                    if node.value == BinOp.ADD:
+                        self.emit("\tLDA MATH0")
+                        self.emit("\tCLC")
+                        self.emit(f"\tADC #${_iac_lo:02X}")
+                        self.emit("\tSTA MATH0")
+                        if _iac_hi == 0:
+                            lbl_nc = self.new_label("ADD16C_NC")
+                            self.emit(f"\tBCC {lbl_nc}")
+                            self.emit("\tINC MATH0+1")
+                            self.emit(f"{lbl_nc}:")
+                        else:
+                            self.emit("\tLDA MATH0+1")
+                            self.emit(f"\tADC #${_iac_hi:02X}")
+                            self.emit("\tSTA MATH0+1")
+                    else:  # SUB
+                        self.emit("\tLDA MATH0")
+                        self.emit("\tSEC")
+                        self.emit(f"\tSBC #${_iac_lo:02X}")
+                        self.emit("\tSTA MATH0")
+                        if _iac_hi == 0:
+                            lbl_nc = self.new_label("SUB16C_NC")
+                            self.emit(f"\tBCS {lbl_nc}")
+                            self.emit("\tDEC MATH0+1")
+                            self.emit(f"{lbl_nc}:")
+                        else:
+                            self.emit("\tLDA MATH0+1")
+                            self.emit(f"\tSBC #${_iac_hi:02X}")
+                            self.emit("\tSTA MATH0+1")
+                    eval_stack.append(("MATH0", node.width))
                 elif routine:
                     if use_ax_right and routine_ax:
                         self.emit(f"\tJSR {routine_ax}")
@@ -3919,6 +3963,10 @@ class CodeGen:
         # to emerge via OPT-8's memory-address tracking.
         optimized = self._branch_inversion(optimized)
 
+        # Seventh pass (65C02 only): replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp)
+        if self.is_65c02:
+            optimized = self._65c02_indirect_no_y(optimized)
+
         self.code = optimized
 
     def _indirect_word_load_store(self, code: list[str]) -> list[str]:
@@ -4557,6 +4605,33 @@ class CodeGen:
         # Everything else: 3 bytes (conservative for absolute addressing)
         # Note: ZP instructions are 2 bytes but we use 3 as safe upper bound
         return 3
+
+    def _65c02_indirect_no_y(self, code: list[str]) -> list[str]:
+        """65C02 peephole: replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp).
+
+        On 65C02, LDA (zp) and STA (zp) are valid instructions (without ,Y).
+        This saves 2 bytes and 2 cycles per occurrence.
+        """
+        import re
+        result: list[str] = []
+        i = 0
+        while i < len(code):
+            if (i + 1 < len(code)
+                    and code[i].strip() == "LDY #$00"
+                    and not code[i + 1].strip().startswith((";"  , "."))):
+                next_stripped = code[i + 1].strip()
+                # Match STA (zp),Y or LDA (zp),Y
+                m = re.match(r"(LDA|STA)\s+\(([^)]+)\),Y$", next_stripped)
+                if m:
+                    op = m.group(1)
+                    zp = m.group(2)
+                    indent = code[i + 1][:len(code[i + 1]) - len(code[i + 1].lstrip())]
+                    result.append(f"{indent}{op} ({zp})")
+                    i += 2
+                    continue
+            result.append(code[i])
+            i += 1
+        return result
 
     def _branch_inversion(self, code: list[str]) -> list[str]:
         """Fifth-pass peephole: invert short-branch-over-JMP patterns.
@@ -8737,8 +8812,24 @@ class CodeGen:
                 self.emit(f"\tLDA #${const_off & 0xFF:02X}")
                 self.emit(f"\tLDX #${(const_off >> 8) & 0xFF:02X}")
                 _index_prescaled = True
+                _idx_is_simple_word_id = False
             else:
-                self.gen_expr(expr.index)
+                # Check if we can use the direct hi-byte load optimization:
+                # word Identifier index + const base + element_width==1 → avoid LDX/TXA
+                _idx_is_simple_word_id = (
+                    isinstance(expr.index, Identifier)
+                    and _const_base_label is not None
+                    and element_width == 1
+                )
+                if _idx_is_simple_word_id:
+                    _idx_check = self.tc_check(expr.index)
+                    _idx_is_simple_word_id = _idx_check.sem_type.base != "BYTE" or _idx_check.sem_type.is_pointer
+                if _idx_is_simple_word_id:
+                    # Only load low byte — high byte will be loaded directly in addr calc
+                    idx_sym_lo: Symbol = self.current_symtab.lookup(expr.index.name)
+                    self.emit(f"\tLDA {self._sym_operand(idx_sym_lo, low_byte=True)}")
+                else:
+                    self.gen_expr(expr.index)
                 _index_prescaled = False
 
         elif isinstance(base, FieldAccess):
@@ -8785,9 +8876,11 @@ class CodeGen:
             # Generate the index expression
             self.gen_expr(expr.index)
             _index_prescaled = False
+            _idx_is_simple_word_id = False  # FieldAccess: not applicable
         else:
             self._raise_error("Subscript array must be identifier or field access")
             _index_prescaled = False  # unreachable; keeps type checker happy
+            _idx_is_simple_word_id = False
 
         # Compute maximum byte offset for 8-bit narrowing optimisations.
         # When max_byte_offset <= 255, the scaled index always fits in a single byte,
@@ -8862,18 +8955,32 @@ class CodeGen:
             # Now A/X contains (scaled) index; add to base address.
             # When base is a constant label, use immediate addressing instead of TMP0 memory
             # reads (saves 2 instructions and avoids the 4-instruction upfront TMP0 load).
-            self.emit("\tCLC")
-            if _const_base_label is not None:
+            #
+            # OPTIMIZATION: When the index is a simple word Identifier and we're adding
+            # to a const base, load the high byte directly from the variable instead of
+            # going through X (saves LDX + TXA → single LDA).
+            if _idx_is_simple_word_id and _is_word_index and element_width == 1:
+                idx_sym_opt: Symbol = self.current_symtab.lookup(expr.index.name)
+                idx_hi_op: str = self._sym_operand(idx_sym_opt, low_byte=False)
+                self.emit("\tCLC")
                 self.emit(f"\tADC #<{_const_base_label}")
                 self.emit("\tSTA TMP0")
-                self.emit("\tTXA")
+                self.emit(f"\tLDA {idx_hi_op}")
                 self.emit(f"\tADC #>{_const_base_label}")
+                self.emit("\tSTA TMP0+1")
             else:
-                self.emit("\tADC TMP0")
-                self.emit("\tSTA TMP0")
-                self.emit("\tTXA")
-                self.emit("\tADC TMP0+1")
-            self.emit("\tSTA TMP0+1")
+                self.emit("\tCLC")
+                if _const_base_label is not None:
+                    self.emit(f"\tADC #<{_const_base_label}")
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tTXA")
+                    self.emit(f"\tADC #>{_const_base_label}")
+                else:
+                    self.emit("\tADC TMP0")
+                    self.emit("\tSTA TMP0")
+                    self.emit("\tTXA")
+                    self.emit("\tADC TMP0+1")
+                self.emit("\tSTA TMP0+1")
         
         # If only calculating address, stop here - TMP0 has the address
         if calc_addr_only:
@@ -12063,12 +12170,78 @@ class CodeGen:
                             self.emit(f"\tSTA {arr_addr}+{offset}")
                         return
                     
-                    # Case 2: Index in register/accumulator - inline address calculation
+                    # Case 2a: Constant RHS — compute address first, then store constant directly
+                    # Avoids TMP2 round-trip (saves ~4-6 instructions per store)
+                    if isinstance(rhs, IntLiteral):
+                        _e_idx_type_c: ExprType = self.tc_check(lhs.index)
+                        _e_is_word_c: bool = _e_idx_type_c.sem_type.base != "BYTE" or _e_idx_type_c.sem_type.is_pointer
+                        # Optimization: word Identifier index + const base + byte element
+                        # → load low byte only, use direct hi-byte load (avoids LDX/TXA)
+                        _ca_direct_hi: bool = (
+                            element_width == 1 and _e_is_word_c
+                            and isinstance(lhs.index, Identifier)
+                        )
+                        if _ca_direct_hi:
+                            _ca_idx_sym: Symbol = self.current_symtab.lookup(lhs.index.name)
+                            self.emit(f"\tLDA {self._sym_operand(_ca_idx_sym, low_byte=True)}")
+                        else:
+                            self.gen_expr(lhs.index)
+                        # Calculate address into TMP0
+                        if element_width == 1:
+                            if _ca_direct_hi:
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC #<{arr_addr}")
+                                self.emit("\tSTA TMP0")
+                                self.emit(f"\tLDA {self._sym_operand(_ca_idx_sym, low_byte=False)}")
+                                self.emit(f"\tADC #>{arr_addr}")
+                                self.emit("\tSTA TMP0+1")
+                            else:
+                                if not _e_is_word_c:
+                                    self.emit("\tLDX #$00")
+                                self.emit("\tCLC")
+                                self.emit(f"\tADC #<{arr_addr}")
+                                self.emit("\tSTA TMP0")
+                                self.emit("\tTXA")
+                                self.emit(f"\tADC #>{arr_addr}")
+                                self.emit("\tSTA TMP0+1")
+                        elif element_width == 2:
+                            _e_idx_type_c2: ExprType = self.tc_check(lhs.index)
+                            _e_is_word_c2: bool = _e_idx_type_c2.sem_type.base != "BYTE" or _e_idx_type_c2.sem_type.is_pointer
+                            _e_max_off_c: int | None = None
+                            if arr_sym.array_dims and len(arr_sym.array_dims) > 0:
+                                _e_max_off_c = arr_sym.array_dims[0] * element_width
+                            elif arr_sym.array_len is not None:
+                                _e_max_off_c = arr_sym.array_len * element_width
+                            _e_off_fits_c: bool = _e_max_off_c is not None and _e_max_off_c <= 255
+                            self._gen_index_multiply(2, offset_fits_byte=_e_off_fits_c, word_index=_e_is_word_c2)
+                            self.emit("\tCLC")
+                            self.emit(f"\tADC #<{arr_addr}")
+                            self.emit("\tSTA TMP0")
+                            self.emit("\tTXA")
+                            self.emit(f"\tADC #>{arr_addr}")
+                            self.emit("\tSTA TMP0+1")
+                        else:
+                            self._gen_subscript(lhs, load_only=False)
+                            return
+                        # Store constant directly
+                        rhs_val: int = rhs.value
+                        if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
+                            self.emit(f"\tLDA #${rhs_val & 0xFF:02X}")
+                            self._emit_indirect_store_zero("TMP0")
+                            self.emit("\tLDY #$01")
+                            self.emit(f"\tLDA #${(rhs_val >> 8) & 0xFF:02X}")
+                            self.emit("\tSTA (TMP0),Y")
+                        else:
+                            self.emit(f"\tLDA #${rhs_val & 0xFF:02X}")
+                            self._emit_indirect_store_zero("TMP0")
+                        return
+
+                    # Case 2b: General RHS - save to TMP2, compute address, reload
                     # Save RHS value first since index calculation might use A/X
                     self.gen_expr(rhs)
                     self.emit("\tSTA TMP2")
                     self.emit("\tSTX TMP2+1")
-                    
+
                     # Generate index expression
                     self.gen_expr(lhs.index)
                     
@@ -15781,56 +15954,76 @@ class CodeGen:
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
-                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
-                    self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBCC {lbl_true}")
+                    if const_lo == 0:
+                        # low < 0 is always false — high byte check is sufficient
+                        pass
+                    else:
+                        self.emit(f"\tBNE {lbl_else_tmp}")
+                        self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
+                        self.emit(f"\tCMP {cmp_lo}")
+                        self.emit(f"\tBCC {lbl_true}")
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.LE:
-                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
-                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
-                    self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBCC {lbl_true}")
-                    self.emit(f"\tBEQ {lbl_true}")
-                    self.emit(f"{lbl_else_tmp}:")
-                    self.emit(f"\tJMP {lbl_false}")
+                    if const_lo == 0:
+                        # high == const_hi AND low <= 0 → always true; just BEQ true
+                        self.emit(f"\tBEQ {lbl_true}")
+                        self.emit(f"\tJMP {lbl_false}")
+                    else:
+                        lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                        self.emit(f"\tBNE {lbl_else_tmp}")
+                        self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
+                        self.emit(f"\tCMP {cmp_lo}")
+                        self.emit(f"\tBCC {lbl_true}")
+                        self.emit(f"\tBEQ {lbl_true}")
+                        self.emit(f"{lbl_else_tmp}:")
+                        self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_else_tmp}")
-                    self.emit(f"\tBEQ {lbl_gt_check_low}")
-                    self.emit(f"\tJMP {lbl_true}")
-                    self.emit(f"{lbl_gt_check_low}:")
-                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
-                    self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBEQ {lbl_else_tmp}")
-                    self.emit(f"\tBCS {lbl_true}")
+                    if const_lo == 0:
+                        # high > const_hi → true; high == const_hi → check low != 0
+                        self.emit(f"\tBNE {lbl_true}")
+                        self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
+                        self.emit(f"\tBNE {lbl_true}")
+                    else:
+                        lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
+                        self.emit(f"\tBEQ {lbl_gt_check_low}")
+                        self.emit(f"\tJMP {lbl_true}")
+                        self.emit(f"{lbl_gt_check_low}:")
+                        self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
+                        self.emit(f"\tCMP {cmp_lo}")
+                        self.emit(f"\tBEQ {lbl_else_tmp}")
+                        self.emit(f"\tBCS {lbl_true}")
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
-                    lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
-                    self.emit(f"\tBCC {lbl_else_tmp}")
-                    self.emit(f"\tBEQ {lbl_ge_check_low}")
-                    self.emit(f"\tJMP {lbl_true}")
-                    self.emit(f"{lbl_ge_check_low}:")
-                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
-                    self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBCS {lbl_true}")
-                    self.emit(f"{lbl_else_tmp}:")
-                    self.emit(f"\tJMP {lbl_false}")
+                    if const_lo == 0:
+                        # high >= const_hi is sufficient (low >= 0 always true)
+                        self.emit(f"\tBCS {lbl_true}")
+                        self.emit(f"\tJMP {lbl_false}")
+                    else:
+                        lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                        lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
+                        self.emit(f"\tBCC {lbl_else_tmp}")
+                        self.emit(f"\tBEQ {lbl_ge_check_low}")
+                        self.emit(f"\tJMP {lbl_true}")
+                        self.emit(f"{lbl_ge_check_low}:")
+                        self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
+                        self.emit(f"\tCMP {cmp_lo}")
+                        self.emit(f"\tBCS {lbl_true}")
+                        self.emit(f"{lbl_else_tmp}:")
+                        self.emit(f"\tJMP {lbl_false}")
                     return
 
             # Fast path: byte identifier vs constant → simple CMP without LDX
