@@ -2,6 +2,27 @@
 
 ---
 
+## Fix word-vs-constant comparison codegen and word-index array subscript (2026-03-25)
+
+**Problem 1 — CMP instead of CPX**: In `_gen_conditional_branch()`, the word-identifier-vs-constant fast path for LT/GT/GE used `CMP` after `LDX high_byte`, comparing the accumulator (stale value) instead of X register against the high-byte constant.
+
+**Problem 2 — Missing BNE in LT**: After `BCC lbl_true` (high < const_hi), the code fell through to low-byte comparison even when high > const_hi. Example: `$0300 < $02FF` would incorrectly evaluate to true.
+
+**Problem 3 — LE compared low byte first**: Starting with the low byte ignores the significance of the high byte. `$0200 <= $01FF` would be true because `$00 < $FF`.
+
+**Problem 4 — GT/GE completely broken**: GT used `BCS lbl_true / BNE lbl_true` which covers all cases (always true). GE had similar unreachable-branch issues.
+
+**Problem 5 — LDX #$00 clobbered word index**: In `_gen_subscript()`, for byte-element arrays (`element_width == 1`) with a word index, the code zeroed X (`LDX #$00`) after `gen_expr(index)` loaded the 16-bit index into A/X. This discarded the high byte, making array access wrong for indices >= 256.
+
+**Fix**: Rewrote all four relational operators (LT/LE/GT/GE) in the word-vs-constant path to match the correct algorithms already present in the A/X-preloaded path (lines 15607-15665). For the subscript bug, added a type check: only zero X when the index is BYTE-typed.
+
+**Known latent issue**: The `element_width == 2` inline path in `gen_assign()` and the `_gen_index_multiply()` function both assume byte-sized indices. Word arrays with word indices > 255 would produce incorrect addresses. This is a separate fix.
+
+**Files changed**: `codegen_expr.py` (`_gen_conditional_branch`, `_gen_subscript`)
+**Tests**: 168 pass, 125 fail (expected) — no regressions
+
+---
+
 ## BYTE-target narrowing: 16-bit → 8-bit for byte assignments (2026-03-24)
 
 **Problem**: `byte rv += fwrite(...)` generated 16-bit arithmetic (`JSR __ADD16`, stack-save/restore of garbage high byte, TMP0 round-trip) because `fwrite` returns WORD and the type promotion picked ADD16 for BYTE+WORD. But only the low byte of the result is stored — the high byte is wasted.

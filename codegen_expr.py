@@ -876,8 +876,20 @@ class CodeGen:
                     use_ax_right = routine_ax is not None and right_loc not in ("MATH0", "MATH1")
                 
                 # OPTIMIZATION: For constant-count shifts, don't store to MATH0 - keep in A/X
-                skip_math0_store = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and 
+                skip_math0_store = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and
                                    right_loc.startswith("CONST:"))
+
+                # OPTIMIZATION: Early detection of power-of-2 MUL/DIV and shift-add MUL.
+                # These use inline shifts instead of JSR __MUL/__DIV, so skip MATH0/MATH1
+                # preparation entirely — the shift block loads operands directly.
+                _skip_math_for_inline_mul = False
+                if node.value in {BinOp.MUL, BinOp.DIV} and right_loc.startswith("CONST:"):
+                    _cv = int(right_loc.split(":")[1])
+                    if _cv > 0 and (_cv & (_cv - 1)) == 0 and _cv.bit_length() - 1 > 0:
+                        _skip_math_for_inline_mul = True  # power-of-2
+                    elif (node.value == BinOp.MUL and _cv > 0 and
+                          left_width == 1 and bin(_cv).count('1') <= 3):
+                        _skip_math_for_inline_mul = True  # shift-add decomposition
                 
                 if right_loc == "MATH0" and left_loc != "MATH0":
                     if node.value in commutative_ops:
@@ -902,25 +914,26 @@ class CodeGen:
                         emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
                         use_ax_right = False
                 else:
-                    if left_loc != "MATH0":
-                        load_to_ax_for_math(left_loc, left_width == 2)
-                        if not skip_math0_store:
-                            emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
-                    if use_ax_right:
-                        if right_loc != "AX":
-                            # For _AX entrypoints, always load both A and X (even for byte operands)
-                            prev = self.suppress_byte_return_x
-                            self.suppress_byte_return_x = False
-                            load_to_ax(right_loc, right_width == 2)
-                            self.suppress_byte_return_x = prev
-                    else:
-                        # OPTIMIZATION: Skip MATH1 loading for shift operations with constant counts
-                        # since inline shifts don't read MATH1
-                        skip_math1_load = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and 
-                                         right_loc.startswith("CONST:"))
-                        if right_loc != "MATH1" and not skip_math1_load:
-                            load_to_ax_for_math(right_loc, right_width == 2)
-                            emit_set_math1_from_ax(right_width == 2, force_word=force_word_operands)
+                    if not _skip_math_for_inline_mul:
+                        if left_loc != "MATH0":
+                            load_to_ax_for_math(left_loc, left_width == 2)
+                            if not skip_math0_store:
+                                emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
+                        if use_ax_right:
+                            if right_loc != "AX":
+                                # For _AX entrypoints, always load both A and X (even for byte operands)
+                                prev = self.suppress_byte_return_x
+                                self.suppress_byte_return_x = False
+                                load_to_ax(right_loc, right_width == 2)
+                                self.suppress_byte_return_x = prev
+                        else:
+                            # OPTIMIZATION: Skip MATH1 loading for shift operations with constant counts
+                            # since inline shifts don't read MATH1
+                            skip_math1_load = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and
+                                             right_loc.startswith("CONST:"))
+                            if right_loc != "MATH1" and not skip_math1_load:
+                                load_to_ax_for_math(right_loc, right_width == 2)
+                                emit_set_math1_from_ax(right_width == 2, force_word=force_word_operands)
                 
                 # Check for power of 2 multiplication / division (peephole optimization)
                 math_optimized = False
@@ -8352,7 +8365,9 @@ class CodeGen:
             else:
                 # Evaluate index expression -> A, then multiply by stride -> A (low) / X (high)
                 self.gen_expr(idx_expr)
-                self._gen_index_multiply(stride_val)
+                _idx_t: ExprType = self.tc_check(idx_expr)
+                _idx_is_word: bool = _idx_t.sem_type.base != "BYTE" or _idx_t.sem_type.is_pointer
+                self._gen_index_multiply(stride_val, word_index=_idx_is_word)
             # Now A/X has (index * stride), add to TMP4
             self.emit("\tCLC")
             self.emit("\tADC TMP4")
@@ -8403,12 +8418,15 @@ class CodeGen:
             else:
                 self._emit_indirect_store_zero("TMP0")
 
-    def _gen_index_multiply(self, n: int, offset_fits_byte: bool = False) -> None:
-        """Multiply 8-bit index (currently in A) by compile-time constant n.
-        Result lands in A (low byte) and X (high byte).
+    def _gen_index_multiply(self, n: int, offset_fits_byte: bool = False, word_index: bool = False) -> None:
+        """Multiply index by compile-time constant n.  Result in A (low) / X (high).
+
+        When word_index is False (default), the index is in A only (8-bit).
+        When word_index is True, the index is in A (low) / X (high) (16-bit).
 
         When offset_fits_byte is True, the product is guaranteed to fit in 8 bits,
         so carry tracking and high-byte computation are skipped entirely.
+        (Only applicable when word_index is False.)
 
         Uses optimal code sequence:
           n == 1         : LDX #$00                        (0 shifts)
@@ -8418,6 +8436,9 @@ class CodeGen:
                           (8-bit: same but no carry tracking)
           otherwise      : repeated addition loop (fallback)
         """
+        if word_index:
+            return self._gen_index_multiply_word(n)
+
         if n == 1:
             self.emit("\tLDX #$00")
             return
@@ -8506,6 +8527,69 @@ class CodeGen:
             self.emit(f"\tBCC {lbl3}")
             self.emit("\tINC TMP4+1")
             self.emit(f"{lbl3}:")
+        self.emit("\tLDA TMP4")
+        self.emit("\tLDX TMP4+1")
+
+    def _gen_index_multiply_word(self, n: int) -> None:
+        """Multiply 16-bit index (A=low, X=high) by compile-time constant n.
+        Result in A (low) / X (high).  Uses TMP3/TMP3+1 and TMP4/TMP4+1.
+        """
+        if n == 1:
+            # A/X already has the correct 16-bit value
+            return
+
+        if n & (n - 1) == 0:
+            # Power of 2: shift TMP3:TMP3+1 left k times
+            shifts = n.bit_length() - 1
+            self.emit("\tSTA TMP3")
+            self.emit("\tSTX TMP3+1")
+            for _ in range(shifts):
+                self.emit("\tASL TMP3")
+                self.emit("\tROL TMP3+1")
+            self.emit("\tLDA TMP3")
+            self.emit("\tLDX TMP3+1")
+            return
+
+        # Shift-add decomposition for small number of set bits
+        terms = sorted([1 << b for b in range(n.bit_length()) if n & (1 << b)])
+        if len(terms) <= 3:
+            self.emit("\tSTA TMP3")          # TMP3:TMP3+1 = original index
+            self.emit("\tSTX TMP3+1")
+            self.emit("\tLDA #$00")
+            self.emit("\tSTA TMP4")
+            self.emit("\tSTA TMP4+1")        # TMP4:TMP4+1 = 0 (accumulator)
+            cur_shift = 0
+            for term in terms:
+                target_shift = term.bit_length() - 1
+                for _ in range(target_shift - cur_shift):
+                    self.emit("\tASL TMP3")
+                    self.emit("\tROL TMP3+1")
+                cur_shift = target_shift
+                self.emit("\tCLC")
+                self.emit("\tLDA TMP3")
+                self.emit("\tADC TMP4")
+                self.emit("\tSTA TMP4")
+                self.emit("\tLDA TMP3+1")
+                self.emit("\tADC TMP4+1")
+                self.emit("\tSTA TMP4+1")
+            self.emit("\tLDA TMP4")
+            self.emit("\tLDX TMP4+1")
+            return
+
+        # Fallback: repeated 16-bit addition (n iterations)
+        self.emit("\tSTA TMP3")
+        self.emit("\tSTX TMP3+1")
+        self.emit("\tLDA #$00")
+        self.emit("\tSTA TMP4")
+        self.emit("\tSTA TMP4+1")
+        for _ in range(n):
+            self.emit("\tCLC")
+            self.emit("\tLDA TMP3")
+            self.emit("\tADC TMP4")
+            self.emit("\tSTA TMP4")
+            self.emit("\tLDA TMP3+1")
+            self.emit("\tADC TMP4+1")
+            self.emit("\tSTA TMP4+1")
         self.emit("\tLDA TMP4")
         self.emit("\tLDX TMP4+1")
 
@@ -8719,17 +8803,24 @@ class CodeGen:
                 _max_byte_offset = field_info.array_sizes[0] * element_width
         _offset_fits_byte: bool = _max_byte_offset is not None and _max_byte_offset <= 255
 
+        # Detect word index type for 16-bit index handling
+        _is_word_index: bool = False
+        if not _index_prescaled:
+            _idx_type_check: ExprType = self.tc_check(expr.index)
+            _is_word_index = _idx_type_check.sem_type.base != "BYTE" or _idx_type_check.sem_type.is_pointer
+
         # Multiply index by element width and store result.
         # Skip when const-fold already produced the fully-scaled A/X above.
         #
-        # FAST PATH (element_size=2 + constant base label, non-prescaled index):
+        # FAST PATH (element_size=2 + constant base label, non-prescaled index, BYTE index):
         # Use direct register shifts (ASL A) instead of TMP3 memory ops, and fold the
         # base address add into the same sequence.  Saves ~10 cycles and frees TMP3.
+        # NOT used for WORD indices — ASL A would lose the high byte in X.
         #
         # When _offset_fits_byte is True (array_size * 2 <= 255), the ASL never sets
         # carry, so the high-byte computation (LDA #$00; ROL A; TAY; TXA; TYA) is
         # unnecessary — the high byte of the offset is always 0.
-        if not _index_prescaled and element_width == 2 and _const_base_label is not None:
+        if not _index_prescaled and element_width == 2 and _const_base_label is not None and not _is_word_index:
             self.emit("\tASL A")
             if _offset_fits_byte:
                 # 8-bit path: offset fits in a byte, no carry from ASL possible.
@@ -8760,9 +8851,13 @@ class CodeGen:
         else:
             if not _index_prescaled:
                 if element_width > 1:
-                    self._gen_index_multiply(element_width, offset_fits_byte=_offset_fits_byte)
+                    self._gen_index_multiply(element_width, offset_fits_byte=_offset_fits_byte, word_index=_is_word_index)
                 else:
-                    self.emit("\tLDX #$00")  # BYTE element, X = 0
+                    # BYTE element: no index scaling needed.
+                    # Only zero X when index is BYTE (gen_expr may leave X undefined).
+                    # For WORD index, X already holds the correct high byte.
+                    if not _is_word_index:
+                        self.emit("\tLDX #$00")
 
             # Now A/X contains (scaled) index; add to base address.
             # When base is a constant label, use immediate addressing instead of TMP0 memory
@@ -10590,7 +10685,7 @@ class CodeGen:
             # Pointer arithmetic with element size > 1: scale offset by element size.
             # _gen_index_multiply handles power-of-2 (shifts), shift-add (≤3 set bits),
             # and repeated-add fallback; result lands in A (low) / X (high).
-            self._gen_index_multiply(ptr_elem_size)
+            self._gen_index_multiply(ptr_elem_size, word_index=right_16)
         
         # If final target is BYTE, use simple 8-bit addition regardless of is_16bit
         if final_target_is_byte and is_16bit and not use_inc:
@@ -10641,7 +10736,7 @@ class CodeGen:
         """
         if ptr_elem_size > 1:
             # Pointer arithmetic: scale offset by element size before subtracting.
-            self._gen_index_multiply(ptr_elem_size)
+            self._gen_index_multiply(ptr_elem_size, word_index=is_16bit)
 
         if is_16bit:
             # 16-bit: (left_tmp,left_tmp+1) - (A,X) → (A,X)
@@ -11328,13 +11423,24 @@ class CodeGen:
                     self.emit(f"\tLDX #>({label}+{const_offset})")
                 return
 
-            # Runtime: generate index value into TMP0
+            # Runtime: generate index value into A (or A/X for word index)
             self.gen_expr(operand.index)
-            self.emit("\tSTA TMP0")  # Save index
+            _addr_idx_type: ExprType = self.tc_check(operand.index)
+            _addr_is_word_idx: bool = _addr_idx_type.sem_type.base != "BYTE" or _addr_idx_type.sem_type.is_pointer
 
             # Calculate address = base + index * elem_size
-            if elem_size == 1:
-                # No multiplication needed
+            if elem_size == 1 and _addr_is_word_idx:
+                # 16-bit index, no scaling: A/X = index, add base address directly
+                self.emit("\tCLC")
+                self.emit(f"\tADC #<{label}")
+                self.emit("\tSTA TMP0")
+                self.emit("\tTXA")
+                self.emit(f"\tADC #>{label}")
+                self.emit("\tTAX")
+                self.emit("\tLDA TMP0")
+            elif elem_size == 1:
+                # 8-bit index, no scaling
+                self.emit("\tSTA TMP0")
                 self.emit(f"\tLDA #<{label}")
                 self.emit("\tCLC")
                 self.emit("\tADC TMP0")
@@ -11344,12 +11450,10 @@ class CodeGen:
                 self.emit("\tTAX")            # High byte to X
                 self.emit("\tLDA TMP1")       # Low byte to A
             else:
-                # Multiply index (in TMP0) by element size.
-                # Load into A, use _gen_index_multiply for optimal code
-                # (power-of-2 shifts, shift-add, or repeated-add fallback).
+                # Multiply index by element size.
+                # _gen_index_multiply for optimal code (shifts, shift-add, or fallback).
                 # Result: A = offset low byte, X = offset high byte.
-                self.emit("\tLDA TMP0")
-                self._gen_index_multiply(elem_size)
+                self._gen_index_multiply(elem_size, word_index=_addr_is_word_idx)
                 self.emit("\tSTA TMP0")             # TMP0 = offset low byte
                 self.emit("\tSTX TMP1")             # TMP1 = offset high byte
                 self.emit(f"\tLDA #<{label}")
@@ -11884,8 +11988,15 @@ class CodeGen:
                     arr_addr: str = arr_sym.asm_name()
                     element_width: int = self._calculate_element_width(arr_sym)
 
-                    # Pointer arrays can be in ZP or BSS; direct indexed stores work for both
-                    if arr_sym.type.is_pointer:
+                    # Pointer arrays can be in ZP or BSS; direct indexed stores work for both.
+                    # Only use X-indexed path when max offset fits in 8-bit X register.
+                    _ptr_max_off: int | None = None
+                    if arr_sym.array_dims and len(arr_sym.array_dims) > 0:
+                        _ptr_max_off = arr_sym.array_dims[0] * element_width
+                    elif arr_sym.array_len is not None:
+                        _ptr_max_off = arr_sym.array_len * element_width
+                    _ptr_offset_fits_x: bool = _ptr_max_off is not None and _ptr_max_off <= 255
+                    if arr_sym.type.is_pointer and _ptr_offset_fits_x:
                         # Constant index path uses direct store below
                         if not isinstance(lhs.index, IntLiteral):
                             # If RHS is complex, evaluate it first since X is used for index
@@ -11972,23 +12083,16 @@ class CodeGen:
                         self.emit(f"\tSTA TMP0+1")
                     elif element_width == 2:
                         # WORD elements: address = arr_addr + index * 2
-                        self.emit(f"\tASL A")  # Multiply index by 2
-                        # Check if max offset fits in a byte (no carry from ASL possible)
+                        # Detect word index to use 16-bit multiplication
+                        _e_idx_type: ExprType = self.tc_check(lhs.index)
+                        _e_is_word_idx: bool = _e_idx_type.sem_type.base != "BYTE" or _e_idx_type.sem_type.is_pointer
                         _e_max_off: int | None = None
                         if arr_sym.array_dims and len(arr_sym.array_dims) > 0:
                             _e_max_off = arr_sym.array_dims[0] * element_width
                         elif arr_sym.array_len is not None:
                             _e_max_off = arr_sym.array_len * element_width
-                        if _e_max_off is not None and _e_max_off <= 255:
-                            # 8-bit path: carry impossible, skip BCC/INX
-                            self.emit("\tLDX #$00")
-                        else:
-                            # 16-bit path: carry from ASL may be set
-                            self.emit("\tLDX #$00")
-                            carry_lbl: str = self.new_label("ARR_CARRY")
-                            self.emit(f"\tBCC {carry_lbl}")
-                            self.emit("\tINX")
-                            self.emit(f"{carry_lbl}:")
+                        _e_offset_fits: bool = _e_max_off is not None and _e_max_off <= 255
+                        self._gen_index_multiply(2, offset_fits_byte=_e_offset_fits, word_index=_e_is_word_idx)
                         self.emit(f"\tCLC")
                         self.emit(f"\tADC #<{arr_addr}")
                         self.emit(f"\tSTA TMP0")
@@ -15675,8 +15779,9 @@ class CodeGen:
                 if cond.op == BinOp.LT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
-                    self.emit(f"\tCMP {cmp_hi}")
+                    self.emit(f"\tCPX {cmp_hi}")
                     self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
                     self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCC {lbl_true}")
@@ -15685,17 +15790,12 @@ class CodeGen:
                     return
                 if cond.op == BinOp.LE:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
-                    lbl_chk_hi: str = self.new_label("LE_CHK_HI")
-                    # Compare low byte first
-                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
-                    self.emit(f"\tCMP {cmp_lo}")
-                    self.emit(f"\tBCC {lbl_true}")
-                    self.emit(f"\tBEQ {lbl_chk_hi}")
-                    self.emit(f"\tBNE {lbl_else_tmp}")
-                    # Low bytes equal, check high byte
-                    self.emit(f"{lbl_chk_hi}:")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
                     self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_true}")
+                    self.emit(f"\tBNE {lbl_else_tmp}")
+                    self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
+                    self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCC {lbl_true}")
                     self.emit(f"\tBEQ {lbl_true}")
                     self.emit(f"{lbl_else_tmp}:")
@@ -15703,27 +15803,32 @@ class CodeGen:
                     return
                 if cond.op == BinOp.GT:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_gt_check_low: str = self.new_label("GT_CHECK_LOW")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
-                    self.emit(f"\tCMP {cmp_hi}")
-                    self.emit(f"\tBCS {lbl_true}")
-                    self.emit(f"\tBNE {lbl_true}")                    
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_else_tmp}")
+                    self.emit(f"\tBEQ {lbl_gt_check_low}")
+                    self.emit(f"\tJMP {lbl_true}")
+                    self.emit(f"{lbl_gt_check_low}:")
                     self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
+                    self.emit(f"\tBEQ {lbl_else_tmp}")
                     self.emit(f"\tBCS {lbl_true}")
-                    self.emit(f"\tBNE {lbl_true}")                    
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return
                 if cond.op == BinOp.GE:
                     lbl_else_tmp: str = self.new_label("REL_ELSE_TMP")
+                    lbl_ge_check_low: str = self.new_label("GE_CHECK_LOW")
                     self.emit(f"\tLDX {self._sym_operand(sym, low_byte=False)}")
-                    self.emit(f"\tCMP {cmp_hi}")
-                    self.emit(f"\tBCS {lbl_true}")
-                    self.emit(f"\tBEQ {lbl_true}")                    
+                    self.emit(f"\tCPX {cmp_hi}")
+                    self.emit(f"\tBCC {lbl_else_tmp}")
+                    self.emit(f"\tBEQ {lbl_ge_check_low}")
+                    self.emit(f"\tJMP {lbl_true}")
+                    self.emit(f"{lbl_ge_check_low}:")
                     self.emit(f"\tLDA {self._sym_operand(sym, low_byte=True)}")
                     self.emit(f"\tCMP {cmp_lo}")
                     self.emit(f"\tBCS {lbl_true}")
-                    self.emit(f"\tBEQ {lbl_true}")                    
                     self.emit(f"{lbl_else_tmp}:")
                     self.emit(f"\tJMP {lbl_false}")
                     return

@@ -24,17 +24,17 @@
 					"label": ""
 				},
 				{
-					"line": 577,
+					"line": 578,
 					"column": 20,
 					"label": ""
 				},
 				{
-					"line": 597,
+					"line": 598,
 					"column": 18,
 					"label": ""
 				},
 				{
-					"line": 797,
+					"line": 807,
 					"column": 42,
 					"label": ""
 				}
@@ -59,7 +59,12 @@
 			"path": "work/test_stdio.s",
 			"bookmarks": [
 				{
-					"line": 658,
+					"line": 525,
+					"column": 16,
+					"label": ""
+				},
+				{
+					"line": 628,
 					"column": 39,
 					"label": ""
 				}
