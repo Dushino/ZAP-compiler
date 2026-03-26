@@ -3965,11 +3965,14 @@ class CodeGen:
         # to emerge via OPT-8's memory-address tracking.
         optimized = self._branch_inversion(optimized)
 
-        # Seventh pass (65C02 only): replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp)
+        # Seventh pass: branch-to-JMP threading — Bxx label where label: JMP target → Bxx target
+        optimized = self._branch_threading(optimized)
+
+        # Eighth pass (65C02 only): replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp)
         if self.is_65c02:
             optimized = self._65c02_indirect_no_y(optimized)
 
-        # Eighth pass: eliminate STA addr / ... / LDA addr when A is preserved
+        # Ninth pass: eliminate STA addr / ... / LDA addr when A is preserved
         # across BCC/BCS + INC/DEC addr+1 + label sequences.
         optimized = self._eliminate_math0_roundtrip(optimized)
 
@@ -4611,6 +4614,93 @@ class CodeGen:
         # Everything else: 3 bytes (conservative for absolute addressing)
         # Note: ZP instructions are 2 bytes but we use 3 as safe upper bound
         return 3
+
+    def _branch_threading(self, code: list[str]) -> list[str]:
+        """Thread branches that target a label immediately followed by JMP.
+
+        Pattern:
+          Bxx some_label       ; conditional branch to a trampoline
+          ...
+          some_label:
+          JMP far_target       ; the trampoline just jumps elsewhere
+
+        When far_target is within relative branch range (+-127 bytes),
+        replace Bxx some_label with Bxx far_target, short-circuiting
+        the trampoline.  The label may become unreferenced and will be
+        cleaned up by the unreferenced-label pass.
+        """
+        BRANCH_OPS = {"BEQ", "BNE", "BCC", "BCS", "BMI", "BPL", "BVS", "BVC"}
+
+        def _label_name(s: str) -> str | None:
+            stripped = s.strip().split(";")[0].strip()
+            if stripped.endswith(":") and " " not in stripped[:-1]:
+                return stripped[:-1]
+            return None
+
+        def _is_transparent(s: str) -> bool:
+            stripped = s.strip().split(";")[0].strip()
+            if not stripped:
+                return True
+            if "=" in stripped and not stripped.endswith(":"):
+                return True
+            return False
+
+        # Phase 1: Build map of label → JMP target for trampoline labels
+        # A trampoline label is one immediately followed by JMP (skipping transparent lines)
+        trampoline_map: dict[str, str] = {}
+        for i, ln in enumerate(code):
+            lbl = _label_name(ln)
+            if lbl:
+                # Find next non-transparent instruction after label
+                j = i + 1
+                while j < len(code) and _is_transparent(code[j]):
+                    j += 1
+                if j < len(code):
+                    jstripped = code[j].strip().split(";")[0].strip()
+                    jparts = jstripped.split(None, 1)
+                    if (len(jparts) == 2 and jparts[0].upper() == "JMP"
+                            and not jparts[1].strip().startswith("(")):
+                        trampoline_map[lbl] = jparts[1].strip()
+
+        if not trampoline_map:
+            return code
+
+        # Phase 2: Compute cumulative byte offsets for range checking
+        cum: list[int] = []
+        tot = 0
+        for ln in code:
+            cum.append(tot)
+            tot += self._instr_byte_size(ln)
+
+        # Build label → line index map
+        label_pos: dict[str, int] = {}
+        for i, ln in enumerate(code):
+            lbl = _label_name(ln)
+            if lbl:
+                label_pos[lbl] = i
+
+        # Phase 3: Replace Bxx trampoline_label with Bxx far_target when in range
+        result: list[str] = []
+        for i, ln in enumerate(code):
+            stripped = ln.strip().split(";")[0].strip()
+            parts = stripped.split(None, 1)
+            if len(parts) == 2:
+                mn = parts[0].upper()
+                target = parts[1].strip()
+                if mn in BRANCH_OPS and target in trampoline_map:
+                    far_target = trampoline_map[target]
+                    # Check if far_target is within branch range
+                    if far_target in label_pos:
+                        far_idx = label_pos[far_target]
+                        branch_byte = cum[i] if i < len(cum) else 0
+                        target_byte = cum[far_idx] if far_idx < len(cum) else 0
+                        displacement = target_byte - (branch_byte + 2)
+                        if -128 <= displacement <= 127:
+                            indent = ln[:len(ln) - len(ln.lstrip())]
+                            result.append(f"{indent}{mn} {far_target}")
+                            continue
+            result.append(ln)
+        return result
 
     def _eliminate_math0_roundtrip(self, code: list[str]) -> list[str]:
         """Eliminate STA addr / LDA addr round-trips across BCC/BCS + INC/DEC + label gaps.

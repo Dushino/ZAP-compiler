@@ -84,7 +84,7 @@ end
 ; FastBasic	Byte-code	              5.50s
 ; Action!:                     76 =   1.52s  with SDMCTL=0
 ; ZAP!            $314 = 788 / 10 =   1.576s with SDMCTL=34
-; ZAP!            $243 = 579 / 10 =   1.158s with SDMCTL=0
+; ZAP!            $23C = 572 / 10 =   1.1144s with SDMCTL=0
 proc sieve()
     const word max = 8192
     byte flags[max]
