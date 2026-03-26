@@ -45,8 +45,14 @@ Targeted optimizations identified by analyzing the Sieve of Eratosthenes generat
 
 **OPT-F — 65C02 indirect addressing peephole**: `LDY #$00 / STA (zp),Y` → `STA (zp)` on 65C02. New `_65c02_indirect_no_y()` pass in `peephole_optimize()`. Guarded by `self.is_65c02`. Saves 2 bytes + 2 cycles per occurrence. 6502 mode unchanged.
 
-**Files changed**: `codegen_expr.py` (`_gen_conditional_branch`, `gen_assign`, `rpn_eval_to_code`, `peephole_optimize`, `_65c02_indirect_no_y` (new))
-**Tests**: 170 pass, 125 fail (expected) — no regressions
+**OPT-G — Direct hi-byte load for word Identifier index**: When the index is a simple word Identifier and the array base is a const label, load the high byte directly with `LDA var+1` instead of `LDX var+1 / TXA`. Saves 2 instructions per array access. Applied in `_gen_subscript()` and `gen_assign()` Case 2a.
+
+**65C02 peephole Y-safety fix (2026-03-26)**: The `_65c02_indirect_no_y` peephole removed `LDY #$00` before `STA/LDA (zp),Y` → `STA/LDA (zp)` but didn't check if subsequent instructions (INY for word high-byte stores) depended on Y=0. Fixed by scanning forward after replacement to check for Y reads before the next LDY reset. Tests 162, 167, 176, 177 were affected (O1 variant only).
+
+**Code quality review (2026-03-26)**: Eliminated global mutable state in dce.py (stmt_src passed as parameter), narrowed broad exception catches in compiler.py, modernized type hints (Optional→X|None) across 12 files, added module docstrings to 6 files, translated all Czech comments to English, removed duplicate docstrings in errors.py.
+
+**Files changed**: `codegen_expr.py` (`_gen_conditional_branch`, `gen_assign`, `rpn_eval_to_code`, `peephole_optimize`, `_65c02_indirect_no_y`), `dce.py`, `compiler_pipeline.py`, `compiler.py`, `errors.py`, + 12 files (type hint modernization)
+**Tests**: 170 pass, 125 fail (expected) — full `make tests` verified including simulator
 
 ---
 
