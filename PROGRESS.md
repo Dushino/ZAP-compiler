@@ -2,6 +2,44 @@
 
 ---
 
+## Peephole optimization session (2026-03-26)
+
+**Benchmark**: Sieve of Eratosthenes, ZAP! 1.052s vs Action! 1.52s (PAL, SDMCTL=0, -6502 -O1)
+**ZAP! is 30.8% faster than Action!** — down from 1.88s at start of optimization work.
+
+### Optimizations implemented:
+- **OPT-D**: Dead low-byte CMP when const_lo==0 in word-vs-constant comparisons
+- **OPT-B/A**: TMP2 round-trip elimination for constant byte array stores
+- **OPT-C**: Inline ADD16/SUB16 with constant (skip JSR overhead)
+- **OPT-F**: 65C02 `STA (zp)` without LDY#$00 (with Y-safety fix for word stores)
+- **OPT-G**: Direct hi-byte load for word Identifier index (skip LDX/TXA)
+- **MATH0 round-trip peephole**: Eliminate STA/LDA MATH0 across BCC/INC/label gaps
+- **Branch threading**: Bxx label → Bxx far_target when label is JMP trampoline
+- **Unreferenced label removal**: Clean __ZAP_* labels after threading (respects ASM blocks)
+- **Branch inversion fix**: BCC body / JMP end / body: → BCS end (label-aware)
+- **Loop strength reduction**: Running pointer in TMP0 for `arr[loop_var]` in simple for loops
+- **Loop-invariant hoisting**: LDY#$00, LDA#const moved before loop when body doesn't modify them
+- **Generalized inline add/sub**: Skip MATH0 store when left operand already in A/X
+- **Shift scratch optimization**: Power-of-2 shift uses MATH0 directly when followed by inline add
+- **Dead register elimination**: LDX addr / STX addr → remove STX; dead LDX across BCC/INC/label
+
+### Code quality improvements:
+- Eliminated global mutable state in dce.py (stmt_src passed as parameter)
+- Narrowed exception catches in compiler.py (was `except Exception`)
+- Modernized type hints across 12 files (Optional→X|None, List→list, etc.)
+- Added module docstrings to 6 files
+- Translated all Czech comments to English
+- Fixed 9 Pylance type errors across 4 files
+- grammar.ebnf: added preprocessor/diagnostic/incbin rules
+- New DOC/ERROR_MESSAGES.md error message guide
+- Removed redundant DOC/README.md (keep root only)
+- Updated CLAUDE.md with ASM block optimization rule
+
+**Files changed**: codegen_expr.py (peephole passes, LSR, inline add/sub, branch threading), dce.py, compiler_pipeline.py, compiler.py, errors.py, symbols.py, sema_func.py, sema_expr.py, + 12 files (type hints)
+**Tests**: 170 pass, 125 fail (expected), full `make tests` verified
+
+---
+
 ## Fix word-vs-constant comparison codegen and word-index array subscript (2026-03-25)
 
 **Problem 1 — CMP instead of CPX**: In `_gen_conditional_branch()`, the word-identifier-vs-constant fast path for LT/GT/GE used `CMP` after `LDX high_byte`, comparing the accumulator (stale value) instead of X register against the high-byte constant.

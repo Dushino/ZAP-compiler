@@ -2823,6 +2823,96 @@ class CodeGen:
                             i += 1
                             continue
             
+            # Remove no-op store: LDR addr / STR addr → keep LDR, remove STR
+            # The store writes back the same value just loaded — memory unchanged.
+            # Also: if the LDR is dead (register overwritten before next use), remove it too.
+            if (line_upper.startswith("LDX ") or line_upper.startswith("LDY ")):
+                _ldst_parts = line_stripped.split(maxsplit=1)
+                if len(_ldst_parts) == 2:
+                    _ld_op = _ldst_parts[0].upper()
+                    _ld_addr = _ldst_parts[1].strip()
+                    _st_op = "STX" if _ld_op == "LDX" else "STY"
+                    if not _operand_is_port(_ld_addr):
+                        # Peek at next real instruction
+                        _nj = i + 1
+                        while _nj < len(self.code) and (not self.code[_nj].strip() or self.code[_nj].strip().startswith(";")):
+                            _nj += 1
+                        if _nj < len(self.code):
+                            _nxt = self.code[_nj].strip().split(";")[0].strip()
+                            _nxt_parts = _nxt.split(maxsplit=1)
+                            if (len(_nxt_parts) == 2 and _nxt_parts[0].upper() == _st_op
+                                    and _nxt_parts[1].strip().upper() == _ld_addr.upper()):
+                                # LDR addr / STR addr: remove the STR (no-op store)
+                                # Also check if LDR itself is dead (register overwritten
+                                # before next read). Scan forward past the STR.
+                                _reg_dead = False
+                                _sj = _nj + 1
+                                while _sj < len(self.code):
+                                    _sl = self.code[_sj].strip()
+                                    if not _sl or _sl.startswith(";"):
+                                        _sj += 1
+                                        continue
+                                    _sc = _sl.split(";")[0].strip()
+                                    if _sc.endswith(":"):
+                                        break  # label = end of basic block, stop
+                                    _sp = _sc.split(maxsplit=1)
+                                    _smn = _sp[0].upper() if _sp else ""
+                                    # Does this instruction overwrite the register?
+                                    if _ld_op == "LDX" and _smn in {"LDX", "TAX", "TSX", "PLX"}:
+                                        _reg_dead = True
+                                        break
+                                    if _ld_op == "LDY" and _smn in {"LDY", "TAY", "PLY"}:
+                                        _reg_dead = True
+                                        break
+                                    # Does this instruction read the register?
+                                    if _ld_op == "LDX" and (_smn in {"STX", "TXA", "TXS", "CPX", "INX", "DEX", "PHX"} or (_sp[1].strip().endswith(",X") if len(_sp) > 1 else False)):
+                                        break  # X is read — LDX is needed
+                                    if _ld_op == "LDY" and (_smn in {"STY", "TYA", "CPY", "INY", "DEY", "PHY"} or (_sp[1].strip().endswith(",Y") if len(_sp) > 1 else False)):
+                                        break  # Y is read — LDY is needed
+                                    # Branch/jump: conservatively stop, UNLESS the branch
+                                    # skips over instructions that don't read the register
+                                    # (BCC/BCS label / INC|DEC mem / label: / LDX pattern).
+                                    if _smn in {"JMP", "JSR", "RTS", "RTI", "BRA"}:
+                                        break
+                                    if _smn.startswith("B") and len(_smn) == 3:
+                                        # Conditional branch: check if target label is nearby
+                                        # and the register is overwritten at/after the label
+                                        _br_tgt = _sp[1].strip() if len(_sp) > 1 else ""
+                                        # Scan ahead: expect INC/DEC mem, then label:, then LDR
+                                        _bj = _sj + 1
+                                        _br_resolved = False
+                                        while _bj < len(self.code) and _bj < _sj + 4:
+                                            _bl = self.code[_bj].strip().split(";")[0].strip()
+                                            if not _bl:
+                                                _bj += 1
+                                                continue
+                                            if _bl == f"{_br_tgt}:":
+                                                # Found the branch target label — continue scan from here
+                                                _sj = _bj + 1
+                                                _br_resolved = True
+                                                break
+                                            _bp = _bl.split(maxsplit=1)
+                                            _bm = _bp[0].upper() if _bp else ""
+                                            # INC/DEC don't touch X or Y — safe to skip
+                                            if _bm in {"INC", "DEC"}:
+                                                _bj += 1
+                                                continue
+                                            break  # unknown instruction, stop
+                                        if not _br_resolved:
+                                            break
+                                        continue  # branch resolved, continue scanning
+                                    _sj += 1
+
+                                if _reg_dead:
+                                    # Both LDR and STR are dead — skip both
+                                    i = _nj + 1
+                                    continue
+                                else:
+                                    # Keep LDR, skip STR
+                                    optimized.append(self.code[i])
+                                    i = _nj + 1
+                                    continue
+
             cur_instr = line_stripped.split(';')[0].strip().upper()
             cur_parts = cur_instr.split(maxsplit=1)
             cur_op = cur_parts[0] if cur_parts else ""
