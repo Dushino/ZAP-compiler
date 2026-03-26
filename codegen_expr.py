@@ -991,6 +991,7 @@ class CodeGen:
                     # Inline ADD16/SUB16 with constant — avoids JSR overhead
                     _iac_lo: int = _inline_add_sub_val & 0xFF
                     _iac_hi: int = (_inline_add_sub_val >> 8) & 0xFF
+
                     if node.value == BinOp.ADD:
                         self.emit("\tLDA MATH0")
                         self.emit("\tCLC")
@@ -1005,7 +1006,8 @@ class CodeGen:
                             self.emit("\tLDA MATH0+1")
                             self.emit(f"\tADC #${_iac_hi:02X}")
                             self.emit("\tSTA MATH0+1")
-                    else:  # SUB
+                        eval_stack.append(("MATH0", node.width))
+                    else:  # SUB, no target
                         self.emit("\tLDA MATH0")
                         self.emit("\tSEC")
                         self.emit(f"\tSBC #${_iac_lo:02X}")
@@ -1019,7 +1021,7 @@ class CodeGen:
                             self.emit("\tLDA MATH0+1")
                             self.emit(f"\tSBC #${_iac_hi:02X}")
                             self.emit("\tSTA MATH0+1")
-                    eval_stack.append(("MATH0", node.width))
+                        eval_stack.append(("MATH0", node.width))
                 elif routine:
                     if use_ax_right and routine_ax:
                         self.emit(f"\tJSR {routine_ax}")
