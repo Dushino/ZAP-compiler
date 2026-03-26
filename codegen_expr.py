@@ -6266,18 +6266,18 @@ class CodeGen:
             if temp_name in self.system_temp_slots:
                 # This temp uses a shared slot - emit as alias
                 slot_name = self.system_temp_slots[temp_name]
-                self.emit(f"{internal_name} = {slot_name}")
+                self.emit_equate(internal_name, slot_name)
             else:
                 # No shared slot - emit dedicated allocation
                 self.emit(f"{internal_name}:\t.res {temp_size}")
-        
+
         for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11", "TMP12", "TMP13", "TMP14", "TMP15"]:
             name = self._internal_name_map.get(raw_name, raw_name)
             if name in temps_in_use:
                 if raw_name in self.system_temp_slots:
                     # This temp uses a shared slot - emit as alias
                     slot_name = self.system_temp_slots[raw_name]
-                    self.emit(f"{name} = {slot_name}")
+                    self.emit_equate(name, slot_name)
                 else:
                     # No shared slot - emit dedicated allocation
                     size: int = temp_sizes[name]
@@ -6311,7 +6311,7 @@ class CodeGen:
         if fixed:
             self.emit("\n; Fixed-address variables")
             for sym in fixed:
-                self.emit(f"{sym.asm_name()} = ${sym.address:04X}")
+                self.emit_equate(sym.asm_name(), f"${sym.address:04X}")
                 # Track fixed-address labels to prevent peephole optimization
                 self.fixed_address_labels.add(sym.asm_name())
                 # Also track PORT variables separately for future optimization strategy changes
@@ -6331,9 +6331,9 @@ class CodeGen:
                     # should not happen for scalar const
                     continue
                 if sym.type.base == "WORD" or sym.type.is_pointer:
-                    self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFFFF:04X}")
+                    self.emit_equate(sym.asm_name(), f"${sym.const_value & 0xFFFF:04X}")
                 else:
-                    self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
+                    self.emit_equate(sym.asm_name(), f"${sym.const_value & 0xFF:02X}")
             self.emit("")
 
         # Shared slots for aliased locals (need to be emitted before individual locals)
@@ -6653,18 +6653,18 @@ class CodeGen:
             if temp_name in self.system_temp_slots:
                 # This temp uses a shared slot - emit as alias
                 slot_name = self.system_temp_slots[temp_name]
-                self.emit(f"{internal_name} = {slot_name}")
+                self.emit_equate(internal_name, slot_name)
             else:
                 # No shared slot - emit dedicated allocation
                 self.emit(f"{internal_name}:\t.res {temp_size}")
-        
+
         for raw_name in ["TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5", "TMP6", "TMP7", "TMP8", "TMP9", "TMP10", "TMP11", "TMP12", "TMP13", "TMP14", "TMP15"]:
             name = self._internal_name_map.get(raw_name, raw_name)
             if name in temps_in_use:
                 if raw_name in self.system_temp_slots:
                     # This temp uses a shared slot - emit as alias
                     slot_name = self.system_temp_slots[raw_name]
-                    self.emit(f"{name} = {slot_name}")
+                    self.emit_equate(name, slot_name)
                 else:
                     # No shared slot - emit dedicated allocation
                     size: int = temp_sizes[name]
@@ -6699,7 +6699,7 @@ class CodeGen:
             if fixed:
                 self.emit("\n; Fixed-address variables")
                 for sym in fixed:
-                    self.emit(f"{sym.asm_name()} = ${sym.address:04X}")
+                    self.emit_equate(sym.asm_name(), f"${sym.address:04X}")
                     # Track fixed-address labels to prevent peephole optimization
                     self.fixed_address_labels.add(sym.asm_name())
                     # Also track PORT variables separately for future optimization strategy changes
@@ -6719,9 +6719,9 @@ class CodeGen:
                         # should not happen for scalar const
                         continue
                     if sym.type.base == "WORD" or sym.type.is_pointer:
-                        self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFFFF:04X}")
+                        self.emit_equate(sym.asm_name(), f"${sym.const_value & 0xFFFF:04X}")
                     else:
-                        self.emit(f"{sym.asm_name()} = ${sym.const_value & 0xFF:02X}")
+                        self.emit_equate(sym.asm_name(), f"${sym.const_value & 0xFF:02X}")
                 self.emit("")
 
             # Zero page offset tracking (starts after platform-reserved area + system temps)
@@ -7622,6 +7622,13 @@ class CodeGen:
 
         self._raise_error("Complex initializer pattern not supported")
 
+
+    _EQUATE_ALIGN: int = 24  # column for '=' in equate lines
+
+    def emit_equate(self, name: str, value: str) -> None:
+        """Emit an aligned equate: NAME = VALUE with padding to align '='."""
+        pad = max(1, self._EQUATE_ALIGN - len(name))
+        self.emit(f"{name}{' ' * pad}= {value}")
 
     def emit(self, line: str) -> None:
         """Append an assembly line to the output buffer.
@@ -13705,7 +13712,7 @@ class CodeGen:
             sym = self.current_symtab.lookup(pname)
             if sym.shared_slot:
                 param_label = sym.asm_name()
-                self.emit(f"{param_label} = {sym.shared_slot}")
+                self.emit_equate(param_label, sym.shared_slot)
 
     def _emit_local_name_equate(self, proc_name: str, sym: Symbol, param_names: set[str] | None = None) -> None:
         """Emit equate declaration for a local variable name to its actual storage location.
@@ -13714,7 +13721,7 @@ class CodeGen:
         # Only emit for locals that have shared slots assigned (different from their normal name)
         if sym.proc_name and sym.name not in (param_names or set()) and sym.shared_slot:
             local_label = sym.asm_name()
-            self.emit(f"{local_label} = {sym.shared_slot}")
+            self.emit_equate(local_label, sym.shared_slot)
 
     def _emit_param_reg_stores(self, callee_name: str, specs: list[tuple[str, int, object, SemType]]) -> None:
         """Emit param reg stores.
@@ -14371,7 +14378,15 @@ class CodeGen:
         if isinstance(stmt, AsmBlock):
             self.emit("; ASM_BLOCK_BEGIN")
             for line in stmt.text.splitlines():
-                self.emit(line)
+                stripped = line.strip()
+                if not stripped:
+                    self.emit("")
+                elif stripped.endswith(":") or ":" in stripped.split()[0]:
+                    # Label line (label: or label: instruction) — no leading tab
+                    self.emit(stripped)
+                else:
+                    # Instruction — add tab indentation
+                    self.emit(f"\t{stripped}")
             self.emit("; ASM_BLOCK_END")            
             self.emit(f'\t.segment "{self.seg_code}"')
             return
