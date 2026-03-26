@@ -120,6 +120,7 @@ struct IOCB_Block
 end
 
 
+; System IOCB blocks
 IOCB_Block IOCB[8] @$0340
 
 
@@ -139,6 +140,7 @@ enum ICCOM_COMMANDS
 end
 
 
+; AUX1 values for fopen
 enum ICAX1_Mode
     Read        = 4       ; input operation; positions file pointer to start of file.
     Directory   = 6       ; disk directory input operation.
@@ -236,6 +238,7 @@ proc putx(byte value)
     putchar(hex_digits[value >> 4])
     putchar(hex_digits[value & $0F])
 end
+
 
 /*
     delay - wait for a specified time
