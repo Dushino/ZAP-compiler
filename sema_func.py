@@ -217,6 +217,7 @@ class FuncAnalyzer:
 
                 if et is None:
                     _ret_type_error("RETURN in function must have an expression")
+                assert et is not None  # narrow type for static analysis
 
                 ret_base: str = ret_sem.base.upper()
                 expr_base: str = et.sem_type.base.upper()

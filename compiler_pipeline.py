@@ -247,7 +247,7 @@ def _format_assembly(lines: list[str], *, seg_zp: str = "ZEROPAGE", seg_bss: str
         )
 
     out: list[str] = []
-    in_asm_block: bool = False
+    in_asm_block: str | bool = False
     for ln in compact:
         stripped = ln.strip()
 

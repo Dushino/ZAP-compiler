@@ -8927,7 +8927,7 @@ class CodeGen:
                     _idx_is_simple_word_id = _idx_check.sem_type.base != "BYTE" or _idx_check.sem_type.is_pointer
                 if _idx_is_simple_word_id:
                     # Only load low byte — high byte will be loaded directly in addr calc
-                    idx_sym_lo: Symbol = self.current_symtab.lookup(expr.index.name)
+                    idx_sym_lo: Symbol = self.current_symtab.lookup(cast(Identifier, expr.index).name)
                     self.emit(f"\tLDA {self._sym_operand(idx_sym_lo, low_byte=True)}")
                 else:
                     self.gen_expr(expr.index)
@@ -9061,7 +9061,7 @@ class CodeGen:
             # to a const base, load the high byte directly from the variable instead of
             # going through X (saves LDX + TXA → single LDA).
             if _idx_is_simple_word_id and _is_word_index and element_width == 1:
-                idx_sym_opt: Symbol = self.current_symtab.lookup(expr.index.name)
+                idx_sym_opt: Symbol = self.current_symtab.lookup(cast(Identifier, expr.index).name)
                 idx_hi_op: str = self._sym_operand(idx_sym_opt, low_byte=False)
                 self.emit("\tCLC")
                 self.emit(f"\tADC #<{_const_base_label}")
@@ -12283,7 +12283,7 @@ class CodeGen:
                             and isinstance(lhs.index, Identifier)
                         )
                         if _ca_direct_hi:
-                            _ca_idx_sym: Symbol = self.current_symtab.lookup(lhs.index.name)
+                            _ca_idx_sym: Symbol = self.current_symtab.lookup(cast(Identifier, lhs.index).name)
                             self.emit(f"\tLDA {self._sym_operand(_ca_idx_sym, low_byte=True)}")
                         else:
                             self.gen_expr(lhs.index)

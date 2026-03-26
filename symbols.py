@@ -217,7 +217,7 @@ class SymbolTable:
 
 class SymbolLookup(Protocol):
     """Protocol for symbol lookup providers used by the type checker."""
-    def lookup(self, name: str) -> Symbol: ...
+    def lookup(self, name: str, node=None) -> Symbol: ...
 
 
 @dataclass
