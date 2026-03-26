@@ -4,8 +4,9 @@
 
 ## Peephole optimization session (2026-03-26)
 
-**Benchmark**: Sieve of Eratosthenes, ZAP! 1.052s vs Action! 1.52s (PAL, SDMCTL=0, -6502 -O1)
-**ZAP! is 30.8% faster than Action!** — down from 1.88s at start of optimization work.
+**Benchmark**: Sieve of Eratosthenes, ZAP! **0.992s** vs Action! 1.52s (PAL, SDMCTL=0, -6502 -O1)
+**ZAP! is 34.7% faster than Action!** — down from 1.88s at start of optimization work.
+**Broke the 1-second barrier!**
 
 ### Optimizations implemented:
 - **OPT-D**: Dead low-byte CMP when const_lo==0 in word-vs-constant comparisons

@@ -9062,6 +9062,9 @@ class CodeGen:
                         if arr_sym_check.asm_name() == arr_asm:
                             # Match! Use the running pointer directly
                             # Y is already 0 (set before loop, not modified in body)
+                            # For dedicated slots (TMP2), only handle reads — writes use TMP0.
+                            if not load_only and ptr_asm != "TMP0":
+                                break  # skip LSR for writes on non-TMP0 slots
                             if load_only:
                                 self.emit(f"\tLDA ({ptr_asm}),Y")
                                 # For BYTE elements, X = 0
@@ -13928,20 +13931,29 @@ class CodeGen:
         # --- Loop strength reduction ---
         # Detect: for i = 0 to N with body containing arr[i] where arr is a
         # static byte array and step == 1.  Replace the per-iteration address
-        # computation with a running pointer in TMP0.
+        # computation with a running pointer.
+        # Step 1: Simple body → use TMP0 (no other TMP0 usage in body).
+        # Step 2: Complex body (if/while) → use TMP2 as dedicated pointer.
         _lsr_key: tuple[str, str] | None = None
+        _lsr_slot: str = "TMP0"
         if (step_expr.value == 1
                 and isinstance(stmt.var, Identifier)
                 and isinstance(stmt.start, IntLiteral) and stmt.start.value == 0):
             _lsr_key = self._detect_loop_strength_reduction(stmt.var.name, stmt.body)
+            if _lsr_key is None:
+                # Step 2: try with dedicated TMP2 slot for complex bodies
+                _lsr_key = self._detect_lsr_complex(stmt.var.name, stmt.body)
+                if _lsr_key is not None:
+                    _lsr_slot = "TMP2"
+                    self.used_temps.add("TMP2")
 
         if _lsr_key:
             arr_asm, _idx_name = _lsr_key
-            # Initialize TMP0 = &arr[0] and Y = 0 before the loop
+            # Initialize running pointer and Y = 0 before the loop
             self.emit(f"\tLDA #<{arr_asm}")
-            self.emit("\tSTA TMP0")
+            self.emit(f"\tSTA {_lsr_slot}")
             self.emit(f"\tLDA #>{arr_asm}")
-            self.emit("\tSTA TMP0+1")
+            self.emit(f"\tSTA {_lsr_slot}+1")
             self.emit("\tLDY #$00")
             # Detect constant RHS: if all arr[i] stores in the body use the same
             # constant value, hoist LDA #const before the loop.
@@ -13949,7 +13961,7 @@ class CodeGen:
             if _lsr_const_val is not None:
                 self.emit(f"\tLDA #${_lsr_const_val & 0xFF:02X}")
             # Register the running pointer mapping
-            self._loop_strength_ptr[_lsr_key] = "TMP0"
+            self._loop_strength_ptr[_lsr_key] = _lsr_slot
             # Track hoisted constant so store handler skips gen_expr
             self._loop_strength_const = _lsr_const_val
 
@@ -13993,11 +14005,11 @@ class CodeGen:
             self.emit(f"{lbl_body}:")
             for s in body:
                 if s is None:
-                    # Emit TMP0 increment (running pointer += 1)
-                    self.emit("\tINC TMP0")
+                    # Emit running pointer increment (+= 1)
+                    self.emit(f"\tINC {_lsr_slot}")
                     lbl_nc = self.new_label("LSR_NC")
                     self.emit(f"\tBNE {lbl_nc}")
-                    self.emit("\tINC TMP0+1")
+                    self.emit(f"\tINC {_lsr_slot}+1")
                     self.emit(f"{lbl_nc}:")
                 else:
                     self.gen_stmt(s)
@@ -14032,6 +14044,88 @@ class CodeGen:
                     else:
                         return None  # non-constant RHS
         return const_val
+
+    def _detect_lsr_complex(self, loop_var: str, body: list) -> tuple[str, str] | None:
+        """Detect loop strength reduction for complex bodies (if/while inside).
+
+        Unlike the simple version, this allows nested control flow by using a
+        dedicated ZP slot (TMP2) instead of TMP0.  Returns (array_asm, loop_var_name)
+        if the body contains arr[loop_var] reads with element_width=1 and a static
+        byte array.  The array access may appear inside if/while bodies.
+        Does NOT handle arr[loop_var] writes (stores use TMP0 path anyway).
+        """
+        from ast_nodes import AssignStmt, CallStmt, IfStmt, WhileStmt, SubscriptExpr, CallExpr
+
+        found_arr: str | None = None
+        loop_var_upper = loop_var.upper()
+
+        def _find_arr_reads(stmts: list) -> bool:
+            """Recursively search for arr[loop_var] reads. Return False if disqualified."""
+            nonlocal found_arr
+            for s in stmts:
+                if isinstance(s, IfStmt):
+                    # Check condition for arr[loop_var] read
+                    if not _check_expr_for_arr_read(s.cond):
+                        return False
+                    if not _find_arr_reads(s.then_body):
+                        return False
+                    if s.else_body and not _find_arr_reads(s.else_body):
+                        return False
+                elif isinstance(s, WhileStmt):
+                    if not _check_expr_for_arr_read(s.cond):
+                        return False
+                    if not _find_arr_reads(s.body):
+                        return False
+                elif isinstance(s, AssignStmt):
+                    # LHS arr[loop_var] write: NOT handled by Step 2 (inner loop uses TMP0)
+                    if isinstance(s.lhs, SubscriptExpr):
+                        if (isinstance(s.lhs.index, Identifier)
+                                and s.lhs.index.name.upper() == loop_var_upper
+                                and isinstance(s.lhs.array, Identifier)):
+                            return False  # write to arr[loop_var] — can't use dedicated ptr
+                    if not _check_expr_for_arr_read(s.rhs):
+                        return False
+                elif isinstance(s, CallStmt):
+                    pass  # calls don't affect TMP2 (it's not a standard scratch reg)
+            return True
+
+        def _check_expr_for_arr_read(expr) -> bool:
+            """Check expression for arr[loop_var] subscript reads. Register if found."""
+            nonlocal found_arr
+            if isinstance(expr, SubscriptExpr):
+                if (isinstance(expr.array, Identifier) and isinstance(expr.index, Identifier)
+                        and expr.index.name.upper() == loop_var_upper):
+                    try:
+                        arr_sym: Symbol = self.current_symtab.lookup(expr.array.name)
+                    except KeyError:
+                        return False
+                    if not arr_sym.is_array:
+                        return False
+                    elem_w = self._calculate_element_width(arr_sym)
+                    if elem_w != 1:
+                        return False
+                    if arr_sym.type.is_pointer and not arr_sym.is_array:
+                        return False
+                    if arr_sym.address is not None:
+                        return False
+                    arr_asm = arr_sym.asm_name()
+                    if found_arr is not None and found_arr != arr_asm:
+                        return False  # multiple arrays
+                    found_arr = arr_asm
+                    return True
+                # Subscript with different index — fine, uses TMP0 not TMP2
+                return True
+            if isinstance(expr, BinaryExpr):
+                return _check_expr_for_arr_read(expr.left) and _check_expr_for_arr_read(expr.right)
+            if isinstance(expr, UnaryExpr):
+                return _check_expr_for_arr_read(expr.expr)
+            return True  # literals, identifiers, etc.
+
+        if not _find_arr_reads(body):
+            return None
+        if found_arr is None:
+            return None
+        return (found_arr, loop_var_upper)
 
     def _detect_loop_strength_reduction(self, loop_var: str, body: list) -> tuple[str, str] | None:
         """Check if for-loop body qualifies for strength reduction.
