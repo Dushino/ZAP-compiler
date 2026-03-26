@@ -82,9 +82,13 @@ end
 ; Atari Basic compiled F:    4660 =  93.20s
 ; Turbo Basic compiled:      1906 =  38.12s
 ; FastBasic	Byte-code	              5.50s
-; Action!:                     76 =   1.52s  with SDMCTL=0
-; ZAP!            $314 = 788 / 10 =   1.576s with SDMCTL=34
-; ZAP!            $23C = 572 / 10 =   1.1144s with SDMCTL=0
+; Action!:               76 / 50  =   1.52s  with SDMCTL=0
+; ZAP!           $314 = 788 / 500 =   1.576s with SDMCTL=34
+; ZAP!           $23C = 572 / 500 =   1.114s with SDMCTL=0
+; ZAP!           $22A = 554 / 500 =   1.108s with SDMCTL=0
+; ZAP!           $21B = 539 / 500 =   1.078s with SDMCTL=0
+; ZAP!           $217 = 535 / 500 =   1.070s with SDMCTL=0
+; ZAP!           $212 = 530 / 500 =   1.060s with SDMCTL=0
 proc sieve()
     const word max = 8192
     byte flags[max]
