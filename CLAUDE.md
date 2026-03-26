@@ -50,4 +50,7 @@
 # Compact instructions
 - When you are using compact, please focus on test output and code changes
 
+## Code Generation Rules ##
+- ASM...END blocks must NEVER be optimized by peephole passes. Labels, instructions, and directives inside ASM blocks are user-controlled and must be emitted verbatim.
+- Only `__ZAP_*` prefixed labels are compiler-generated internal labels. All other labels must be preserved by optimization passes.
 
