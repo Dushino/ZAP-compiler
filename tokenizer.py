@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+"""Lexical analyser for the ZAP language.
+
+Converts source text into a stream of Token objects.  Handles $HEX,
+%BIN, decimal literals, 'char' constants, ;line and /* block */
+comments, string literals, and all ZAP keywords/operators.
+"""
 
 from dataclasses import dataclass
-from typing import Optional
 from token_types import *
 from errors import TokenizerError
 
@@ -61,14 +66,14 @@ class Tokenizer:
         """Return the collected tokens after tokenization."""
         return self.tokenList
 
-    def _peek(self, offset=0) -> Optional[str]:
+    def _peek(self, offset=0) -> str | None:
         """Peek ahead in the source without consuming characters."""
         i: int = self.pos + offset
         if i < self.length:
             return self.src[i]
         return None
 
-    def _advance(self, n=1) -> Optional[str]:
+    def _advance(self, n=1) -> str | None:
         """Advance the cursor by n characters while tracking line/column."""
         ch: str | None = None
         for _ in range(n):
@@ -163,7 +168,7 @@ class Tokenizer:
         
         raise TokenizerError(f"Unknown escape sequence: \\{esc}", line=self.line, col=self.col)
 
-    def _emit(self, ttype: str, start_line: int, start_col: int, value: Optional[str] = None) -> None:
+    def _emit(self, ttype: str, start_line: int, start_col: int, value: str | None = None) -> None:
         """Create and append a token with normalized casing rules."""
         if value is None:
             value = ""

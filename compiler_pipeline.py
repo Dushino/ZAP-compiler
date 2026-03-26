@@ -1,3 +1,10 @@
+"""Compilation pipeline orchestrator.
+
+Runs the full sequence: semantic analysis, constant substitution/folding,
+dead-code elimination, local-variable liveness sharing, code generation,
+and post-processing (peephole, jump threading, label cleanup).
+"""
+
 from ast_nodes import Program, ProcDecl, FuncDecl, IncbinDirective, StructDef
 from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry, Symbol, SemType, StructInfo
 from sema import DeclarationAnalyzer, StructAnalyzer, EnumAnalyzer
@@ -9,7 +16,7 @@ from dce import dce_block
 from errors import SemanticError
 from ast_walker import walk_expr, walk_stmt, walk_initializer
 from collections import deque
-from typing import Optional, Set, Dict, Tuple, List, Any
+from typing import Any
 
 # Pseudo-function names handled in codegen that are excluded from call-graph
 # tracking (they take no real JSR and appear in no proc/func table).
@@ -1629,7 +1636,7 @@ def prioritize_locals_to_zp(analyzed_procs, analyzed_funcs) -> None:
             sym.zp_priority = -1  # Mark as "not allocated to ZP"
 
 
-def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: Optional[Set[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False, zp_start: int = 0) -> str:
+def compile_program(program: Program, *, target_6502: bool = False, command_line: str | None = None, defined_symbols: set[str] | None = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False, zp_start: int = 0) -> str:
     """Run the full compile pipeline from AST to assembly output."""
     # --- symbol tables ---
     global_symtab = SymbolTable()
@@ -1944,13 +1951,12 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     cg.gen_globals_footer()
 
-    # Initialize stmt_src tracking for DCE
-    from dce import init_stmt_src_tracking, get_updated_stmt_src
+    # Apply DCE to all procs and funcs, passing stmt_src for source mapping preservation
     original_debug = getattr(program, "debug", {})
+    _dce_stmt_src: dict[int, tuple] | None = None
     if original_debug:
-        init_stmt_src_tracking(original_debug.get("stmt_src", {}))
+        _dce_stmt_src = original_debug.get("stmt_src", {})
 
-    # procedures and functions - First pass: apply DCE to all procs and funcs
     for p in program.procs:
         if isinstance(p, ProcDecl):
             ap = next((ap for ap in analyzed_procs if ap.ast.name == p.name), None)
@@ -1959,7 +1965,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     name=ap.ast.name,
                     params=ap.ast.params,
                     locals=ap.ast.locals,
-                    body=dce_block(ap.ast.body),
+                    body=dce_block(ap.ast.body, _dce_stmt_src),
                     keep=getattr(ap.ast, 'keep', False),
                     noexport=getattr(ap.ast, 'noexport', False),
                     export=getattr(ap.ast, 'export', False),
@@ -1972,18 +1978,11 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     ret_type=af.ast.ret_type,
                     params=af.ast.params,
                     locals=af.ast.locals,
-                    body=dce_block(af.ast.body),
+                    body=dce_block(af.ast.body, _dce_stmt_src),
                     keep=getattr(af.ast, 'keep', False),
                     noexport=getattr(af.ast, 'noexport', False),
                     export=getattr(af.ast, 'export', False),
                 )
-    
-    # Update program.debug and CodeGen's stmt_src with new mappings after all DCE
-    # Update in place to preserve references
-    if original_debug:
-        updated_stmt_src = get_updated_stmt_src()
-        original_debug["stmt_src"].clear()
-        original_debug["stmt_src"].update(updated_stmt_src)
 
     # Predeclare for-loop temps so liveness can track them safely
     for_temp_map = _predeclare_for_loop_temps(analyzed_procs, analyzed_funcs, func_table, struct_registry)

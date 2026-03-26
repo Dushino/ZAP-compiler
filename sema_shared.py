@@ -26,7 +26,7 @@ handling (supply it via the on_call_stmt or on_return_stmt callback slots, or
 add a new callback parameter).
 """
 
-from typing import Callable, Optional
+from typing import Callable
 from symbols import Symbol, SymbolTable, SemType, StructFieldInfo
 from errors import SemanticError
 
@@ -390,8 +390,8 @@ def validate_body_exprs(
     debug: dict,
     routine_name: str,
     *,
-    on_call_stmt: Optional[Callable] = None,
-    on_return_stmt: Optional[Callable] = None,
+    on_call_stmt: Callable | None = None,
+    on_return_stmt: Callable | None = None,
 ) -> set[str]:
     """Type-check all expressions in a statement list and track initialization.
 

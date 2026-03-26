@@ -248,7 +248,7 @@ class ExprTypeChecker:
 
                 return ExprType(promote(lt.sem_type, rt.sem_type), ExprKind.VALUE)
 
-            # relační
+            # relational
             if op in {
                 BinOp.EQ, BinOp.NE,
                 BinOp.LT, BinOp.GT, BinOp.LE, BinOp.GE
@@ -274,19 +274,19 @@ class ExprTypeChecker:
 
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
-            # logické
+            # logical
             if op in {BinOp.LAND, BinOp.LOR}:
                 if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
                     raise SemanticError("Logical operator requires values", node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
-            # bitové
+            # bitwise
             if op in {BinOp.BAND, BinOp.BOR, BinOp.BXOR, BinOp.LSHIFT, BinOp.RSHIFT}:
                 if lt.kind != ExprKind.VALUE or rt.kind != ExprKind.VALUE:
                     raise SemanticError("Bitwise operator requires values", node=expr)
                 return ExprType(promote(lt.sem_type, rt.sem_type), ExprKind.VALUE)
 
-        # unární OP
+        # unary operators
         if isinstance(expr, UnaryExpr):
             # Handle address-of operator (@)
             if expr.op == UnOp.ADDROF:

@@ -1,5 +1,11 @@
-﻿
-from typing import NoReturn, Optional, Callable, Union, cast
+﻿"""Recursive-descent parser for the ZAP language.
+
+Converts a token stream into a frozen-dataclass AST.  Tracks source
+locations (line/col) for every statement and declaration so that later
+phases can map errors back to the original source.
+"""
+
+from typing import NoReturn, Callable, cast
 from tokenizer import Tokenizer, Token
 from token_types import *
 from ast_nodes import *
@@ -7,7 +13,7 @@ from errors import SyntaxError
 
 class Parser:
     """Parse ZAP source text into an AST program."""
-    def __init__(self, source: str, filename: str | None = None, initial_struct_names: Optional[set[str]] = None) -> None:
+    def __init__(self, source: str, filename: str | None = None, initial_struct_names: set[str] | None = None) -> None:
         """Initialize parser state and tokenize the input source."""
         self.filename: str = filename or "<input.act>"
         # Remove BOM if present (can be \ufeff or UTF-8 BOM misinterpreted as 'ï»¿')
@@ -37,14 +43,14 @@ class Parser:
         # Struct names for type checking in parse_declaration
         self.struct_names: set[str] = set((s.upper() for s in (initial_struct_names or set())))
 
-    def _readable_token(self, ttype: str, tvalue: Optional[str] = None) -> str:
+    def _readable_token(self, ttype: str, tvalue: str | None = None) -> str:
         """Return a human-readable description for a token type/value.
 
         The mapping contains either a string or a callable that accepts an optional
         token value and returns a string. Type annotations are explicit to avoid
         Pylance errors where the inferred type could be "object".
         """
-        mapping: dict[str, Union[str, Callable[[Optional[str]], str]]] = {
+        mapping: dict[str, str | Callable[[str | None], str]] = {
             TOK_IDENT: "identifier",
             TOK_NUMBER: "number",
             TOK_STRING: "string",
@@ -66,13 +72,13 @@ class Parser:
             TOK_LCURLY: "'{'",
             TOK_RCURLY: "'}'",
         }
-        val: Optional[Union[str, Callable[[Optional[str]], str]]] = mapping.get(ttype)
+        val: str | Callable[[str | None], str] | None = mapping.get(ttype)
         if val is None:
             return ttype
         if isinstance(val, str):
             return val
         # At this point val must be a callable; cast it for the type checker
-        return cast(Callable[[Optional[str]], str], val)(tvalue)
+        return cast(Callable[[str | None], str], val)(tvalue)
 
     def advance(self) -> None:
         """Advance to the next token in the stream."""
@@ -265,8 +271,8 @@ class Parser:
 
         # Optional struct-level declaration modifiers: #PORT #RD #WR
         struct_is_port: bool = False
-        struct_port_rd: Optional[bool] = None
-        struct_port_wr: Optional[bool] = None
+        struct_port_rd: bool | None = None
+        struct_port_wr: bool | None = None
         struct_noexport: bool = False
         struct_export: bool = False
         while self.cur.type == TOK_DECLMOD:
@@ -348,8 +354,8 @@ class Parser:
 
             # Optional trailing modifiers on field: #PORT, #RD, #WR
             field_is_port = False
-            field_port_rd: Optional[bool] = None
-            field_port_wr: Optional[bool] = None
+            field_port_rd: bool | None = None
+            field_port_wr: bool | None = None
             while self.cur.type == TOK_DECLMOD:
                 val: str = self.cur.value.upper()
                 if val == 'PORT':
@@ -1511,7 +1517,7 @@ class Parser:
         if self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
             self.error("Local variable declarations must be placed before the first statement in a procedure")
 
-        # blokové terminátory NESMÍ být parsovány jako statement
+        # block terminators must NOT be parsed as statements
         if self.cur.type == TOK_KEYWORD and self.cur.value in ("END", "ENDIF", "ELSE", "UNTIL"):
             self.error(f"Unexpected block terminator {self.cur.value}")
 

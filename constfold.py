@@ -1,3 +1,10 @@
+"""Constant folding and algebraic simplification.
+
+Evaluates compile-time constant expressions (arithmetic, shifts, bitwise
+ops) and applies algebraic identities (x+0=x, x*1=x, x*0=0, etc.)
+to simplify the AST before code generation.
+"""
+
 from ast_nodes import (
     Expr,
     IntLiteral,
@@ -93,7 +100,7 @@ def _eval_binary(op: BinOp, a: int, b: int, node: Expr | None = None) -> IntLite
             raise SemanticError("Modulo by zero in constant expression", node=node)
         return IntLiteral(a % b)
 
-    # relační
+    # relational
     if op == BinOp.EQ:
         return IntLiteral(1 if a == b else 0)
     if op == BinOp.NE:
@@ -107,13 +114,13 @@ def _eval_binary(op: BinOp, a: int, b: int, node: Expr | None = None) -> IntLite
     if op == BinOp.GE:
         return IntLiteral(1 if a >= b else 0)
 
-    # logické
+    # logical
     if op == BinOp.LAND:
         return IntLiteral(1 if (a and b) else 0)
     if op == BinOp.LOR:
         return IntLiteral(1 if (a or b) else 0)
 
-    # bitové
+    # bitwise
     if op == BinOp.BAND:
         return IntLiteral(a & b)
     if op == BinOp.BOR:

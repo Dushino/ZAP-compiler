@@ -1,5 +1,5 @@
 ﻿from dataclasses import dataclass
-from typing import Iterator, Optional, Protocol, List
+from typing import Iterator, Protocol
 from errors import SemanticError
 
 
@@ -10,12 +10,12 @@ class StructFieldInfo:
     base_type: str        # "byte", "word", or struct name
     is_pointer: bool
     offset: int           # Byte offset from struct start
-    fixed_address: Optional[int] = None  # If field has @address
-    array_sizes: Optional[List[int]] = None  # For arrays: [size1, size2, ...]
+    fixed_address: int | None = None  # If field has @address
+    array_sizes: list[int] | None = None  # For arrays: [size1, size2, ...]
     # Port modifiers on the field: None = unspecified, True/False explicit
     is_port: bool = False
-    port_rd: Optional[bool] = None
-    port_wr: Optional[bool] = None
+    port_rd: bool | None = None
+    port_wr: bool | None = None
 
     @property
     def width(self) -> int:
@@ -49,14 +49,14 @@ class StructFieldInfo:
 class StructInfo:
     """Information about a defined struct"""
     name: str
-    fields: List[StructFieldInfo]
+    fields: list[StructFieldInfo]
     size: int  # Total size in bytes
     # Optional default port modifiers for this struct type
     is_port_default: bool = False
-    port_rd_default: Optional[bool] = None
-    port_wr_default: Optional[bool] = None
+    port_rd_default: bool | None = None
+    port_wr_default: bool | None = None
 
-    def get_field(self, field_name: str) -> Optional[StructFieldInfo]:
+    def get_field(self, field_name: str) -> StructFieldInfo | None:
         """Get field by name"""
         for f in self.fields:
             if f.name.upper() == field_name.upper():
@@ -79,7 +79,7 @@ class StructRegistry:
             raise SemanticError(f"Struct '{struct_info.name}' already defined", node=node)
         self._structs[struct_info.name.upper()] = struct_info
 
-    def lookup(self, name: str) -> Optional[StructInfo]:
+    def lookup(self, name: str) -> StructInfo | None:
         """Look up a struct by name"""
         return self._structs.get(name.upper())
 
@@ -94,7 +94,7 @@ class SemType:
     base: str            # "byte", "word", or struct name
     is_pointer: bool     # ^ (pointer)
     is_struct: bool = False  # True if base is a struct name
-    struct_info: Optional[StructInfo] = None  # Struct metadata if is_struct=True
+    struct_info: StructInfo | None = None  # Struct metadata if is_struct=True
 
     @property
     def width(self) -> int:
@@ -126,12 +126,12 @@ class Symbol:
     is_const: bool
     const_value: int | None    
     is_array: bool
-    array_len: Optional[int]   # DEPRECATED: use array_dims for multi-dim support
-    init: Optional[object]     # InitValue z AST (zatím)
-    address: Optional[int] = None   # pevná adresa pro HW porty
-    is_volatile: bool = False       # true → nelze optimalizovat čtení
-    proc_name: str = ""             # jméno procedury (pro lokály)
-    array_dims: Optional[List[int]] = None  # [10, 20, 30] for 3D array
+    array_len: int | None   # DEPRECATED: use array_dims for multi-dim support
+    init: object | None     # InitValue from AST
+    address: int | None = None   # fixed address for HW ports
+    is_volatile: bool = False       # true → reads cannot be optimized away
+    proc_name: str = ""             # procedure name (for locals)
+    array_dims: list[int] | None = None  # [10, 20, 30] for 3D array
     is_static: bool = False         # true → static local variable (initialized once at program start)
     is_port: bool = False           # true → PORT modifier (hardware port-mapped variable)
     port_rd: bool = False           # #RD - port readable
@@ -239,7 +239,7 @@ class ProcTable:
     def define(self, p: ProcSymbol, node=None) -> None:
         """Register a procedure symbol with duplicate-definition checks."""
         # Ensure no duplicate definitions within same owner
-        lst: List[ProcSymbol] = self._procs.setdefault(p.name, [])
+        lst: list[ProcSymbol] = self._procs.setdefault(p.name, [])
         for existing in lst:
             if existing.owner_file == p.owner_file:
                 raise SemanticError(f"Procedure '{p.name}' already defined", node=node)
@@ -255,14 +255,14 @@ class ProcTable:
         """
         if name not in self._procs:
             raise SemanticError(f"Undefined procedure '{name}'", node=node)
-        candidates: List[ProcSymbol] = self._procs[name]
+        candidates: list[ProcSymbol] = self._procs[name]
         # Prefer candidate defined in caller_file
         if caller_file is not None:
             for c in candidates:
                 if c.owner_file == caller_file:
                     return c
         # Otherwise, look for exported candidates
-        exported: List[ProcSymbol] = [c for c in candidates if c.exported]
+        exported: list[ProcSymbol] = [c for c in candidates if c.exported]
         if len(exported) == 1:
             return exported[0]
         if len(exported) > 1:

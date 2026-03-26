@@ -1,7 +1,7 @@
 # 
 
 from errors import SemanticError
-from typing import Any, List
+from typing import Any
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
 from ast_nodes import (
     Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr,
@@ -401,7 +401,7 @@ class DeclarationAnalyzer:
             raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", node=d)
 
         # Extract array dimensions (supports multi-dimensional arrays)
-        array_sizes_to_eval: List[Expr] = d.array_sizes if d.array_sizes else (
+        array_sizes_to_eval: list[Expr] = d.array_sizes if d.array_sizes else (
             [d.array_size] if d.array_size is not None else []
         )
         
@@ -718,7 +718,7 @@ class DeclarationAnalyzer:
             if array_len is None and (not array_dims or None in array_dims):
                 raise SemanticError("Array size required", node=d)
 
-        # skalární proměnná
+        # scalar variable
         else:
             if isinstance(d.initializer, ListInit):
                 # ListInit is allowed for struct types for nested initialization

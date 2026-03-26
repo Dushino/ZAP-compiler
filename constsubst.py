@@ -1,3 +1,10 @@
+"""Constant substitution pass.
+
+Replaces references to named constants (const identifiers, enum members)
+with their literal values so that later constant folding can evaluate
+the full expression at compile time.
+"""
+
 from ast_nodes import (
     Identifier,
     Expr,
@@ -57,12 +64,12 @@ def subst_const(expr: Expr, symtab: SymbolTable) -> Expr:
             subst_const(expr.right, symtab)
         )
 
-    # DEREF – konstanta nikdy nemá adresu
+    # DEREF — constants never have an address
     if isinstance(expr, DerefExpr):
         return DerefExpr(
             subst_const(expr.pointer, symtab)
         )
 
-    # LITERAL nebo něco jiného
+    # literal or other node — return as-is
     return expr
 

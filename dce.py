@@ -1,3 +1,10 @@
+"""Dead code elimination for ZAP AST.
+
+Removes unreachable code: dead branches in if/while/repeat-until,
+and statements after break/continue/return.  Preserves source-line
+mappings in the stmt_src dict so error reporting stays correct.
+"""
+
 from ast_nodes import (
     Expr, IfStmt, WhileStmt, RepeatUntilStmt, SwitchStmt, SwitchCase, BreakStmt, ContinueStmt,
     ReturnStmt
@@ -5,26 +12,15 @@ from ast_nodes import (
 from ast_nodes import IntLiteral
 
 
-# Global dict to preserve source line mappings during DCE
-_stmt_src_copy: dict = {}
+def dce_block(stmts: list, stmt_src: dict[int, tuple] | None = None) -> list:
+    """Apply dead-code elimination to a list of statements.
 
-
-def init_stmt_src_tracking(original_stmt_src: dict) -> None:
-    """Initialize the statement source map copy for DCE tracking."""
-    global _stmt_src_copy
-    _stmt_src_copy = original_stmt_src.copy()
-
-
-def get_updated_stmt_src() -> dict:
-    """Return the updated statement source map after DCE rewrites."""
-    return _stmt_src_copy.copy()
-
-
-def dce_block(stmts: list) -> list:
-    """Apply dead-code elimination to a list of statements."""
+    stmt_src: optional id(stmt) → source-info dict; updated in-place
+    when statements are rewritten so that error locations survive DCE.
+    """
     out = []
     for stmt in stmts:
-        out_stmt = dce_stmt(stmt)
+        out_stmt = _dce_stmt(stmt, stmt_src)
         if out_stmt is None:
             continue
 
@@ -34,11 +30,12 @@ def dce_block(stmts: list) -> list:
             out.append(out_stmt)
 
         if isinstance(stmt, (BreakStmt, ContinueStmt, ReturnStmt)):
-            break   # vše za tím je mrtvé
+            break   # everything after this is dead code
 
     return out
 
-def dce_stmt(stmt):
+
+def _dce_stmt(stmt, stmt_src: dict[int, tuple] | None = None):
     """Rewrite a single statement, dropping code proven unreachable."""
     # IF
     if isinstance(stmt, IfStmt):
@@ -48,15 +45,13 @@ def dce_stmt(stmt):
             if cond.value == 0:
                 return None
             else:
-                return dce_block(stmt.then_body)
+                return dce_block(stmt.then_body, stmt_src)
 
-        then_body = dce_block(stmt.then_body)
-        else_body = dce_block(stmt.else_body) if stmt.else_body else None
+        then_body = dce_block(stmt.then_body, stmt_src)
+        else_body = dce_block(stmt.else_body, stmt_src) if stmt.else_body else None
 
         new_stmt = IfStmt(cond, then_body, else_body)
-        # Preserve source mapping
-        if id(stmt) in _stmt_src_copy:
-            _stmt_src_copy[id(new_stmt)] = _stmt_src_copy[id(stmt)]
+        _copy_src_mapping(stmt, new_stmt, stmt_src)
         return new_stmt
 
     # WHILE
@@ -66,36 +61,38 @@ def dce_stmt(stmt):
         if isinstance(cond, IntLiteral) and cond.value == 0:
             return None
 
-        body = dce_block(stmt.body)
+        body = dce_block(stmt.body, stmt_src)
         new_stmt = WhileStmt(cond, body)
-        # Preserve source mapping
-        if id(stmt) in _stmt_src_copy:
-            _stmt_src_copy[id(new_stmt)] = _stmt_src_copy[id(stmt)]
+        _copy_src_mapping(stmt, new_stmt, stmt_src)
         return new_stmt
 
     # REPEAT-UNTIL
     if isinstance(stmt, RepeatUntilStmt):
         cond: Expr = stmt.cond
 
-        body = dce_block(stmt.body)
+        body = dce_block(stmt.body, stmt_src)
         if isinstance(cond, IntLiteral) and (cond.value & 0xFFFF) != 0:
             return body
 
         new_stmt = RepeatUntilStmt(body, cond)
-        if id(stmt) in _stmt_src_copy:
-            _stmt_src_copy[id(new_stmt)] = _stmt_src_copy[id(stmt)]
+        _copy_src_mapping(stmt, new_stmt, stmt_src)
         return new_stmt
 
+    # SWITCH
     if isinstance(stmt, SwitchStmt):
         new_cases = []
         for case in stmt.cases:
-            body = dce_block(case.body)
+            body = dce_block(case.body, stmt_src)
             new_cases.append(SwitchCase(case.labels, body, case.is_default))
         new_stmt = SwitchStmt(stmt.expr, new_cases)
-        if id(stmt) in _stmt_src_copy:
-            _stmt_src_copy[id(new_stmt)] = _stmt_src_copy[id(stmt)]
+        _copy_src_mapping(stmt, new_stmt, stmt_src)
         return new_stmt
 
-    # ostatní – ponech
+    # all other statements — keep as-is
     return stmt
 
+
+def _copy_src_mapping(old_stmt, new_stmt, stmt_src: dict[int, tuple] | None) -> None:
+    """Preserve source mapping when a statement is rewritten by DCE."""
+    if stmt_src is not None and id(old_stmt) in stmt_src:
+        stmt_src[id(new_stmt)] = stmt_src[id(old_stmt)]

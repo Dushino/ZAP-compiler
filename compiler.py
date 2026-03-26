@@ -1,3 +1,10 @@
+"""ZAP compiler CLI entry point.
+
+Provides compile_source() for in-memory compilation and compile_file()
+for file-based compilation with module resolution.  Also contains the
+main() argument parser that drives the compiler from the command line.
+"""
+
 from errors import CompileError, print_error, print_exception
 from parser import Parser
 from compiler_pipeline import compile_program
@@ -6,9 +13,8 @@ from preprocessor import Preprocessor
 import os
 import sys
 from version import __version__
-from typing import Optional, Set, List
 
-def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", zp_start: int = 0) -> str:
+def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: set[str] | None = None, command_line: str | None = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", zp_start: int = 0) -> str:
     """Compile ZAP source text to assembly output."""
     # Strip UTF-8 BOM if present
     if src.startswith('\ufeff'):
@@ -39,7 +45,7 @@ def compile_source(src: str, *, target_6502: bool = False, predefined_symbols: O
         sys.exit(1)
 
 
-def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: Optional[Set[str]] = None, command_line: Optional[str] = None, include_dirs: Optional[List[str]] = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False, zp_start: int = 0) -> str:
+def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols: set[str] | None = None, command_line: str | None = None, include_dirs: list[str] | None = None, enable_peephole: bool = False, seg_zp: str = "ZEROPAGE", seg_bss: str = "BSS", seg_code: str = "CODE", module_mode: bool = False, zp_start: int = 0) -> str:
     """Compile a source file with module resolution enabled."""
     try:
         # Get base directory for resolving includes
@@ -114,8 +120,8 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
                                 e.source_text = "\n".join(lines or [])
                             mapped = True
                             break
-        except Exception:
-            # Keep original error if remapping fails
+        except (KeyError, IndexError, AttributeError, TypeError, ValueError):
+            # Remapping is best-effort — if it fails, keep the original error
             pass
 
         # Prefer attached source text (e.g., preprocessed/cleaned) if available
@@ -125,7 +131,7 @@ def compile_file(filepath: str, *, target_6502: bool = False, predefined_symbols
             try:
                 with open(filepath, encoding='utf-8-sig') as f:
                     src = f.read()
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 src = None
         if e.line is not None and src is not None:
             fname = getattr(e, "filename", None) or filepath

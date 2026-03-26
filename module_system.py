@@ -3,7 +3,7 @@ Module system for handling .module and .include directives
 """
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Set, Optional, List, NoReturn, cast
+from typing import NoReturn, cast
 from parser import Parser
 from ast_nodes import Program, Declaration, ProcDecl, FuncDecl, StructDef, EnumDecl
 from preprocessor import Preprocessor
@@ -15,17 +15,17 @@ class ModuleInfo:
     """Information about a parsed module"""
     filepath: str
     is_module: bool  # Has .module directive
-    module_name: Optional[str]
+    module_name: str | None
     declarations: list[Declaration]
     procedures: list[ProcDecl]
     functions: list[FuncDecl]
     # Preserve original top-level items order (procs, funcs, directives)
     top_level_items: list
     includes: list[str]  # List of included module names
-    defined_symbols: Optional[Set[str]] = None  # Preprocessor .define symbols
+    defined_symbols: set[str] | None = None  # Preprocessor .define symbols
     program: Program | None = None
     # Exported type names (STRUCT/ENUM), uppercase. Includes transitive exports from dependencies.
-    exported_types: Set[str] = field(default_factory=set)
+    exported_types: set[str] = field(default_factory=set)
 
 
 class ModuleSystem:
@@ -33,10 +33,10 @@ class ModuleSystem:
     Manages module loading and dependency resolution
     """
     
-    def __init__(self, base_path: str = ".", predefined_symbols: Optional[Set[str]] = None, include_dirs: Optional[List[str]] = None) -> None:
+    def __init__(self, base_path: str = ".", predefined_symbols: set[str] | None = None, include_dirs: list[str] | None = None) -> None:
         """Initialize module resolution with base path and include dirs."""
         self.base_path: str = os.path.abspath(base_path)
-        self.loaded_modules: Dict[str, ModuleInfo] = {}
+        self.loaded_modules: dict[str, ModuleInfo] = {}
         self.include_stack: list[str] = []  # For circular dependency detection
         self.preprocessor = Preprocessor(predefined_symbols)  # Shared preprocessor for all modules
         # Normalize include directory paths
@@ -45,15 +45,15 @@ class ModuleSystem:
             # Provide a sensible default for common workspace layout: search 'work/lib' under base_path
             default_lib: str = os.path.join(self.base_path, 'work', 'lib')
             if os.path.isdir(default_lib):
-                self.include_dirs: List[str] = [os.path.abspath(default_lib)]
+                self.include_dirs: list[str] = [os.path.abspath(default_lib)]
             else:
                 self.include_dirs = []
         else:
-            self.include_dirs: List[str] = [os.path.abspath(d) for d in include_dirs]
+            self.include_dirs: list[str] = [os.path.abspath(d) for d in include_dirs]
         # Map module names to their defining file path to detect duplicates
-        self.module_name_to_path: Dict[str, str] = {}
+        self.module_name_to_path: dict[str, str] = {}
     
-    def parse_file(self, filepath: str, initial_struct_names: Optional[Set[str]] = None):
+    def parse_file(self, filepath: str, initial_struct_names: set[str] | None = None):
         """Parse a single file and extract module directives"""
         with open(filepath, 'r', encoding='utf-8-sig') as f:
             raw_source: str = f.read()
@@ -86,16 +86,16 @@ class ModuleSystem:
                 self.preprocessor.defined_symbols.discard(platform_symbol_added)
         
         # Extract module/include directives
-        module_name: Optional[str] = None
+        module_name: str | None = None
         is_module: bool = False
         includes: list[str] = []
         # module_directive_info is either a tuple (line, col, text) or None
-        module_directive_info: Optional[tuple[int, int, str]] = None
+        module_directive_info: tuple[int, int, str] | None = None
         include_directives: dict[str, tuple[int, int, str]] = {}
         
-        orig_lines: List[str] = raw_source.split('\n')
+        orig_lines: list[str] = raw_source.split('\n')
         cleaned_lines: list[str] = []
-        cleaned_line_map: List[int] = []
+        cleaned_line_map: list[int] = []
         # Initialize loop variables so static analysis sees them as always defined
         ln: int = 0
         line: str = ""
@@ -131,7 +131,7 @@ class ModuleSystem:
                     module_directive_info = (ln, first_q+1, line)
                 elif stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
-                    parts: List[str] = line.split('"')
+                    parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         inc_name = parts[1]
                         includes.append(inc_name)
@@ -145,7 +145,7 @@ class ModuleSystem:
                     cleaned_line_map.append(ln)
         else:
             # Fallback: operate on the processed_source lines (no kept mapping available)
-            lines: List[str] = processed_source.split('\n')
+            lines: list[str] = processed_source.split('\n')
             for ln, line in enumerate(lines, start=1):
                 stripped: str = line.strip()
                 lower_stripped: str = stripped.lower()
@@ -172,7 +172,7 @@ class ModuleSystem:
                 elif stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     # Capture the directive position so we can report errors at the include site
-                    parts: List[str] = line.split('"')
+                    parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         inc_name = parts[1]
                         includes.append(inc_name)
@@ -432,7 +432,7 @@ class ModuleSystem:
         err.filename = relative_to_dir
         raise err
 
-    def _scan_file_directives(self, filepath: str) -> tuple[bool, Optional[str], list[tuple[str, int, int]], Optional[Set[str]], Optional[tuple[int, int, str]]]:
+    def _scan_file_directives(self, filepath: str) -> tuple[bool, str | None, list[tuple[str, int, int]], set[str] | None, tuple[int, int, str] | None]:
         """Scan .module/.include directives without parsing declarations/statements."""
         with open(filepath, 'r', encoding='utf-8-sig') as f:
             raw_source: str = f.read()
@@ -458,11 +458,11 @@ class ModuleSystem:
                 self.preprocessor.defined_symbols.discard(platform_symbol_added)
 
         is_module: bool = False
-        module_name: Optional[str] = None
+        module_name: str | None = None
         includes: list[tuple[str, int, int]] = []
-        module_directive_info: Optional[tuple[int, int, str]] = None
+        module_directive_info: tuple[int, int, str] | None = None
 
-        orig_lines: List[str] = raw_source.split('\n')
+        orig_lines: list[str] = raw_source.split('\n')
         kept_line_nums = getattr(self.preprocessor, 'last_kept_line_numbers', None)
 
         if kept_line_nums is not None:
@@ -486,12 +486,12 @@ class ModuleSystem:
                     module_name = line[first_q + 1:second_q]
                     module_directive_info = (ln, first_q + 1, line)
                 elif stripped.startswith('.include'):
-                    parts: List[str] = line.split('"')
+                    parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         first_q: int = line.find('"')
                         includes.append((parts[1], ln, first_q + 1 if first_q != -1 else 1))
         else:
-            lines: List[str] = processed_source.split('\n')
+            lines: list[str] = processed_source.split('\n')
             for ln, line in enumerate(lines, start=1):
                 stripped: str = line.strip()
                 if stripped.startswith('.module'):
@@ -511,7 +511,7 @@ class ModuleSystem:
                     module_name = line[first_q + 1:second_q]
                     module_directive_info = (ln, first_q + 1, line)
                 elif stripped.startswith('.include'):
-                    parts: List[str] = line.split('"')
+                    parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         first_q: int = line.find('"')
                         includes.append((parts[1], ln, first_q + 1 if first_q != -1 else 1))
@@ -540,7 +540,7 @@ class ModuleSystem:
         try:
             # Snapshot symbols at module entry; parsing this same file later must start from
             # this state to avoid processing its .define/.undef directives twice.
-            entry_symbols: Set[str] = set(self.preprocessor.defined_symbols)
+            entry_symbols: set[str] = set(self.preprocessor.defined_symbols)
 
             # First scan directives so includes can be loaded before parsing.
             is_module, module_name, includes, defined_symbols, module_directive_info = self._scan_file_directives(full_path)
@@ -594,14 +594,14 @@ class ModuleSystem:
             module_info.includes = resolved_includes
 
             # Gather visible type names exported by dependencies (transitively).
-            dep_struct_names: Set[str] = set()
+            dep_struct_names: set[str] = set()
             for inc_path in resolved_includes:
                 dep_info = self.loaded_modules.get(inc_path)
                 if dep_info:
                     dep_struct_names.update(dep_info.exported_types)
 
             # Parse this module with dependency-exported type names available.
-            symbols_after_scan_and_deps: Set[str] = set(self.preprocessor.defined_symbols)
+            symbols_after_scan_and_deps: set[str] = set(self.preprocessor.defined_symbols)
             try:
                 self.preprocessor.defined_symbols = set(entry_symbols)
                 program, parsed_is_module, parsed_module_name, _parsed_includes, parsed_defined_symbols, _mdi = self.parse_file(
@@ -625,7 +625,7 @@ class ModuleSystem:
             module_info.top_level_items = list(program.procs)
 
             # Exported type names: transitive dependency exports + this module's own exported types.
-            own_exported_types: Set[str] = set()
+            own_exported_types: set[str] = set()
             for decl in module_info.declarations:
                 if isinstance(decl, (StructDef, EnumDecl)):
                     if module_info.is_module:
@@ -649,7 +649,7 @@ class ModuleSystem:
         finally:
             self.include_stack.pop()
     
-    def build_program(self, main_file: str) -> tuple[Program, Set[str]]:
+    def build_program(self, main_file: str) -> tuple[Program, set[str]]:
         """
         Build a complete program by loading main file and all its dependencies.
         Returns (program, defined_symbols) where defined_symbols is the union of all .define symbols.
@@ -841,9 +841,9 @@ class ModuleSystem:
         agg_proc = {}
         file_lines = {}
         # Per-file structures to help map cleaned-source positions back to original files
-        per_file_stmt_pos: Dict[str, list[tuple[int,int,str]]] = {}
-        orig_line_map_per_file: Dict[str, list[int]] = {}
-        orig_source_lines_per_file: Dict[str, list[str]] = {}
+        per_file_stmt_pos: dict[str, list[tuple[int,int,str]]] = {}
+        orig_line_map_per_file: dict[str, list[int]] = {}
+        orig_source_lines_per_file: dict[str, list[str]] = {}
 
         for module_path, module_info in self.loaded_modules.items():
             prog: Program | None = module_info.program
@@ -860,7 +860,7 @@ class ModuleSystem:
                         raw_line = v[1]
                         raw_col = v[2] if len(v) > 2 else None
                         raw_text = v[3] if len(v) > 3 else None
-                        # Normalize/validate types to match Dict[str, list[tuple[int,int,str]]]
+                        # Normalize/validate types to match dict[str, list[tuple[int,int,str]]]
                         ln_i = raw_line if isinstance(raw_line, int) and raw_line >= 0 else 0
                         col_i = raw_col if isinstance(raw_col, int) and raw_col >= 0 else 0
                         txt = raw_text if isinstance(raw_text, str) else ""
@@ -888,7 +888,7 @@ class ModuleSystem:
 
         # Map filename -> is_module flag for consumer passes that need to know which
         # source files were declared as .module
-        file_is_module: Dict[str, bool] = { path: info.is_module for path, info in self.loaded_modules.items() }
+        file_is_module: dict[str, bool] = { path: info.is_module for path, info in self.loaded_modules.items() }
 
         final_program.debug = {
             "stmt_src": agg_stmt,

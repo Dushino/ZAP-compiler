@@ -4810,7 +4810,7 @@ class CodeGen:
         """Helper for declare temp.
         Internal helper used during code generation.
         """
-        # vložení do aktuální tabulky (lokální, jinak globální)
+        # insert into current symbol table (local if inside proc, else global)
         target: SymbolTable | None = getattr(self.current_symtab, "local", None)
         if target is None:
             target = self.current_symtab
@@ -8187,7 +8187,7 @@ class CodeGen:
 
         self.gen_expr(expr.pointer)
 
-        # 2) ulož adresu (word temp uses contiguous bytes)
+        # 2) store address (word temp uses contiguous bytes)
         self.emit("\tSTA TMP0")
         self.emit("\tSTX TMP0+1")
 
@@ -8201,7 +8201,7 @@ class CodeGen:
             self.emit("\tPLA")
             self.emit("\tSTA MATH1")
 
-        # 3) načti LOW/HIGH byte(s)
+        # 3) load LOW/HIGH byte(s)
         if t.sem_type.base == "LONG":
             # Load 4 bytes into MATH0
             self.emit("\tLDY #$00")
@@ -12039,7 +12039,7 @@ class CodeGen:
 
         lhs_t: ExprType = self.tc_check(lhs, read_check_enabled=False)
 
-        # typová kompatibilita                
+        # type compatibility check
         if not isinstance(lhs, (Identifier, DerefExpr, SubscriptExpr, FieldAccess)):
             self._raise_error("Left side of assignment is not assignable")
         
@@ -13405,7 +13405,7 @@ class CodeGen:
                 self.emit("\tINY")
                 self.emit("\tSTA (TMP0),Y")
             else:
-                # 1️⃣ ulož RHS hodnotu
+                # 1) save RHS value
                 self.emit("\tSTA TMP2")
                 # Only save X if we're storing a WORD; for BYTE we only need the low byte
                 if lhs_t.sem_type.base == "WORD":
@@ -13417,7 +13417,7 @@ class CodeGen:
                 self.emit("\tSTA TMP0")
                 self.emit("\tSTX TMP0+1")
 
-                # 3️⃣ zápis LOW byte
+                # 3) write LOW byte
                 self.emit("\tLDA TMP2")
                 if lhs_t.sem_type.base == "WORD":
                     self.emit("\tLDY #$00")
@@ -13515,13 +13515,13 @@ class CodeGen:
             end_var = Identifier(end_name)
             self.gen_assign(end_var, stmt.end)
 
-        # podmínka WHILE (C-like: end bound is exclusive)
+        # WHILE condition (C-like: end bound is exclusive)
         if step_expr.value > 0:
             cond = BinaryExpr(stmt.var, BinOp.LT, end_var)
         else:
             cond = BinaryExpr(stmt.var, BinOp.GT, end_var)
 
-        # tělo
+        # body
         body = list(stmt.body)
         body.append(
             AssignStmt(
@@ -13541,7 +13541,7 @@ class CodeGen:
         # i = start
         self.gen_assign(stmt.var, stmt.start)
 
-        # vytvoř skryté proměnné (only if needed)
+        # create hidden variables (only if needed)
         var_t: ExprType = self.tc_check(stmt.var)
         end_t: ExprType = self.tc_check(stmt.end)
         step_t: ExprType = self.tc_check(stmt.step) if stmt.step is not None else self.tc_check(IntLiteral(1))
@@ -13612,7 +13612,7 @@ class CodeGen:
         """Generate assembly for a procedure body.
         Emits prologue, body, and epilogue code.
         """
-        # přepni na lokální tabulku + typechecker
+        # switch to local symbol table + typechecker
         prev_symtab: SymbolTable = self.current_symtab
         prev_tc_symtab: Any | None = getattr(self.tc, "symtab", None)
         self.current_symtab = cast(SymbolTable, proc.symtab)
@@ -13662,11 +13662,11 @@ class CodeGen:
         for sym in all_locals:
             self._emit_local_name_equate(proc.ast.name, sym, param_names)
 
-        # INIT lokálů
+        # init locals
         for sym in proc.locals:
             self.gen_init(cast(Symbol, sym))
 
-        # tělo (dead-store pre-pass removes consecutive overwrites of same scalar)
+        # body (dead-store pre-pass removes consecutive overwrites of same scalar)
         for stmt in self._elim_dead_stores(proc.ast.body):
             self.gen_stmt(stmt)
 
@@ -14971,15 +14971,15 @@ class CodeGen:
         for sym in all_locals:
             self._emit_local_name_equate(func.ast.name, sym, param_names)
 
-        # init lokálů
+        # init locals
         for sym in func.locals:
             self.gen_init(cast(Symbol, sym))
 
-        # tělo (dead-store pre-pass removes consecutive overwrites of same scalar)
+        # body (dead-store pre-pass removes consecutive overwrites of same scalar)
         for stmt in self._elim_dead_stores(func.ast.body):
             self.gen_stmt(stmt)
 
-        # fallback (pokud RETURN nebyl – zatím chyba v sémantice)
+        # fallback (if no RETURN was encountered — semantic error)
         if not (func.ast.body and isinstance(func.ast.body[-1], ReturnStmt)):
             self.emit("\tRTS")
 
@@ -15045,7 +15045,7 @@ class CodeGen:
             # Left operand only; right is accessed directly in CMP
             self.gen_expr(expr.left)
         else:
-            # pravý operand first (for correct CMP operand order)
+            # right operand first (for correct CMP operand order)
             self.gen_expr(expr.right)
             # Ensure high byte is well-defined in 16-bit context
             if is_16bit and right_t.sem_type.base != "WORD" and not right_t.sem_type.is_pointer:
@@ -15054,7 +15054,7 @@ class CodeGen:
             if is_16bit:
                 self.emit("\tSTX TMP0+1")
 
-            # levý operand
+            # left operand
             self.gen_expr(expr.left)
             # Ensure left high byte is well-defined in 16-bit context
             if is_16bit and left_t.sem_type.base != "WORD" and not left_t.sem_type.is_pointer:

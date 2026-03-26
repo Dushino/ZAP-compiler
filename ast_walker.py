@@ -31,14 +31,14 @@ walk_stmt().  No other file needs to change to pick up the new traversal in
 all consumers (prune_unused, prune_unused_locals, liveness analysis, etc.).
 """
 
-from typing import Callable, Optional
+from typing import Callable
 
 
 def walk_expr(
     expr,
     *,
-    on_identifier: Optional[Callable] = None,
-    on_call_expr: Optional[Callable] = None,
+    on_identifier: Callable | None = None,
+    on_call_expr: Callable | None = None,
 ) -> None:
     """Recursively visit every node in an expression tree.
 
@@ -102,9 +102,9 @@ def walk_expr(
 def walk_stmt(
     stmt,
     *,
-    on_call_stmt: Optional[Callable] = None,
-    on_identifier: Optional[Callable] = None,
-    on_call_expr: Optional[Callable] = None,
+    on_call_stmt: Callable | None = None,
+    on_identifier: Callable | None = None,
+    on_call_expr: Callable | None = None,
 ) -> None:
     """Recursively visit every node in a statement tree.
 
@@ -196,8 +196,8 @@ def walk_stmt(
 def walk_initializer(
     init,
     *,
-    on_identifier: Optional[Callable] = None,
-    on_call_expr: Optional[Callable] = None,
+    on_identifier: Callable | None = None,
+    on_call_expr: Callable | None = None,
 ) -> None:
     """Recursively visit every expression node reachable from an initializer.
 

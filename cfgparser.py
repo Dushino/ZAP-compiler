@@ -6,7 +6,6 @@ target platform's linker config.
 """
 
 import re
-from typing import Optional
 
 
 class CfgParseError(Exception):
@@ -132,7 +131,7 @@ def _parse_block(text: str, block_name: str) -> dict:
     return entries
 
 
-def _try_resolve_int(val: str) -> Optional[int]:
+def _try_resolve_int(val: str) -> int | None:
     """Try to resolve a value as an integer.
 
     Handles: $XXXX (hex), 0xXXXX (hex), decimal.

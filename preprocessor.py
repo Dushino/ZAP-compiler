@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Preprocessor for handling conditional compilation directives."""
 
-from typing import Optional, Set
 from errors import CompileError
 
 
@@ -12,11 +11,11 @@ class PreprocessorError(CompileError):
 
 
 class Preprocessor:
-    def __init__(self, predefined_symbols: Optional[Set[str]] = None):
+    def __init__(self, predefined_symbols: set[str] | None = None):
         """Initialize the preprocessor with optional predefined symbols."""
-        self.defined_symbols: Set[str] = predefined_symbols.copy() if predefined_symbols else set()
+        self.defined_symbols: set[str] = predefined_symbols.copy() if predefined_symbols else set()
     
-    def process(self, source: str) -> tuple[str, Set[str]]:
+    def process(self, source: str) -> tuple[str, set[str]]:
         """Process conditional directives and return filtered source and symbols.
 
         Preserves a mapping of kept line numbers for later diagnostics.

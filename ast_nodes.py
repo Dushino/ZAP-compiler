@@ -1,7 +1,6 @@
 ﻿
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Optional
 from enum import Enum
 from symbols import SemType
 
@@ -77,7 +76,7 @@ class ExprInit(InitValue):
 @dataclass(frozen=True)
 class ListInit(InitValue):
     """Initializer with a list of expressions or nested initializers."""
-    values: List["Expr | InitValue"]  # Can contain expressions or nested initializers
+    values: list["Expr | InitValue"]  # Can contain expressions or nested initializers
     line: int = 0
     col: int = 0
 
@@ -103,10 +102,10 @@ class StringInit(InitValue):
 class Declarator(ASTNode):
     """Declarator for a single variable instance."""
     name: str
-    array_size: Optional["Expr"] = None      # DEPRECATED: use array_sizes
-    address: Optional["Expr"] = None         # None = bez @
-    initializer: Optional[InitValue] = None
-    array_sizes: Optional[List["Expr"]] = None  # Multi-dimensional: [size1, size2, ...]
+    array_size: "Expr | None" = None      # DEPRECATED: use array_sizes
+    address: "Expr | None" = None         # None = bez @
+    initializer: InitValue | None = None
+    array_sizes: "list[Expr] | None" = None  # Multi-dimensional: [size1, size2, ...]
     line: int = 0
     col: int = 0
     is_static: bool = False  # True for STATIC variables
@@ -137,7 +136,7 @@ class Declaration(ASTNode):
     """Variable declaration with type and one or more declarators."""
     is_const: bool
     type: TypeNode
-    declarators: List[Declarator]
+    declarators: list[Declarator]
     is_static: bool = False  # True if STATIC modifier was present
     is_port: bool = False    # True if PORT modifier was present (hardware port-mapped variable)
     port_rd: bool = False    # #RD - port readable
@@ -163,12 +162,12 @@ class StructField(ASTNode):
     """Struct field definition"""
     type: TypeNode
     name: str
-    address: Optional["Expr"] = None    # None = no fixed address
-    array_sizes: Optional[List["Expr"]] = None  # Multi-dimensional array: [size1, size2, ...]
+    address: "Expr | None" = None    # None = no fixed address
+    array_sizes: "list[Expr] | None" = None  # Multi-dimensional array: [size1, size2, ...]
     # Port modifiers on a field: None = unspecified, True/False explicit
     is_port: bool = False
-    port_rd: Optional[bool] = None
-    port_wr: Optional[bool] = None
+    port_rd: bool | None = None
+    port_wr: bool | None = None
     line: int = 0
     col: int = 0
     filename: str = ""
@@ -194,11 +193,11 @@ class StructField(ASTNode):
 class StructDef(ASTNode):
     """Struct type definition"""
     name: str
-    fields: List[StructField]
+    fields: list[StructField]
     # Optional struct-level port defaults
     is_port: bool = False
-    port_rd: Optional[bool] = None
-    port_wr: Optional[bool] = None
+    port_rd: bool | None = None
+    port_wr: bool | None = None
     # Declaration modifiers
     noexport: bool = False  # #NOEXPORT prevents exporting from a module
     export: bool = False    # #EXPORT forces export even in non-module files
@@ -254,7 +253,7 @@ class StringLiteral(Expr):
 @dataclass(frozen=True)
 class StructLiteral(Expr):
     """Struct literal expression: { ... }"""
-    values: List["Expr | InitValue"]
+    values: list["Expr | InitValue"]
     line: int = 0
     col: int = 0
     filename: str = ""
@@ -417,7 +416,7 @@ class Parameter:
     type: TypeNode
     name: str
     is_array: bool  # True if []
-    default_value: Optional["Expr"] = None  # Default value expression, None if required param
+    default_value: "Expr | None" = None  # Default value expression, None if required param
     line: int = 0
     col: int = 0
     filename: str = ""
@@ -463,7 +462,7 @@ class AssignStmt:
 @dataclass(frozen=True)
 class ReturnStmt:
     """Return statement node."""
-    expr: Optional[Expr]
+    expr: Expr | None
     line: int = 0
     col: int = 0
     filename: str = ""
