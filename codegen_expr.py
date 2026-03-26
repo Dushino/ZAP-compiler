@@ -111,6 +111,9 @@ class CodeGen:
         # Track assignment target for safe temp reuse in expression codegen
         self.assign_target_sym: Symbol | None = None
         self.assign_target_blocked: bool = False
+        # Loop strength reduction: (array_asm, index_var_name) → ptr_asm for running pointers
+        self._loop_strength_ptr: dict[tuple[str, str], str] = {}
+        self._loop_strength_const: int | None = None  # hoisted constant value (A preloaded)
         # Control-flow stacks
         self.loop_stack: list[tuple[str, str]] = []
         self.break_stack: list[str] = []
@@ -926,7 +929,7 @@ class CodeGen:
                     if not _skip_math_for_inline_mul:
                         if left_loc != "MATH0":
                             load_to_ax_for_math(left_loc, left_width == 2)
-                            if not skip_math0_store:
+                            if not skip_math0_store and not _inline_add_sub_const:
                                 emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
                         if _inline_add_sub_const:
                             pass  # Skip right operand loading — will be inlined
@@ -964,9 +967,18 @@ class CodeGen:
                                 if node.width == 2:
                                     self.emit("\tLDX MATH0+1")
 
+                            # OPTIMIZATION: If next RPN tokens are CONST + BINOP:ADD/SUB,
+                            # shift directly into MATH0 to avoid TMP0→MATH0 copy later.
+                            _shift_scratch = "TMP0"
+                            if (node.width == 2 and i + 2 < len(rpn)
+                                    and rpn[i + 1].node_type == 'CONST'
+                                    and rpn[i + 2].node_type == 'BINOP'
+                                    and rpn[i + 2].value in {BinOp.ADD, BinOp.SUB}):
+                                _shift_scratch = "MATH0"
+
                             # Perform shifts
                             if node.value == BinOp.MUL:
-                                self._gen_lshift(node.width == 2, "A", shift_amount)
+                                self._gen_lshift(node.width == 2, "A", shift_amount, scratch=_shift_scratch)
                             else:
                                 self._gen_rshift(node.width == 2, "A", shift_amount)
 
@@ -988,40 +1000,61 @@ class CodeGen:
                 if math_optimized:
                     pass
                 elif _inline_add_sub_const:
-                    # Inline ADD16/SUB16 with constant — avoids JSR overhead
+                    # Inline ADD16/SUB16 with constant — avoids JSR overhead.
+                    # When left operand is in A/X (MATH0 store was skipped), operate
+                    # on registers directly.  When in MATH0, read from MATH0.
                     _iac_lo: int = _inline_add_sub_val & 0xFF
                     _iac_hi: int = (_inline_add_sub_val >> 8) & 0xFF
 
+                    # Determine where the low/high bytes are:
+                    # - "AX": A has low byte, X has high byte (MATH0 store skipped)
+                    # - "MATH0": left was already in MATH0
+                    # - other (variable name): was loaded to A/X by load_to_ax_for_math
+                    _iac_a_has_low: bool = (left_loc != "MATH0")
+                    # For high byte with carry: need a memory location to INC/DEC.
+                    # When A/X: store X to MATH0+1 first for INC/DEC target.
+                    if _iac_a_has_low and _iac_hi == 0:
+                        # Need a memory loc for INC/DEC. Use MATH0+1.
+                        self.emit("\tSTX MATH0+1")
+                    _iac_hi_loc: str = "MATH0+1"  # always use MATH0+1 for high byte storage
+
                     if node.value == BinOp.ADD:
-                        self.emit("\tLDA MATH0")
+                        if not _iac_a_has_low:
+                            self.emit("\tLDA MATH0")
                         self.emit("\tCLC")
                         self.emit(f"\tADC #${_iac_lo:02X}")
-                        self.emit("\tSTA MATH0")
                         if _iac_hi == 0:
                             lbl_nc = self.new_label("ADD16C_NC")
                             self.emit(f"\tBCC {lbl_nc}")
-                            self.emit("\tINC MATH0+1")
+                            self.emit(f"\tINC {_iac_hi_loc}")
                             self.emit(f"{lbl_nc}:")
                         else:
-                            self.emit("\tLDA MATH0+1")
+                            self.emit(f"\tSTA MATH0")
+                            self.emit(f"\tLDA {_iac_hi_loc}")
                             self.emit(f"\tADC #${_iac_hi:02X}")
-                            self.emit("\tSTA MATH0+1")
-                        eval_stack.append(("MATH0", node.width))
-                    else:  # SUB, no target
-                        self.emit("\tLDA MATH0")
+                            self.emit(f"\tSTA {_iac_hi_loc}")
+                            self.emit(f"\tLDA MATH0")
+                        # A has low byte, MATH0+1 has high byte → load X from MATH0+1
+                        self.emit(f"\tLDX {_iac_hi_loc}")
+                        eval_stack.append(("AX", node.width))
+                    else:  # SUB
+                        if not _iac_a_has_low:
+                            self.emit("\tLDA MATH0")
                         self.emit("\tSEC")
                         self.emit(f"\tSBC #${_iac_lo:02X}")
-                        self.emit("\tSTA MATH0")
                         if _iac_hi == 0:
                             lbl_nc = self.new_label("SUB16C_NC")
                             self.emit(f"\tBCS {lbl_nc}")
-                            self.emit("\tDEC MATH0+1")
+                            self.emit(f"\tDEC {_iac_hi_loc}")
                             self.emit(f"{lbl_nc}:")
                         else:
-                            self.emit("\tLDA MATH0+1")
+                            self.emit(f"\tSTA MATH0")
+                            self.emit(f"\tLDA {_iac_hi_loc}")
                             self.emit(f"\tSBC #${_iac_hi:02X}")
-                            self.emit("\tSTA MATH0+1")
-                        eval_stack.append(("MATH0", node.width))
+                            self.emit(f"\tSTA {_iac_hi_loc}")
+                            self.emit(f"\tLDA MATH0")
+                        self.emit(f"\tLDX {_iac_hi_loc}")
+                        eval_stack.append(("AX", node.width))
                 elif routine:
                     if use_ax_right and routine_ax:
                         self.emit(f"\tJSR {routine_ax}")
@@ -3960,19 +3993,24 @@ class CodeGen:
         # Fifth pass: indirect WORD load → direct store (eliminate TAX round-trip).
         optimized = self._indirect_word_load_store(optimized)
 
-        # Sixth pass: branch inversion — Bxx skip; JMP target → B~xx target (when in range).
+        # Sixth pass: branch-to-JMP threading — Bxx label where label: JMP target → Bxx target
+        # Must run BEFORE branch_inversion so that threaded-away references allow
+        # intermediate labels to become unreferenced (enabling inversion in next pass).
+        optimized = self._branch_threading(optimized)
+
+        # Seventh pass: remove labels left unreferenced by branch threading.
+        optimized = self._remove_unreferenced_labels(optimized)
+
+        # Eighth pass: branch inversion — Bxx skip; JMP target → B~xx target (when in range).
         # Also removes unreferenced labels, enabling OPT-12 (switch reload elimination)
         # to emerge via OPT-8's memory-address tracking.
         optimized = self._branch_inversion(optimized)
 
-        # Seventh pass: branch-to-JMP threading — Bxx label where label: JMP target → Bxx target
-        optimized = self._branch_threading(optimized)
-
-        # Eighth pass (65C02 only): replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp)
+        # Ninth pass (65C02 only): replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp)
         if self.is_65c02:
             optimized = self._65c02_indirect_no_y(optimized)
 
-        # Ninth pass: eliminate STA addr / ... / LDA addr when A is preserved
+        # Tenth pass: eliminate STA addr / ... / LDA addr when A is preserved
         # across BCC/BCS + INC/DEC addr+1 + label sequences.
         optimized = self._eliminate_math0_roundtrip(optimized)
 
@@ -4614,6 +4652,52 @@ class CodeGen:
         # Everything else: 3 bytes (conservative for absolute addressing)
         # Note: ZP instructions are 2 bytes but we use 3 as safe upper bound
         return 3
+
+    def _remove_unreferenced_labels(self, code: list[str]) -> list[str]:
+        """Remove unreferenced compiler-internal labels (__ZAP_* only).
+
+        Only __ZAP_* labels are candidates for removal.  All other labels
+        (user symbols, math routines, ASM block labels) are kept unconditionally.
+        Labels inside ASM blocks are never touched.
+        """
+        JUMP_OPS = {"BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVS", "BVC", "BRA", "JMP", "JSR"}
+
+        # Count references to each label from branches/jumps/equates
+        refs: dict[str, int] = {}
+        for ln in code:
+            stripped = ln.strip().split(";")[0].strip()
+            parts = stripped.split(None, 1)
+            if len(parts) == 2:
+                mn = parts[0].upper()
+                if mn in JUMP_OPS:
+                    tgt = parts[1].strip()
+                    if not tgt.startswith("("):
+                        refs[tgt] = refs.get(tgt, 0) + 1
+            # Also count references in equates (e.g., _VAR = __LVSLOT_1)
+            if "=" in stripped and not stripped.endswith(":"):
+                rhs = stripped.split("=", 1)[1].strip()
+                if rhs:
+                    refs[rhs] = refs.get(rhs, 0) + 1
+
+        # Remove only unreferenced __ZAP_* labels; skip ASM blocks entirely
+        result: list[str] = []
+        in_asm_block = False
+        for ln in code:
+            s = ln.strip()
+            if s == "; ASM_BLOCK_BEGIN":
+                in_asm_block = True
+            elif s == "; ASM_BLOCK_END":
+                in_asm_block = False
+
+            if not in_asm_block:
+                stripped = s.split(";")[0].strip()
+                if stripped.endswith(":") and " " not in stripped[:-1]:
+                    lbl = stripped[:-1]
+                    if lbl.startswith("__ZAP_") and refs.get(lbl, 0) == 0:
+                        continue  # drop unreferenced internal label
+
+            result.append(ln)
+        return result
 
     def _branch_threading(self, code: list[str]) -> list[str]:
         """Thread branches that target a label immediately followed by JMP.
@@ -8876,9 +8960,42 @@ class CodeGen:
         """Generate subscript.
         Internal helper used during code generation.
         """
+        # Loop strength reduction: if a running pointer exists for this arr[var], use it
+        if (isinstance(expr.array, Identifier) and isinstance(expr.index, Identifier)
+                and not calc_addr_only):
+            _lsr_key = (None, expr.index.name.upper())
+            # Search for any matching array with this index variable
+            for (arr_asm, idx_name), ptr_asm in self._loop_strength_ptr.items():
+                if idx_name == expr.index.name.upper():
+                    try:
+                        arr_sym_check: Symbol = self.current_symtab.lookup(expr.array.name)
+                        if arr_sym_check.asm_name() == arr_asm:
+                            # Match! Use the running pointer directly
+                            # Y is already 0 (set before loop, not modified in body)
+                            if load_only:
+                                self.emit(f"\tLDA ({ptr_asm}),Y")
+                                # For BYTE elements, X = 0
+                                need_x = True
+                                if self.suppress_byte_return_x:
+                                    need_x = False
+                                elif self.assign_target_type:
+                                    if hasattr(self.assign_target_type, 'base'):
+                                        if (self.assign_target_type.base == "BYTE"
+                                                and not getattr(self.assign_target_type, 'is_pointer', False)):
+                                            need_x = False
+                                if need_x:
+                                    self.emit("\tLDX #$00")
+                            else:
+                                # Store: value should already be in TMP2 (from gen_assign)
+                                self.emit(f"\tLDA TMP2")
+                                self._emit_indirect_store_zero(ptr_asm)
+                            return
+                    except KeyError:
+                        pass
+
         # Check if this is a multi-dimensional subscript
         indices, base = self._collect_subscript_indices(expr)
-        
+
         # For multi-index subscripts with Identifier base, use multi-dimensional code generation
         if len(indices) > 1 and isinstance(base, Identifier):
             sym: Symbol = self.current_symtab.lookup(base.name)
@@ -11370,10 +11487,11 @@ class CodeGen:
             # 8-bit XOR: left_tmp ^ A → A
             self.emit(f"\tEOR {left_tmp}")
 
-    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0", shift_count: int | None = None) -> None:
+    def _gen_lshift(self, result_16: bool, left_tmp: str = "TMP0", shift_count: int | None = None, scratch: str = "TMP0") -> None:
         """Generate left shift: left_tmp << A (shift count in A)
         Special case: left_tmp="A" means value is already in accumulator (for constant-count shifts)
         For 16-bit shifts with left_tmp="A", both A and X contain the operand (low and high bytes)
+        scratch: memory location to use for in-place shifting (default TMP0)
         """
         self.used_temps.add("TMP2")
         self.used_temps.add("TMP3")
@@ -11388,22 +11506,21 @@ class CodeGen:
                 return
             if result_16:
                 if left_tmp == "A":
-                    # Value is already in A/X (both low and high bytes from operand loading)
-                    # Save both bytes to TMP0/TMP0+1
-                    self.emit("\tSTA TMP0")
-                    self.emit("\tSTX TMP0+1")  # X already contains high byte, don't change it
+                    # Value is already in A/X — save to scratch for in-place shifting
+                    self.emit(f"\tSTA {scratch}")
+                    self.emit(f"\tSTX {scratch}+1")
                 else:
                     self.emit(f"\tLDA {left_tmp}")
                     self.emit(f"\tLDX {left_tmp}+1")
-                    if left_tmp != "TMP0":
-                        self.emit("\tSTA TMP0")
-                        self.emit("\tSTX TMP0+1")
+                    if left_tmp != scratch:
+                        self.emit(f"\tSTA {scratch}")
+                        self.emit(f"\tSTX {scratch}+1")
                 # OPTIMIZATION: Use absolute addressing mode to shift directly in memory
                 for _ in range(shift_count):
-                    self.emit("\tASL TMP0")
-                    self.emit("\tROL TMP0+1")
-                self.emit("\tLDA TMP0")
-                self.emit("\tLDX TMP0+1")
+                    self.emit(f"\tASL {scratch}")
+                    self.emit(f"\tROL {scratch}+1")
+                self.emit(f"\tLDA {scratch}")
+                self.emit(f"\tLDX {scratch}+1")
                 return
             # 8-bit constant shift
             if left_tmp != "A":
@@ -12363,6 +12480,21 @@ class CodeGen:
                             self.emit(f"\tSTA {arr_addr}+{offset}")
                         return
                     
+                    # Loop strength reduction: if running pointer exists, use it directly
+                    # Y is already 0 (set before loop), suppress LDX for byte stores
+                    if (isinstance(lhs.index, Identifier) and element_width == 1):
+                        for (lsr_arr, lsr_idx), lsr_ptr in self._loop_strength_ptr.items():
+                            if lsr_idx == lhs.index.name.upper() and lsr_arr == arr_addr:
+                                # If constant was hoisted before loop, A already has value
+                                if self._loop_strength_const is None:
+                                    prev_suppress = self.suppress_byte_return_x
+                                    self.suppress_byte_return_x = True
+                                    self.gen_expr(rhs)
+                                    self.suppress_byte_return_x = prev_suppress
+                                # else: A already has the constant (hoisted before loop)
+                                self.emit(f"\tSTA ({lsr_ptr}),Y")  # Y already 0
+                                return
+
                     # Case 2a: Constant RHS — compute address first, then store constant directly
                     # Avoids TMP2 round-trip (saves ~4-6 instructions per store)
                     if isinstance(rhs, IntLiteral):
@@ -13675,8 +13807,10 @@ class CodeGen:
         self._raise_error(f"Assignment target type not supported: {type(lhs).__name__}")
 
     def _gen_for_const_step(self, stmt, step_expr) -> None:
-        """Generate for const step.
-        Internal helper used during code generation.
+        """Generate for loop with constant step.
+        Includes loop strength reduction: when the body contains a single
+        arr[loop_var] access with element_width=1 and step=1, replaces the
+        per-iteration address computation with a running pointer in TMP0.
         """
         # i = start
         self.gen_assign(stmt.var, stmt.start)
@@ -13701,6 +13835,34 @@ class CodeGen:
             end_var = Identifier(end_name)
             self.gen_assign(end_var, stmt.end)
 
+        # --- Loop strength reduction ---
+        # Detect: for i = 0 to N with body containing arr[i] where arr is a
+        # static byte array and step == 1.  Replace the per-iteration address
+        # computation with a running pointer in TMP0.
+        _lsr_key: tuple[str, str] | None = None
+        if (step_expr.value == 1
+                and isinstance(stmt.var, Identifier)
+                and isinstance(stmt.start, IntLiteral) and stmt.start.value == 0):
+            _lsr_key = self._detect_loop_strength_reduction(stmt.var.name, stmt.body)
+
+        if _lsr_key:
+            arr_asm, _idx_name = _lsr_key
+            # Initialize TMP0 = &arr[0] and Y = 0 before the loop
+            self.emit(f"\tLDA #<{arr_asm}")
+            self.emit("\tSTA TMP0")
+            self.emit(f"\tLDA #>{arr_asm}")
+            self.emit("\tSTA TMP0+1")
+            self.emit("\tLDY #$00")
+            # Detect constant RHS: if all arr[i] stores in the body use the same
+            # constant value, hoist LDA #const before the loop.
+            _lsr_const_val: int | None = self._detect_lsr_const_rhs(stmt.var.name, stmt.body)
+            if _lsr_const_val is not None:
+                self.emit(f"\tLDA #${_lsr_const_val & 0xFF:02X}")
+            # Register the running pointer mapping
+            self._loop_strength_ptr[_lsr_key] = "TMP0"
+            # Track hoisted constant so store handler skips gen_expr
+            self._loop_strength_const = _lsr_const_val
+
         # WHILE condition (C-like: end bound is exclusive)
         if step_expr.value > 0:
             cond = BinaryExpr(stmt.var, BinOp.LT, end_var)
@@ -13709,16 +13871,152 @@ class CodeGen:
 
         # body
         body = list(stmt.body)
+        # If strength reduction is active, append TMP0 increment before the i += step
+        if _lsr_key:
+            body.append(None)  # placeholder: will be handled specially below
         body.append(
             AssignStmt(
                 stmt.var,
                 BinaryExpr(stmt.var, BinOp.ADD, step_expr)
             )
         )
-        
-        # Generate WHILE loop
-        while_stmt = WhileStmt(cond, body)
-        self.gen_stmt(while_stmt)
+
+        # Generate WHILE loop — with custom handling for the TMP0 increment
+        if _lsr_key:
+            # Manual while loop generation to inject TMP0 increment.
+            # Mirrors the WhileStmt codegen in gen_stmt but adds the
+            # running pointer increment before the loop variable step.
+            lbl_while: str = self.new_label("while")
+            lbl_body: str = self.new_label("while_body")
+            lbl_end: str = self.new_label("endwhile")
+            self.loop_stack.append((lbl_while, lbl_end))
+            self.break_stack.append(lbl_end)
+            self.emit(f"{lbl_while}:")
+            # Condition branch (same as WhileStmt codegen)
+            _cond_folded = fold_expr(subst_const(cond, cast(SymbolTable, self.current_symtab)))
+            if isinstance(_cond_folded, BinaryExpr) and _cond_folded.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                self._emit_relational_branch(_cond_folded, lbl_true=lbl_body, lbl_false=lbl_end)
+            else:
+                self.gen_expr(_cond_folded)
+                self.emit(f"\tBNE {lbl_body}")
+                self.emit(f"\tJMP {lbl_end}")
+            self.emit(f"{lbl_body}:")
+            for s in body:
+                if s is None:
+                    # Emit TMP0 increment (running pointer += 1)
+                    self.emit("\tINC TMP0")
+                    lbl_nc = self.new_label("LSR_NC")
+                    self.emit(f"\tBNE {lbl_nc}")
+                    self.emit("\tINC TMP0+1")
+                    self.emit(f"{lbl_nc}:")
+                else:
+                    self.gen_stmt(s)
+            self.emit(f"\tJMP {lbl_while}")
+            self.emit(f"{lbl_end}:")
+            self.break_stack.pop()
+            self.loop_stack.pop()
+            # Unregister the running pointer mapping and hoisted constant
+            del self._loop_strength_ptr[_lsr_key]
+            self._loop_strength_const = None
+        else:
+            while_stmt = WhileStmt(cond, body)
+            self.gen_stmt(while_stmt)
+
+    def _detect_lsr_const_rhs(self, loop_var: str, body: list) -> int | None:
+        """Check if all arr[loop_var] stores in the body use the same constant RHS.
+        Returns the constant value if so, None otherwise."""
+        from ast_nodes import AssignStmt, SubscriptExpr
+        from constsubst import subst_const
+        loop_var_upper = loop_var.upper()
+        const_val: int | None = None
+        for s in body:
+            if isinstance(s, AssignStmt) and isinstance(s.lhs, SubscriptExpr):
+                if (isinstance(s.lhs.index, Identifier)
+                        and s.lhs.index.name.upper() == loop_var_upper):
+                    rhs_folded = fold_expr(subst_const(s.rhs, cast(SymbolTable, self.current_symtab)))
+                    if isinstance(rhs_folded, IntLiteral):
+                        if const_val is None:
+                            const_val = rhs_folded.value & 0xFF
+                        elif const_val != (rhs_folded.value & 0xFF):
+                            return None  # different constants
+                    else:
+                        return None  # non-constant RHS
+        return const_val
+
+    def _detect_loop_strength_reduction(self, loop_var: str, body: list) -> tuple[str, str] | None:
+        """Check if for-loop body qualifies for strength reduction.
+
+        Returns (array_asm_name, loop_var_name) if the body contains exactly
+        one arr[loop_var] access with element_width=1, the array is a static
+        identifier with a known const label, and no other statement in the body
+        uses TMP0 (no other array subscripts, no pointer derefs, no function calls).
+        """
+        from ast_nodes import AssignStmt, CallStmt, IfStmt, WhileStmt, SubscriptExpr, CallExpr, DerefExpr, FieldAccess
+
+        found_arr: str | None = None
+        loop_var_upper = loop_var.upper()
+
+        def _has_tmp0_usage(expr) -> bool:
+            """Check if expression would use TMP0 (subscripts, derefs, calls)."""
+            if isinstance(expr, SubscriptExpr):
+                return True
+            if isinstance(expr, (DerefExpr, CallExpr)):
+                return True
+            if isinstance(expr, FieldAccess):
+                return True
+            if isinstance(expr, BinaryExpr):
+                return _has_tmp0_usage(expr.left) or _has_tmp0_usage(expr.right)
+            if isinstance(expr, UnaryExpr):
+                return _has_tmp0_usage(expr.expr)
+            return False
+
+        for s in body:
+            if isinstance(s, AssignStmt):
+                lhs = s.lhs
+                rhs = s.rhs
+                # Check if LHS is arr[loop_var]
+                if isinstance(lhs, SubscriptExpr):
+                    if (isinstance(lhs.array, Identifier) and isinstance(lhs.index, Identifier)
+                            and lhs.index.name.upper() == loop_var_upper):
+                        try:
+                            arr_sym: Symbol = self.current_symtab.lookup(lhs.array.name)
+                        except KeyError:
+                            return None
+                        if not arr_sym.is_array:
+                            return None
+                        elem_w = self._calculate_element_width(arr_sym)
+                        if elem_w != 1:
+                            return None
+                        # Must have a const base label (not a pointer, not fixed-address)
+                        if arr_sym.type.is_pointer and not arr_sym.is_array:
+                            return None
+                        if arr_sym.address is not None:
+                            return None
+                        arr_asm = arr_sym.asm_name()
+                        if found_arr is not None and found_arr != arr_asm:
+                            return None  # multiple different arrays
+                        found_arr = arr_asm
+                        # RHS must not use TMP0
+                        if _has_tmp0_usage(rhs):
+                            return None
+                        continue
+                    else:
+                        return None  # LHS subscript but not arr[loop_var]
+                # Non-subscript LHS: check neither side uses TMP0
+                if _has_tmp0_usage(lhs) or _has_tmp0_usage(rhs):
+                    return None
+            elif isinstance(s, CallStmt):
+                return None  # function calls may clobber TMP0
+            elif isinstance(s, (IfStmt, WhileStmt)):
+                return None  # nested control flow too complex
+            else:
+                # Other statement types — check conservatively
+                if hasattr(s, 'expr') and _has_tmp0_usage(s.expr):
+                    return None
+
+        if found_arr is None:
+            return None
+        return (found_arr, loop_var_upper)
 
     def _gen_for_general(self, stmt) -> None:
         """Generate for general.
