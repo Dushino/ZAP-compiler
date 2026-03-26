@@ -4611,18 +4611,54 @@ class CodeGen:
 
         On 65C02, LDA (zp) and STA (zp) are valid instructions (without ,Y).
         This saves 2 bytes and 2 cycles per occurrence.
+
+        Safety: the LDY #$00 is only removed when no subsequent instruction
+        depends on Y being 0 (e.g. INY for word high-byte stores) before
+        the next LDY resets Y or a label/branch ends the basic block.
         """
         import re
+        _INDIRECT_Y_RE = re.compile(r"(LDA|STA)\s+\(([^)]+)\),Y$")
+        # Instructions that READ Y (would break if LDY #$00 is removed)
+        _Y_READ_OPS = {"INY", "DEY", "STY", "CPY", "TYA"}
+
+        def _y_used_after(start: int) -> bool:
+            """Check if Y register is read before being reset by another LDY."""
+            j = start
+            while j < len(code):
+                s = code[j].strip().upper()
+                # Skip comments and empty lines
+                if not s or s.startswith(";"):
+                    j += 1
+                    continue
+                # Label or directive — end of basic block, stop scanning
+                if s.endswith(":") or s.startswith("."):
+                    return False
+                # Branch/jump — end of basic block
+                parts = s.split()
+                op = parts[0] if parts else ""
+                if op in {"JMP", "JSR", "RTS", "RTI", "BRA"} or op.startswith("B") and op not in _Y_READ_OPS:
+                    return False
+                # Another LDY resets Y — safe to have removed earlier LDY
+                if op == "LDY":
+                    return False
+                # Check if instruction reads Y
+                if op in _Y_READ_OPS:
+                    return True
+                # Indirect indexed ,Y also reads Y
+                if ",Y" in s:
+                    return True
+                j += 1
+            return False
+
         result: list[str] = []
         i = 0
         while i < len(code):
             if (i + 1 < len(code)
                     and code[i].strip() == "LDY #$00"
-                    and not code[i + 1].strip().startswith((";"  , "."))):
+                    and not code[i + 1].strip().startswith((";", "."))):
                 next_stripped = code[i + 1].strip()
-                # Match STA (zp),Y or LDA (zp),Y
-                m = re.match(r"(LDA|STA)\s+\(([^)]+)\),Y$", next_stripped)
-                if m:
+                m = _INDIRECT_Y_RE.match(next_stripped)
+                if m and not _y_used_after(i + 2):
                     op = m.group(1)
                     zp = m.group(2)
                     indent = code[i + 1][:len(code[i + 1]) - len(code[i + 1].lstrip())]
