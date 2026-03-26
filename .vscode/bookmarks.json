@@ -56,26 +56,26 @@
 			]
 		},
 		{
-			"path": "work/test_stdio.s",
-			"bookmarks": [
-				{
-					"line": 525,
-					"column": 16,
-					"label": ""
-				},
-				{
-					"line": 628,
-					"column": 39,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "work/test_stdio.zap",
 			"bookmarks": [
 				{
 					"line": 13,
 					"column": 19,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "benchmarks/benchmarks.zap",
+			"bookmarks": [
+				{
+					"line": 19,
+					"column": 4,
+					"label": ""
+				},
+				{
+					"line": 31,
+					"column": 4,
 					"label": ""
 				}
 			]
