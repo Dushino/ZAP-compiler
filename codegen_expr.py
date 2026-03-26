@@ -3967,6 +3967,10 @@ class CodeGen:
         if self.is_65c02:
             optimized = self._65c02_indirect_no_y(optimized)
 
+        # Eighth pass: eliminate STA addr / ... / LDA addr when A is preserved
+        # across BCC/BCS + INC/DEC addr+1 + label sequences.
+        optimized = self._eliminate_math0_roundtrip(optimized)
+
         self.code = optimized
 
     def _indirect_word_load_store(self, code: list[str]) -> list[str]:
@@ -4605,6 +4609,60 @@ class CodeGen:
         # Everything else: 3 bytes (conservative for absolute addressing)
         # Note: ZP instructions are 2 bytes but we use 3 as safe upper bound
         return 3
+
+    def _eliminate_math0_roundtrip(self, code: list[str]) -> list[str]:
+        """Eliminate STA addr / LDA addr round-trips across BCC/BCS + INC/DEC + label gaps.
+
+        Pattern (inline add/sub with carry):
+          STA addr          ; store result (A still valid)
+          BCC/BCS label     ; carry branch
+          INC/DEC addr+1    ; modify high byte only (does NOT touch A)
+          label:
+          LDA addr          ; redundant reload — A still has the value
+
+        Both the STA and LDA are removed.  The STA is dead because the only
+        consumer was the LDA (addr is a compiler temp like MATH0); the LDA is
+        redundant because A is preserved across BCC/INC/label.
+        """
+        import re
+        result: list[str] = []
+        i = 0
+        while i < len(code):
+            # Look for: STA addr
+            s = code[i].strip()
+            if (i + 4 < len(code) and s.startswith("STA ")
+                    and not s.startswith("STA (")           # not indirect
+                    and not s.endswith(",X") and not s.endswith(",Y")):  # not indexed
+                sta_operand = s.split(maxsplit=1)[1].strip()
+                # Only apply to compiler temporaries (MATH0, TMP etc.) — not user variables
+                sta_upper = sta_operand.upper()
+                if ("MATH" in sta_upper or "TMP" in sta_upper or "LVSLOT" in sta_upper):
+                    # Try to match: STA addr / BCC|BCS label / INC|DEC addr+1 / label: / LDA addr
+                    s1 = code[i + 1].strip()
+                    s2 = code[i + 2].strip()
+                    s3 = code[i + 3].strip()
+                    s4 = code[i + 4].strip()
+
+                    branch_match = (s1.startswith("BCC ") or s1.startswith("BCS "))
+                    if branch_match:
+                        branch_label = s1.split(maxsplit=1)[1].strip()
+                        inc_dec_match = (s2 == f"INC {sta_operand}+1" or s2 == f"DEC {sta_operand}+1")
+                        label_match = s3 == f"{branch_label}:"
+                        lda_match = s4 == f"LDA {sta_operand}"
+
+                        if inc_dec_match and label_match and lda_match:
+                            # Remove STA (line i) and LDA (line i+4)
+                            # Keep BCC/INC/label
+                            # result.append(code[i])  ← skip STA
+                            result.append(code[i + 1])  # BCC/BCS
+                            result.append(code[i + 2])  # INC/DEC addr+1
+                            result.append(code[i + 3])  # label:
+                            # result.append(code[i + 4])  ← skip LDA
+                            i += 5
+                            continue
+            result.append(code[i])
+            i += 1
+        return result
 
     def _65c02_indirect_no_y(self, code: list[str]) -> list[str]:
         """65C02 peephole: replace LDY #$00 / LDA/STA (zp),Y with LDA/STA (zp).
