@@ -1,7 +1,8 @@
 # ZAP! Compiler — Progress & Status
 
 **Current version**: 0.2.0
-**Test suite**: 166 pass-tests · 128 fail-tests · all passing
+**Test suite**: 170 pass-tests · 125 fail-tests · all passing
+**Benchmark**: Sieve of Eratosthenes — ZAP! 1.166s vs Action! 1.52s (PAL, SDMCTL=0)
 
 ---
 

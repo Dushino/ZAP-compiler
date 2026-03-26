@@ -1,5 +1,5 @@
 (* ZAP! Language Grammar - EBNF Notation *)
-(* Updated: March 2026 - Switch/Case, Shift Operators, Default Parameters, Multi-dim Arrays *)
+(* Updated: March 2026 - Preprocessor directives, diagnostic directives, .incbin, continue-in-switch *)
 (* Lexical tokens: IDENT, NUMBER, STRING, DECLMOD, ASM_BLOCK *)
 (*
    Enums: compile-time-only named integer constants. Default base type is `byte` unless a `word` is specified before the enum name.
@@ -19,7 +19,10 @@ top_level       ::= declaration
                   | struct_decl
                   | enum_decl
                   | module_decl
-                  | include_decl ;
+                  | include_decl
+                  | incbin_decl
+                  | diagnostic_decl
+                  | preproc_directive ;
 
 enum_decl       ::= "enum" [ type ] IDENT enum_body "END" ;
 enum_body       ::= { enum_item [ "," ] } ;
@@ -27,6 +30,20 @@ enum_item       ::= IDENT [ "=" expression ] ;
 
 module_decl     ::= ".module" STRING [ decl_modifiers ] ;
 include_decl    ::= ".include" STRING ;
+incbin_decl     ::= ".incbin" STRING ;              (* include binary file verbatim *)
+
+(* Compile-time diagnostic directives *)
+diagnostic_decl ::= ".error" STRING                  (* halt compilation with error *)
+                  | ".warning" STRING                (* emit compiler warning *)
+                  | ".info" STRING ;                 (* emit informational message *)
+
+(* Preprocessor directives — processed before parsing *)
+preproc_directive ::= ".define" IDENT                (* define a preprocessor symbol *)
+                    | ".undef" IDENT                 (* undefine a preprocessor symbol *)
+                    | ".ifdef" IDENT                 (* conditional: if symbol defined *)
+                    | ".ifndef" IDENT                (* conditional: if symbol not defined *)
+                    | ".else"                        (* alternative branch of .ifdef/.ifndef *)
+                    | ".endif" ;                     (* end conditional block *)
 
 (* ============ TYPES ============ *)
 type            ::= base_type [ "^" ] ;
@@ -271,7 +288,8 @@ expr_list       ::= expression { "," expression } ;
      elimination), `#NOEXPORT` (do not export from a module), `#EXPORT` (force export from non-module file),
      and `#PORT` / `#RD` / `#WR` (port-related modifiers). Modifiers may be combined and are case-insensitive.
    - ELSEIF SUPPORT: Multiple conditional branches (if-elseif-elseif-else-end)
-   - CONTINUE STATEMENT: Skip to next loop iteration in for/while/repeat loops
+   - CONTINUE STATEMENT: Skip to next loop iteration in for/while/repeat loops.
+     Inside a switch statement, continue targets the enclosing loop (not the switch itself)
    - STRUCT FIELD ASSIGNMENT: Can assign to struct fields (unless const)
    - POINTER DEREFERENCING: Both IDENT^ and (expr)^ syntax supported
    - SWITCH STATEMENT: Multi-way branch; multiple CASE labels can stack before a body,
@@ -291,6 +309,15 @@ expr_list       ::= expression { "," expression } ;
      on the same line it is treated as XOR; otherwise it is postfix dereference.
    - BUILTIN FUNCTIONS: LOW, HIGH, LOWW, HIGHW, SIZEOF are parsed as regular function calls
      but handled specially during code generation.
+   - PREPROCESSOR: Directives (.define, .undef, .ifdef, .ifndef, .else, .endif) are processed
+     in a separate pass before tokenization/parsing. They operate on symbols, not expressions.
+     Conditional blocks may nest. Symbols are case-insensitive (uppercased internally).
+     The -D command-line flag pre-defines symbols (equivalent to .define at the top of the file).
+   - DIAGNOSTIC DIRECTIVES: .error, .warning, .info emit compile-time messages.
+     .error halts compilation; .warning and .info continue. Useful for guarding against
+     missing prerequisites (e.g., .ifndef ATARI / .error "ATARI not defined" / .endif).
+   - INCBIN DIRECTIVE: .incbin "filename" includes a binary file verbatim in the output.
+     The file path is resolved using the same search algorithm as .include.
 *)
 
 
