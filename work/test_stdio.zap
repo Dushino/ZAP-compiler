@@ -84,6 +84,8 @@ end
 ; FastBasic	Byte-code	              5.50s
 ; Action!:               76 / 50  =   1.52s  with SDMCTL=0
 ; ZAP!           $1F0 = 496 / 500 =   0.992s with SDMCTL=0
+; ZAP!           $19F = 415 / 500 =   0.830s with SDMCTL=0
+
 proc sieve()
     const word max = 8192
     byte flags[max]
@@ -106,7 +108,8 @@ proc sieve()
             count += 1
         end
     end
-    
+    ;putx(high(count))
+    ;putx(low(count))
 end
 
 
@@ -128,8 +131,7 @@ proc main()
         sieve()
     end
     ; rv = test_files()
-
-    ; 10 iterations give $0003B4 (948 dec) = 1.896 sec / iteration
+    
     putx(time[0])    
     putx(time[1])
     putx(time[2])

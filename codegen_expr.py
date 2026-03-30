@@ -14045,6 +14045,106 @@ class CodeGen:
                         return None  # non-constant RHS
         return const_val
 
+    def _detect_while_lsr(self, cond: Expr, body: list) -> tuple[str, str, int, Expr, int, str] | None:
+        """Detect while-loop strength reduction pattern for pointer walking.
+
+        Pattern: while VAR <= CONST; ARR[VAR] = VALUE; VAR += STRIDE; end
+        Returns (arr_asm, var_name, end_addr, stride_expr, store_value, cond_op) or None.
+        end_addr is the absolute address (arr_base + limit) for the pointer comparison.
+        cond_op is 'LE' or 'LT' to determine end_addr calculation.
+        """
+        from ast_nodes import AssignStmt, SubscriptExpr, BreakStmt, ContinueStmt
+
+        # 1. Condition: VAR <= CONST or VAR < CONST
+        if not isinstance(cond, BinaryExpr):
+            return None
+        if cond.op not in {BinOp.LE, BinOp.LT}:
+            return None
+        if not isinstance(cond.left, Identifier):
+            return None
+
+        var_name = cond.left.name.upper()
+
+        # Evaluate right side as constant
+        right_folded = fold_expr(subst_const(cond.right, cast(SymbolTable, self.current_symtab)))
+        if not isinstance(right_folded, IntLiteral):
+            return None
+        limit_val = right_folded.value
+
+        # 2. Body: exactly 2 statements, no break/continue
+        if len(body) != 2:
+            return None
+        for s in body:
+            if isinstance(s, (BreakStmt, ContinueStmt)):
+                return None
+
+        stmt_store = body[0]
+        stmt_incr = body[1]
+
+        # 3. First statement: ARR[VAR] = VALUE
+        if not isinstance(stmt_store, AssignStmt):
+            return None
+        if not isinstance(stmt_store.lhs, SubscriptExpr):
+            return None
+        lhs_sub = stmt_store.lhs
+        if not isinstance(lhs_sub.array, Identifier) or not isinstance(lhs_sub.index, Identifier):
+            return None
+        if lhs_sub.index.name.upper() != var_name:
+            return None
+
+        # Verify array is static byte array
+        try:
+            arr_sym: Symbol = self.current_symtab.lookup(lhs_sub.array.name)
+        except KeyError:
+            return None
+        if not arr_sym.is_array:
+            return None
+        elem_w = self._calculate_element_width(arr_sym)
+        if elem_w != 1:
+            return None
+        if arr_sym.type.is_pointer and not arr_sym.is_array:
+            return None
+        if arr_sym.address is not None:
+            return None
+        arr_asm = arr_sym.asm_name()
+
+        # Evaluate store value as constant
+        rhs_folded = fold_expr(subst_const(stmt_store.rhs, cast(SymbolTable, self.current_symtab)))
+        if not isinstance(rhs_folded, IntLiteral):
+            return None
+        store_val = rhs_folded.value & 0xFF
+
+        # 4. Second statement: VAR += STRIDE (i.e., VAR = VAR + STRIDE)
+        if not isinstance(stmt_incr, AssignStmt):
+            return None
+        if not isinstance(stmt_incr.lhs, Identifier):
+            return None
+        if stmt_incr.lhs.name.upper() != var_name:
+            return None
+        if not isinstance(stmt_incr.rhs, BinaryExpr):
+            return None
+        if stmt_incr.rhs.op != BinOp.ADD:
+            return None
+        if not isinstance(stmt_incr.rhs.left, Identifier):
+            return None
+        if stmt_incr.rhs.left.name.upper() != var_name:
+            return None
+        stride_expr = stmt_incr.rhs.right
+
+        # 5. Verify TMP0 is not used by an outer LSR (would conflict)
+        for ptr_asm in self._loop_strength_ptr.values():
+            if ptr_asm == "TMP0":
+                return None  # TMP0 is taken by outer loop
+
+        # 6. Compute end address
+        if cond.op == BinOp.LE:
+            end_offset = limit_val
+        else:  # LT
+            end_offset = limit_val - 1
+
+        cond_op_str = "LE" if cond.op == BinOp.LE else "LT"
+        return (arr_asm, var_name, end_offset, stride_expr, store_val, cond_op_str)
+
     def _detect_lsr_complex(self, loop_var: str, body: list) -> tuple[str, str] | None:
         """Detect loop strength reduction for complex bodies (if/while inside).
 
@@ -15385,9 +15485,96 @@ class CodeGen:
             self.loop_stack.append((lbl_start, lbl_end))
             self.break_stack.append(lbl_end)
 
-            self.emit(f"{lbl_start}:")
             cond: Expr = subst_const(stmt.cond, cast(SymbolTable, self.current_symtab))
             cond: Expr = fold_expr(cond)
+
+            # --- While-loop strength reduction (LSR Step 3) ---
+            # Detect: while var <= const; arr[var] = val; var += stride; end
+            # Replace with pointer-walking: TMP0 as running pointer, no addr calc per iter.
+            from ast_nodes import BinaryExpr
+            _wlsr = self._detect_while_lsr(cond, stmt.body)
+            if _wlsr is not None:
+                _w_arr_asm, _w_var_name, _w_end_offset, _w_stride, _w_store_val, _w_cond_op = _wlsr
+                _w_end_label = f"{_w_arr_asm}+{_w_end_offset}"
+                _w_stride_folded = fold_expr(subst_const(_w_stride, cast(SymbolTable, self.current_symtab)))
+                try:
+                    _w_var_sym: Symbol = self.current_symtab.lookup(_w_var_name)
+                except KeyError:
+                    _wlsr = None
+
+            if _wlsr is not None:
+                _w_var_asm = _w_var_sym.asm_name()
+
+                # Initialize TMP0 = arr_base + var BEFORE loop start label
+                self.emit(f"\tLDA {_w_var_asm}")
+                self.emit("\tCLC")
+                self.emit(f"\tADC #<{_w_arr_asm}")
+                self.emit("\tSTA TMP0")
+                self.emit(f"\tLDA {_w_var_asm}+1")
+                self.emit(f"\tADC #>{_w_arr_asm}")
+                self.emit("\tSTA TMP0+1")
+                # Hoist constants before loop
+                self.emit("\tLDY #$00")
+                self.emit(f"\tLDA #${_w_store_val:02X}")
+
+                # Loop start
+                self.emit(f"{lbl_start}:")
+
+                # Condition: TMP0 <= end_label (16-bit LE comparison)
+                # hi < end_hi → body; hi > end_hi → end; hi == end_hi → check lo
+                _w_end_hi = f"#>({_w_end_label})"
+                _w_end_lo = f"#<({_w_end_label})"
+                self.emit(f"\tLDX TMP0+1")
+                self.emit(f"\tCPX {_w_end_hi}")
+                self.emit(f"\tBCC {lbl_body}")
+                self.emit(f"\tBNE {lbl_end}")
+                self.emit(f"\tLDX TMP0")
+                self.emit(f"\tCPX {_w_end_lo}")
+                self.emit(f"\tBCC {lbl_body}")
+                self.emit(f"\tBEQ {lbl_body}")
+                self.emit(f"\tJMP {lbl_end}")
+
+                # Body
+                self.emit(f"{lbl_body}:")
+                self.emit(f"\tSTA (TMP0),Y")
+
+                # TMP0 += stride
+                if isinstance(_w_stride_folded, IntLiteral):
+                    _s_lo = _w_stride_folded.value & 0xFF
+                    _s_hi = (_w_stride_folded.value >> 8) & 0xFF
+                    self.emit("\tCLC")
+                    self.emit(f"\tLDA TMP0")
+                    self.emit(f"\tADC #${_s_lo:02X}")
+                    self.emit(f"\tSTA TMP0")
+                    if _s_hi == 0:
+                        _nc_lbl = self.new_label("WLSR_NC")
+                        self.emit(f"\tBCC {_nc_lbl}")
+                        self.emit(f"\tINC TMP0+1")
+                        self.emit(f"{_nc_lbl}:")
+                    else:
+                        self.emit(f"\tLDA TMP0+1")
+                        self.emit(f"\tADC #${_s_hi:02X}")
+                        self.emit(f"\tSTA TMP0+1")
+                elif isinstance(_w_stride_folded, Identifier):
+                    _s_sym: Symbol = self.current_symtab.lookup(_w_stride_folded.name)
+                    _s_asm = _s_sym.asm_name()
+                    self.emit("\tCLC")
+                    self.emit(f"\tLDA TMP0")
+                    self.emit(f"\tADC {_s_asm}")
+                    self.emit(f"\tSTA TMP0")
+                    self.emit(f"\tLDA TMP0+1")
+                    self.emit(f"\tADC {_s_asm}+1")
+                    self.emit(f"\tSTA TMP0+1")
+
+                # Reload A with store value (clobbered by pointer add)
+                self.emit(f"\tLDA #${_w_store_val:02X}")
+                self.emit(f"\tJMP {lbl_start}")
+                self.emit(f"{lbl_end}:")
+                self.loop_stack.pop()
+                self.break_stack.pop()
+                return
+
+            self.emit(f"{lbl_start}:")
 
             if isinstance(cond, IntLiteral):
                 if (cond.value & 0xFFFF) == 0:
@@ -15404,7 +15591,6 @@ class CodeGen:
                 self.break_stack.pop()
                 return
 
-            from ast_nodes import BinaryExpr
             if isinstance(cond, BinaryExpr) and cond.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
                 self._emit_relational_branch(cond, lbl_true=lbl_body, lbl_false=lbl_end)
             else:
