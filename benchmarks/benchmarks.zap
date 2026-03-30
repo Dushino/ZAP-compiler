@@ -153,24 +153,23 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/f.act
 ; Action!: 26 = 0.52s
-; Zap! $0035 = 53 / 50 = 1.06s
+; Zap! $002F = 47 / 50 = 0.94s
 proc test_f()
-    byte SAUMSCL @88
-    byte SAUMSCH @89
     byte I,J
-    word screen
+    word scrstart @88
+    word scr
 
-    ; GRAPHICS(24)
-    start()
-    SCREEN=SAUMSCL+256*SAUMSCH
-    FOR I=0 TO 31
-        FOR J=0 TO 239
-            ;POKE(SCREEN+J,255)
+    GRAPHICS(24)
+    scr = scrstart
+    start()    
+    FOR I=0 TO 32
+        FOR J=0 TO 240
+            POKE(scr + j, 255)
         end
-    SCREEN += 240
+        scr += 240
     end
-    ;GRAPHICS(0)
-    finish('f')    
+    GRAPHICS(0)
+    finish('f')      
 end
 
 
@@ -179,10 +178,10 @@ proc main()
     byte i
 
     ;test_a()
-    test_b()
-    test_c()
-    test_d()
-    test_e()
-    ;test_f()
+    ;test_b()
+    ;test_c()
+    ;test_d()
+    ;test_e()
+    test_f()
     puts("Done")
 end
