@@ -2,7 +2,7 @@
 
 **Current version**: 0.2.0
 **Test suite**: 170 pass-tests · 125 fail-tests · all passing
-**Benchmark**: Sieve of Eratosthenes — ZAP! 1.166s vs Action! 1.52s (PAL, SDMCTL=0)
+**Benchmark**: Sieve of Eratosthenes — ZAP! **0.830s** vs Action! 1.52s (PAL, SDMCTL=0, 45.4% faster)
 
 ---
 

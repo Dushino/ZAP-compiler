@@ -18,11 +18,23 @@
 - **Branch threading**: Bxx label → Bxx far_target when label is JMP trampoline
 - **Unreferenced label removal**: Clean __ZAP_* labels after threading (respects ASM blocks)
 - **Branch inversion fix**: BCC body / JMP end / body: → BCS end (label-aware)
-- **Loop strength reduction**: Running pointer in TMP0 for `arr[loop_var]` in simple for loops
+- **Loop strength reduction Step 1**: Running pointer in TMP0 for `arr[loop_var]` in simple for loops
+- **Loop strength reduction Step 2**: Dedicated TMP2 pointer for `arr[loop_var]` reads in complex for loops (if/while in body)
+- **Loop strength reduction Step 3**: While-loop pointer walking — eliminates loop variable entirely, replaces `while k <= N; arr[k] = val; k += stride` with pointer comparison + indirect store + pointer add
 - **Loop-invariant hoisting**: LDY#$00, LDA#const moved before loop when body doesn't modify them
 - **Generalized inline add/sub**: Skip MATH0 store when left operand already in A/X
 - **Shift scratch optimization**: Power-of-2 shift uses MATH0 directly when followed by inline add
 - **Dead register elimination**: LDX addr / STX addr → remove STX; dead LDX across BCC/INC/label
+
+### Benchmark journey:
+| Point | Time | vs Action! |
+|-------|------|-----------|
+| Start (no optimizations) | 1.88s | 24% slower |
+| After peephole opts | 1.158s | 24% faster |
+| After LSR Step 1 (init loop) | 1.108s | 27% faster |
+| After branch fixes + hoisting | 1.052s | 30.8% faster |
+| After LSR Step 2 (main loop) | **0.992s** | 34.7% faster |
+| After LSR Step 3 (inner loop) | **0.830s** | **45.4% faster** |
 
 ### Code quality improvements:
 - Eliminated global mutable state in dce.py (stmt_src passed as parameter)

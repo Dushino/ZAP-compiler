@@ -70,10 +70,9 @@ func byte test_files()
     return rv
 end
 
-; output: 
-; ZAP!     1899 prime numbers 
 
-
+; output:  1899 prime numbers 
+;
 ; benchmarks according to https://github.com/pedromagician/Atari800-benchmarks
 ; TEST E:
 ; Atari Basic:              16003 = 320.06s
@@ -83,9 +82,7 @@ end
 ; Turbo Basic compiled:      1906 =  38.12s
 ; FastBasic	Byte-code	              5.50s
 ; Action!:               76 / 50  =   1.52s  with SDMCTL=0
-; ZAP!           $1F0 = 496 / 500 =   0.992s with SDMCTL=0
 ; ZAP!           $19F = 415 / 500 =   0.830s with SDMCTL=0
-
 proc sieve()
     const word max = 8192
     byte flags[max]
