@@ -387,13 +387,45 @@ end
 
 /*
     puts - print null-terminated string to the screen
+    Optimized: inlines ascii_to_screen and screen store to avoid
+    per-character function call overhead (putchar + ascii_to_screen).
+    Only \n is handled inline; \t and \0 are not expected in string literals.
 */
 proc puts(byte ^str)
     byte ch
 
     ch = str^
     while ch != 0
-        putchar(ch)
+        if ch == '\n'
+            crlf()
+        else
+            ; inline ascii_to_screen: ATASCII → screen code
+            asm
+                        lda _PUTS_CH
+                        asl a
+                        adc #$c0
+                        bpl puts_a2s_ok
+                        eor #$40
+            puts_a2s_ok:
+                        lsr a
+                        bcc puts_a2s_store
+                        eor #$80
+            puts_a2s_store:
+                        ldy #$00
+                        sta (_CURPTR),y
+            end
+            curptr += 1
+            cur_xpos += 1
+            if cur_xpos >= SCREEN_X_SIZE
+                cur_xpos = 0
+                if cur_ypos < SCREEN_Y_SIZE - 1
+                    cur_ypos += 1
+                    curptr = vlstart[cur_ypos]
+                else
+                    crlf()
+                end
+            end
+        end
         str += 1
         ch = str^
     end

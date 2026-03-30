@@ -54,7 +54,7 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/a.act
 ; Action!:     522      = 10.44s
-; Zap! $03ae = 952 / 50 = 18.84s
+; Zap! $0151 = 337 / 50 =  6.47s
 proc test_a()
   word I
 
@@ -180,10 +180,10 @@ proc main()
     byte i
 
     test_a()
-    test_b()
-    test_c()
-    test_d()
-    test_e()
+    ;test_b()
+    ;test_c()
+    ;test_d()
+    ;test_e()
     ;test_f()
     puts("Done")
 end
