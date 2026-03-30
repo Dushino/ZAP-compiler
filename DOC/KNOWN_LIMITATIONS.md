@@ -617,6 +617,27 @@ ZAP! identifiers are case-insensitive. `myVar`, `MyVar`, and `MYVAR` all refer t
 
 ---
 
+## Source File Encoding
+
+### ASCII Only
+
+ZAP! source files must contain only ASCII characters (0-127). Unicode characters (including common symbols like `→`, `—`, `≥`, accented letters, emoji, etc.) in comments, string literals, or identifiers will cause a compilation error:
+
+```
+UnicodeEncodeError: 'charmap' codec can't encode character ...
+```
+
+This is because the generated assembly is processed by the ca65 assembler which uses platform-specific character encoding. Use ASCII equivalents instead:
+
+```zap
+; byte val → result      ; ERROR: Unicode arrow
+; byte val -> result     ; OK: ASCII arrow
+```
+
+String literals support escape sequences for special characters: `\n`, `\t`, `\xHH`, `\\`, `\"`, etc. See the Language Reference for the full list.
+
+---
+
 ## Uninitialized Variable Detection Gaps
 
 The definite-assignment analysis catches most uninitialized reads but has known blind spots:
