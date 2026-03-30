@@ -17,6 +17,7 @@
 ;
 ; Exports (screen output):
 ;   proc cls()                                      -- clear screen
+;   proc graphics(byte mode)                        -- switch display mode via S: CIO
 ;   proc putchar(byte ch)                           -- print one character
 ;   proc puts(byte^ str)                            -- print null-terminated string
 ;   proc crlf()                                     -- newline + scroll
@@ -152,16 +153,8 @@ end
 
 ; initialize internals for faster screen IO
 proc CONSTRUCTOR() 
-    word scrstart @88
-    byte ^data
-    byte i
 
-    data = scrstart
-    for i = 0 to SCREEN_Y_SIZE
-        vlstart[i] = data
-        data = data + SCREEN_X_SIZE   
-    end
-    cls()
+    GRAPHICS(0)
 end
 
 
@@ -199,6 +192,41 @@ proc cls()
     curptr = vlstart[0]
 
     memset(vlstart[0], 0, SCREEN_X_SIZE * SCREEN_Y_SIZE)   
+end
+
+
+/*
+    graphics - switch display mode via CIO on IOCB #6 (S: device)
+    Mode values follow Atari BASIC conventions:
+      0 = GR.0 (40x24 text)
+      8 = GR.8 (320x192 mono)
+     +16 = no text window (full screen)
+    e.g. graphics(0) for text, graphics(24) for full-screen GR.8
+    After call, scrstart ($58/$59) points to screen memory.
+    For mode 0, reinitializes the vlstart table and cursor.
+*/
+proc graphics(byte mode)
+    const byte screen_device[] = "S:"
+    word savmsc @88         ; SAVMSC: screen memory start (set by OS after S: open)
+    byte i
+    word data
+
+    ; Close and reopen S: on IOCB #6
+    CIO(6, ICCOM_COMMANDS.Close)
+    ; ICAX1 = 12 (read/write access), ICAX2 = mode number
+    CIO(6, ICCOM_COMMANDS.Open, screen_device, 0, 12, mode)
+
+    ; For text mode (GR.0), reinitialize screen pointers
+    if (mode & $0F) == 0
+        data = savmsc
+        for i = 0 to SCREEN_Y_SIZE
+            vlstart[i] = data
+            data = data + SCREEN_X_SIZE
+        end
+        cur_xpos = 0
+        cur_ypos = 0
+        curptr = vlstart[0]
+    end
 end
 
 
