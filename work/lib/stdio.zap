@@ -8,8 +8,8 @@
 ;   Platform I/O coordinator.  Selects the correct platform-specific
 ;   I/O implementation at compile time via preprocessor symbols:
 ;
-;     -D ATARI  →  includes lib/atari/atari_stdio.zap
-;     -D SBC    →  includes lib/sbc/sbc_stdio.zap  (not yet implemented)
+;     -D ATARI  ->  includes lib/atari/atari_stdio.zap
+;     -D SBC    ->  includes lib/sbc/sbc_stdio.zap  (not yet implemented)
 ;
 ;   All I/O functions (putchar, puts, getchar, fopen, …) are provided
 ;   by the included platform file and become part of this module's

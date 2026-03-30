@@ -69,7 +69,7 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/b.act
 ; Action!: 5 = 0.1s
-; Zap! $0004 = 4 / 50 = 0.08s
+; Zap! $0003 = 3 / 50 = 0.06s
 proc test_b()
     word i,x
 
@@ -98,8 +98,8 @@ end
 
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/d.act
-; Action!: 167 = 3.34s; Zap! $0004 = 3 / 50 = 0.06s
-; Zap! $0020 = 32 / 50 = 0.64s
+; Action!: 167 = 3.34s; 
+; Zap! $001f = 31 / 50 = 0.62s
 proc test_d()
     word a,b,x,c 
 
@@ -120,7 +120,7 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/e.act
 ; Action!: 76 = 1.52s
-; Zap! $0035 = 53 / 50 = 1.06s
+; Zap! $0029 =  41 / 50 = 0.82s
 proc test_e()
     const word max = 8192
     byte flags[max]
@@ -160,7 +160,6 @@ proc test_f()
     byte I,J
     word screen
 
-
     ; GRAPHICS(24)
     start()
     SCREEN=SAUMSCL+256*SAUMSCH
@@ -179,11 +178,11 @@ end
 proc main()
     byte i
 
-    test_a()
-    ;test_b()
-    ;test_c()
-    ;test_d()
-    ;test_e()
+    ;test_a()
+    test_b()
+    test_c()
+    test_d()
+    test_e()
     ;test_f()
     puts("Done")
 end

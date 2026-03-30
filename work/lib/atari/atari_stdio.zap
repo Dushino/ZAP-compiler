@@ -25,7 +25,7 @@
 ;   proc cursor_off()                               -- hide cursor
 ;   proc putx(byte value)                           -- print byte as 2 hex digits
 ;   proc printb(byte arg, lzero=1, ralign=1)        -- print byte as decimal
-;   func byte ascii_to_screen(byte ch)              -- ATASCII → screen code
+;   func byte ascii_to_screen(byte ch)              -- ATASCII -> screen code
 ;
 ; Exports (keyboard input):
 ;   func byte getchar()                             -- wait for key press
@@ -399,7 +399,7 @@ proc puts(byte ^str)
         if ch == '\n'
             crlf()
         else
-            ; inline ascii_to_screen: ATASCII → screen code
+            ; inline ascii_to_screen: ATASCII -> screen code
             asm
                         lda _PUTS_CH
                         asl a

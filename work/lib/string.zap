@@ -83,18 +83,18 @@ end
 */
 proc memcpy(byte^ dst, byte^ src, const word len)
     ; Optimized overlap-safe memcpy using Y-indexed page loops.
-    ; If dst > src (and regions overlap), copies backwards (high→low).
-    ; Otherwise copies forwards (low→high). ~17 cycles/byte vs ~45 original.
+    ; If dst > src (and regions overlap), copies backwards (high->low).
+    ; Otherwise copies forwards (low->high). ~17 cycles/byte vs ~45 original.
     asm
         ; Compare dst vs src to choose direction
         lda _MEMCPY_DST+1
         cmp _MEMCPY_SRC+1
-        bcc memcpy_fwd          ; dst_hi < src_hi → forward (no overlap risk)
-        bne memcpy_bwd          ; dst_hi > src_hi → backward
+        bcc memcpy_fwd          ; dst_hi < src_hi -> forward (no overlap risk)
+        bne memcpy_bwd          ; dst_hi > src_hi -> backward
         lda _MEMCPY_DST
         cmp _MEMCPY_SRC
-        bcc memcpy_fwd          ; dst_lo < src_lo → forward
-        beq memcpy_done         ; dst == src → nothing to do
+        bcc memcpy_fwd          ; dst_lo < src_lo -> forward
+        beq memcpy_done         ; dst == src -> nothing to do
         ; fall through to backward
 
         ; === BACKWARD COPY (dst > src): start from end ===
