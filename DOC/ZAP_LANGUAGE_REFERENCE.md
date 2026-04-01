@@ -917,6 +917,39 @@ Point p
 word sz = sizeof(p)
 ```
 
+#### poke(addr, value)
+
+Write a byte value to a memory address. Generates inline code — no function call overhead.
+
+- `addr` is any expression evaluating to a word (the target memory address).
+- `value` is any expression evaluating to a byte (the value to write).
+- When both `addr` and `value` are constants, generates a direct `LDA #val / STA addr`.
+- When `addr` is constant and `value` is variable, generates `STA addr` (absolute store).
+- When `addr` is variable, uses indirect addressing via a ZP temporary.
+
+```zap
+POKE($D020, 0)              ; write 0 to address $D020
+POKE(screen + offset, 255)  ; computed address
+```
+
+#### peek(addr)
+
+Read a byte value from a memory address. Returns a `byte`.
+
+- `addr` is any expression evaluating to a word (the source memory address).
+- When `addr` is a constant, generates a direct `LDA addr` (absolute load).
+- When `addr` is variable, uses indirect addressing via a ZP temporary.
+
+```zap
+byte val = PEEK($D01F)          ; read joystick register
+byte ch  = PEEK(screen + pos)   ; read from computed address
+if PEEK($D20F) & $04            ; check keyboard status
+    ; key pressed
+end
+```
+
+> **Note**: POKE/PEEK are compiler built-in keywords. They cannot be redefined as user procedures or functions. Their names are case-insensitive (POKE, Poke, poke all work).
+
 ### Operator Precedence
 
 From lowest to highest:

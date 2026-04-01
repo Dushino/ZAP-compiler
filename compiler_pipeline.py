@@ -1776,6 +1776,12 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     raise e
                 raise SemanticError(f"Function '{p.name}' conflicts with .define symbol", node=p)
     
+    # Check for collision with built-in keywords (POKE, PEEK, LOW, HIGH, etc.)
+    _BUILTIN_NAMES = {"LOW", "HIGH", "LOWW", "HIGHW", "SIZEOF", "POKE", "PEEK"}
+    for p in program.procs:
+        if isinstance(p, (ProcDecl, FuncDecl)) and p.name.upper() in _BUILTIN_NAMES:
+            raise SemanticError(f"'{p.name}' is a built-in keyword and cannot be used as a procedure or function name", node=p)
+
     # Ensure main() procedure exists (required for initialization code).
     # Skipped in --module mode: module files are library components and never
     # define main() — requiring it would always produce a spurious error.

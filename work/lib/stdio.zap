@@ -17,8 +17,10 @@
 ;
 ; Exports (own):
 ;   proc CONSTRUCTOR()  -- module init stub (empty; actual init in platform file)
-;   proc poke(word addr, byte val)  -- write byte to memory address
-;   func byte peek(word addr)       -- read byte from memory address
+;
+; Built-in commands (compiler-generated, no library function needed):
+;   POKE(addr, value)   -- write byte to memory address (inline code)
+;   PEEK(addr)          -- read byte from memory address (inline code, returns BYTE)
 ;
 ; Status: Complete (platform selection); platform implementations vary
 ; ============================================================
@@ -31,38 +33,6 @@
 
 proc CONSTRUCTOR()
     ; initialization code for stdio module, if needed
-end
-
-
-/*
-    poke - write a byte value to a memory address
-    Platform-independent equivalent of Action!'s POKE or BASIC's POKE.
-    Uses indirect addressing through the ZP parameter slot for efficiency.
-*/
-proc poke(word addr, byte val)
-    asm
-        lda _POKE_VAL
-        ldy #$00
-        sta (_POKE_ADDR),y
-    end
-end
-
-
-/*
-    peek - read a byte value from a memory address
-    Platform-independent equivalent of Action!'s PEEK or BASIC's PEEK.
-    Uses indirect addressing through the ZP parameter slot for efficiency.
-*/
-func byte peek(word addr)
-    byte result
-
-    asm
-        ldy #$00
-        lda (_PEEK_ADDR),y
-        sta _PEEK_RESULT
-    end
-
-    return result
 end
 
 .ifdef ATARI

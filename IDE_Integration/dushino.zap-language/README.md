@@ -155,8 +155,8 @@ Inline assembler: `ASM … END` (embedded ca65 syntax highlighting)
 ### Preprocessor
 `.module`, `.include`, `.define`, `.undef`, `.ifdef`, `.ifndef`, `.else`, `.endif`, `.error`, `.warning`, `.info`
 
-### Built-in Functions
-`low()`, `high()`, `loww()`, `highw()`, `sizeof()`
+### Built-in Functions & Commands
+`low()`, `high()`, `loww()`, `highw()`, `sizeof()`, `peek()`, `poke()`
 
 ---
 

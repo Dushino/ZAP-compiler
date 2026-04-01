@@ -20,7 +20,8 @@ const ZAP_KEYWORDS = new Set([
     'proc', 'func', 'if', 'else', 'elseif', 'while', 'for', 'repeat',
     'switch', 'case', 'default', 'break', 'continue', 'return', 'end',
     'until', 'struct', 'enum', 'const', 'asm', 'byte', 'word', 'long',
-    'and', 'or', 'not', 'true', 'false', 'nil'
+    'and', 'or', 'not', 'true', 'false', 'nil',
+    'peek', 'poke', 'low', 'high', 'loww', 'highw', 'sizeof'
 ]);
 
 // Flow/control keywords that cannot be a type name — does NOT include byte/word/long
@@ -28,7 +29,8 @@ const ZAP_KEYWORDS = new Set([
 const ZAP_FLOW_KW = new Set([
     'proc', 'func', 'if', 'else', 'elseif', 'while', 'for', 'repeat',
     'switch', 'case', 'default', 'break', 'continue', 'return', 'end',
-    'until', 'struct', 'enum', 'const', 'asm', 'and', 'or', 'not', 'true', 'false', 'nil'
+    'until', 'struct', 'enum', 'const', 'asm', 'and', 'or', 'not', 'true', 'false', 'nil',
+    'peek', 'poke', 'low', 'high', 'loww', 'highw', 'sizeof'
 ]);
 
 // Case-insensitive Map: normalizes all string keys to lowercase automatically.

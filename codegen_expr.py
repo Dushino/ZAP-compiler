@@ -2826,12 +2826,12 @@ class CodeGen:
             # Remove no-op store: LDR addr / STR addr → keep LDR, remove STR
             # The store writes back the same value just loaded — memory unchanged.
             # Also: if the LDR is dead (register overwritten before next use), remove it too.
-            if (line_upper.startswith("LDX ") or line_upper.startswith("LDY ")):
+            if (line_upper.startswith("LDA ") or line_upper.startswith("LDX ") or line_upper.startswith("LDY ")):
                 _ldst_parts = line_stripped.split(maxsplit=1)
                 if len(_ldst_parts) == 2:
                     _ld_op = _ldst_parts[0].upper()
                     _ld_addr = _ldst_parts[1].strip()
-                    _st_op = "STX" if _ld_op == "LDX" else "STY"
+                    _st_op = {"LDA": "STA", "LDX": "STX", "LDY": "STY"}[_ld_op]
                     if not _operand_is_port(_ld_addr):
                         # Peek at next real instruction
                         _nj = i + 1
@@ -2858,6 +2858,9 @@ class CodeGen:
                                     _sp = _sc.split(maxsplit=1)
                                     _smn = _sp[0].upper() if _sp else ""
                                     # Does this instruction overwrite the register?
+                                    if _ld_op == "LDA" and _smn in {"LDA", "PLA", "TXA", "TYA"}:
+                                        _reg_dead = True
+                                        break
                                     if _ld_op == "LDX" and _smn in {"LDX", "TAX", "TSX", "PLX"}:
                                         _reg_dead = True
                                         break
@@ -2865,6 +2868,8 @@ class CodeGen:
                                         _reg_dead = True
                                         break
                                     # Does this instruction read the register?
+                                    if _ld_op == "LDA" and _smn in {"STA", "TAX", "TAY", "CMP", "ADC", "SBC", "AND", "ORA", "EOR", "ASL", "LSR", "ROL", "ROR", "PHA"}:
+                                        break  # A is read — LDA is needed
                                     if _ld_op == "LDX" and (_smn in {"STX", "TXA", "TXS", "CPX", "INX", "DEX", "PHX"} or (_sp[1].strip().endswith(",X") if len(_sp) > 1 else False)):
                                         break  # X is read — LDX is needed
                                     if _ld_op == "LDY" and (_smn in {"STY", "TYA", "CPY", "INY", "DEY", "PHY"} or (_sp[1].strip().endswith(",Y") if len(_sp) > 1 else False)):
@@ -10793,7 +10798,7 @@ class CodeGen:
             from ast_nodes import CallExpr, BinaryExpr, UnaryExpr, SubscriptExpr, FieldAccess
             # Detect explicit calls
             if isinstance(e, CallExpr):
-                return e.name.upper() not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}
+                return e.name.upper() not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW", "PEEK"}
             # Detect nested math operations that call runtime routines (MUL/DIV/MOD)
             if isinstance(e, BinaryExpr):
                 if e.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}:
@@ -12166,8 +12171,30 @@ class CodeGen:
         Internal helper used during code generation.
         """
         name_upper = expr.name.upper()
-        if name_upper not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
+        if name_upper not in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW", "PEEK"}:
             return False
+
+        if name_upper == "PEEK":
+            if len(expr.args) != 1 or expr.args[0] is None:
+                self._raise_error("PEEK() expects exactly one argument")
+            arg = expr.args[0]
+            # Optimize: if addr is a constant, use absolute addressing
+            _const_addr = self._try_eval_const(arg)
+            if _const_addr is not None:
+                addr = _const_addr & 0xFFFF
+                self.emit(f"\tLDA ${addr:04X}")
+            else:
+                # Evaluate addr expression → MATH0 for indirect load.
+                # Complex expressions already leave result in MATH0; simple ones need store.
+                self.gen_expr(arg)
+                _peek_simple = isinstance(arg, (Identifier, IntLiteral))
+                if _peek_simple:
+                    self.emit("\tSTA MATH0")
+                    self.emit("\tSTX MATH0+1")
+                self.emit("\tLDY #$00")
+                self.emit("\tLDA (MATH0),Y")
+            self.emit("\tLDX #$00")
+            return True
 
         if len(expr.args) != 1 or expr.args[0] is None:
             self._raise_error(f"{name_upper}() expects exactly one argument")
@@ -15184,6 +15211,50 @@ class CodeGen:
             return
 
         if isinstance(stmt, CallStmt):
+            # Built-in POKE(addr, value) — inline store to computed address
+            if stmt.name.upper() == "POKE":
+                if len(stmt.args) != 2 or stmt.args[0] is None or stmt.args[1] is None:
+                    self._raise_error("POKE() expects exactly two arguments: POKE(address, value)")
+                addr_expr = stmt.args[0]
+                val_expr = stmt.args[1]
+                # Apply const folding to both arguments
+                addr_expr = fold_expr(subst_const(addr_expr, cast(SymbolTable, self.current_symtab)))
+                val_expr = fold_expr(subst_const(val_expr, cast(SymbolTable, self.current_symtab)))
+                _const_addr = self._try_eval_const(addr_expr)
+                _const_val = self._try_eval_const(val_expr)
+
+                if _const_addr is not None and _const_val is not None:
+                    # Both constant: simple absolute store
+                    addr = _const_addr & 0xFFFF
+                    val = _const_val & 0xFF
+                    self.emit(f"\tLDA #${val:02X}")
+                    self.emit(f"\tSTA ${addr:04X}")
+                elif _const_addr is not None:
+                    # Constant address, variable value: evaluate value, store to abs addr
+                    addr = _const_addr & 0xFFFF
+                    self.gen_expr(val_expr)
+                    self.emit(f"\tSTA ${addr:04X}")
+                else:
+                    # Variable address: evaluate addr → MATH0, then value → A, store indirect.
+                    # gen_expr always returns result in A/X. For complex expressions (binary ops,
+                    # function calls), MATH0 already has the result. For simple expressions
+                    # (variable loads), we must ensure MATH0 gets the value.
+                    self.gen_expr(addr_expr)
+                    # Check if addr_expr is simple (MATH0 may not have the value)
+                    _addr_is_simple = isinstance(addr_expr, (Identifier, IntLiteral))
+                    if _addr_is_simple:
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tSTX MATH0+1")
+                    if _const_val is not None:
+                        val = _const_val & 0xFF
+                        self.emit(f"\tLDA #${val:02X}")
+                    else:
+                        # Save addr in MATH0, evaluate value
+                        self.gen_expr(val_expr)
+                    self.emit("\tLDY #$00")
+                    self.emit("\tSTA (MATH0),Y")
+                return
+
             # Pass arguments to callee parameters (simple ABI via memory)
             # Check both proc and func param specs — a func can be called as a statement
             specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(stmt.name) or self.func_param_specs.get(stmt.name)

@@ -246,5 +246,17 @@
         "prefix": ".define",
         "body": ".define ${1:SYMBOL}",
         "description": "Define a preprocessor symbol"
+    },
+
+    "POKE": {
+        "prefix": "poke",
+        "body": "POKE(${1:address}, ${2:value})",
+        "description": "Write a byte value to a memory address (built-in, inline code)"
+    },
+
+    "PEEK": {
+        "prefix": "peek",
+        "body": "PEEK(${1:address})",
+        "description": "Read a byte value from a memory address (built-in, inline code)"
     }
 }

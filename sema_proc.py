@@ -73,6 +73,11 @@ class ProcAnalyzer:
 
     def analyze_call(self, call: CallStmt) -> None:
         """Validate a procedure or function call against the procedure/function table."""
+        # Built-in statement commands — skip proc/func table lookup
+        if call.name.upper() == "POKE":
+            if len(call.args) != 2 or call.args[0] is None or call.args[1] is None:
+                raise SemanticError("POKE() expects exactly two arguments: POKE(address, value)", node=call)
+            return
         caller_file = None
         if self.current_proc is not None:
             proc_src_map = self.debug.get('proc_src') or {}

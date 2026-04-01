@@ -99,6 +99,7 @@ local_decl      ::= [ type_modifier { type_modifier } ] type declarator_list ;
 
 statement       ::= assignment
                   | call_stmt
+                  | builtin_stmt
                   | if_stmt
                   | while_stmt
                   | repeat_stmt
@@ -211,11 +212,14 @@ primary_atom    ::= NUMBER                      (* decimal, $hex (0x..), binary 
                   | "(" expression ")"          (* parenthesized expression *)
                   | builtin_call ;
 
-builtin_call    ::= "LOW" "(" expression ")"    (* low byte of WORD/LONG → BYTE *)
-                  | "HIGH" "(" expression ")"   (* high byte of WORD/LONG → BYTE *)
-                  | "LOWW" "(" expression ")"   (* low word of LONG → WORD *)
-                  | "HIGHW" "(" expression ")"  (* high word of LONG → WORD *)
-                  | "SIZEOF" "(" type_or_ident ")" ;  (* size in bytes *)
+builtin_call    ::= "LOW" "(" expression ")"    (* low byte of WORD/LONG -> BYTE *)
+                  | "HIGH" "(" expression ")"   (* high byte of WORD/LONG -> BYTE *)
+                  | "LOWW" "(" expression ")"   (* low word of LONG -> WORD *)
+                  | "HIGHW" "(" expression ")"  (* high word of LONG -> WORD *)
+                  | "SIZEOF" "(" type_or_ident ")" (* size in bytes *)
+                  | "PEEK" "(" expression ")" ; (* read byte from address -> BYTE *)
+
+builtin_stmt    ::= "POKE" "(" expression "," expression ")" ;  (* write byte to address *)
 
 type_or_ident   ::= base_type | IDENT ;
 
@@ -307,8 +311,12 @@ expr_list       ::= expression { "," expression } ;
    - CARET DISAMBIGUATION: The parser uses lookahead to distinguish ^ (postfix pointer dereference)
      from ^ (binary XOR). If ^ is followed by . it is deref+field; if followed by IDENT or NUMBER
      on the same line it is treated as XOR; otherwise it is postfix dereference.
-   - BUILTIN FUNCTIONS: LOW, HIGH, LOWW, HIGHW, SIZEOF are parsed as regular function calls
-     but handled specially during code generation.
+   - BUILTIN FUNCTIONS: LOW, HIGH, LOWW, HIGHW, SIZEOF, PEEK are expression-level built-ins
+     parsed as function calls but handled inline by code generation (no JSR emitted).
+   - BUILTIN STATEMENTS: POKE(addr, value) is a statement-level built-in that generates
+     inline store code. Optimized for constant addresses (absolute STA) and constant values.
+   - RESERVED NAMES: LOW, HIGH, LOWW, HIGHW, SIZEOF, PEEK, POKE are reserved keywords.
+     User-defined procedures or functions cannot use these names.
    - PREPROCESSOR: Directives (.define, .undef, .ifdef, .ifndef, .else, .endif) are processed
      in a separate pass before tokenization/parsing. They operate on symbols, not expressions.
      Conditional blocks may nest. Symbols are case-insensitive (uppercased internally).

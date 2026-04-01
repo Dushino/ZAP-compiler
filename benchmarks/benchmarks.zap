@@ -153,7 +153,7 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/f.act
 ; Action!: 26 = 0.52s
-; Zap! $002F = 47 / 50 = 0.94s
+; Zap! $001F = 31 / 50 = 0.62s
 proc test_f()
     byte I,J
     word scrstart @88

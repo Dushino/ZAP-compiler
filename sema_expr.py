@@ -333,6 +333,13 @@ class ExprTypeChecker:
         # funkce
         if isinstance(expr, CallExpr):
             name_upper = expr.name.upper()
+            if name_upper == "PEEK":
+                if len(expr.args) != 1 or expr.args[0] is None:
+                    raise SemanticError("PEEK() expects exactly one argument", node=expr)
+                # Type-check the address argument (must be numeric)
+                self.check(expr.args[0], read_check_enabled=read_check_enabled)
+                return ExprType(SemType("BYTE", False), ExprKind.VALUE)
+
             if name_upper in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:
                 if len(expr.args) != 1 or expr.args[0] is None:
                     raise SemanticError(f"{name_upper}() expects exactly one argument", node=expr)
