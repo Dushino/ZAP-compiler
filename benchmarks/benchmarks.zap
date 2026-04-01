@@ -69,7 +69,7 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/b.act
 ; Action!: 5 = 0.1s
-; Zap! $0003 = 3 / 50 = 0.06s
+; Zap! $0004 = 4 / 50 = 0.08s
 proc test_b()
     word i,x
 
@@ -153,7 +153,7 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/f.act
 ; Action!: 26 = 0.52s
-; Zap! $001F = 31 / 50 = 0.62s
+; Zap! $001D =  29 / 50 = 0.58s
 proc test_f()
     byte I,J
     word scrstart @88
@@ -169,7 +169,7 @@ proc test_f()
         scr += 240
     end
     GRAPHICS(0)
-    finish('f')      
+    finish('F')      
 end
 
 
@@ -177,11 +177,11 @@ end
 proc main()
     byte i
 
-    ;test_a()
-    ;test_b()
-    ;test_c()
-    ;test_d()
-    ;test_e()
+    test_a()
+    test_b()
+    test_c()
+    test_d()
+    test_e()
     test_f()
     puts("Done")
 end

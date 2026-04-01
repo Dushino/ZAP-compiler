@@ -12191,6 +12191,14 @@ class CodeGen:
                 if _peek_simple:
                     self.emit("\tSTA MATH0")
                     self.emit("\tSTX MATH0+1")
+                else:
+                    # Remove trailing LDA __MATH0 / LDX __MATH0+1 from gen_expr (not needed)
+                    _m0 = self._internal_name_map.get("MATH0", "MATH0")
+                    if (len(self.code) >= 2
+                            and self.code[-1].strip() == f"LDX {_m0}+1"
+                            and self.code[-2].strip() == f"LDA {_m0}"):
+                        self.code.pop()
+                        self.code.pop()
                 self.emit("\tLDY #$00")
                 self.emit("\tLDA (MATH0),Y")
             self.emit("\tLDX #$00")
@@ -15240,11 +15248,21 @@ class CodeGen:
                     # function calls), MATH0 already has the result. For simple expressions
                     # (variable loads), we must ensure MATH0 gets the value.
                     self.gen_expr(addr_expr)
-                    # Check if addr_expr is simple (MATH0 may not have the value)
                     _addr_is_simple = isinstance(addr_expr, (Identifier, IntLiteral))
                     if _addr_is_simple:
+                        # Simple expr: MATH0 may not have it, store A/X there
                         self.emit("\tSTA MATH0")
                         self.emit("\tSTX MATH0+1")
+                    else:
+                        # Complex expr: MATH0 already has the result.
+                        # gen_expr emitted trailing LDA __MATH0 / LDX __MATH0+1 to load A/X
+                        # which we don't need — remove them.
+                        _m0 = self._internal_name_map.get("MATH0", "MATH0")
+                        if (len(self.code) >= 2
+                                and self.code[-1].strip() == f"LDX {_m0}+1"
+                                and self.code[-2].strip() == f"LDA {_m0}"):
+                            self.code.pop()
+                            self.code.pop()
                     if _const_val is not None:
                         val = _const_val & 0xFF
                         self.emit(f"\tLDA #${val:02X}")
