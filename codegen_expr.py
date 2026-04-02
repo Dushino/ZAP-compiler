@@ -4096,6 +4096,10 @@ class CodeGen:
         # Seventh pass: remove labels left unreferenced by branch threading.
         optimized = self._remove_unreferenced_labels(optimized)
 
+        # Seventh-b pass: dead code after unconditional JMP (re-run after label removal
+        # may have exposed new JMP/JMP patterns, e.g. in switch statements).
+        optimized = self._eliminate_dead_after_jump(optimized)
+
         # Eighth pass: branch inversion — Bxx skip; JMP target → B~xx target (when in range).
         # Also removes unreferenced labels, enabling OPT-12 (switch reload elimination)
         # to emerge via OPT-8's memory-address tracking.
@@ -4879,6 +4883,48 @@ class CodeGen:
                             result.append(f"{indent}{mn} {far_target}")
                             continue
             result.append(ln)
+        return result
+
+    def _eliminate_dead_after_jump(self, code: list[str]) -> list[str]:
+        """Remove unreachable instructions after unconditional JMP/RTS/RTI.
+
+        Stops at labels (which may be branch targets) and ASM block markers.
+        Preserves equate lines (symbol definitions used elsewhere).
+        """
+        result: list[str] = []
+        i = 0
+        in_asm = False
+        while i < len(code):
+            ln = code[i]
+            s = ln.strip()
+            if s == "; ASM_BLOCK_BEGIN":
+                in_asm = True
+            elif s == "; ASM_BLOCK_END":
+                in_asm = False
+            result.append(ln)
+            if not in_asm:
+                su = s.split(";")[0].strip().upper()
+                if (su == "RTS" or su == "RTI"
+                        or (su.startswith("JMP ") and "(" not in su)):
+                    # Skip dead code until next label or section boundary
+                    i += 1
+                    while i < len(code):
+                        dl = code[i].strip()
+                        dc = dl.split(";")[0].strip()
+                        if dc.endswith(":") and " " not in dc.split(":")[0]:
+                            break  # label — stop
+                        if dl.startswith("; -- Procedure ") or dl.startswith("; -- Function "):
+                            break
+                        if dc.upper().startswith(".SEGMENT"):
+                            break
+                        if dl == "; ASM_BLOCK_BEGIN":
+                            break
+                        # Keep equate lines
+                        if dc and "=" in dc and not dc.endswith(":"):
+                            result.append(code[i])
+                        i += 1
+                    continue
+            i += 1
         return result
 
     def _eliminate_math0_roundtrip(self, code: list[str]) -> list[str]:
@@ -15201,20 +15247,24 @@ class CodeGen:
             self._raise_error(stmt.message)
         if isinstance(stmt, WarningDirective):
             from errors import print_error
-            src = "\n".join(self.source_lines) if self.source_lines else ""
             if self.current_stmt_info:
                 fname, line, col, _ = self.current_stmt_info
+                line = self._map_clean_line_to_orig(fname, line) or line
             else:
                 fname, line, col = None, 1, 1
+            orig_lines = self._get_source_lines_for_file(fname)
+            src = "\n".join(orig_lines) if orig_lines else ("\n".join(self.source_lines) if self.source_lines else "")
             print_error(src, line, col, stmt.message, filename=fname, severity='warning')
             return
         if isinstance(stmt, InfoDirective):
             from errors import print_error
-            src = "\n".join(self.source_lines) if self.source_lines else ""
             if self.current_stmt_info:
                 fname, line, col, _ = self.current_stmt_info
+                line = self._map_clean_line_to_orig(fname, line) or line
             else:
                 fname, line, col = None, 1, 1
+            orig_lines = self._get_source_lines_for_file(fname)
+            src = "\n".join(orig_lines) if orig_lines else ("\n".join(self.source_lines) if self.source_lines else "")
             print_error(src, line, col, stmt.message, filename=fname, severity='info')
             return
 

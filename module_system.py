@@ -254,19 +254,27 @@ class ModuleSystem:
         # Process compile-time diagnostics directives (.error/.warning/.info)
         from ast_nodes import ErrorDirective, WarningDirective, InfoDirective
         from errors import print_error
+        orig_map = cleaned_line_map
         new_procs = []
         for item in program.procs:
             if isinstance(item, ErrorDirective):
-                err = SemanticError(item.message, line=getattr(item, 'line', None), col=getattr(item, 'col', None))
+                raw_line = getattr(item, 'line', None)
+                mapped_line = orig_map[raw_line - 1] if orig_map and raw_line and 1 <= raw_line <= len(orig_map) else raw_line
+                err = SemanticError(item.message, line=mapped_line, col=getattr(item, 'col', None))
                 err.filename = filepath
-                err.source_text = cleaned_source
+                err.source_text = '\n'.join(orig_lines)
+                err._line_mapped = True
                 raise err
             elif isinstance(item, WarningDirective):
-                print_error(cleaned_source, getattr(item, 'line', 1), getattr(item, 'col', 1), item.message, filename=filepath, severity='warning')
+                raw_line = getattr(item, 'line', 1)
+                mapped_line = orig_map[raw_line - 1] if orig_map and 1 <= raw_line <= len(orig_map) else raw_line
+                print_error('\n'.join(orig_lines), mapped_line, getattr(item, 'col', 1), item.message, filename=filepath, severity='warning')
                 # Diagnostic directives are compile-time only; do not keep them as top-level items
                 continue
             elif isinstance(item, InfoDirective):
-                print_error(cleaned_source, getattr(item, 'line', 1), getattr(item, 'col', 1), item.message, filename=filepath, severity='info')
+                raw_line = getattr(item, 'line', 1)
+                mapped_line = orig_map[raw_line - 1] if orig_map and 1 <= raw_line <= len(orig_map) else raw_line
+                print_error('\n'.join(orig_lines), mapped_line, getattr(item, 'col', 1), item.message, filename=filepath, severity='info')
                 continue
             else:
                 new_procs.append(item)

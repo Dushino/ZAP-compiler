@@ -166,30 +166,34 @@ class Parser:
         while self.cur.type != TOK_EOF:
             if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".ERROR":
                 # Parse .error directive at top level
+                dir_line, dir_col = self.cur.line, self.cur.col
                 self.advance()
                 if self.cur.type != TOK_STRING:
                     self.error("Expected string after .error")
                 msg: str = self.cur.value
                 self.advance()
-                procs.append(ErrorDirective(msg, self.cur.line, self.cur.col))
+                procs.append(ErrorDirective(msg, dir_line, dir_col))
             elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".WARNING":
                 # Parse .warning directive at top level
+                dir_line, dir_col = self.cur.line, self.cur.col
                 self.advance()
                 if self.cur.type != TOK_STRING:
                     self.error("Expected string after .warning")
                 msg: str = self.cur.value
                 self.advance()
-                procs.append(WarningDirective(msg, self.cur.line, self.cur.col))
+                procs.append(WarningDirective(msg, dir_line, dir_col))
             elif self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INFO":
                 # Parse .info directive at top level
+                dir_line, dir_col = self.cur.line, self.cur.col
                 self.advance()
                 if self.cur.type != TOK_STRING:
                     self.error("Expected string after .info")
                 msg: str = self.cur.value
                 self.advance()
-                procs.append(InfoDirective(msg, self.cur.line, self.cur.col))
+                procs.append(InfoDirective(msg, dir_line, dir_col))
             elif self.cur.type == TOK_OP and self.cur.value == ".":
                 # Handle . followed by IDENT (preprocessor directive like .include)
+                dot_line, dot_col = self.cur.line, self.cur.col
                 self.advance()
                 if self.cur.type == TOK_IDENT:
                     directive: str = self.cur.value.upper()
@@ -204,19 +208,19 @@ class Parser:
                             self.error("Expected string after .error")
                         msg: str = self.cur.value
                         self.advance()
-                        procs.append(ErrorDirective(msg, self.cur.line, self.cur.col))
+                        procs.append(ErrorDirective(msg, dot_line, dot_col))
                     elif directive == "WARNING":
                         if self.cur.type != TOK_STRING:
                             self.error("Expected string after .warning")
                         msg: str = self.cur.value
                         self.advance()
-                        procs.append(WarningDirective(msg, self.cur.line, self.cur.col))
+                        procs.append(WarningDirective(msg, dot_line, dot_col))
                     elif directive == "INFO":
                         if self.cur.type != TOK_STRING:
                             self.error("Expected string after .info")
                         msg: str = self.cur.value
                         self.advance()
-                        procs.append(InfoDirective(msg, self.cur.line, self.cur.col))
+                        procs.append(InfoDirective(msg, dot_line, dot_col))
                     else:
                         # Unknown directive: try to skip optional argument (string or identifier)
                         if self.cur.type == TOK_STRING:
@@ -1523,33 +1527,37 @@ class Parser:
 
         if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".ERROR":
             # Parse .error directive in statement context
+            dir_line, dir_col = self.cur.line, self.cur.col
             self.advance()
             if self.cur.type != TOK_STRING:
                 self.error("Expected string after .error")
             msg: str = self.cur.value
             self.advance()
-            return ErrorDirective(msg, self.cur.line, self.cur.col)
+            return ErrorDirective(msg, dir_line, dir_col)
 
         if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".WARNING":
             # Parse .warning directive in statement context
+            dir_line, dir_col = self.cur.line, self.cur.col
             self.advance()
             if self.cur.type != TOK_STRING:
                 self.error("Expected string after .warning")
             msg: str = self.cur.value
             self.advance()
-            return WarningDirective(msg, self.cur.line, self.cur.col)
+            return WarningDirective(msg, dir_line, dir_col)
 
         if self.cur.type == TOK_PREPROC and self.cur.value.upper() == ".INFO":
             # Parse .info directive in statement context
+            dir_line, dir_col = self.cur.line, self.cur.col
             self.advance()
             if self.cur.type != TOK_STRING:
                 self.error("Expected string after .info")
             msg: str = self.cur.value
             self.advance()
-            return InfoDirective(msg, self.cur.line, self.cur.col)
+            return InfoDirective(msg, dir_line, dir_col)
 
         # Handle . followed by IDENT (preprocessor directive like .include)
         if self.cur.type == TOK_OP and self.cur.value == ".":
+            dot_line, dot_col = self.cur.line, self.cur.col
             self.advance()
             if self.cur.type == TOK_IDENT:
                 directive: str = self.cur.value.upper()
@@ -1564,19 +1572,19 @@ class Parser:
                         self.error("Expected string after .error")
                     msg: str = self.cur.value
                     self.advance()
-                    return ErrorDirective(msg, self.cur.line, self.cur.col)
+                    return ErrorDirective(msg, dot_line, dot_col)
                 elif directive == "WARNING":
                     if self.cur.type != TOK_STRING:
                         self.error("Expected string after .warning")
                     msg: str = self.cur.value
                     self.advance()
-                    return WarningDirective(msg, self.cur.line, self.cur.col)
+                    return WarningDirective(msg, dot_line, dot_col)
                 elif directive == "INFO":
                     if self.cur.type != TOK_STRING:
                         self.error("Expected string after .info")
                     msg: str = self.cur.value
                     self.advance()
-                    return InfoDirective(msg, self.cur.line, self.cur.col)
+                    return InfoDirective(msg, dot_line, dot_col)
                 else:
                     self.error(f"Unknown directive '.{directive}'")
             else:
