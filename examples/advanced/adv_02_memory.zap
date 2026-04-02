@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Memory Management" (lines 205-388)
 ;
 ; Demonstrates: ZP allocation, BSS, fixed-address, static locals
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Zero-Page variables ---
 byte zp_var              ; Goes to zero-page (if space available)

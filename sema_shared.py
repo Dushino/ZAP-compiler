@@ -1,3 +1,9 @@
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 """sema_shared.py — Shared semantic-analysis helpers for proc and func bodies.
 
 All functions are module-level (no class, no instance state).  debug_info is

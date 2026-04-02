@@ -2,6 +2,11 @@
 ; Source: GETTING_STARTED.md, section "Functions and Procedures" (lines 591-707)
 ;
 ; Demonstrates: procedures, functions, parameters, return early, utility functions
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 byte x = 10
 

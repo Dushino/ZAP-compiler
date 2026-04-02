@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "Arrays & Strings" (lines 1755-1895)
 ;
 ; Demonstrates: array declaration, initialization, subscripting, strings, multidim
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Array Declaration ---
 byte arr1[10]                   ; Array of 10 bytes, uninitialized

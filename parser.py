@@ -1,4 +1,10 @@
-﻿"""Recursive-descent parser for the ZAP language.
+﻿
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
+"""Recursive-descent parser for the ZAP language.
 
 Converts a token stream into a frozen-dataclass AST.  Tracks source
 locations (line/col) for every statement and declaration so that later

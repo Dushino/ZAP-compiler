@@ -1,5 +1,10 @@
 ﻿; test_stdio.zap
 ; working area for testing random parts of stdio.zap
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 .ifndef ATARI
     .define ATARI

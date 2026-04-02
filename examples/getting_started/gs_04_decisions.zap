@@ -2,6 +2,11 @@
 ; Source: GETTING_STARTED.md, section "Making Decisions" (lines 350-464)
 ;
 ; Demonstrates: if/else/elseif, comparison operators, logical operators, nested conditions
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 byte game_state = 0    ; 0=menu, 1=playing, 2=paused, 3=over
 

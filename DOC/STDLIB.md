@@ -1,5 +1,10 @@
 # ZAP! Standard Library Reference
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 This document describes all modules and hardware-definition files shipped with the ZAP! compiler in the `work/lib/` directory.
 
 ---

@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "Pointers" (lines 2279-2475)
 ;
 ; Demonstrates: pointer decl, address-of, deref, arithmetic, paren deref, NULL
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Pointer Declaration ---
 byte px = 42

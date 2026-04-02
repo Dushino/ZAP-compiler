@@ -1,5 +1,11 @@
 # ZAP Compiler Test Suite
 
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 ## Overview
 
 The test suite provides comprehensive validation of the ZAP compiler across multiple optimization levels and CPU targets. Tests are executed in alphabetical order, allowing you to organize them by complexity using naming conventions like `001_test_name.zap`, `002_test_name.zap`, etc.

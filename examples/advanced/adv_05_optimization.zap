@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Optimization Techniques" (lines 867-1002)
 ;
 ; Demonstrates: constant folding, DCE, lookup tables, byte vs word, pointer cache
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Constant Folding ---
 const byte SIZE = 100

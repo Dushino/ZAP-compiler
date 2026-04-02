@@ -1,5 +1,10 @@
 # ZAP! Compiler Architecture
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 ZAP! is a structured, statically-typed language that compiles to 6502/65C02 assembly for the ca65/ld65 toolchain. The compiler is written in Python and produces `.s` files ready for assembly with ca65.
 
 ---

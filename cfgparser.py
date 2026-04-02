@@ -1,3 +1,9 @@
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 """Parser for ld65 linker configuration files.
 
 Extracts memory area definitions (start, size) and segment-to-memory mappings

@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Safety Features" (lines 1814-2142)
 ;
 ; Demonstrates: initialization methods, control flow handling, special cases
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 byte result = 0
 

@@ -1,5 +1,10 @@
 # ZAP Language Summary
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 This document summarizes the key features and syntax of the ZAP programming language, based on the `DOC` folder and compiler implementation.
 
 ## Overview

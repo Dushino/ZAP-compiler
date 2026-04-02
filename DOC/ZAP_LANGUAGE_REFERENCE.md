@@ -1,5 +1,10 @@
 # ZAP! Language Reference Manual
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 **Complete Guide to the ZAP! Programming Language**
 
 **Version**: 1.0  

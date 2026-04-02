@@ -1,3 +1,9 @@
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 """jump_threading.py — Jump-chain simplification pass for ZAP compiler output.
 
 Eliminates redundant branches and trivial jump chains in the generated assembly:

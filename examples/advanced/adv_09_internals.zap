@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Compiler Internals" (lines 1336-1459)
 ;
 ; Demonstrates: binary/hex number literals, array access patterns
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Number Literals ---
 byte b1 = %10101010     ; Binary (percent prefix)

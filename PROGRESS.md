@@ -1,5 +1,10 @@
 # Progress Tracker
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 ---
 
 ## Peephole optimization session (2026-03-26)

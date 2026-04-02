@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Memory Allocation Details" (lines 1517-1813)
 ;
 ; Demonstrates: memory segments, slot sharing, ZP prioritization
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Fixed-Address Variables ---
 word port_a @$FF00

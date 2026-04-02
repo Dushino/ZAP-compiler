@@ -59,7 +59,7 @@
 			"path": "work/test_stdio.zap",
 			"bookmarks": [
 				{
-					"line": 13,
+					"line": 18,
 					"column": 19,
 					"label": ""
 				}
@@ -69,7 +69,7 @@
 			"path": "benchmarks/benchmarks.zap",
 			"bookmarks": [
 				{
-					"line": 19,
+					"line": 22,
 					"column": 4,
 					"label": ""
 				},

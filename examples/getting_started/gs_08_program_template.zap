@@ -2,6 +2,11 @@
 ; Source: GETTING_STARTED.md, section "Your First Real Program Template" (lines 920-951)
 ;
 ; Demonstrates: complete program structure with init, update loop, main
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; Global variables
 byte state = 0

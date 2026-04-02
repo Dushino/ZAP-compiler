@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "Operators" (lines 622-989)
 ;
 ; Demonstrates: arithmetic, comparison, logical, bitwise, unary, compound assign
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Arithmetic ---
 proc arithmetic_example()

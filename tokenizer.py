@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
+
 """Lexical analyser for the ZAP language.
 
 Converts source text into a stream of Token objects.  Handles $HEX,

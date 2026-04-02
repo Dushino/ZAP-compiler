@@ -1,3 +1,9 @@
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 """Constant substitution pass.
 
 Replaces references to named constants (const identifiers, enum members)

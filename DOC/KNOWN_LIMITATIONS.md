@@ -1,5 +1,9 @@
 # ZAP! Known Limitations & Workarounds
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 **A quick-reference guide to what ZAP! intentionally does not support and how to work around each constraint.**
 
 **Version**: 1.0

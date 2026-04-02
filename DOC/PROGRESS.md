@@ -1,5 +1,10 @@
 # ZAP! Compiler — Progress & Status
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 **Current version**: 0.2.0
 **Test suite**: 170 pass-tests · 125 fail-tests · all passing
 **Benchmark**: Sieve of Eratosthenes — ZAP! **0.830s** vs Action! 1.52s (PAL, SDMCTL=0, 45.4% faster)

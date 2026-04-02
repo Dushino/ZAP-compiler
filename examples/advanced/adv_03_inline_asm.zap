@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Inline Assembly" (lines 391-762)
 ;
 ; Demonstrates: asm blocks, accessing variables, calling procs, labels
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 byte my_var = 0
 word my_word = 0

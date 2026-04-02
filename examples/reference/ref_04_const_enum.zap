@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, sections "const" + "Enums" (lines 177-340)
 ;
 ; Demonstrates: const variables, const arrays, enums with byte/word
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Const ---
 const byte CVERSION = 1
@@ -15,8 +20,8 @@ enum Colors
     BLUE
 END
 
-byte c_val = GREEN        ; c_val == 1
-byte arr_e[BLUE + 1]      ; use enum value in an array size
+byte c_val = Colors.GREEN        ; c_val == 1
+byte arr_e[Colors.BLUE + 1]      ; use enum value in an array size
 
 ; --- Explicit values and auto-increment ---
 enum byte E
@@ -26,7 +31,8 @@ enum byte E
     D       ; D == 6
 END
 
-const byte v = D
+const byte v = E.D
+
 
 ; --- Word-sized enum ---
 enum word Big
@@ -35,12 +41,12 @@ enum word Big
     BC = 65535
 END
 
-const word w1 = BA
+const word w1 = Big.BA
 
 proc main()
-    byte r = RED     ; 0
-    byte g = GREEN   ; 1
-    byte b = BLUE    ; 2
+    byte r = Colors.RED     ; 0
+    byte g = Colors.GREEN   ; 1
+    byte b = Colors.BLUE    ; 2
 
     ; Qualified syntax
     byte qa = E.A    ; 1

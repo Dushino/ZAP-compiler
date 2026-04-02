@@ -3,6 +3,11 @@
 ;
 ; Demonstrates: while, repeat-until, break, for with step
 ; Note: step with negative values is not supported; use while for counting down
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 byte counter = 0
 byte i

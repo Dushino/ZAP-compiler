@@ -2,6 +2,11 @@
 ; Source: GETTING_STARTED.md, section "Arrays" (lines 711-781)
 ;
 ; Demonstrates: array declaration, access, loops, strings, high score table
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 byte arr[5] = {10, 20, 30, 40, 50}
 byte data[256]

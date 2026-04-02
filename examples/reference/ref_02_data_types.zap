@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "Data Types" (lines 91-175)
 ;
 ; Demonstrates: byte/word/long, hex/binary literals, character literals, escapes
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- byte ---
 byte bx              ; Uninitialized byte variable

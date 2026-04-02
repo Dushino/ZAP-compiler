@@ -1,5 +1,10 @@
 # ZAP! Programming Language - Getting Started Guide
 
+The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+We believe in a world where international borders are respected and human rights are upheld. 
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 **Beginner's Guide to Programming in ZAP!**
 
 **Version**: 1.0  

@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "Directives" (lines 2579-2633)
 ;
 ; Demonstrates: .define, .ifdef/.ifndef/.else/.endif, .info/.warning
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Preprocessor Directives ---
 .define DEBUG

@@ -1,3 +1,9 @@
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 import sys
 from typing import Any, Callable, Literal, NoReturn, Sequence, cast
 from version import __version__

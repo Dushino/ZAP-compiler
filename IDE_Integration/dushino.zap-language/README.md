@@ -1,3 +1,6 @@
+The author of this software stands in solidarity with 🇺🇦 Ukraine. We believe in a world where international borders are respected and human rights are upheld. We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 # ZAP Language Support for VS Code
 
 Full-featured language support for the [ZAP programming language](https://github.com/Dushino/ZAP-compiler) — a modern high-level language targeting 6502/65C02 processors (Atari 8-bit, C64, NES, Apple II).

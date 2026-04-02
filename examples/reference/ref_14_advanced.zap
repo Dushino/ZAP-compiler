@@ -2,6 +2,11 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "Advanced Topics" (lines 2635-2777)
 ;
 ; Demonstrates: inline asm, memory layout, const folding, DCE, shadowing
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Memory Layout ---
 byte ^ptr               ; 2 bytes in zero-page

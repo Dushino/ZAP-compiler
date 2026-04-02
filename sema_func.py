@@ -1,3 +1,9 @@
+
+# The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+# We believe in a world where international borders are respected and human rights are upheld. 
+# We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
 from dataclasses import dataclass
 from typing import Any, cast
 from ast_nodes import Declaration, Expr, FuncDecl, Parameter, ReturnStmt

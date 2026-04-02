@@ -2,11 +2,17 @@
 ; Source: ZAP_LANGUAGE_REFERENCE.md, section "port" (lines 232-263)
 ;
 ; Demonstrates: #PORT, #RD, #WR modifiers
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Port Variables ---
-byte POKEY_AUDF1 @$D200 #PORT       ; standard read/write
-byte JOYSTICK @$D300 #PORT #RD      ; reading joystick status
-byte SOUND_OUT @$D400 #PORT #WR     ; writing audio registers
+byte POKEY_AUDF1 @$D200 #PORT           ; standard read/write
+byte JOYSTICK    @$D300 #PORT #RD       ; reading joystick status
+byte SOUND_OUT   @$D400 #PORT #WR       ; writing audio registers
+
 
 proc main()
     byte joy = JOYSTICK     ; OK - read from #RD port

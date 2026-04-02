@@ -1,4 +1,9 @@
 ﻿; stdio.zap
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 /*
     * puts	výstup do stdout (bez formátování)
@@ -21,8 +26,7 @@
     * fputc     zápis jednoho znaku do souboru
 */
 
-
-module stdio
+.module "stdio"
 
 .ifdef ATARI
     .include "./atari/atari_stdio.zap"

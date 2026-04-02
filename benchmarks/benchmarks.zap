@@ -1,4 +1,7 @@
-﻿; https://github.com/pedromagician/Atari800-benchmarks/blob/main/a.act
+﻿; The author of this software stands in solidarity with 🇺🇦 Ukraine. We believe in a world where international borders are respected and human rights are upheld. We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
+
+; https://github.com/pedromagician/Atari800-benchmarks/blob/main/a.act
 
 .ifndef ATARI
     .define ATARI
@@ -19,9 +22,6 @@ byte SDMCTL @559
 ; ---------------------------------------------------
 proc start()
     
-    ; SDMCTL = 0
-
-    ; zero timer
     time[0] = 0
     time[1] = 0
     time[2] = 0
@@ -35,8 +35,6 @@ proc finish(byte id)
     t1 = time[0]
     t2 = time[1]
     t3 = time[2]
-
-    ; SDMCTL = 34
 
     puts("\n")
     putchar(id)
@@ -54,12 +52,12 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/a.act
 ; Action!:     522      = 10.44s
-; Zap! $0151 = 337 / 50 =  6.47s
+; Zap! $0152 = 338 / 50 =  6.76s
 proc test_a()
   word I
 
   start()
-  FOR I=1 TO 500
+  FOR I=1 TO 501
     puts("HELLO\n")
   end
   finish('A')
@@ -74,7 +72,7 @@ proc test_b()
     word i,x
 
     start()
-    FOR I=1 TO 3000    
+    FOR I=1 TO 3001 
         x=45
     end    
     finish('B')
@@ -89,7 +87,7 @@ proc test_c()
     word i,x = 0
 
     start()
-    FOR I=1 TO 3000
+    FOR I=1 TO 3001
         X=X+1
     end
     finish('C')
@@ -99,15 +97,15 @@ end
 ; ---------------------------------------------------
 ; https://github.com/pedromagician/Atari800-benchmarks/blob/main/d.act
 ; Action!: 167 = 3.34s; 
-; Zap! $001f = 31 / 50 = 0.62s
+; Zap! $0022 = 34 / 50 = 0.68s
 proc test_d()
     word a,b,x,c 
 
     start()
-    FOR A=1 TO 15
+    FOR A=1 TO 16
         X=0 
         C=0
-        FOR B=1 TO 200
+        FOR B=1 TO 201
           C=B+2*B
           X=X+B*2
           C=(C-B)/2
@@ -175,7 +173,6 @@ end
 
 ; ---------------------------------------------------
 proc main()
-    byte i
 
     test_a()
     test_b()

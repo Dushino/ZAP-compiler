@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Hardware Access" (lines 765-863)
 ;
 ; Demonstrates: hardware registers, reading/writing, sound, game loop
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Atari 8-Bit Registers ---
 ; GTIA (Graphics) Registers

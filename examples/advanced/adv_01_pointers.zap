@@ -2,6 +2,11 @@
 ; Source: ADVANCED_TOPICS.md, section "Pointer Operations" (lines 28-201)
 ;
 ; Demonstrates: pointer basics, address-of, dereferencing, pointer arithmetic
+;
+; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
+; We believe in a world where international borders are respected and human rights are upheld. 
+; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+
 
 ; --- Understanding Pointers ---
 byte x = 42
