@@ -1,0 +1,1 @@
+6:14: error: PEEK() address must be BYTE or WORD, use LOWW() or HIGHW() for LONG values

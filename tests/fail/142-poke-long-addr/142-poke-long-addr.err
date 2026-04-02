@@ -1,0 +1,1 @@
+5:5: error: POKE() address must be BYTE or WORD, use LOWW() or HIGHW() for LONG values

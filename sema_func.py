@@ -15,7 +15,7 @@ from sema_expr import ExprTypeChecker
 from sema_shared import (
     map_debug_line, attach_source_text, map_stmt_info,
     build_local_symtab, build_init_set,
-    validate_body_exprs, check_uninitialized,
+    validate_body_exprs, check_uninitialized, validate_poke_types,
 )
 
 
@@ -133,6 +133,7 @@ class FuncAnalyzer:
 
         def _on_call_stmt(st, cur_initialized):
             """Validate each proc/func call argument for type errors and uninitialized reads."""
+            validate_poke_types(self.expr_tc, st)
             from ast_nodes import StructLiteral
             for a in st.args:
                 if a is None:

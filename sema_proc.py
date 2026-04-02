@@ -13,7 +13,7 @@ from sema import DeclarationAnalyzer
 from sema_shared import (
     map_debug_line, attach_source_text, map_stmt_info,
     build_local_symtab, build_init_set,
-    check_uninitialized, validate_body_exprs,
+    check_uninitialized, validate_body_exprs, validate_poke_types,
 )
 
 
@@ -224,6 +224,7 @@ class ProcAnalyzer:
 
             def _on_call_stmt(st, cur_initialized):
                 """Validate each proc call argument for uninitialized reads."""
+                validate_poke_types(tc, st)
                 from ast_nodes import StructLiteral
                 for a in st.args:
                     if a is None:

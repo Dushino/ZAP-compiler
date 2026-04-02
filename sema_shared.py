@@ -385,6 +385,39 @@ def build_init_set(params, local_tbl, routine_name: str) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
+# POKE type validation
+# ---------------------------------------------------------------------------
+
+def validate_poke_types(tc, call_stmt) -> None:
+    """Validate POKE(address, value) argument types.
+
+    address must be BYTE or WORD (not LONG — use LOWW/HIGHW).
+    value must be BYTE (not WORD or LONG — use LOW/HIGH/LOWW/HIGHW).
+    """
+    if call_stmt.name.upper() != "POKE":
+        return
+    if len(call_stmt.args) != 2 or call_stmt.args[0] is None or call_stmt.args[1] is None:
+        return  # arity error is caught elsewhere
+
+    addr_t = tc.check(call_stmt.args[0])
+    if addr_t.sem_type.base.upper() == "LONG" and not addr_t.sem_type.is_pointer:
+        raise SemanticError(
+            "POKE() address must be BYTE or WORD, use LOWW() or HIGHW() for LONG values",
+            node=call_stmt)
+
+    val_t = tc.check(call_stmt.args[1])
+    val_base = val_t.sem_type.base.upper()
+    if val_base == "WORD" and not val_t.sem_type.is_pointer:
+        raise SemanticError(
+            "POKE() value must be BYTE, use LOW() or HIGH() for WORD values",
+            node=call_stmt)
+    if val_base == "LONG" and not val_t.sem_type.is_pointer:
+        raise SemanticError(
+            "POKE() value must be BYTE, use LOW()/HIGH()/LOWW()/HIGHW() for LONG values",
+            node=call_stmt)
+
+
+# ---------------------------------------------------------------------------
 # Unified body expression validator
 # ---------------------------------------------------------------------------
 

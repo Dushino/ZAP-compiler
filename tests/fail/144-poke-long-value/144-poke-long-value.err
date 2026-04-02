@@ -1,0 +1,1 @@
+5:5: error: POKE() value must be BYTE, use LOW()/HIGH()/LOWW()/HIGHW() for LONG values

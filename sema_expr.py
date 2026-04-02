@@ -342,8 +342,12 @@ class ExprTypeChecker:
             if name_upper == "PEEK":
                 if len(expr.args) != 1 or expr.args[0] is None:
                     raise SemanticError("PEEK() expects exactly one argument", node=expr)
-                # Type-check the address argument (must be numeric)
-                self.check(expr.args[0], read_check_enabled=read_check_enabled)
+                # Type-check the address argument (must be BYTE or WORD, not LONG)
+                addr_t = self.check(expr.args[0], read_check_enabled=read_check_enabled)
+                if addr_t.sem_type.base.upper() == "LONG" and not addr_t.sem_type.is_pointer:
+                    raise SemanticError(
+                        "PEEK() address must be BYTE or WORD, use LOWW() or HIGHW() for LONG values",
+                        node=expr)
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 
             if name_upper in {"LOW", "HIGH", "SIZEOF", "LOWW", "HIGHW"}:

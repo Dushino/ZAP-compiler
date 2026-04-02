@@ -1,0 +1,1 @@
+5:5: error: POKE() value must be BYTE, use LOW() or HIGH() for WORD values

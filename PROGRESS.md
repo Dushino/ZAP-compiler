@@ -7,6 +7,24 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## PEEK/POKE type validation (2026-04-02)
+
+### Type checking added:
+- **PEEK(address)**: address must be BYTE or WORD; LONG rejected with hint to use LOWW()/HIGHW()
+- **POKE(address, value)**: address must be BYTE or WORD (same rule); value must be BYTE — WORD rejected with LOW()/HIGH() hint, LONG rejected with LOW()/HIGH()/LOWW()/HIGHW() hint
+- Validation shared via `validate_poke_types()` in sema_shared.py (called from both sema_proc.py and sema_func.py)
+
+### New tests:
+- **pass/205-peek-poke**: PEEK/POKE with byte addr, word addr, literal addr, expression addr, LOWW/HIGHW of long addr; POKE with byte value, LOW/HIGH of word, LOW/HIGH of LOWW/HIGHW of long
+- **fail/141-peek-long-addr**: PEEK with raw LONG address
+- **fail/142-poke-long-addr**: POKE with raw LONG address
+- **fail/143-poke-word-value**: POKE with raw WORD value
+- **fail/144-poke-long-value**: POKE with raw LONG value
+
+**Files changed**: sema_expr.py, sema_shared.py, sema_proc.py, sema_func.py, sema.py (import cleanup)
+
+---
+
 ## Peephole optimization session (2026-03-26)
 
 **Benchmark**: Sieve of Eratosthenes, ZAP! **0.830s** vs Action! 1.52s (PAL, SDMCTL=0, -6502 -O1)
