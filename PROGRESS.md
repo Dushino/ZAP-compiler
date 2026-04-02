@@ -1983,3 +1983,14 @@ STZ _MAIN_W+1   ; AND #$FF (identity) skipped; AND #$00 → STZ
 ### Verification
 - `pyright codegen_expr.py`: 0 errors, 0 warnings.
 - `make tests`: 126/126 pass-tests pass, 60/60 fail-tests correctly rejected — 0 regressions.
+
+---
+
+## 2026-04-02: Regression test fixes
+
+### Changes
+- **test 205-peek-poke**: Added missing `.ref` reference file — test was producing correct simulation output but had no reference to compare against.
+- **test 111-error-directive**: Fixed expected error location from `3:1` to `1:1` — the `.error` directive is on line 1; the stale `3:1` came from when error directives were processed during codegen rather than in module_system.py.
+
+### Verification
+- `make tests`: 173/173 pass-tests pass, 132/132 fail-tests correctly rejected — 0 regressions.
