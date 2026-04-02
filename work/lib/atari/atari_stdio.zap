@@ -45,9 +45,8 @@
 ;   func ERRNO ferror (FILE^ fd)                              IMPLEMENTED
 ;   func ERRNO rename (byte^ oldname, byte^ newname)          IMPLEMENTED
 ;   func ERRNO remove (byte^ filename)                        IMPLEMENTED
-;   func ERRNO fputc  (FILE^ fd, byte ch)                      IMPLEMENTED
+;   func ERRNO fputc  (FILE^ fd, byte ch)                     IMPLEMENTED
 ;   func ERRNO fputs  (FILE^ fd, byte^ str)                   IMPLEMENTED
-;   func byte  fscanf (...)                                   TODO
 ;
 ; Exports (hardware / CIO):
 ;   struct IOCB_Block          -- CIO channel control block layout
