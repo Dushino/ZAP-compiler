@@ -81,93 +81,48 @@ PIA          (hardware defs, no module)
 **Platform:** All
 **Depends:** nothing
 
-Defines the `ERRNO` enum with Linux kernel-compatible error codes plus Atari CIO status codes (documented in a comment block at the end of the file).
+Defines the `ERRNO` enum with Atari CIO status byte values. `OK = 0` is the API-level success code. The `CIO()` function remaps all raw CIO success statuses (bit 7 clear, `$01`–`$7F`) to `ERRNO.OK`. Error statuses (bit 7 set, `$80`–`$FF`) pass through as-is and map directly to the enum values below.
 
 ### Enum `ERRNO`
 
 | Value | Code | Meaning |
 |-------|------|---------|
-| 0 | `OK` | No error |
-| 1 | `E2BIG` | Argument list too long |
-| 2 | `EACCES` | Permission denied |
-| 3 | `EAGAIN` | Resource temporarily unavailable |
-| 4 | `EALREADY` | Connection already in progress |
-| 5 | `EBADF` | Bad file descriptor |
-| 6 | `EBADFD` | File descriptor in bad state |
-| 7 | `EBADRQC` | Invalid request code |
-| 8 | `EBUSY` | Device or resource busy |
-| 9 | `ECANCELED` | Operation canceled |
-| 10 | `ECHRNG` | Channel number out of range |
-| 11 | `ECOMM` | Communication error on send |
-| 12 | `ECONNABORTED` | Connection aborted |
-| 13 | `ECONNREFUSED` | Connection refused |
-| 14 | `ECONNRESET` | Connection reset |
-| 15 | `EEXIST` | File exists |
-| 16 | `EFBIG` | File too large |
-| 17 | `EHOSTUNREACH` | Host is unreachable |
-| 18 | `EHWPOISON` | Hardware error |
-| 19 | `EILSEQ` | Invalid sequence |
-| 20 | `EINPROGRESS` | Operation in progress |
-| 21 | `EINTR` | Interrupted |
-| 22 | `EINVAL` | Invalid argument |
-| 23 | `EIO` | I/O error |
-| 24 | `EISCONN` | Connection already in progress |
-| 25 | `EISDIR` | Is a directory |
-| 26 | `EMFILE` | Too many files |
-| 27 | `EMSGSIZE` | Message too long |
-| 28 | `ENAMETOOLONG` | Filename too long |
-| 29 | `ENETDOWN` | Network down |
-| 30 | `ENETRESET` | Network reset |
-| 31 | `ENETUNREACH` | Network unreachable |
-| 32 | `ENOANO` | No anonymous node |
-| 33 | `ENODATA` | No data |
-| 34 | `ENODEV` | No device |
-| 35 | `ENOENT` | No entry |
-| 36 | `ENOEXEC` | No execute |
-| 37 | `ENOLINK` | No link |
-| 38 | `ENOMEDIUM` | No medium |
-| 39 | `ENOMEM` | No memory |
-| 40 | `ENOMSG` | No message |
-| 41 | `ENONET` | No network |
-| 42 | `ENOPROTOOPT` | No protocol option |
-| 43 | `ENOSPC` | No space |
-| 44 | `ENOSR` | No stream resources |
-| 45 | `ENOSTR` | No stream |
-| 46 | `ENOSYS` | No system call |
-| 47 | `ENOTBLK` | Not a block device |
-| 48 | `ENOTCONN` | Not connected |
-| 49 | `ENOTDIR` | Not a directory |
-| 50 | `ENOTEMPTY` | Directory not empty |
-| 51 | `ENOTRECOVERABLE` | Not recoverable |
-| 52 | `ENOTSOCK` | Not a socket |
-| 53 | `ENOTSUP` | Not supported |
-| 54 | `ENOTUNIQ` | Not unique |
-| 55 | `ENXIO` | No such device or address |
-| 56 | `EOPNOTSUPP` | Operation not supported |
-| 57 | `EPROTO` | Protocol error |
-| 58 | `EPROTONOSUPPORT` | Protocol not supported |
-| 59 | `ERANGE` | Value too large |
-| 60 | `EREMCHG` | Remote address changed |
-| 61 | `EREMOTEIO` | Remote I/O error |
-| 62 | `EROFS` | Read-only file system |
-| 63 | `ESHUTDOWN` | Cannot send after socket shutdown |
-| 64 | `ESPIPE` | Invalid seek |
-| 65 | `ESOCKTNOSUPPORT` | Socket type not supported |
-| 66 | `ESRCH` | No such process |
-| 67 | `ESTALE` | File handle is stale |
-| 68 | `ESTRPIPE` | Stream pipe error |
-| 69 | `ETIME` | Timer expired |
-| 70 | `ETIMEDOUT` | Connection timed out |
-| 71 | `ETXTBSY` | Text file busy |
-| 72 | `EUCLEAN` | File system needs cleaning |
-| 73 | `EUNATCH` | Protocol driver not attached |
-| 74 | `EWOULDBLOCK` | Operation would block |
-| 75 | `EXDEV` | Cross-device link |
-| 76 | `EXFULL` | Exchange full |
+| 0 | `OK` | No error (API level) |
+| 1 | `SUCCESS` | Operation complete (raw CIO) |
+| 128 | `BRK_KEY` | BREAK key abort |
+| 129 | `IOCB_IN_USE` | IOCB already in use (open) |
+| 130 | `NONEXISTENT_DEV` | Non-existent device |
+| 131 | `WRITE_ONLY` | Opened for write only |
+| 132 | `INVALID_CMD` | Invalid command |
+| 133 | `NOT_OPEN` | Device or file not open |
+| 134 | `INVALID_IOCB` | Invalid IOCB number |
+| 135 | `READ_ONLY` | Opened for read only |
+| 136 | `EOF` | End of file |
+| 137 | `TRUNCATED` | Truncated record |
+| 138 | `TIMEOUT` | Device timeout |
+| 139 | `NAK` | Device NAK |
+| 140 | `FRAMING_ERR` | Serial bus input framing error |
+| 141 | `CURSOR_RANGE` | Cursor out of range |
+| 142 | `OVERRUN` | Serial bus data frame overrun error |
+| 143 | `CHECKSUM` | Serial bus data frame checksum error |
+| 144 | `DEVICE_ERR` | Device done error |
+| 145 | `BAD_MODE` | Bad screen mode |
+| 146 | `NOT_SUPPORTED` | Function not supported by handler |
+| 147 | `NO_MEMORY` | Insufficient memory for screen mode |
+| 160 | `DRIVE_ERR` | Disk drive # error |
+| 161 | `TOO_MANY_FILES` | Too many open disk files |
+| 162 | `DISK_FULL` | Disk full |
+| 163 | `DISK_IO_ERR` | Fatal disk I/O error |
+| 164 | `FILE_MISMATCH` | Internal file # mismatch |
+| 165 | `BAD_FILENAME` | File name error |
+| 166 | `POINT_LENGTH` | Point data length error |
+| 167 | `FILE_LOCKED` | File locked |
+| 168 | `INVALID_DISK_CMD` | Command invalid for disk |
+| 169 | `DIR_FULL` | Directory full (64 files) |
+| 170 | `FILE_NOT_FOUND` | File not found |
+| 171 | `POINT_INVALID` | Point invalid |
 
-### Atari CIO Status Codes
-
-The source file contains a reference comment listing Atari CIO status byte values (0x01–0xAB). These are the raw numbers returned by the CIO handler; they do **not** map directly to `ERRNO` enum values. See the comment block in `errno.zap` for the full table.
+> **Note:** `ERRNO.SUCCESS` (1) is the raw CIO "operation complete" status. Application code should compare against `ERRNO.OK` (0), which is the remapped API-level success code returned by all library functions.
 
 ---
 
@@ -377,24 +332,26 @@ Complete Atari 8-bit I/O library. Provides direct-mapped text-mode screen output
 | `SCREEN_X_SIZE` | `const byte` | `40` | Screen width in characters |
 | `SCREEN_Y_SIZE` | `const byte` | `24` | Screen height in characters |
 
-### Keyboard Key Code Constants
+### Enum `KEY` — Keyboard Key Codes
 
-| Constant | ATASCII Value | Key |
-|----------|--------------|-----|
-| `ATARI_KEY_RETURN` | `$9B` | Return / Enter |
-| `ATARI_KEY_LEFT` | `$1E` | Left arrow |
-| `ATARI_KEY_RIGHT` | `$1F` | Right arrow |
-| `ATARI_KEY_UP` | `$1C` | Up arrow |
-| `ATARI_KEY_DOWN` | `$1D` | Down arrow |
-| `ATARI_KEY_CTRL_LEFT` | `$2B` | Ctrl+Left |
-| `ATARI_KEY_CTRL_RIGHT` | `$2A` | Ctrl+Right |
-| `ATARI_KEY_CTRL_UP` | `$2D` | Ctrl+Up |
-| `ATARI_KEY_CTRL_DOWN` | `$3D` | Ctrl+Down |
-| `ATARI_KEY_HOME` | `$7D` | Clear/Home |
-| `ATARI_KEY_DELETE` | `$FE` | Delete |
-| `ATARI_KEY_INSERT` | `$FF` | Insert |
-| `ATARI_KEY_BACKSPACE` | `$7E` | Backspace |
-| `ATARI_KEY_ESCAPE` | `$1B` | Escape |
+ATASCII key codes for special keys, used with `getchar()`, `getcblink()`, and `gets()`:
+
+| Value | Name | Key |
+|-------|------|-----|
+| `$9B` | `Key.ENTER` | Return / Enter |
+| `$1E` | `Key.LEFT` | Left arrow |
+| `$1F` | `Key.RIGHT` | Right arrow |
+| `$1C` | `Key.UP` | Up arrow |
+| `$1D` | `Key.DOWN` | Down arrow |
+| `$2B` | `Key.CTRL_LEFT` | Ctrl+Left |
+| `$2A` | `Key.CTRL_RIGHT` | Ctrl+Right |
+| `$2D` | `Key.CTRL_UP` | Ctrl+Up |
+| `$3D` | `Key.CTRL_DOWN` | Ctrl+Down |
+| `$7D` | `Key.HOME` | Clear/Home |
+| `$FE` | `Key.DELETE` | Delete |
+| `$FF` | `Key.INSERT` | Insert |
+| `$7E` | `Key.BACKSPACE` | Backspace |
+| `$1B` | `Key.ESCAPE` | Escape |
 
 ### Hardware Variables
 
@@ -437,11 +394,13 @@ CIO command codes written to `IOCB.ICCOM`:
 |-------|------|-------------|
 | `$03` | `Open` | Open device/file |
 | `$0C` | `Close` | Close device/file |
-| `$07` | `GetChr` | Read single character |
-| `$0B` | `PutChr` | Write single character / buffer |
+| `$07` | `GetChr` | Read character(s) / buffer |
+| `$0B` | `PutChr` | Write character(s) / buffer |
 | `$05` | `GetRec` | Read record (line) |
 | `$09` | `PutRec` | Write record (line) |
 | `$0D` | `Status` | Get device status |
+| `$20` | `Rename` | Rename file (DOS 2.5) |
+| `$21` | `Delete` | Delete file (DOS 2.5) |
 
 ### Enum `ICAX1_Mode`
 
@@ -594,7 +553,15 @@ delay(60)   ; wait approximately 1 second
 
 ### File I/O Functions
 
-File I/O uses the Atari CIO system. Each open file occupies one IOCB channel (channels 3–7 are available; 0 is the screen editor, 1–2 are reserved).
+File I/O uses the Atari CIO system. Each open file occupies one IOCB channel (channels 1–7 are available; 0 is the screen editor). The low-level `CIO()` function handles all IOCB setup and status remapping.
+
+#### CIO Status Handling
+
+The `CIO()` function reads the status from the Y register after `jsr $E456`. All success statuses (bit 7 clear, `$01`–`$7F`) are remapped to `ERRNO.OK` (0). Error statuses (bit 7 set, `$80`–`$FF`) pass through as-is and map directly to `ERRNO` enum values (e.g., 136 = `ERRNO.EOF`).
+
+**EOF behaviour:** Only read functions (`fread`, `fgetc`) check and set the `fd^.eof` flag via `checkeof()`. Write functions (`fwrite`, `fputc`, `fputs`) do not touch the EOF flag — this matches POSIX/C semantics where `feof()` only reflects read operations. Write errors (e.g., disk full) are reported via `fd^.error` / `ferror()`.
+
+---
 
 #### `func byte fopen(FILE^ fd, byte^ filename, byte mode)`
 
@@ -620,7 +587,16 @@ end
 
 Closes an open file and frees its IOCB channel.
 
-- **Returns:** `ERRNO.OK` on success.
+- **Returns:** `ERRNO.OK` on success, `ERRNO.NOT_OPEN` if `fd` is NULL.
+
+---
+
+#### `func byte fread(FILE^ fd, byte^ buffer, word size)`
+
+Reads up to `size` bytes from the open file into `buffer` using CIO `GetChr`.
+
+- **Returns:** `ERRNO.OK` on success, or a CIO error code.
+- Sets `fd^.eof = BOOL.TRUE` if end-of-file is reached during the read.
 
 ---
 
@@ -629,13 +605,48 @@ Closes an open file and frees its IOCB channel.
 Writes `size` bytes from `buffer` to the open file using CIO `PutChr`.
 
 - **Returns:** `ERRNO.OK` on success, or a CIO error code.
-- **Status:** Implemented.
+- Does **not** set `fd^.eof` (write operations never trigger EOF).
 
 ---
 
-#### `func ERRNO feof(FILE^ fd)` *(partial)*
+#### `func byte fgetc(FILE^ fd)`
 
-Returns `BOOL.TRUE` if the end-of-file flag is set in the `FILE` struct.
+Reads a single byte from the open file. Uses `cio_char` as a 1-byte buffer passed to CIO (the accumulator is unreliable on EOF).
+
+- **Returns:** the character read on success or EOF, `0` on error.
+- Sets `fd^.eof = BOOL.TRUE` when EOF is reached.
+- On EOF, the last valid byte is still returned (Atari CIO delivers the final byte together with the EOF status).
+
+```zap
+byte ch = fgetc(@myfile)
+if feof(@myfile) == BOOL.TRUE
+    ; end of file reached
+end
+```
+
+---
+
+#### `func ERRNO fputc(FILE^ fd, byte ch)`
+
+Writes a single byte to the open file. Uses `cio_char` as a 1-byte buffer passed to CIO `PutChr` with length 1.
+
+- **Returns:** `ERRNO.OK` on success, or a CIO error code.
+
+---
+
+#### `func ERRNO fputs(FILE^ fd, const byte^ str)`
+
+Writes a null-terminated string to the open file using CIO `PutChr` with `strlen(str)` as buffer length.
+
+- **Returns:** `ERRNO.OK` on success, or a CIO error code.
+
+---
+
+#### `func BOOL feof(FILE^ fd)`
+
+Returns `BOOL.TRUE` if the end-of-file flag is set in the `FILE` struct. Only read operations (`fread`, `fgetc`) set this flag.
+
+- **Returns:** `BOOL.TRUE` or `BOOL.FALSE`, `ERRNO.NOT_OPEN` if `fd` is NULL.
 
 ---
 
@@ -643,62 +654,30 @@ Returns `BOOL.TRUE` if the end-of-file flag is set in the `FILE` struct.
 
 Returns the last error code stored in `fd^.error`.
 
----
-
-#### `func ERRNO rewind(FILE^ fd)` *(stub)*
-
-Calls `fseek(fd, 0, SEEK_SET)` — currently returns `ERRNO.ENODEV` as fseek is not implemented.
+- **Returns:** `ERRNO.OK` if no error, or the last CIO error code. `ERRNO.NOT_OPEN` if `fd` is NULL.
 
 ---
 
-#### `func word fread(FILE^ fd, byte^ buffer, word size, word count)` *(TODO)*
+#### `func ERRNO rename(const byte^ oldname, const byte^ newname)`
 
-Not yet implemented. Returns 0.
+Renames a file using CIO Rename command. Concatenates `oldname,newname` into a single buffer (max 32 characters) as required by Atari DOS.
 
----
-
-#### `func ERRNO fseek(FILE^ fd, long offset, byte whence)` *(TODO)*
-
-Not yet implemented. Returns `ERRNO.ENODEV`.
+- **Returns:** `ERRNO.OK` on success, `ERRNO.TOO_MANY_FILES` if no free IOCB, `ERRNO.BAD_FILENAME` if combined name too long, or a CIO error code.
 
 ---
 
-#### `func long ftell(FILE^ fd)` *(TODO)*
+#### `func ERRNO remove(byte^ filename)`
 
-Not yet implemented. Returns 0.
+Deletes a file using CIO Delete command.
 
----
-
-#### `func byte fgetc(FILE^ fd)` *(TODO)*
-
-Not yet implemented. Returns 0 and sets `fd^.error = ERRNO.ENODEV`.
-
----
-
-#### `func byte fputc(FILE^ fd, byte ch)` *(TODO)*
-
-Not yet implemented. Returns 0 and sets `fd^.error = ERRNO.ENODEV`.
-
----
-
-#### `func ERRNO rename(FILE^ fd, const byte^ oldname, const byte^ newname)` *(TODO)*
-
-Not yet implemented. Returns `ERRNO.ENODEV`.
-
----
-
-#### `func ERRNO remove(byte^ filename)` *(TODO)*
-
-Not yet implemented. Returns `ERRNO.ENODEV`.
+- **Returns:** `ERRNO.OK` on success, `ERRNO.TOO_MANY_FILES` if no free IOCB, or a CIO error code.
 
 ---
 
 #### Formatted I/O *(TODO)*
 
-The following functions are declared but not yet implemented (return 0 and set `fd^.error = ERRNO.ENODEV`):
+The following function is declared but not yet implemented (returns 0 and sets `fd^.error = ERRNO.NOT_SUPPORTED`):
 
-- `func byte fprintf(FILE^ fd, const byte^ format, word arg1..arg8)`
-- `func byte fputs(FILE^ fd, const byte^ str)`
 - `func byte fscanf(FILE^ fd, const byte^ format, word arg1..arg8)`
 
 ---
@@ -707,15 +686,15 @@ The following functions are declared but not yet implemented (return 0 and set `
 
 These symbols are exported but intended for internal library use:
 
-#### `func byte CIO(byte ch, byte command, word adr=0, word len=0, byte aux1=0, byte aux2=0, byte aux3=0)`
+#### `func byte CIO(byte ch, byte command, word adr=0, word len=0, byte aux1=0, byte aux2=0)`
 
-Low-level CIO dispatcher. Sets up the IOCB for channel `ch` and calls the CIO handler at `$E456`. Use the higher-level `fopen`/`fclose`/`fwrite` wrappers instead.
+Low-level CIO dispatcher. Sets up the IOCB for channel `ch` (masked to 0–7) and calls the CIO handler at `$E456`. After the call, the accumulator is saved in `cio_char` (module-level byte, `#noexport`) and the Y register status is used as the return value. All success statuses (bit 7 clear) are remapped to `ERRNO.OK`; error statuses pass through as-is.
 
-> When compiled with `.define DEBUG_CIO`, prints CIO call parameters and status to the screen.
+Use the higher-level `fopen`/`fclose`/`fread`/`fwrite`/`fgetc`/`fputc`/`fputs` wrappers instead of calling `CIO()` directly.
 
 #### `func byte find_free_IOCB()`
 
-Scans IOCB channels 3–7 for a free slot (`ICHID == 255`). Returns the channel number or 255 if none is free.
+Scans IOCB channels 1–7 for a free slot (`ICHID == 255`). Returns the channel number or 255 if none is free.
 
 #### `proc CONSTRUCTOR()` *(#noexport)*
 

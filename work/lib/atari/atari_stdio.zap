@@ -45,8 +45,8 @@
 ;   func ERRNO ferror (FILE^ fd)                              IMPLEMENTED
 ;   func ERRNO rename (byte^ oldname, byte^ newname)          IMPLEMENTED
 ;   func ERRNO remove (byte^ filename)                        IMPLEMENTED
-;   func byte  fputc  (...)                                   TODO
-;   func byte  fputs  (...)                                   TODO
+;   func ERRNO fputc  (FILE^ fd, byte ch)                      IMPLEMENTED
+;   func ERRNO fputs  (FILE^ fd, byte^ str)                   IMPLEMENTED
 ;   func byte  fscanf (...)                                   TODO
 ;
 ; Exports (hardware / CIO):
@@ -631,10 +631,15 @@ end
 
 /*
     CIO - call CIO handler with the specified parameters and return status
+    Status from Y register: bit 7 clear = success (remapped to ERRNO.OK),
+    bit 7 set = error (returned as-is, maps to ERRNO values).
+    Accumulator saved in cio_char (used by fgetc for single-byte reads).
 */
+byte cio_char #noexport    ; last character read by single-byte GetChr
+
 func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0)
-    byte rv = 0
-    
+    byte rv = $ff
+
     ch &= $07
 
     IOCB[ch].ICCOM = command
@@ -651,21 +656,16 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         asl
         asl
         asl
-        asl        
-        tax        
-        jsr $E456           ; call CIO handler    
-        sta _CIO_RV 
+        asl
+        tax
+        jsr $E456           ; call CIO handler
+        sta _CIO_CHAR       ; save accumulator
+        sty _CIO_RV         ; save Y register (CIO status)
     end
 
-    if command != ICCOM_COMMANDS.GetChr ||
-            adr != 0 ||
-            len != 0
-        rv = IOCB[ch].ICSTA        
-    end
-
-
-    if rv == 1  ; remap ATARI OK to 0
-        rv = 0
+    ; CIO status: bit 7 clear ($01-$7F) = success, bit 7 set ($80-$FF) = error
+    if (rv & $80) == 0
+        rv = ERRNO.OK
     end
 
     return rv
@@ -681,9 +681,9 @@ proc checkeof(FILE ^fd, byte errno) #noexport
         return
     end
 
-    if errno == 136
+    if errno == ERRNO.EOF
         fd^.eof = BOOL.TRUE
-    elseif errno == 0
+    elseif errno == ERRNO.OK
         fd^.eof = BOOL.FALSE
     end
 end
@@ -696,12 +696,12 @@ func byte fopen(FILE^ fd, byte^ filename, byte mode)
     byte id, rv
 
     if fd == NULL        
-        return ERRNO.EBADF
+        return ERRNO.NOT_OPEN
     end
-    
+
     id = find_free_IOCB()
     if id == 255
-        return ERRNO.ENODEV
+        return ERRNO.NONEXISTENT_DEV
     end
 
     fd^.fd = id
@@ -721,8 +721,8 @@ end
 func ERRNO fclose(FILE^ fd)
     byte rv
 
-    if fd == NULL        
-        return ERRNO.EBADF
+    if fd == NULL
+        return ERRNO.NOT_OPEN
     end
 
     rv = CIO(fd^.fd, ICCOM_COMMANDS.Close)
@@ -738,7 +738,7 @@ end
 */
 func ERRNO ferror(FILE^ fd)
     if fd == NULL
-        return ERRNO.EBADF
+        return ERRNO.NONEXISTENT_DEV
     end 
     
     return fd^.error
@@ -751,7 +751,7 @@ end
 func BOOL feof(FILE^ fd)
 
     if fd == NULL
-        return ERRNO.EBADF
+        return ERRNO.NONEXISTENT_DEV
     end     
         
     return fd^.eof
@@ -769,12 +769,12 @@ func ERRNO rename(const byte^ oldname, const byte^ newname)
 
     id = find_free_IOCB()
     if id == 255
-        return ERRNO.EINVAL
+        return ERRNO.TOO_MANY_FILES
     end
     len = strlen(oldname) + strlen(newname) + 1
-    
+
     if len > max_len-1
-        return ERRNO.ENAMETOOLONG
+        return ERRNO.BAD_FILENAME
     end
     
     strncpy(names, oldname, max_len)
@@ -797,7 +797,7 @@ func ERRNO remove(byte^ filename)
 
     id = find_free_IOCB()
     if id == 255
-        return ERRNO.EINVAL
+        return ERRNO.TOO_MANY_FILES
     end
 
     CIO(id, ICCOM_COMMANDS.Close)    
@@ -807,15 +807,14 @@ func ERRNO remove(byte^ filename)
 end
 
 
-
 /*
     fread - read from file
 */
 func byte fread(FILE^ fd, byte ^buffer, word size)
     byte rv
 
-    if fd == NULL        
-        return ERRNO.EBADF
+    if fd == NULL
+        return ERRNO.NOT_OPEN
     end
     
     rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, buffer, size)
@@ -832,12 +831,11 @@ end
 func word fwrite(FILE^ fd, byte ^buffer, word size)
     byte rv
 
-    if fd == NULL        
-        return ERRNO.EBADF
+    if fd == NULL
+        return ERRNO.NOT_OPEN
     end
     
     rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)
-    checkeof(fd, rv)
     set_fderror(fd, rv)
 
     return rv
@@ -846,72 +844,63 @@ end
 
 /*
     fgetc - get character from file
-    For single-byte GetChr, CIO returns the character in the accumulator
-    (not the status).  We read ICSTA directly for the actual status.
+    Uses cio_char as a 1-byte buffer so CIO writes the character
+    to memory (works even on EOF, where A is unreliable).
 */
 func byte fgetc(FILE^ fd)
-    byte ch
     byte rv
 
     if fd == NULL
-        return ERRNO.EBADF
+        return ERRNO.NOT_OPEN
     end
 
-    ch = CIO(fd^.fd, ICCOM_COMMANDS.GetChr)
-    rv = IOCB[fd^.fd].ICSTA                ; raw Atari status (1=OK, 136=EOF)
-
+    cio_char = 0
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, @cio_char, 1)
+    checkeof(fd, rv)
     set_fderror(fd, rv)
-    if rv == 136
-        fd^.eof = BOOL.TRUE
-        return 0
+
+    if rv == ERRNO.OK || rv == ERRNO.EOF
+        return cio_char
     end
 
-    if rv != 1                              ; 1 = Atari OK (raw, not CIO-remapped)
-        return 0
-    end
-
-    return ch
+    return 0
 end
 
 
 /*
     fputc - put character to file
 */
-func byte fputc(FILE^ fd, byte ch)
-    ; TODO: implement file writing  
+func ERRNO fputc(FILE^ fd, byte ch)
+    byte rv
+
     if fd == NULL
-        return 0
-    end 
-    set_fderror(fd, ERRNO.ENODEV)
-    return 0
+        return ERRNO.NOT_OPEN
+    end
+
+    cio_char = ch
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, @cio_char, 1)
+    set_fderror(fd, rv)
+
+    return rv
 end
 
 
 /*
     fputs - put string to file
 */
-func byte fputs(FILE^ fd, const byte ^str)
-    ; TODO: implement file writing  
+func ERRNO fputs(FILE^ fd, const byte ^str)
+    byte rv
+
     if fd == NULL
-        return 0    
-    end 
-    set_fderror(fd, ERRNO.ENODEV)
-    return 0    
+        return ERRNO.NOT_OPEN
+    end
+
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, str, strlen(str))
+    set_fderror(fd, rv)
+
+    return rv
 end
 
-
-/*
-    fscanf - read formatted string from file
-*/
-func byte fscanf(FILE^ fd, const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
-    ; TODO: implement file reading  
-    if fd == NULL
-        return 0
-    end 
-    set_fderror(fd, ERRNO.ENODEV)
-    return 0
-end
 
 
 /*
