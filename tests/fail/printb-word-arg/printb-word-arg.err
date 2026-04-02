@@ -1,0 +1,1 @@
+11:12: error: Argument 1 of 'PRINTB': cannot pass WORD to BYTE parameter, use LOW() or HIGH()

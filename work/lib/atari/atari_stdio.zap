@@ -25,7 +25,10 @@
 ;   proc cursor_on()                                -- show cursor (inverse video)
 ;   proc cursor_off()                               -- hide cursor
 ;   proc putx(byte value)                           -- print byte as 2 hex digits
-;   proc printb(byte arg, lzero=1, ralign=1)        -- print byte as decimal
+;   proc putxw(word value)                          -- print word as 4 hex digits
+;   proc printb(byte arg, lzero=1, ralign=1)        -- print byte as decimal (BCD)
+;   proc printw(word arg, lzero=1, ralign=1)        -- print word as decimal (BCD)
+;   proc printl(long arg, lzero=1, ralign=1)        -- print long as decimal (BCD)
 ;   func byte ascii_to_screen(byte ch)              -- ATASCII -> screen code
 ;
 ; Exports (keyboard input):
@@ -47,6 +50,7 @@
 ;   func ERRNO remove (byte^ filename)                        IMPLEMENTED
 ;   func ERRNO fputc  (FILE^ fd, byte ch)                     IMPLEMENTED
 ;   func ERRNO fputs  (FILE^ fd, byte^ str)                   IMPLEMENTED
+;   func byte  fscanf (...)                                   TODO
 ;
 ; Exports (hardware / CIO):
 ;   struct IOCB_Block          -- CIO channel control block layout
@@ -55,9 +59,9 @@
 ;   enum ICAX1_Mode            -- file access modes (DOS 2.0)
 ;   byte KBHIT @764            -- keyboard status register
 ;   byte TIMER @20             -- vertical blank counter
-;   const ATARI_KEY_*          -- ATASCII key code constants
+;   enum KEY                   -- ATASCII key code constants
 ;
-; Status: Partial (screen/keyboard complete; file I/O partial; formatted I/O TODO)
+; Status: Complete (screen/keyboard/file I/O; formatted I/O TODO)
 ; ============================================================
 
 .module "atari_stdio"
@@ -902,48 +906,171 @@ end
 
 
 
+; ---- Shared BCD decimal print engine ----
+; Used by printb, printw, printl. Converts a 32-bit binary value
+; to decimal ASCII digits using 6502 decimal mode (double-dabble).
+
+byte print_bin[4]    #noexport   ; 32-bit binary input (little-endian)
+byte print_bcd[5]    #noexport   ; packed BCD output (10 digits)
+byte print_buf[10]   #noexport   ; unpacked ASCII digits (MSB first)
+
+
 /*
-    printb - print 1 Byte decimal number to the screen with optional leading zeroes
+    print_convert - convert 32-bit binary in print_bin to ASCII digits in print_buf
+    Uses 6502 decimal mode (SED) for BCD double-dabble conversion.
 */
-proc printb(byte arg, const byte lzero=1, const byte ralign=1)
-    byte i, j
-    byte divisor = 100
-    byte buf[3] = {'0', '0', '0'}
-    const byte div[4] = {100, 10, 1, 0}
+proc print_convert() #noexport
+    byte i, k
 
-    i = 0
-    divisor = div[i]
-    while divisor > 0 
-        while arg >= divisor
-            buf[i] += 1
-            arg -= divisor
-        end
-        i += 1
-        divisor = div[i]
+    asm
+        sed                         ; enable BCD mode
+        lda #$00
+        sta _PRINT_BCD
+        sta _PRINT_BCD+1
+        sta _PRINT_BCD+2
+        sta _PRINT_BCD+3
+        sta _PRINT_BCD+4
+
+        ldx #32                     ; 32 bits to process
+__ZAP_bcd_loop:
+        asl _PRINT_BIN              ; shift MSB out of binary value
+        rol _PRINT_BIN+1
+        rol _PRINT_BIN+2
+        rol _PRINT_BIN+3
+
+        lda _PRINT_BCD              ; shift carry into BCD (decimal add)
+        adc _PRINT_BCD
+        sta _PRINT_BCD
+        lda _PRINT_BCD+1
+        adc _PRINT_BCD+1
+        sta _PRINT_BCD+1
+        lda _PRINT_BCD+2
+        adc _PRINT_BCD+2
+        sta _PRINT_BCD+2
+        lda _PRINT_BCD+3
+        adc _PRINT_BCD+3
+        sta _PRINT_BCD+3
+        lda _PRINT_BCD+4
+        adc _PRINT_BCD+4
+        sta _PRINT_BCD+4
+
+        dex
+        bne __ZAP_bcd_loop
+        cld                         ; restore binary mode
     end
 
-    if !lzero
-        for i=0 to 3
-            if buf[i] != '0'
-                break
-            end
-        end
-    else
-        i = 0
+    ; Unpack packed BCD to ASCII digits (MSB first)
+    k = 0
+    i = 5
+    while i > 0
+        i -= 1
+        print_buf[k] = (print_bcd[i] >> 4) + '0'
+        k += 1
+        print_buf[k] = (print_bcd[i] & $0F) + '0'
+        k += 1
     end
-
-    if ralign
-        for j = 0 to i
-            putchar(' ')
-        end
-    end
-
-    for j = i to 3
-        putchar(buf[j])
-    end
-
 end
 
+
+/*
+    print_decimal - shared output routine for printb/printw/printl
+    Handles leading zero suppression and right-alignment padding.
+    digits: number of digits to display (3 for byte, 5 for word, 10 for long)
+*/
+proc print_decimal(const byte digits, const byte lzero, const byte ralign) #noexport
+    byte i, j
+    byte start
+
+    start = 10 - digits
+
+    ; Find first non-zero digit (skip leading zeros)
+    if !lzero
+        i = start
+        while i < 9
+            if print_buf[i] != '0'
+                break
+            end
+            i += 1
+        end
+    else
+        i = start
+    end
+
+    ; Right-align: pad with spaces
+    if ralign
+        j = start
+        while j < i
+            putchar(' ')
+            j += 1
+        end
+    end
+
+    ; Print digits
+    while i < 10
+        putchar(print_buf[i])
+        i += 1
+    end
+end
+
+
+/*
+    printb - print byte (0-255) as decimal with optional leading zeros and right-alignment
+    lzero=1: show leading zeros (e.g. "042"), lzero=0: suppress (e.g. "42")
+    ralign=1: right-align with spaces (e.g. "  7"), ralign=0: no padding
+*/
+proc printb(byte arg, const byte lzero=1, const byte ralign=1)
+    print_bin[0] = arg
+    print_bin[1] = 0
+    print_bin[2] = 0
+    print_bin[3] = 0
+    print_convert()
+    print_decimal(3, lzero, ralign)
+end
+
+
+/*
+    printw - print word (0-65535) as decimal with optional leading zeros and right-alignment
+*/
+proc printw(word arg, const byte lzero=1, const byte ralign=1)
+    asm
+        lda _PRINTW_ARG
+        sta _PRINT_BIN
+        lda _PRINTW_ARG+1
+        sta _PRINT_BIN+1
+    end
+    print_bin[2] = 0
+    print_bin[3] = 0
+    print_convert()
+    print_decimal(5, lzero, ralign)
+end
+
+
+/*
+    printl - print long (0-4294967295) as decimal with optional leading zeros and right-alignment
+*/
+proc printl(long arg, const byte lzero=1, const byte ralign=1)
+    asm
+        lda _PRINTL_ARG
+        sta _PRINT_BIN
+        lda _PRINTL_ARG+1
+        sta _PRINT_BIN+1
+        lda _PRINTL_ARG+2
+        sta _PRINT_BIN+2
+        lda _PRINTL_ARG+3
+        sta _PRINT_BIN+3
+    end
+    print_convert()
+    print_decimal(10, lzero, ralign)
+end
+
+
+/*
+    putxw - print word as 4 hex digits (e.g. $1A2B -> "1A2B")
+*/
+proc putxw(word value)
+    putx(HIGH(value))
+    putx(LOW(value))
+end
 
 
 ; EOF

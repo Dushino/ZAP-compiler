@@ -487,7 +487,7 @@ putx(IOCB[3].ICSTA)
 
 #### `proc printb(byte arg, const byte lzero=1, const byte ralign=1)`
 
-Prints a byte (0–255) as a decimal number.
+Prints a byte (0–255) as a 3-digit decimal number. Uses the shared BCD conversion engine (6502 decimal mode).
 
 - `lzero=1` — show leading zeros (e.g., `007`); `0` = suppress leading zeros
 - `ralign=1` — right-align by padding spaces on the left; `0` = no padding
@@ -496,6 +496,51 @@ Prints a byte (0–255) as a decimal number.
 printb(score)           ; "042" (default: leading zeros, right-align)
 printb(score, 0, 0)     ; "42"  (no leading zeros, no padding)
 ```
+
+---
+
+#### `proc printw(word arg, const byte lzero=1, const byte ralign=1)`
+
+Prints a word (0–65535) as a 5-digit decimal number. Uses the shared BCD conversion engine.
+
+- `lzero=1` — show leading zeros (e.g., `01234`); `0` = suppress
+- `ralign=1` — right-align with spaces; `0` = no padding
+
+```zap
+printw(total)           ; "01234" (default)
+printw(total, 0, 0)     ; "1234"  (no leading zeros, no padding)
+```
+
+---
+
+#### `proc printl(long arg, const byte lzero=1, const byte ralign=1)`
+
+Prints a long (0–4294967295) as a 10-digit decimal number. Uses the shared BCD conversion engine.
+
+- `lzero=1` — show leading zeros; `0` = suppress
+- `ralign=1` — right-align with spaces; `0` = no padding
+
+```zap
+printl(big_value, 0, 0)   ; "123456789" (no leading zeros)
+```
+
+---
+
+#### `proc putxw(word value)`
+
+Prints a word as four uppercase hexadecimal characters (e.g., `$1A2B` → `"1A2B"`). Calls `putx()` twice for high and low bytes.
+
+```zap
+putxw(address)    ; e.g. "D200"
+```
+
+---
+
+#### BCD Conversion Engine (Internal)
+
+All three `printb`/`printw`/`printl` functions share a single BCD conversion routine (`print_convert`, `#noexport`) that uses the 6502 decimal mode (`SED`) double-dabble algorithm. This converts a 32-bit binary value to 10 packed BCD digits in a fixed 32-iteration loop (~960 cycles), regardless of the value. The shared `print_decimal` proc handles leading-zero suppression and right-alignment.
+
+Total memory cost: ~19 bytes shared variables + ~60 bytes ASM conversion + ~40 bytes output logic. Each `printb`/`printw`/`printl` wrapper adds only ~20–30 bytes.
 
 ---
 

@@ -7,6 +7,49 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Standard library redesign: ERRNO, CIO, print functions (2026-04-02)
+
+### ERRNO enum — Atari CIO status codes
+- Replaced POSIX-based ERRNO enum (76 entries) with native Atari CIO status byte values (28 entries)
+- `ERRNO.OK = 0` (API level), `ERRNO.SUCCESS = 1` (raw CIO), errors at $80-$FF
+- All atari_stdio.zap references updated to new names (e.g., `EBADF` -> `NOT_OPEN`, `ENODEV` -> `NONEXISTENT_DEV`)
+
+### CIO function redesign
+- Removed special-case return semantics for single-byte GetChr (was returning char in A, now always returns status)
+- Status read from Y register (`sty _CIO_RV`) instead of `IOCB[ch].ICSTA` (ICSTA was unreliable)
+- Bit 7 check for success/error: `(rv & $80) == 0` -> `ERRNO.OK` (CIO returns various success codes like $01, $03)
+- `cio_char` module-level byte stores accumulator value after CIO call
+
+### File I/O fixes
+- `fgetc`: uses `@cio_char` as 1-byte buffer (accumulator unreliable on EOF); returns char for both OK and EOF status
+- `fputc`: implemented — stores char in `cio_char`, passes `@cio_char` with len=1 to CIO PutChr
+- `fputs`: implemented — passes string pointer and `strlen(str)` to CIO PutChr
+- EOF only checked on read operations (fread, fgetc), not writes — matches POSIX semantics
+- `checkeof` removed from `fwrite`
+
+### BCD decimal print engine (shared)
+- Unified `printb`/`printw`/`printl` via shared 6502 BCD double-dabble algorithm (`SED` mode)
+- `print_convert()`: 32-iteration ASM loop converts 32-bit binary to 10 packed BCD digits (~960 cycles fixed)
+- `print_decimal()`: shared output with leading-zero suppression and right-alignment
+- `printb(byte, lzero, ralign)`: 3-digit decimal (rewritten from repeated-subtraction)
+- `printw(word, lzero, ralign)`: 5-digit decimal (new)
+- `printl(long, lzero, ralign)`: 10-digit decimal (new)
+- `putxw(word)`: 4-digit hex via `HIGH()`/`LOW()` + `putx()` (new)
+
+### Documentation
+- STDLIB.md: ERRNO table, File I/O section, CIO internals, KEY enum, print functions all updated
+- atari_stdio.zap: header comments updated
+
+### New tests
+- **pass/207-print-decimal**: printb/printw/printl/putxw with all argument combinations
+- **fail/printb-word-arg**: printb rejects word argument
+- **fail/printw-long-arg**: printw rejects long argument
+- **fail/putxw-long-arg**: putxw rejects long argument
+
+**Files changed**: errno.zap, atari_stdio.zap, STDLIB.md
+
+---
+
 ## Argument width validation for proc/func calls (2026-04-02)
 
 ### Compile-time type width checking:
