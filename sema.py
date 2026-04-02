@@ -6,7 +6,7 @@
 
 from errors import SemanticError
 from typing import Any
-from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo
+from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo, ScopedSymbolTable
 from ast_nodes import (
     Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr,
     ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl, EnumItem
@@ -413,7 +413,6 @@ class DeclarationAnalyzer:
         # local (this.symtab) and global symbols so constants used in array sizes (e.g., NUM_POINTS)
         # can be resolved.
         if self.global_symtab is not None:
-            from symbols import ScopedSymbolTable
             lookup_symtab = ScopedSymbolTable(self.global_symtab)
             lookup_symtab.local = self.symtab
         else:
@@ -431,7 +430,6 @@ class DeclarationAnalyzer:
         if d.address is not None:
             # Use a scoped lookup that includes globals (enums) if available
             if self.global_symtab is not None:
-                from symbols import ScopedSymbolTable
                 lookup_symtab = ScopedSymbolTable(self.global_symtab)
                 lookup_symtab.local = self.symtab
             else:
@@ -478,7 +476,6 @@ class DeclarationAnalyzer:
                 try:
                     # Evaluate constant expression with a lookup that includes globals (for enums)
                     if self.global_symtab is not None:
-                        from symbols import ScopedSymbolTable
                         lookup_symtab = ScopedSymbolTable(self.global_symtab)
                         lookup_symtab.local = self.symtab
                     else:
@@ -757,7 +754,6 @@ class DeclarationAnalyzer:
             # (e.g., array bounds checking for subscript expressions)
             if isinstance(d.initializer, ExprInit) and self.func_table is not None:
                 from sema_expr import ExprTypeChecker
-                from symbols import ScopedSymbolTable
                 
                 # Create a scoped symbol table that includes both local and global symbols
                 # if global_symtab is available (for local variables), otherwise use symtab as-is
