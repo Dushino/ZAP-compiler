@@ -115,6 +115,7 @@ We encourage all users of this software to contribute to humanitarian efforts in
 |---|---|
 | Error messages with `file:line:col: error: message` format | Done |
 | VS Code extension (syntax highlighting, build task) | Done |
+| VS Code AI inline completions (Anthropic Claude / OpenAI) | Done |
 | `ca65` / `ld65` toolchain integration | Done |
 | Test suite with 4 variants per test (65C02, 65C02+O1, 6502, 6502+O1) | Done |
 

@@ -99,6 +99,51 @@
                 }
             }
         ],
+        "configuration": {
+            "title": "ZAP Language",
+            "properties": {
+                "zap.ai.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable AI inline code suggestions for ZAP files"
+                },
+                "zap.ai.provider": {
+                    "type": "string",
+                    "enum": ["anthropic", "openai"],
+                    "default": "anthropic",
+                    "description": "AI provider to use for code suggestions"
+                },
+                "zap.ai.apiKey": {
+                    "type": "string",
+                    "default": "",
+                    "description": "API key for the selected AI provider"
+                },
+                "zap.ai.model": {
+                    "type": "string",
+                    "default": "claude-sonnet-4-6-20250514",
+                    "description": "Model name to use for completions"
+                },
+                "zap.ai.endpoint": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom API endpoint URL (leave empty for default). Use for proxies or local models (e.g. Ollama)"
+                },
+                "zap.ai.maxTokens": {
+                    "type": "number",
+                    "default": 256,
+                    "minimum": 32,
+                    "maximum": 2048,
+                    "description": "Maximum tokens per completion response"
+                },
+                "zap.ai.debounceMs": {
+                    "type": "number",
+                    "default": 500,
+                    "minimum": 200,
+                    "maximum": 5000,
+                    "description": "Debounce delay in milliseconds before requesting a completion"
+                }
+            }
+        },
         "commands": [
             {
                 "command": "zap.runBuild",
@@ -109,6 +154,10 @@
                 "command": "zap.compile",
                 "title": "ZAP: Quick Compile",
                 "category": "Build"
+            },
+            {
+                "command": "zap.aiToggle",
+                "title": "ZAP: Toggle AI Completions"
             }
         ],
         "menus": {

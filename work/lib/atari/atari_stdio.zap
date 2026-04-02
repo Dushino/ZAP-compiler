@@ -46,7 +46,6 @@
 ;   func ERRNO rename (byte^ oldname, byte^ newname)          IMPLEMENTED
 ;   func ERRNO remove (byte^ filename)                        IMPLEMENTED
 ;   func byte  fputc  (...)                                   TODO
-;   func byte  fprintf(...)                                   TODO
 ;   func byte  fputs  (...)                                   TODO
 ;   func byte  fscanf (...)                                   TODO
 ;
@@ -879,20 +878,6 @@ end
     fputc - put character to file
 */
 func byte fputc(FILE^ fd, byte ch)
-    ; TODO: implement file writing  
-    if fd == NULL
-        return 0
-    end 
-    set_fderror(fd, ERRNO.ENODEV)
-    return 0
-end
-
-
-/*
-    fprintf - print formatted string to file
-*/
-func byte fprintf(FILE^ fd, const byte ^format, word arg1 = 0, 
-                word arg2 = 0, word arg3 = 0, word arg4 = 0, word arg5 = 0, word arg6 = 0, word arg7 = 0, word arg8 = 0)    
     ; TODO: implement file writing  
     if fd == NULL
         return 0

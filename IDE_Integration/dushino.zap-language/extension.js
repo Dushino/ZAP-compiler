@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
+const { registerAICompletion } = require('./ai-completion');
 
 // ---- ZAP source analysis helpers ----
 
@@ -1162,6 +1163,9 @@ function activate(context) {
             }
         })
     );
+
+    // 12. AI Inline Completion provider (Anthropic Claude / OpenAI)
+    registerAICompletion(context);
 }
 
 function deactivate() { }

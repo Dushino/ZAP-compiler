@@ -27,6 +27,7 @@ We encourage all users of this software to contribute to humanitarian efforts in
    - [Find All References](#find-all-references)
    - [Document Symbols / Outline](#document-symbols--outline)
    - [Inline Compiler Diagnostics](#inline-compiler-diagnostics)
+   - [AI Inline Code Completions](#ai-inline-code-completions)
    - [Code Snippets](#code-snippets)
    - [Build Integration](#build-integration)
 4. [Keyboard Shortcuts](#keyboard-shortcuts)
@@ -341,6 +342,58 @@ rv = unknownFunc()   ; ← red squiggle: "Undefined function: unknownFunc"
 ```
 
 > **Note:** Inline diagnostics require `zapc` to be accessible in your system `PATH`. If `zapc` is not found, no squiggles appear, but all other features (completions, hover, navigation) continue to work.
+
+---
+
+### AI Inline Code Completions
+
+The extension supports AI-powered inline code suggestions (ghost text), similar to GitHub Copilot but tailored specifically for ZAP!. The AI understands ZAP! syntax, types, control flow, and 6502/65C02 conventions.
+
+#### Setup
+
+1. **Get an API key** from [Anthropic](https://console.anthropic.com/) or [OpenAI](https://platform.openai.com/).
+
+2. **Configure settings** in VS Code (`File → Preferences → Settings`, search for "zap.ai"):
+
+   | Setting | Default | Description |
+   |---------|---------|-------------|
+   | `zap.ai.enabled` | `false` | Enable/disable AI completions |
+   | `zap.ai.provider` | `anthropic` | AI provider: `anthropic` or `openai` |
+   | `zap.ai.apiKey` | (empty) | Your API key |
+   | `zap.ai.model` | `claude-sonnet-4-6-20250514` | Model name |
+   | `zap.ai.endpoint` | (empty) | Custom API endpoint (for proxies or local models like Ollama) |
+   | `zap.ai.maxTokens` | `256` | Max tokens per completion |
+   | `zap.ai.debounceMs` | `500` | Delay before requesting a completion |
+
+3. **Enable** by setting `zap.ai.enabled` to `true`, or click the **"ZAP AI: Off"** status bar item to toggle.
+
+#### Usage
+
+Once configured, ghost text suggestions appear automatically as you type inside a `.zap` file:
+
+- **Type a partial line** and pause — a gray suggestion appears after the debounce delay.
+- Press **Tab** to accept the suggestion.
+- Press **Escape** to dismiss it.
+- The status bar shows the current state: `$(sparkle) ZAP AI: On`, `$(circle-slash) ZAP AI: Off`, or `$(warning) ZAP AI: No Key`.
+- A spinning icon appears while a request is in flight.
+
+**What the AI knows about ZAP!:**
+- All ZAP! syntax: `proc`, `func`, `if/else/end`, `while`, `for`, `repeat/until`, `switch/case`
+- Data types: `byte`, `word`, `long`, pointers, structs, enums, arrays
+- Built-in functions: `PEEK()`, `POKE()`, `LOW()`, `HIGH()`, `SIZEOF()`
+- 6502/65C02 target conventions (memory-conscious, small values)
+
+The AI reads the surrounding code context (up to 100 lines before and 30 lines after the cursor) to generate relevant suggestions.
+
+#### Supported Providers
+
+| Provider | Endpoint | Models |
+|----------|----------|--------|
+| **Anthropic** | `https://api.anthropic.com` | `claude-sonnet-4-6-20250514`, `claude-haiku-4-5-20251001`, etc. |
+| **OpenAI** | `https://api.openai.com` | `gpt-4o`, `gpt-4o-mini`, etc. |
+| **Ollama** (local) | Set `zap.ai.endpoint` to `http://localhost:11434` and `zap.ai.provider` to `openai` | Any Ollama model |
+
+> **Note:** AI completions are optional and disabled by default. The extension works fully without them. API usage incurs costs based on your provider's pricing.
 
 ---
 

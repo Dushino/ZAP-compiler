@@ -118,6 +118,20 @@ Type a prefix and press **Tab** to expand:
 | `.module` / `.include` / `.define` | Preprocessor directives |
 | `.ifdef` / `.ifndef` | Conditional compilation blocks |
 
+### AI Inline Code Completions
+
+Optional Copilot-style ghost text powered by Anthropic Claude or OpenAI — tailored for ZAP! syntax and 6502 conventions.
+
+1. Set `zap.ai.enabled` to `true` in VS Code settings
+2. Set `zap.ai.apiKey` to your Anthropic or OpenAI API key
+3. Optionally choose `zap.ai.provider` (`anthropic` or `openai`) and `zap.ai.model`
+
+As you type, gray suggestions appear after a short delay. Press **Tab** to accept, **Esc** to dismiss. The status bar shows current AI state. Click it to toggle on/off.
+
+Also works with local models via Ollama (set `zap.ai.endpoint` to `http://localhost:11434` and provider to `openai`).
+
+> AI completions are optional and disabled by default. See [IDE Integration Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/IDE_INTEGRATION.md) for full setup.
+
 ### Build Integration
 | Shortcut | Action |
 |----------|--------|
