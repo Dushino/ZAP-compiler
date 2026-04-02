@@ -390,6 +390,10 @@ class ExprTypeChecker:
             if len(expr.args) < fs.required_params or len(expr.args) > fs.param_count:
                 _n, _g = fs.param_count, len(expr.args)
                 raise SemanticError(f"Function '{expr.name}' expects {_n} parameter{'s' if _n != 1 else ''}, but {_g} {'were' if _g != 1 else 'was'} provided", node=expr)
+            # Validate argument widths against parameter types
+            if fs.param_types:
+                from sema_shared import validate_call_arg_widths
+                validate_call_arg_widths(self, expr, fs.param_types, fs.name)
             return ExprType(fs.ret_type, ExprKind.VALUE)
 
         # struct field access: obj.field or ptr^.field

@@ -1637,6 +1637,35 @@ proc param_with_locals(byte value)
 end
 ```
 
+### Argument Width Rules
+
+Arguments must match or be narrower than the declared parameter type. Passing a wider type is a compile-time error to prevent silent data truncation. Use explicit narrowing functions to convert:
+
+```zap
+proc draw(byte x, byte y)
+end
+
+word wx = $1234
+long lx = $12345678
+
+; Valid — same width or narrower
+draw(10, 20)          ; constants fit in BYTE — OK
+draw(LOW(wx), HIGH(wx))  ; explicit narrowing — OK
+
+; Invalid — wider than parameter
+draw(wx, 20)          ; ERROR: cannot pass WORD to BYTE
+draw(lx, 20)          ; ERROR: cannot pass LONG to BYTE
+```
+
+**Narrowing functions:**
+| From | To | Use |
+|------|----|-----|
+| WORD | BYTE | `LOW(expr)` or `HIGH(expr)` |
+| LONG | WORD | `LOWW(expr)` or `HIGHW(expr)` |
+| LONG | BYTE | `LOW(LOWW(expr))`, `HIGH(LOWW(expr))`, etc. |
+
+**Exception:** Integer constants that fit in the parameter's range are accepted without narrowing (e.g., `255` for BYTE, `65535` for WORD).
+
 ### Default Parameters
 
 Parameters can have default values. Parameters with defaults must follow all required parameters:

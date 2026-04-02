@@ -1,0 +1,1 @@
+8:15: error: Argument 1 of 'TAKE_WORD': cannot pass LONG to WORD parameter, use LOWW() or HIGHW()

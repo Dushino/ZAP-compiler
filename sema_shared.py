@@ -418,6 +418,98 @@ def validate_poke_types(tc, call_stmt) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Parameter type resolution
+# ---------------------------------------------------------------------------
+
+def resolve_param_types(params, struct_registry) -> list:
+    """Convert Parameter AST nodes to a list of SemType for width validation."""
+    result: list[SemType] = []
+    for param in params:
+        base_up = param.type.base.upper()
+        is_struct = False
+        struct_info = None
+        if struct_registry and struct_registry.is_defined(base_up):
+            is_struct = True
+            struct_info = struct_registry.lookup(base_up)
+        result.append(SemType(
+            base=param.type.base,
+            is_pointer=param.type.is_pointer,
+            is_struct=is_struct,
+            struct_info=struct_info,
+        ))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Call argument width validation
+# ---------------------------------------------------------------------------
+
+def validate_call_arg_widths(tc, call_node, param_types: list, callee_name: str) -> None:
+    """Validate that call arguments do not silently truncate to narrower param types.
+
+    Raises SemanticError when an argument is wider than the corresponding
+    parameter, unless the argument is a constant expression that fits.
+    """
+    from ast_nodes import IntLiteral, StructLiteral
+    from constfold import fold_expr
+
+    _WIDTH = {"BYTE": 1, "WORD": 2, "LONG": 4}
+
+    for i, arg in enumerate(call_node.args):
+        if arg is None or i >= len(param_types):
+            continue
+
+        param_sem: SemType = param_types[i]
+
+        # Skip struct and pointer params — no width mismatch issue
+        if (param_sem.is_struct and not param_sem.is_pointer) or param_sem.is_pointer:
+            continue
+
+        if isinstance(arg, StructLiteral):
+            continue
+
+        arg_type = tc.check(arg)
+
+        # Skip pointer/struct arguments
+        if arg_type.sem_type.is_pointer:
+            continue
+        if arg_type.sem_type.is_struct and not arg_type.sem_type.is_pointer:
+            continue
+
+        arg_base = arg_type.sem_type.base.upper()
+        param_base = param_sem.base.upper()
+
+        arg_w = _WIDTH.get(arg_base, 0)
+        param_w = _WIDTH.get(param_base, 0)
+
+        if arg_w <= param_w:
+            continue  # no truncation
+
+        # Exception: constant expression that fits in the param width
+        folded = fold_expr(arg)
+        if isinstance(folded, IntLiteral):
+            val = folded.value
+            if param_base == "BYTE" and 0 <= val <= 0xFF:
+                continue
+            if param_base == "WORD" and 0 <= val <= 0xFFFF:
+                continue
+
+        # Build error message with cast hints
+        if param_base == "BYTE" and arg_base == "WORD":
+            hint = "use LOW() or HIGH()"
+        elif param_base == "BYTE" and arg_base == "LONG":
+            hint = "use LOW()/HIGH()/LOWW()/HIGHW()"
+        elif param_base == "WORD" and arg_base == "LONG":
+            hint = "use LOWW() or HIGHW()"
+        else:
+            hint = "explicit narrowing required"
+
+        raise SemanticError(
+            f"Argument {i + 1} of '{callee_name}': cannot pass {arg_base} to {param_base} parameter, {hint}",
+            node=arg)
+
+
+# ---------------------------------------------------------------------------
 # Unified body expression validator
 # ---------------------------------------------------------------------------
 

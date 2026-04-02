@@ -14,6 +14,7 @@ from sema_shared import (
     map_debug_line, attach_source_text, map_stmt_info,
     build_local_symtab, build_init_set,
     check_uninitialized, validate_body_exprs, validate_poke_types,
+    resolve_param_types, validate_call_arg_widths,
 )
 
 
@@ -59,7 +60,8 @@ class ProcAnalyzer:
         if owner_is_module and getattr(proc, 'noexport', False):
             exported = False
         try:
-            psym = ProcSymbol(proc.name, len(proc.params), required_params, owner_file=owner, exported=exported)
+            ptypes = resolve_param_types(proc.params, self.struct_registry)
+            psym = ProcSymbol(proc.name, len(proc.params), required_params, param_types=ptypes, owner_file=owner, exported=exported)
             self.procs.define(psym, node=proc)
         except SemanticError as e:
             proc_src_map = self.debug.get("proc_src") or {}
@@ -222,9 +224,31 @@ class ProcAnalyzer:
                             raise err
                     raise
 
+            def _get_callee_param_types(name):
+                """Look up param_types for a proc or func callee by name."""
+                proc_src_map = self.debug.get('proc_src') or {}
+                cur_info = proc_src_map.get(proc.name)
+                _caller_file = cur_info[0] if cur_info else None
+                try:
+                    ps = self.procs.lookup(name, caller_file=_caller_file)
+                    return ps.param_types, ps.name
+                except (SemanticError, KeyError):
+                    pass
+                if self.func_table is not None:
+                    try:
+                        fs = self.func_table.lookup(name)
+                        return fs.param_types, fs.name
+                    except (SemanticError, KeyError):
+                        pass
+                return None, name
+
             def _on_call_stmt(st, cur_initialized):
-                """Validate each proc call argument for uninitialized reads."""
+                """Validate each proc call argument for uninitialized reads and width mismatches."""
                 validate_poke_types(tc, st)
+                # Validate argument widths against parameter types
+                ptypes, cname = _get_callee_param_types(st.name)
+                if ptypes:
+                    validate_call_arg_widths(tc, st, ptypes, cname)
                 from ast_nodes import StructLiteral
                 for a in st.args:
                     if a is None:

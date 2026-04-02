@@ -250,6 +250,24 @@ error: Function 'add' expects 2 parameter(s), but 4 were/was provided
 **Cause**: Calling with the wrong number of arguments.
 **Fix**: Match the parameter count. Use `,` for skipped default parameters: `draw(1, , 3)`.
 
+### Argument width mismatch
+```
+error: Argument 1 of 'draw': cannot pass WORD to BYTE parameter, use LOW() or HIGH()
+error: Argument 2 of 'calc': cannot pass LONG to BYTE parameter, use LOW()/HIGH()/LOWW()/HIGHW()
+error: Argument 1 of 'move': cannot pass LONG to WORD parameter, use LOWW() or HIGHW()
+```
+**Cause**: Passing a wider type to a narrower parameter would silently truncate data.
+**Fix**: Use explicit narrowing functions: `LOW()`, `HIGH()` for WORD-to-BYTE; `LOWW()`, `HIGHW()` for LONG-to-WORD. Constants that fit in the parameter type are allowed (e.g., `foo(42)` is valid for a BYTE parameter).
+
+### PEEK/POKE type errors
+```
+error: PEEK() address must be BYTE or WORD, use LOWW() or HIGHW() for LONG values
+error: POKE() value must be BYTE, use LOW() or HIGH() for WORD values
+error: POKE() value must be BYTE, use LOW()/HIGH()/LOWW()/HIGHW() for LONG values
+```
+**Cause**: PEEK/POKE operate on single bytes. Address must fit in 16 bits; value must be 8 bits.
+**Fix**: Use narrowing functions as suggested in the error message.
+
 ### Return type mismatch
 ```
 error: RETURN type mismatch: expected BYTE, got WORD

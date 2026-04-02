@@ -1723,7 +1723,7 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
 
     # --- procedures and functions ---
     proc_an = ProcAnalyzer(proc_table, debug_info=debug, struct_registry=struct_registry, func_table=func_table)
-    func_an = FuncAnalyzer(func_table, expr_tc, debug_info=debug, struct_registry=struct_registry)
+    func_an = FuncAnalyzer(func_table, expr_tc, debug_info=debug, struct_registry=struct_registry, proc_table=proc_table)
     analyzed_procs = []
     analyzed_funcs = []
     

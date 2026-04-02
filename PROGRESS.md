@@ -7,6 +7,27 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Argument width validation for proc/func calls (2026-04-02)
+
+### Compile-time type width checking:
+- Passing a wider type to a narrower parameter is now a compile-time error (WORD->BYTE, LONG->BYTE, LONG->WORD)
+- **Exception**: constant expressions that fit in the parameter width are allowed (e.g., `foo(42)` for BYTE param)
+- Error messages suggest correct narrowing functions: `LOW()`, `HIGH()`, `LOWW()`, `HIGHW()`
+- Validation shared via `validate_call_arg_widths()` in sema_shared.py
+- `ProcSymbol` and `FuncSymbol` now store `param_types: list[SemType]` for per-parameter type info
+- All 3 call sites covered: proc body calls, func body calls, function-as-expression calls
+
+### New tests:
+- **pass/206-arg-width-valid**: All valid combinations (same type, narrower-to-wider, constants that fit, LOW/HIGH/LOWW/HIGHW narrowing, pointer-to-pointer)
+- **fail/145-arg-word-to-byte**: WORD var to BYTE param
+- **fail/146-arg-long-to-byte**: LONG var to BYTE param
+- **fail/147-arg-long-to-word**: LONG var to WORD param
+- **fail/148-arg-const-overflow-byte**: Constant 256 to BYTE param
+
+**Files changed**: symbols.py, sema_shared.py, sema_proc.py, sema_func.py, sema_expr.py, compiler_pipeline.py
+
+---
+
 ## PEEK/POKE type validation (2026-04-02)
 
 ### Type checking added:

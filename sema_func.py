@@ -16,6 +16,7 @@ from sema_shared import (
     map_debug_line, attach_source_text, map_stmt_info,
     build_local_symtab, build_init_set,
     validate_body_exprs, check_uninitialized, validate_poke_types,
+    resolve_param_types, validate_call_arg_widths,
 )
 
 
@@ -30,12 +31,13 @@ class AnalyzedFunc:
 
 class FuncAnalyzer:
     """Performs semantic analysis for functions and their bodies."""
-    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None, struct_registry=None) -> None:
+    def __init__(self, func_table: FuncTable, expr_tc: ExprTypeChecker, debug_info: dict | None = None, struct_registry=None, proc_table=None) -> None:
         """Initialize with function table, expression type checker, and debug info."""
         self.func_table: FuncTable = func_table
         self.expr_tc: ExprTypeChecker = expr_tc
         self.debug = debug_info or {}
         self.struct_registry = struct_registry
+        self.proc_table = proc_table
 
     def _map_debug_line(self, fname: str | None, line: int | None) -> int | None:
         """Map cleaned-source line numbers back to original file lines."""
@@ -50,8 +52,9 @@ class FuncAnalyzer:
         ret_sem = self._resolve_ret_type(func.ret_type.base, func.ret_type.is_pointer)
         required_params: int = sum(1 for p in func.params if p.default_value is None)
         try:
+            ptypes = resolve_param_types(func.params, self.struct_registry)
             self.func_table.define(
-                FuncSymbol(func.name, ret_sem, len(func.params), required_params)
+                FuncSymbol(func.name, ret_sem, len(func.params), required_params, param_types=ptypes)
             )
         except SemanticError as e:
             proc_src = self.debug.get("proc_src") or {}
@@ -131,9 +134,28 @@ class FuncAnalyzer:
                     raise err
                 raise
 
+        def _get_callee_param_types(name):
+            """Look up param_types for a proc or func callee by name."""
+            if self.proc_table is not None:
+                try:
+                    ps = self.proc_table.lookup(name)
+                    return ps.param_types, ps.name
+                except (SemanticError, KeyError):
+                    pass
+            try:
+                fs = self.func_table.lookup(name)
+                return fs.param_types, fs.name
+            except (SemanticError, KeyError):
+                pass
+            return None, name
+
         def _on_call_stmt(st, cur_initialized):
             """Validate each proc/func call argument for type errors and uninitialized reads."""
             validate_poke_types(self.expr_tc, st)
+            # Validate argument widths against parameter types
+            ptypes, cname = _get_callee_param_types(st.name)
+            if ptypes:
+                validate_call_arg_widths(self.expr_tc, st, ptypes, cname)
             from ast_nodes import StructLiteral
             for a in st.args:
                 if a is None:

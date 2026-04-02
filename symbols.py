@@ -4,7 +4,7 @@
 # We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterator, Protocol
 from errors import SemanticError
 
@@ -232,6 +232,7 @@ class ProcSymbol:
     name: str
     param_count: int = 0
     required_params: int = 0  # params without defaults
+    param_types: list[SemType] = field(default_factory=list)  # per-parameter SemType for width validation
     owner_file: str | None = None    # file where this proc was defined
     exported: bool = True            # whether this proc is visible outside its owner file
 
@@ -297,6 +298,7 @@ class FuncSymbol:
     ret_type: SemType
     param_count: int = 0
     required_params: int = 0  # params without defaults
+    param_types: list[SemType] = field(default_factory=list)  # per-parameter SemType for width validation
 
 
 class FuncTable:
