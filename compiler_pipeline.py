@@ -67,7 +67,23 @@ def _walk_stmt(stmt, ctx, global_symtab):
     Traversal is handled by walk_stmt() in ast_walker.py; this wrapper
     supplies the Identifier, CallExpr, and CallStmt callbacks for the
     global-analysis pass.
+
+    AsmBlock nodes are handled specially: the raw assembly text is scanned
+    for global symbol references (e.g. _VARNAME) so that globals used only
+    from inline assembly are not pruned.
     """
+    from ast_nodes import AsmBlock
+    if isinstance(stmt, AsmBlock):
+        # Scan ASM text for references to global symbols
+        asm_upper = stmt.text.upper()
+        for name, sym in global_symtab._symbols.items():
+            if getattr(sym, "proc_name", ""):
+                continue  # skip locals
+            asm_label = sym.asm_name()
+            if asm_label in asm_upper:
+                ctx["used_globals"].add(name)
+        return
+
     on_ident, on_call_e = _make_global_callbacks(ctx, global_symtab)
 
     def on_call_s(node):
