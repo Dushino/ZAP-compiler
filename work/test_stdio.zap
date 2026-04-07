@@ -10,10 +10,10 @@
     .define ATARI
 .endif
 
-.include "lib/stdio.zap"
-.include "lib/types.zap"
-.include "lib/string.zap"
-.include "lib/atari/atari_gtia.zap"
+.include "../lib/stdio.zap"
+.include "../lib/types.zap"
+.include "../lib/string.zap"
+.include "../lib/atari/atari_gtia.zap"
 
 
 const byte MsgTests[] = "stdio.zap tests ------------------\n\n"

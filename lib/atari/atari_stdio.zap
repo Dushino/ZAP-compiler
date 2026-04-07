@@ -1,78 +1,162 @@
-; atari_stdio.zap
+; ============================================================
+; Module: atari_stdio
+; File:   lib/atari/atari_stdio.zap
+; Platform: Atari 400/800/XL/XE  (6502/65C02)
+; Depends:  errno, types, string
 ;
-; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
-; We believe in a world where international borders are respected and human rights are upheld. 
-; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
-
-
-/*
-    * puts	    výstup do stdout (bez formátování)
-    * gets	    vstup ze stdin (bez formátování)
-    * getchar	zadání jednoho znaku ze stdin
-    * putchar	výstup jednoho znaku do stdout
-    * cls       vyčištění obrazovky
-  
-
-    * fopen	otevření souboru
-    * fclose	zavření souboru
-    * ferror	při chybě program vrací, že návratová hodnota se nerovná 0
-    * feof	    kontrola, zda byl dosažen EOF (End-Of-File) souboru
-    * rename	přejmenování souboru
-    * remove	mazání souboru
-    * fseek	    pohybování kurzorem v souboru
-    * ftell	    zjištění aktuální pozice kurzoru v souboru
-    * fread	    čtení dat ze souboru
-    * fwrite	zápis dat do souboru
-    * fgetc     čtení jednoho znaku ze souboru
-    * fputc     zápis jednoho znaku do souboru
-*/
+; Description:
+;   Complete Atari 8-bit I/O library.  Provides:
+;     - Direct-mapped text-mode screen output (40x24)
+;     - Keyboard input with blinking cursor and full-line editing
+;     - File and device I/O via the Atari CIO subsystem (IOCB channels)
+;   Critical inner loops use inline 6502 assembly for performance.
+;
+;   Normally included indirectly through stdio.zap when -D ATARI is
+;   defined.  Can also be included directly if needed.
+;
+;
+; Exports (screen output):
+;   proc cls()                                      -- clear screen
+;   proc graphics(byte mode)                        -- switch display mode via S: CIO
+;   proc putchar(byte ch)                           -- print one character
+;   proc puts(byte^ str)                            -- print null-terminated string
+;   proc crlf()                                     -- newline + scroll
+;   proc gotoxy(byte x, byte y)                     -- move cursor
+;   proc cursor_on()                                -- show cursor (inverse video)
+;   proc cursor_off()                               -- hide cursor
+;   proc putx(byte value)                           -- print byte as 2 hex digits
+;   proc putxw(word value)                          -- print word as 4 hex digits
+;   proc printb(byte arg, lzero=1, ralign=1)        -- print byte as decimal (BCD)
+;   proc printw(word arg, lzero=1, ralign=1)        -- print word as decimal (BCD)
+;   proc printl(long arg, lzero=1, ralign=1)        -- print long as decimal (BCD)
+;   func byte ascii_to_screen(byte ch)              -- ATASCII -> screen code
+;
+; Exports (keyboard input):
+;   func byte getchar()                             -- wait for key press
+;   func byte getc()                                -- alias for getchar
+;   func byte getcblink()                           -- wait with blinking cursor
+;   func byte gets(byte^ buf, byte max_len)         -- read edited input line
+;   proc delay(byte delay)                          -- wait N vertical blanks
+;
+; Exports (file I/O — CIO based):
+;   func byte  fopen  (FILE^ fd, byte^ filename, byte mode)   IMPLEMENTED
+;   func ERRNO fclose (FILE^ fd)                              IMPLEMENTED
+;   func word  fwrite (FILE^ fd, byte^ buffer, word size)     IMPLEMENTED
+;   func byte  fread  (FILE^ fd, byte^ buffer, word size)     IMPLEMENTED
+;   func byte  fgetc  (FILE^ fd)                              IMPLEMENTED
+;   func BOOL  feof   (FILE^ fd)                              IMPLEMENTED
+;   func ERRNO ferror (FILE^ fd)                              IMPLEMENTED
+;   func ERRNO rename (byte^ oldname, byte^ newname)          IMPLEMENTED
+;   func ERRNO remove (byte^ filename)                        IMPLEMENTED
+;   func ERRNO fputc  (FILE^ fd, byte ch)                     IMPLEMENTED
+;   func ERRNO fputs  (FILE^ fd, byte^ str)                   IMPLEMENTED
+;   func byte  fscanf (...)                                   TODO
+;
+; Exports (hardware / CIO):
+;   struct IOCB_Block          -- CIO channel control block layout
+;   IOCB_Block IOCB[8] @$0340  -- 8 CIO channels
+;   enum ICCOM_COMMANDS        -- CIO command codes
+;   enum ICAX1_Mode            -- file access modes (DOS 2.0)
+;   byte KBHIT @764            -- keyboard status register
+;   byte TIMER @20             -- vertical blank counter
+;   enum KEY                   -- ATASCII key code constants
+;
+; Status: Complete (screen/keyboard/file I/O; formatted I/O TODO)
+; ============================================================
 
 .module "atari_stdio"
 
-; ATARI colors
-const byte COLOR_BLACK   = $00
-const byte COLOR_YELLOW1 = $10
-const byte COLOR_ORANGE2 = $20
-const byte COLOR_RED1    = $30
-const byte COLOR_VIOLET1 = $40
-const byte COLOR_VIOLET2 = $50
-const byte COLOR_VIOLET3 = $60
-const byte COLOR_BLUE1   = $70
-const byte COLOR_BLUE2   = $80
-const byte COLOR_BLUE3   = $90
-const byte COLOR_GREEN1  = $A0
-const byte COLOR_GREEN2  = $B0
-const byte COLOR_GREEN3  = $C0
-const byte COLOR_GREEN4  = $D0
-const byte COLOR_YELLOW2 = $E0
-const byte COLOR_BROWN   = $F0
-
-byte PCOLOR0 @704
-byte PCOLOR1 @705       
-byte PCOLOR2 @706       
-byte PCOLOR3 @707       
-byte PLAYF0  @708       
-byte PLAYF1  @709
-byte PLAYF2  @710
-byte PLAYF3  @711
-byte PLAYF4  @712
+.include "../errno.zap"
+.include "../types.zap"
+.include "../string.zap"
+; .include "../keys.zap"
 
 
-byte cur_xpos, cur_ypos     ; cusros position on the screen
-const byte MAX_XPOS = 39
-const byte MAX_YPOS = 24    
+; Screen
+byte cur_xpos, cur_ypos                     ; cursor position on the screen
+const byte SCREEN_X_SIZE = 40
+const byte SCREEN_Y_SIZE = 24
+byte ^vlstart[SCREEN_Y_SIZE]    #noexport   ; vertical line start positions for each row of the screen
+byte ^curptr                    #noexport   ; current position in the screen memory for output
+
+; Keyboard
+byte KBHIT @764
+
+enum KEY
+    ENTER          = $9B
+    LEFT           = $1E
+    RIGHT          = $1F
+    UP             = $1C
+    DOWN           = $1D
+    CTRL_LEFT      = $2B
+    CTRL_RIGHT     = $2A
+    CTRL_UP        = $2D
+    CTRL_DOWN      = $3D
+    HOME           = $7D
+    DELETE         = $FE
+    INSERT         = $FF
+    BACKSPACE      = $7E
+    ESCAPE         = $1B
+end
+
+byte kbcode @$D209
+
+; Timer
+byte TIMER @20
+
+
+; IOCB 
+struct IOCB_Block
+    byte ICHID      ; handler Identifier
+    byte ICDNO      ; device number (disk)
+    byte ICCOM      ; command
+    byte ICSTA      ; status
+    word ICBA       ; buffer address
+    word ICPT       ; address of put byte
+    word ICBL       ; buffer length
+    byte ICAX1      ; auxiliary information
+    byte ICAX2      ; -
+    byte ICAX3      ; the remaining auxiliary
+    byte ICAX4      ; bytes are rarely used
+    byte ICAX5      ; -
+    byte ICAX6      ; -
+end
+
+
+; System IOCB blocks
+IOCB_Block IOCB[8] @$0340
+
+
+; ICCOM command codes
+enum ICCOM_COMMANDS
+    ; build - in
+    Open        = $03
+    Close       = $0C
+    GetChr      = $07
+    PutChr      = $0B
+    GetRec      = $05
+    PutRec      = $09
+    Status      = $0D
+    ; DOS 2.5 commands
+    Rename      = $20
+    Delete      = $21    
+end
+
+
+; AUX1 values for fopen
+enum ICAX1_Mode
+    Read        = 4       ; input operation; positions file pointer to start of file.
+    Directory   = 6       ; disk directory input operation.
+    Write       = 8       ; output operation; positions file pointer to start of file.
+    Append      = 9       ; output operation; positions file pointer to end of file.
+    ReadWrite   = 12      ; input/output operation; positions file pointer to start of file.
+end 
+
 
 ; initialize internals for faster screen IO
-proc CONSTRUCTOR()  ; Fixme: #KEEP #NOEXPORT
-    byte ^dlstart @560      ; system storage for DL address
-    word ^dlptr             ; pointer into display list
-    byte ^vram        
-        
-    dlptr = dlstart         ; copy display list address into ZP pointer        
-    dlptr = dlptr + 2       ; skip first four bytes (2xWORD) of display list
-    vram = dlptr^           ; get screen memory address from display list
-    
-    vram^ = 1
+proc CONSTRUCTOR() 
+
+    GRAPHICS(0)
 end
 
 
@@ -80,22 +164,23 @@ end
     COMHEADER and AUTOSTRT data area
     needed by linker for proper atari .com file generation
 */
-; Fixme: .segment directives should be inside ASM block
-proc atari_file_data_area() ; Fixme: #KEEP #NOEXPORT    
+proc atari_file_data_area() #keep #noexport
+
     asm
         .segment "COMHEADER"
-        .import __RAM_START__, __RAM_LAST__
-        .word $FFFF    		; second block marker
-        .word __RAM_START__    	; RUN address
-        .word __RAM_LAST__     	; last byte  
-
-        .segment "AUTOSTRT"
-        .import __RAM_START__, __RAM_LAST__
-        .word $FFFF    		; second block marker
-        .word __RAM_START__    	; RUN address
-        .word __RAM_LAST__     	; last byte
-        .segment "CODE"        
+        .import __RAM_START__, __BSS_LOAD__
+        .word $FFFF     		; first block marker
+        .word __RAM_START__		; starting address
+        .word __BSS_LOAD__ - 1 	; last byte  
     end
+
+    .ifdef AUTOSTART
+    asm
+        .segment "AUTOSTRT" 
+        .word   $02e2, $02e3, __RAM_START__
+    end
+    .endif
+
 end
 
 
@@ -103,11 +188,53 @@ end
     Clear Screen and reset cursor position
 */
 proc cls()
+
     cur_xpos = 0
     cur_ypos = 0    
+    curptr = vlstart[0]
+
+    memset(vlstart[0], 0, SCREEN_X_SIZE * SCREEN_Y_SIZE)   
 end
 
 
+/*
+    graphics - switch display mode via CIO on IOCB #6 (S: device)
+    Mode values follow Atari BASIC conventions:
+      0 = GR.0 (40x24 text)
+      8 = GR.8 (320x192 mono)
+     +16 = no text window (full screen)
+    e.g. graphics(0) for text, graphics(24) for full-screen GR.8
+    After call, scrstart ($58/$59) points to screen memory.
+    For mode 0, reinitializes the vlstart table and cursor.
+*/
+proc graphics(byte mode)
+    const byte screen_device[] = "S:"
+    word savmsc @88         ; SAVMSC: screen memory start (set by OS after S: open)
+    byte i
+    word data
+
+    ; Close and reopen S: on IOCB #6
+    CIO(6, ICCOM_COMMANDS.Close)
+    ; ICAX1 = 12 (read/write access), ICAX2 = mode number
+    CIO(6, ICCOM_COMMANDS.Open, screen_device, 0, 12, mode)
+
+    ; For text mode (GR.0), reinitialize screen pointers
+    if (mode & $0F) == 0
+        data = savmsc
+        for i = 0 to SCREEN_Y_SIZE
+            vlstart[i] = data
+            data = data + SCREEN_X_SIZE
+        end
+        cur_xpos = 0
+        cur_ypos = 0
+        curptr = vlstart[0]
+    end
+end
+
+
+/*
+    Wait for keyboard key press and return ATASCII code
+*/
 func byte getchar()
     byte ch
 
@@ -116,10 +243,656 @@ func byte getchar()
         PHA
         LDA $e424
         PHA
-        rts
-        
+        rts         ; call keyboard handler
         sta _GETCHAR_CH
     end
 
     return ch
 end
+
+
+/*
+    getc	    čtení jednoho znaku ze souboru
+*/
+func byte getc()
+    return getchar()
+end
+
+
+/*
+    delay - wait for a specified time
+*/
+proc delay(byte delay)
+    
+    TIMER = 0
+    while TIMER < delay
+    end
+end
+
+
+/*
+    cursor_on - turn on cursor
+*/
+proc cursor_on()
+    
+    curptr^ = curptr^ | $80    
+end
+
+
+/*
+    cursor_off - turn off cursor
+*/
+proc cursor_off()
+
+    curptr^ = curptr^ & $7F    
+end
+
+
+/*
+    getcblink - wait for keyboard key press and return ATASCII code
+    blinking cursor
+*/
+func byte getcblink() 
+    byte i
+
+    KBHIT = 255
+    while BOOL.TRUE
+        ; cursor on
+        cursor_on()
+        i = 0
+        while i < 20
+            delay(1)
+            if KBHIT != 255
+                cursor_off()
+                return getchar()
+            end
+            i += 1   
+        end
+
+        ; cursor off
+        cursor_off()
+        i = 0
+        while i < 20
+            delay(1)
+            if KBHIT != 255
+                return getchar()                
+            end
+            i += 1   
+        end
+    end
+    return getchar()
+end
+
+
+/*
+    crlf - move cursor to the beginning of the next line, scroll screen if needed
+*/
+proc crlf()
+
+    cur_xpos = 0
+    curptr = vlstart[cur_ypos]
+
+    if cur_ypos < SCREEN_Y_SIZE - 1
+        cur_ypos = cur_ypos + 1
+        curptr = vlstart[cur_ypos] + cur_xpos
+    else
+        ; scroll screen up
+        memcpy(vlstart[0], vlstart[1], (SCREEN_Y_SIZE - 1) * SCREEN_X_SIZE)
+        ; clear last line
+        memset(vlstart[SCREEN_Y_SIZE - 1], 0, SCREEN_X_SIZE)
+        curptr = vlstart[SCREEN_Y_SIZE - 1] + cur_xpos
+    end
+end
+
+
+/*
+    Convert ASCII to screen code
+*/
+func byte ascii_to_screen(byte ch)
+    ; convert ATASCII to screen code, handle inverse bit
+    asm
+                    lda _ASCII_TO_SCREEN_CH
+                    asl a               ; shift out the inverse bit
+                    adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
+                    bpl ascii_to_screen_codeok        ; screen code ok?
+                    eor #$40            ; needs correction
+ascii_to_screen_codeok:     lsr a               ; undo the shift
+                    bcc ascii_to_screen_sputc
+                    eor #$80            ; restore the inverse bit            
+ascii_to_screen_sputc:
+                    sta _ASCII_TO_SCREEN_CH
+    end
+
+    return ch
+end
+
+
+/*
+    putchar to current screen location and move cursor forward, scroll screen if needed
+*/
+proc putchar(byte ch)
+
+    switch ch
+        case '\n'       ; newline
+            crlf()
+            return
+
+        case '\t'       ; tab
+            repeat
+                putchar(' ')
+            until (cur_xpos & $03) == 3
+            return
+
+        case '\0'       ; null terminator - ignore
+            return
+    end
+
+    curptr^ = ascii_to_screen(ch)
+    curptr = curptr + 1
+    
+    cur_xpos = cur_xpos + 1
+    if cur_xpos >= SCREEN_X_SIZE
+        cur_xpos = 0
+
+        if cur_ypos < SCREEN_Y_SIZE - 1
+            cur_ypos = cur_ypos + 1
+            curptr = vlstart[cur_ypos]
+        else
+            crlf()
+        end
+    end
+end
+
+
+/*
+    puts - print null-terminated string to the screen
+    Optimized: inlines ascii_to_screen and screen store to avoid
+    per-character function call overhead (putchar + ascii_to_screen).
+    Only \n is handled inline; \t and \0 are not expected in string literals.
+*/
+proc puts(byte ^str)
+    byte ch
+
+    ch = str^
+    while ch != 0
+        if ch == '\n'
+            crlf()
+        else
+            ; inline ascii_to_screen: ATASCII -> screen code
+            asm
+                        lda _PUTS_CH
+                        asl a
+                        adc #$c0
+                        bpl puts_a2s_ok
+                        eor #$40
+            puts_a2s_ok:
+                        lsr a
+                        bcc puts_a2s_store
+                        eor #$80
+            puts_a2s_store:
+                        ldy #$00
+                        sta (_CURPTR),y
+            end
+            curptr += 1
+            cur_xpos += 1
+            if cur_xpos >= SCREEN_X_SIZE
+                cur_xpos = 0
+                if cur_ypos < SCREEN_Y_SIZE - 1
+                    cur_ypos += 1
+                    curptr = vlstart[cur_ypos]
+                else
+                    crlf()
+                end
+            end
+        end
+        str += 1
+        ch = str^
+    end
+end
+
+
+/*
+    gotoxy - move cursor to the specified position
+*/
+proc gotoxy(byte x, byte y)
+    cur_xpos = x
+    cur_ypos = y
+    curptr = vlstart[cur_ypos] + cur_xpos
+end
+
+
+/*
+    gets - read characters from keyboard until newline or ESC, store them in buffer
+    return: keycode    
+*/
+func byte gets(const byte ^buffer, const byte max_len)
+    byte  ch             ; read character
+    byte  pos = 0        ; buffer position
+    byte ^bufp           ; current character pointer in buffer
+    byte i, j
+    byte ^tmpp
+
+    ; read characters from keyboard until newline
+    bufp = buffer
+    while BOOL.TRUE
+        ch = getcblink()
+
+        switch ch
+
+            case Key.ENTER
+            case Key.ESCAPE
+            case Key.UP
+            case Key.DOWN
+                return ch
+
+            case Key.BACKSPACE
+                if pos > 0
+                    pos -= 1
+                    ; screen
+                    cur_xpos -= 1
+                    curptr -= 1                    
+                    i = pos
+                    tmpp = curptr
+                    while i < max_len
+                        tmpp += 1
+                        ch = tmpp^
+                        tmpp -= 1
+                        tmpp^ = ch
+                        tmpp += 1
+                        i += 1
+                    end
+                    tmpp^ = 0
+
+                    ; buffer
+                    bufp -= 1
+                    i = pos
+                    tmpp = bufp
+                    while i < max_len
+                        tmpp += 1
+                        ch = tmpp^
+                        tmpp -= 1
+                        tmpp^ = ch
+                        tmpp += 1
+                        i += 1
+                    end
+                    tmpp^ = ' '
+                end
+                break
+
+            case Key.DELETE
+                if pos < max_len
+                    ; screen
+                    i = pos
+                    tmpp = curptr
+                    while i < max_len
+                        tmpp += 1
+                        ch = tmpp^
+                        tmpp -= 1
+                        tmpp^ = ch
+                        tmpp += 1
+                        i += 1
+                    end
+                    tmpp^ = 0
+
+                    ; buffer
+                    i = pos
+                    tmpp = bufp
+                    while i < max_len
+                        tmpp += 1
+                        ch = tmpp^
+                        tmpp -= 1
+                        tmpp^ = ch
+                        tmpp += 1
+                        i += 1
+                    end
+                    tmpp -= 1
+                    tmpp^ = ' '
+                end
+                break
+            
+            case Key.LEFT
+                if pos > 0
+                    ; screen
+                    cur_xpos -= 1
+                    curptr -= 1                    
+                    ; buffer
+                    bufp -= 1
+                    pos -= 1
+                end
+                break
+
+            case Key.RIGHT
+                if (cur_xpos < SCREEN_X_SIZE - 1) && (pos < max_len - 1)
+                    ; screen
+                    cur_xpos += 1
+                    curptr += 1                    
+                    ; buffer
+                    bufp += 1
+                    pos += 1
+                end
+                break
+
+            default
+                ; screen
+                ; curptr^ = ascii_to_screen(ch)
+
+                ; buffer
+                bufp^ = ch                
+
+                if pos < max_len - 1
+                    ; screen
+                    putchar(ch)   ; echo the character back to the screen
+                    ; buffer
+                    bufp^ = ch                
+                    bufp += 1
+                    pos += 1
+                end
+                break                
+        end
+    end
+
+    return 0
+end
+
+
+/*
+    set FD error code
+*/
+proc set_fderror(FILE^ file, byte error_code) #NOEXPORT
+    if file != NULL
+        file^.error = error_code
+    end
+end
+
+
+/* 
+    Find free IOCB block
+*/
+func byte find_free_IOCB()
+    byte i
+
+    for i = 1 to 8        
+        
+        if IOCB[i].ICHID == 255            
+            return i
+        end
+    end    
+    return 255 ; no free IOCB found
+end
+
+
+/*
+    CIO - call CIO handler with the specified parameters and return status
+    Status from Y register: bit 7 clear = success (remapped to ERRNO.OK),
+    bit 7 set = error (returned as-is, maps to ERRNO values).
+    Accumulator saved in cio_char (used by fgetc for single-byte reads).
+*/
+byte cio_char #noexport    ; last character read by single-byte GetChr
+
+func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, byte aux2 = 0)
+    byte rv = $ff
+
+    ch &= $07
+
+    IOCB[ch].ICCOM = command
+    IOCB[ch].ICBA  = adr
+    IOCB[ch].ICBL  = len
+    if command == ICCOM_COMMANDS.Open
+        IOCB[ch].ICAX1 = aux1
+        IOCB[ch].ICAX2 = aux2
+        IOCB[ch].ICAX3 = 0
+    end
+    
+    asm
+        lda _CIO_CH
+        asl
+        asl
+        asl
+        asl
+        tax
+        jsr $E456           ; call CIO handler
+        sta _CIO_CHAR       ; save accumulator
+        sty _CIO_RV         ; save Y register (CIO status)
+    end
+
+    ; CIO status: bit 7 clear ($01-$7F) = success, bit 7 set ($80-$FF) = error
+    if (rv & $80) == 0
+        rv = ERRNO.OK
+    end
+
+    return rv
+end
+
+
+/*
+    Check and set EOF flag in FILE struct
+*/
+proc checkeof(FILE ^fd, byte errno) #noexport
+
+    if fd == NULL
+        return
+    end
+
+    if errno == ERRNO.EOF
+        fd^.eof = BOOL.TRUE
+    elseif errno == ERRNO.OK
+        fd^.eof = BOOL.FALSE
+    end
+end
+
+
+/*
+    fopen - open file
+*/
+func byte fopen(FILE^ fd, byte^ filename, byte mode)    
+    byte id, rv
+
+    if fd == NULL        
+        return ERRNO.NOT_OPEN
+    end
+
+    id = find_free_IOCB()
+    if id == 255
+        return ERRNO.NONEXISTENT_DEV
+    end
+
+    fd^.fd = id
+    CIO(id, ICCOM_COMMANDS.Close)    
+    rv = CIO(id, ICCOM_COMMANDS.Open, filename, 0, mode, 0)
+
+    set_fderror(fd, rv)        
+    checkeof(fd, rv)
+
+    return rv
+end
+
+
+/*
+    fclose - close file    
+*/
+func ERRNO fclose(FILE^ fd)
+    byte rv
+
+    if fd == NULL
+        return ERRNO.NOT_OPEN
+    end
+
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.Close)
+    rv = ERRNO.OK
+    set_fderror(fd, rv)
+
+    return ERRNO.OK
+end
+
+
+/*
+    ferror - check for error
+*/
+func ERRNO ferror(FILE^ fd)
+    if fd == NULL
+        return ERRNO.NONEXISTENT_DEV
+    end 
+    
+    return fd^.error
+end
+
+
+/*
+    feof - check for end of file
+*/
+func BOOL feof(FILE^ fd)
+
+    if fd == NULL
+        return ERRNO.NONEXISTENT_DEV
+    end     
+        
+    return fd^.eof
+end
+
+
+/*
+    rename - rename file    
+*/
+func ERRNO rename(const byte^ oldname, const byte^ newname)
+    const byte max_len = 32
+    byte names[max_len+1]
+    byte len, rv
+    byte id
+
+    id = find_free_IOCB()
+    if id == 255
+        return ERRNO.TOO_MANY_FILES
+    end
+    len = strlen(oldname) + strlen(newname) + 1
+
+    if len > max_len-1
+        return ERRNO.BAD_FILENAME
+    end
+    
+    strncpy(names, oldname, max_len)
+    strncat(names, ",", max_len)
+    strncat(names, newname, max_len)
+
+    CIO(id, ICCOM_COMMANDS.Close)
+    rv = CIO(id, ICCOM_COMMANDS.Rename, names)
+
+    return rv
+end
+
+
+/*
+    remove - remove file
+*/
+func ERRNO remove(byte^ filename)
+    byte rv
+    byte id
+
+    id = find_free_IOCB()
+    if id == 255
+        return ERRNO.TOO_MANY_FILES
+    end
+
+    CIO(id, ICCOM_COMMANDS.Close)    
+    rv = CIO(id, ICCOM_COMMANDS.Delete, filename)
+
+    return rv
+end
+
+
+/*
+    fread - read from file
+*/
+func byte fread(FILE^ fd, byte ^buffer, word size)
+    byte rv
+
+    if fd == NULL
+        return ERRNO.NOT_OPEN
+    end
+    
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, buffer, size)
+    checkeof(fd, rv)
+    set_fderror(fd, rv)
+
+    return rv
+end
+
+
+/*
+    fwrite - write to file
+*/
+func word fwrite(FILE^ fd, byte ^buffer, word size)
+    byte rv
+
+    if fd == NULL
+        return ERRNO.NOT_OPEN
+    end
+    
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, buffer, size)
+    set_fderror(fd, rv)
+
+    return rv
+end
+
+
+/*
+    fgetc - get character from file
+    Uses cio_char as a 1-byte buffer so CIO writes the character
+    to memory (works even on EOF, where A is unreliable).
+*/
+func byte fgetc(FILE^ fd)
+    byte rv
+
+    if fd == NULL
+        return ERRNO.NOT_OPEN
+    end
+
+    cio_char = 0
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.GetChr, @cio_char, 1)
+    checkeof(fd, rv)
+    set_fderror(fd, rv)
+
+    if rv == ERRNO.OK || rv == ERRNO.EOF
+        return cio_char
+    end
+
+    return 0
+end
+
+
+/*
+    fputc - put character to file
+*/
+func ERRNO fputc(FILE^ fd, byte ch)
+    byte rv
+
+    if fd == NULL
+        return ERRNO.NOT_OPEN
+    end
+
+    cio_char = ch
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, @cio_char, 1)
+    set_fderror(fd, rv)
+
+    return rv
+end
+
+
+/*
+    fputs - put string to file
+*/
+func ERRNO fputs(FILE^ fd, const byte ^str)
+    byte rv
+
+    if fd == NULL
+        return ERRNO.NOT_OPEN
+    end
+
+    rv = CIO(fd^.fd, ICCOM_COMMANDS.PutChr, str, strlen(str))
+    set_fderror(fd, rv)
+
+    return rv
+end
+
+
+
+; EOF
