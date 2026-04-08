@@ -19,13 +19,23 @@
 			"path": "work/lib/atari/atari_stdio.zap",
 			"bookmarks": [
 				{
-					"line": 627,
-					"column": 30,
+					"line": 129,
+					"column": 21,
 					"label": ""
 				},
 				{
-					"line": 846,
-					"column": 13,
+					"line": 570,
+					"column": 20,
+					"label": ""
+				},
+				{
+					"line": 590,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 799,
+					"column": 42,
 					"label": ""
 				}
 			]
@@ -49,7 +59,7 @@
 			"path": "work/test_stdio.zap",
 			"bookmarks": [
 				{
-					"line": 18,
+					"line": 13,
 					"column": 19,
 					"label": ""
 				}
@@ -59,7 +69,7 @@
 			"path": "benchmarks/benchmarks.zap",
 			"bookmarks": [
 				{
-					"line": 22,
+					"line": 19,
 					"column": 4,
 					"label": ""
 				},
