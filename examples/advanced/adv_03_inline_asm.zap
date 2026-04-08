@@ -25,7 +25,7 @@ proc loop_example()
 
     asm
     LOOP:
-        DEC _LOOP_EXAMPLE_I
+        DEC _LOOP_EXAMPLE$I
         BNE LOOP
     end
 end
@@ -57,12 +57,12 @@ proc compute()
 
     asm
         LDA #42
-        STA _COMPUTE_RESULT
+        STA _COMPUTE$RESULT
 
         LDA #$00
-        STA _COMPUTE_TOTAL
+        STA _COMPUTE$TOTAL
         LDA #$10
-        STA _COMPUTE_TOTAL+1
+        STA _COMPUTE$TOTAL+1
     end
 end
 
@@ -71,7 +71,7 @@ byte lookup[] = {10, 20, 30, 40, 50}
 
 proc use_lookup(byte index)
     asm
-        LDX _USE_LOOKUP_INDEX
+        LDX _USE_LOOKUP$INDEX
         LDA _LOOKUP,X    ; Access array with _ prefix
     end
 end

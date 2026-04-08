@@ -442,10 +442,11 @@ The ZAP compiler uses a systematic naming convention to prevent collisions betwe
 
 #### The Rules
 
-1. **Source Identifiers** (variables, procedures, functions) are prefixed with a **single underscore** (`_`)
-2. **Compiler-Generated Identifiers** (internal labels, temps, runtime helpers) are prefixed with **double underscore** (`__`)
+1. **Global identifiers** (global variables, procedures, functions) are prefixed with a **single underscore** (`_`), e.g. `my_var` → `_MY_VAR`
+2. **Local identifiers** (local variables, parameters) use a **dollar sign** (`$`) to separate the procedure name from the variable name, e.g. local `result` in proc `compute` → `_COMPUTE$RESULT`
+3. **Compiler-Generated Identifiers** (internal labels, temps, runtime helpers) are prefixed with **double underscore** (`__`)
 
-This guarantees no naming collisions since ZAP forbids identifiers starting with `_` in source code.
+The `$` separator for locals prevents naming collisions that would occur with underscore-only naming (e.g. global `test_result` and local `result` in proc `test` would both become `_TEST_RESULT` with underscores, but with `$` the local becomes `_TEST$RESULT`). This requires `.FEATURE dollar_in_identifiers` in ca65, which the compiler emits automatically.
 
 #### Source Identifiers: Single Underscore Prefix
 
@@ -482,7 +483,9 @@ end
 ```
 
 **Key Points:**
-- Variables: `my_var` → `<_(PROC | FUNC)NAME_>MY_VAR`
+- Global variables: `my_var` → `_MY_VAR`
+- Local variables: `result` in `compute()` → `_COMPUTE$RESULT`
+- Parameters: `index` in `use_lookup()` → `_USE_LOOKUP$INDEX`
 - Procedures: `setup()` → `_SETUP`
 - Functions: `get_value()` → `_GET_VALUE`
 
@@ -629,7 +632,7 @@ proc main()
 end
 ```
 
-**Accessing local variables:**
+**Accessing local variables (note `$` separator):**
 ```zap
 proc compute()
     byte result = 0
@@ -637,12 +640,12 @@ proc compute()
     
     asm
         LDA #42
-        STA _RESULT          ; Local variable
+        STA _COMPUTE$RESULT          ; Local variable: _PROC$VAR
         
         LDA #$00
-        STA _TOTAL
+        STA _COMPUTE$TOTAL
         LDA #$10
-        STA _TOTAL+1
+        STA _COMPUTE$TOTAL+1
     end
 end
 ```
@@ -668,8 +671,8 @@ byte lookup[] = {10, 20, 30, 40, 50}
 
 proc use_lookup(byte index)
     asm
-        LDX _INDEX
-        LDA _LOOKUP,X    ; Access array with _ prefix
+        LDX _USE_LOOKUP$INDEX   ; Parameter: _PROC$PARAM
+        LDA _LOOKUP,X           ; Global array: _NAME
     end
 end
 ```
@@ -695,7 +698,7 @@ cat myprogram.s | grep "^__"    # See all compiler-generated symbols
 ### Calling Procedures from Assembly
 
 All procedures and functions are prefixed with `_` in assembly. See [Assembly Label Naming Convention](#assembly-label-naming-convention) for complete details. 
-Note: parameter passing is register-optimized and the register assignment (A, X, Y) can change between compilations. When calling ZAP procedures **from inside an `asm` block**, check the generated assembly for the actual calling convention. Avoid calling procedures with more than 3 bytes of total parameters from inline assembly — the compiler has no way to verify correctness of hand-written calls. Accessing local variables by name (e.g. `_PROCNAME_VAR`) is always safe.
+Note: parameter passing is register-optimized and the register assignment (A, X, Y) can change between compilations. When calling ZAP procedures **from inside an `asm` block**, check the generated assembly for the actual calling convention. Avoid calling procedures with more than 3 bytes of total parameters from inline assembly — the compiler has no way to verify correctness of hand-written calls. Accessing local variables by name (e.g. `_PROCNAME$VAR`) is always safe.
 
 ```zap
 proc setup()

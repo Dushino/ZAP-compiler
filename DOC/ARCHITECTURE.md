@@ -233,7 +233,7 @@ Both the `COPY_BYTES` and `COPY_BYTES16` routines are used for struct copy when 
 
 ### Parameter Passing
 
-Procedures and functions pass arguments via dedicated global variables (`_PROCNAME_PARAM`). Up to two byte-wide parameters may be passed through A and X registers when the optimizer detects no intervening usage (fast-path calling convention). Return values are passed in A (byte) or X:A (word/pointer).
+Procedures and functions pass arguments via dedicated local variables (`_PROCNAME$PARAM`). Up to two byte-wide parameters may be passed through A and X registers when the optimizer detects no intervening usage (fast-path calling convention). Return values are passed in A (byte) or X:A (word/pointer).
 
 For struct-returning functions, the compiler generates a global BSS buffer `__RETBUF_FUNCNAME` after dead-code pruning. The function writes its result there before `RTS`; the caller copies from the buffer to the destination variable.
 

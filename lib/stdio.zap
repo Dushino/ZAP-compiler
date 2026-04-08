@@ -200,9 +200,9 @@ end
 */
 proc printw(word arg, const byte lzero=1, const byte ralign=1)
     asm
-        lda _PRINTW_ARG
+        lda _PRINTW$ARG
         sta _PRINT_BIN
-        lda _PRINTW_ARG+1
+        lda _PRINTW$ARG+1
         sta _PRINT_BIN+1
     end
     print_bin[2] = 0
@@ -217,13 +217,13 @@ end
 */
 proc printl(long arg, const byte lzero=1, const byte ralign=1)
     asm
-        lda _PRINTL_ARG
+        lda _PRINTL$ARG
         sta _PRINT_BIN
-        lda _PRINTL_ARG+1
+        lda _PRINTL$ARG+1
         sta _PRINT_BIN+1
-        lda _PRINTL_ARG+2
+        lda _PRINTL$ARG+2
         sta _PRINT_BIN+2
-        lda _PRINTL_ARG+3
+        lda _PRINTL$ARG+3
         sta _PRINT_BIN+3
     end
     print_convert()

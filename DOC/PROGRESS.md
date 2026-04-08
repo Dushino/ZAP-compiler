@@ -156,6 +156,7 @@ Each pass-test directory contains:
 | `_gen_const_struct_copy()` and struct-from-function-return used 8-bit `LDX #size` → overflow for structs > 255 bytes | Fixed: 2-way COPY_BYTES / COPY_BYTES16 split based on struct size |
 | Struct-returning function return buffers (`__RETBUF_FUNCNAME`) were added to `global_symtab` before `prune_unused()`, which then removed them as unreferenced | Fixed: generate RETBUF symbols after `prune_unused()` in `compiler_pipeline.py` |
 | Function return type not validated against declared type — struct returned as byte, wrong struct type, or missing return expression not caught | Added comprehensive return type checking in `sema_func.py`; pointers treated as WORD-compatible |
+| Assembly name collision: global `test_testa` and local `testa` in proc `test` both produced `_TEST_TESTA` | Changed local variable separator from `_` to `$`: locals now use `_PROC$VAR` pattern. Requires `.FEATURE dollar_in_identifiers` in ca65 (emitted automatically). Collision structurally impossible since `$` cannot appear in ZAP source identifiers. |
 
 ---
 

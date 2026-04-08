@@ -1817,9 +1817,9 @@ ZAP uses a lightweight register convention for the first parameters, with the re
 - **2 BYTE parameters**: passed in `A`/`X` (param0 in `A`, param1 in `X`)
 - **3 BYTE parameters**: passed in `A`/`X`/`Y` (param0 in `A`, param1 in `X`, param2 in `Y`)
 - **WORD + BYTE (first two parameters)**: WORD in `A`/`X`, BYTE in `Y`
-- **More parameters**: first parameters follow the rules above; remaining parameters are passed via `_PROC_PARAM` / `_FUNC_PARAM` globals as before.
+- **More parameters**: first parameters follow the rules above; remaining parameters are passed via `_PROC$PARAM` / `_FUNC$PARAM` locals as before.
 
-At function/procedure entry, register-passed values are stored into the usual parameter globals so existing code sees the same variables.
+At function/procedure entry, register-passed values are stored into the usual parameter locals so existing code sees the same variables.
 
 #### Return Values
 

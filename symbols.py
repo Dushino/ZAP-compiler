@@ -156,10 +156,15 @@ class Symbol:
     is_generated: bool = False
 
     def asm_name(self) -> str:
-        """Return assembly name: _NAME for globals, _PROC_NAME for locals."""
+        """Return assembly name: _NAME for globals, _PROC$NAME for locals.
+        Uses '$' separator for locals to avoid collisions with globals
+        (e.g. global 'test_testa' and local 'testa' in proc 'test' would
+        both produce '_TEST_TESTA' with underscore; '$' makes them distinct).
+        Requires .FEATURE dollar_in_identifiers in ca65 output.
+        """
         if self.proc_name:
             # Local variables always have a single underscore prefix, even if generated.
-            return f"_{self.proc_name.upper()}_{self.name.upper()}"
+            return f"_{self.proc_name.upper()}${self.name.upper()}"
         prefix = "__" if self.is_generated else "_"
         return f"{prefix}{self.name.upper()}"
     

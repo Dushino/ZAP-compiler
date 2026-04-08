@@ -244,7 +244,7 @@ func byte getchar()
         LDA $e424
         PHA
         rts         ; call keyboard handler
-        sta _GETCHAR_CH
+        sta _GETCHAR$CH
     end
 
     return ch
@@ -351,7 +351,7 @@ end
 func byte ascii_to_screen(byte ch)
     ; convert ATASCII to screen code, handle inverse bit
     asm
-                    lda _ASCII_TO_SCREEN_CH
+                    lda _ASCII_TO_SCREEN$CH
                     asl a               ; shift out the inverse bit
                     adc #$c0            ; grab the inverse bit; convert ATASCII to screen code
                     bpl ascii_to_screen_codeok        ; screen code ok?
@@ -360,7 +360,7 @@ ascii_to_screen_codeok:     lsr a               ; undo the shift
                     bcc ascii_to_screen_sputc
                     eor #$80            ; restore the inverse bit            
 ascii_to_screen_sputc:
-                    sta _ASCII_TO_SCREEN_CH
+                    sta _ASCII_TO_SCREEN$CH
     end
 
     return ch
@@ -420,7 +420,7 @@ proc puts(byte ^str)
         else
             ; inline ascii_to_screen: ATASCII -> screen code
             asm
-                        lda _PUTS_CH
+                        lda _PUTS$CH
                         asl a
                         adc #$c0
                         bpl puts_a2s_ok
@@ -644,7 +644,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
     end
     
     asm
-        lda _CIO_CH
+        lda _CIO$CH
         asl
         asl
         asl
@@ -652,7 +652,7 @@ func byte CIO(byte ch, byte command, word adr=0, word len = 0, byte aux1 = 0, by
         tax
         jsr $E456           ; call CIO handler
         sta _CIO_CHAR       ; save accumulator
-        sty _CIO_RV         ; save Y register (CIO status)
+        sty _CIO$RV         ; save Y register (CIO status)
     end
 
     ; CIO status: bit 7 clear ($01-$7F) = success, bit 7 set ($80-$FF) = error
