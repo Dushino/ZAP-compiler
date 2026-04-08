@@ -14761,7 +14761,7 @@ class CodeGen:
                     needs_defer.add(idx)
 
         for index, pname, width, sem_type, arg in resolved:
-            asm: str = f"_{callee_name}_{pname}"
+            asm: str = f"_{callee_name}${pname}"
 
             if sem_type.is_struct and not sem_type.is_pointer:
                 struct_info = sem_type.struct_info
