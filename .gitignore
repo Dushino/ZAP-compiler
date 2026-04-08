@@ -12,13 +12,12 @@ python_venv/*
 **/*.com
 **/*.xex
 **/*.atr
-**/*.s
 **/*.da65
 **/*.map
 **/*.d65
 **/*.cut
 **/*.txt
-**/.*.SYS
+**/*.SYS
 
 tests.txt
 
