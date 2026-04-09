@@ -56,16 +56,6 @@
 			]
 		},
 		{
-			"path": "work/test_stdio.zap",
-			"bookmarks": [
-				{
-					"line": 13,
-					"column": 19,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "benchmarks/benchmarks.zap",
 			"bookmarks": [
 				{
