@@ -68,8 +68,6 @@ ZAP! is a programming language designed for **8-bit systems**, particularly the 
 
 Just be sure zapc is in your PATH.
 
-```
-
 ### Installing CC65 
 
 For Atari-specific development:
@@ -86,6 +84,29 @@ brew install cc65
 
 **Windows:**
 Download from: https://cc65.github.io/
+
+### Building the Compiler from Source (Optional)
+
+If you want to build the ZAP! compiler executable from source (instead of using a pre-built release), you need Python 3.x and PyInstaller.
+
+1. Install PyInstaller:
+```bash
+pip install pyinstaller
+```
+
+2. Run the build script:
+
+**Windows:**
+```batch
+make_dist.bat
+```
+
+**Linux/macOS:**
+```bash
+./make_dist.sh
+```
+
+This creates a standalone `zapc` executable in the `dist/` directory. Copy it to a location in your PATH.
 
 ### Installing VS Code Extension (Optional)
 

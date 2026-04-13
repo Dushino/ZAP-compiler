@@ -7,6 +7,14 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Documentation: Getting Started guide updated (2026-04-13)
+
+- Added "Building the Compiler from Source" section before VS Code extension install
+- Documents `make_dist.sh` / `make_dist.bat` scripts and PyInstaller requirement
+- Fixed stray unclosed code block in "Setting Up ZAP!" section
+
+---
+
 ## Standard library redesign: ERRNO, CIO, print functions (2026-04-02)
 
 ### ERRNO enum — Atari CIO status codes
