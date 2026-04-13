@@ -17,6 +17,7 @@ For complete documentation, please visit the repository:
 - [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/GETTING_STARTED.md)
 - [Language Reference Manual](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ZAP_LANGUAGE_REFERENCE.md)
 - [Advanced Topics](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ADVANCED_TOPICS.md)
+- [Contributing](https://github.com/Dushino/ZAP-compiler/blob/main/CONTRIBUTING.md)
 
 ## Installation
 

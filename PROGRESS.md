@@ -7,9 +7,13 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
-## Documentation: Getting Started guide updated (2026-04-13)
+## Documentation updates for public release (2026-04-13)
 
-- Added "Building the Compiler from Source" section before VS Code extension install
+- Added CONTRIBUTING.md with rules for bug reports, feature requests, and pull requests
+  - Bug reports require minimal .zap file, exact command, actual vs expected output
+  - PRs require tests (pass + fail), documentation updates, all 4 variants passing
+  - Commit message conventions, code of conduct, getting help section
+- Added "Building the Compiler from Source" section to GETTING_STARTED.md
 - Documents `make_dist.sh` / `make_dist.bat` scripts and PyInstaller requirement
 - Fixed stray unclosed code block in "Setting Up ZAP!" section
 
