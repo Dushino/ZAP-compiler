@@ -3,7 +3,7 @@
     "displayName": "Zap language support",
     "description": "Syntax highlighting and icons for the Zap programming language",
     "icon": "icons/icon.png",
-    "version": "1.0.0",
+    "version": "0.9.4",
     "publisher": "dushino",
     "repository": {
         "type": "git",

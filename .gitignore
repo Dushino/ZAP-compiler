@@ -6,6 +6,13 @@ __pycache__/
 dist/*
 build/*
 python_venv/*
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# PyInstaller
+*.spec
 
 # ZAP! compiler and ca65 artifacts
 **/*.o
@@ -18,6 +25,15 @@ python_venv/*
 **/*.cut
 **/*.txt
 **/*.SYS
+
+# Scratch / generated assembly output (do not commit)
+generated_tests/*.s
+generated_tests/*.asm
+work/*.s
+benchmarks/*.s
+
+# Internal/private notes (not for public consumption)
+Internal_DOC/
 
 tests.txt
 

@@ -9,5 +9,6 @@ ld65 -C ..\cfg\my_atari.cfg  -m benchmarks.map benchmarks.o -o benchmarks.xex  |
 da65 -m -v -v -v -S 0x4000 --comments 3 benchmarks.xex -o benchmarks.d65
 copy benchmarks.xex disk\AUTORUN.SYS
 dir2atr -E -b DOS25 benchmarks.atr disk
-C:\Users\dusan.holub\local\Altirra\Altirra64.exe /w /nobasic /bootrw benchmarks.atr
+if "%ALTIRRA%"=="" set ALTIRRA=%USERPROFILE%\local\Altirra\Altirra64.exe
+"%ALTIRRA%" /w /nobasic /bootrw benchmarks.atr
 adir -1 -r -t benchmarks.atr

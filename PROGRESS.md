@@ -7,15 +7,43 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
-## Documentation updates for public release (2026-04-13)
+## Public release preparation (2026-04-14)
 
-- Added CONTRIBUTING.md with rules for bug reports, feature requests, and pull requests
-  - Bug reports require minimal .zap file, exact command, actual vs expected output
-  - PRs require tests (pass + fail), documentation updates, all 4 variants passing
-  - Commit message conventions, code of conduct, getting help section
-- Added "Building the Compiler from Source" section to GETTING_STARTED.md
+### Project files added
+- `CONTRIBUTING.md` — bug report / feature request / PR rules
+- `CODE_OF_CONDUCT.md` — short, project-specific community standards
+- `SECURITY.md` — vulnerability reporting policy and scope
+- `CHANGELOG.md` — Keep a Changelog format, populated from project history
+
+### .github/ infrastructure
+- Issue templates: `bug_report.md`, `feature_request.md`, `config.yml` (links blank issues to Discussions)
+- Pull request template with test/docs checklist
+- CI workflow `.github/workflows/test.yml`: runs `make tests` on Ubuntu with cc65, plus Python compileall lint
+
+### Personal path cleanup
+- `make_dist.bat` / `make_dist.sh` now use `ZAPC_INSTALL_DIR` env var (default `~/local/bin` / `%USERPROFILE%\local\bin`)
+- `work/go.bat` / `benchmarks/go.bat` now use `ALTIRRA` env var
+- `.gitignore` extended: `.venv/`, `venv/`, `*.spec`, `generated_tests/*.s`, `work/*.s`, `benchmarks/*.s`, `Internal_DOC/`
+
+### Version sync
+- IDE extension `package.json` version aligned to compiler `0.9.4` (was `1.0.0`)
+
+### README rewrite
+- Added badges (license, version, CI, PRs welcome)
+- Added Quickstart with Hello World example
+- Added direct install instructions (binary + source build)
+- Linked CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CHANGELOG
+- Linked all DOC/ files
+
+### Documentation
+- Added "Building the Compiler from Source" section to `DOC/GETTING_STARTED.md`
 - Documents `make_dist.sh` / `make_dist.bat` scripts and PyInstaller requirement
 - Fixed stray unclosed code block in "Setting Up ZAP!" section
+
+### Flagged for user approval (destructive ops)
+- 226 already-tracked generated `.s` files in `generated_tests/`, `work/`, `benchmarks/` contain personal paths in source comments — need `git rm --cached` to untrack
+- `_backup/amber/` contains 3 unused icon backup files — candidate for removal
+- `Internal_DOC/` (todo.md, building_blocks.md, prompts.md) tracked but now gitignored — needs `git rm --cached -r` to untrack
 
 ---
 

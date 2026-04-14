@@ -1,27 +1,107 @@
-# ZAP Language Summary
+# ZAP! — A High-Level Language for 6502 / Atari 8-bit
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.9.4-orange.svg)](version.py)
+[![Tests](https://github.com/Dushino/ZAP-compiler/actions/workflows/test.yml/badge.svg)](https://github.com/Dushino/ZAP-compiler/actions/workflows/test.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 
 We believe in a world where international borders are respected and human rights are upheld. 
 We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
 
+---
 
-This document summarizes the key features and syntax of the ZAP programming language, based on the `DOC` folder and compiler implementation.
+**ZAP!** is a modern high-level language that compiles to **6502 / 65C02 assembly**, targeting **Atari 8-bit** computers. It combines high-level constructs (structs, enums, functions, loops) with low-level control (pointers, hardware registers, inline assembly) and produces tight, optimized 6502 code.
 
-## Overview
-ZAP is a high-level language that compiles to 6502 assembly (specifically for Atari 8-bit systems). It balances high-level constructs (structs, loops) with low-level control (pointers, hardware registers).
+In benchmark comparisons, ZAP! generates code that runs **~44% faster than Action!** on the Atari 8-bit platform — see [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md).
 
-## Documentation
+## Quickstart
 
-For complete documentation, please visit the repository:
+### Hello, World!
 
-- [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/GETTING_STARTED.md)
-- [Language Reference Manual](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ZAP_LANGUAGE_REFERENCE.md)
-- [Advanced Topics](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ADVANCED_TOPICS.md)
-- [Contributing](https://github.com/Dushino/ZAP-compiler/blob/main/CONTRIBUTING.md)
+Save this as `hello.zap`:
+
+```zap
+.include "lib/atari/atari_stdio.zap"
+
+proc main()
+    puts("Hello, ZAP!")
+end
+```
+
+Compile, assemble, and link:
+
+```bash
+zapc --cpu 6502 -O1 -I lib hello.zap -o hello.s
+ca65 hello.s -o hello.o
+ld65 -C cfg/my_atari.cfg hello.o -o hello.xex
+```
+
+The resulting `hello.xex` runs on any Atari 8-bit emulator (Altirra, Atari800) or real hardware.
 
 ## Installation
 
-See the main tutorial in the repository for installation instructions: https://github.com/Dushino/ZAP-compiler
+### Option 1: Pre-built binary
+
+Download the latest `zapc` executable from the [Releases page](https://github.com/Dushino/ZAP-compiler/releases) and place it somewhere in your `PATH`.
+
+### Option 2: Build from source
+
+You need Python 3.x and PyInstaller:
+
+```bash
+pip install pyinstaller
+git clone https://github.com/Dushino/ZAP-compiler.git
+cd ZAP-compiler
+
+# Linux/macOS
+./make_dist.sh
+
+# Windows
+make_dist.bat
+```
+
+This produces `dist/zapc` (or `dist/zapc.exe`). The script also copies it to `$ZAPC_INSTALL_DIR` (default: `~/local/bin`).
+
+### Required: cc65 toolchain
+
+ZAP! generates `.s` files that are assembled and linked using the [cc65 toolchain](https://cc65.github.io/) (`ca65` and `ld65`).
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install cc65
+
+# macOS
+brew install cc65
+```
+
+Windows users: download from https://cc65.github.io/
+
+## Documentation
+
+For complete documentation, see the [`DOC/`](DOC/) folder:
+
+- [Getting Started Guide](DOC/GETTING_STARTED.md) — beginner tutorial
+- [Language Reference Manual](DOC/ZAP_LANGUAGE_REFERENCE.md) — complete language spec
+- [Advanced Topics](DOC/ADVANCED_TOPICS.md) — pointers, inline assembly, optimization
+- [Standard Library](DOC/STDLIB.md) — built-in functions and modules
+- [Error Messages](DOC/ERROR_MESSAGES.md) — compiler error catalog
+- [Known Limitations](DOC/KNOWN_LIMITATIONS.md) — current limitations
+- [Architecture](DOC/ARCHITECTURE.md) — how the compiler works internally
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request — it explains how to file good bug reports, what tests to add, and which docs to update.
+
+See also:
+
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
+
+## License
+
+ZAP! is released under the [GNU General Public License v3.0](LICENSE).
 
 
 ## Core Syntax

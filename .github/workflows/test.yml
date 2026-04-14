@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Compile and run tests (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install cc65 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cc65
+
+      - name: Show compiler version
+        run: python compiler.py --version
+
+      - name: Run test suite
+        run: make tests
+
+  lint:
+    name: Python syntax check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Compile all Python sources
+        run: python -m compileall -q .

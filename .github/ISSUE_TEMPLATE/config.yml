@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/Dushino/ZAP-compiler/discussions
+    about: For questions about the ZAP! language or how to use it, please open a Discussion instead of an Issue.
