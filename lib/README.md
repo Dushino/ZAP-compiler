@@ -1,6 +1,6 @@
 # ZAP! Standard Library — Quick Reference
 
-Full API documentation: [DOC/STDLIB.md](../../DOC/STDLIB.md)
+Full API documentation: [docs/STDLIB.md](../docs/STDLIB.md)
 
 ---
 

@@ -26,7 +26,7 @@
 - After each change in compiler source codes, tests or documentation, update PROGRESS.md to reflect current sutuation.
 
 ## Documentation ##
-- After each change in grammar, implementation or documentaion perform cross check in all documentaion files in `DOC` folder. Update documentation to reflect current state.
+- After each change in grammar, implementation or documentaion perform cross check in all documentaion files in `docs` folder. Update documentation to reflect current state.
 - For every function / method inside the compiler provide short description in a comment before code.
 - Always update memory/MEMORY.md file to keep track of changes.
 

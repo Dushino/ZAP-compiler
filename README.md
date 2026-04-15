@@ -3,6 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.9.4-orange.svg)](version.py)
 [![Tests](https://github.com/Dushino/ZAP-compiler/actions/workflows/test.yml/badge.svg)](https://github.com/Dushino/ZAP-compiler/actions/workflows/test.yml)
+[![Docs](https://img.shields.io/badge/docs-dushino.github.io-blue.svg)](https://dushino.github.io/ZAP-compiler/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 
@@ -79,15 +80,17 @@ Windows users: download from https://cc65.github.io/
 
 ## Documentation
 
-For complete documentation, see the [`DOC/`](DOC/) folder:
+**Browse the full documentation online:** [dushino.github.io/ZAP-compiler](https://dushino.github.io/ZAP-compiler/) — with ZAP! syntax highlighting and sidebar navigation.
 
-- [Getting Started Guide](DOC/GETTING_STARTED.md) — beginner tutorial
-- [Language Reference Manual](DOC/ZAP_LANGUAGE_REFERENCE.md) — complete language spec
-- [Advanced Topics](DOC/ADVANCED_TOPICS.md) — pointers, inline assembly, optimization
-- [Standard Library](DOC/STDLIB.md) — built-in functions and modules
-- [Error Messages](DOC/ERROR_MESSAGES.md) — compiler error catalog
-- [Known Limitations](DOC/KNOWN_LIMITATIONS.md) — current limitations
-- [Architecture](DOC/ARCHITECTURE.md) — how the compiler works internally
+Or read directly from the [`docs/`](docs/) folder:
+
+- [Getting Started Guide](docs/GETTING_STARTED.md) — beginner tutorial
+- [Language Reference Manual](docs/ZAP_LANGUAGE_REFERENCE.md) — complete language spec
+- [Advanced Topics](docs/ADVANCED_TOPICS.md) — pointers, inline assembly, optimization
+- [Standard Library](docs/STDLIB.md) — built-in functions and modules
+- [Error Messages](docs/ERROR_MESSAGES.md) — compiler error catalog
+- [Known Limitations](docs/KNOWN_LIMITATIONS.md) — current limitations
+- [Architecture](docs/ARCHITECTURE.md) — how the compiler works internally
 
 ## Contributing
 

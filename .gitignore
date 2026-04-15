@@ -35,6 +35,12 @@ benchmarks/*.s
 # Internal/private notes (not for public consumption)
 Internal_DOC/
 
+# Jekyll build artifacts (docs/ GitHub Pages site)
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/Gemfile.lock
+
 tests.txt
 
 

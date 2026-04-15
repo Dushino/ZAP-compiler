@@ -1,3 +1,9 @@
+---
+layout: default
+title: Language Reference
+nav_order: 3
+---
+
 # ZAP! Language Reference Manual
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 

@@ -1,0 +1,57 @@
+<!-- Prism.js syntax highlighting for ZAP! code blocks -->
+<!-- Theme: prism (default light) -->
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css"
+  integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+/>
+
+<!-- Prism core -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"
+  integrity="sha512-/mZ1FHPkg6EKcxo0fKXF51ak6Cr2ocgDi5ytaTBjsQZIH/RNs6GF6+oId/vPe3eJB836T36nXwVh/WBl/cWT4w=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+  data-manual
+></script>
+
+<!-- Extra built-in languages used in the docs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-makefile.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-batch.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<!-- Custom ZAP! language definition -->
+<script src="{{ '/assets/prism/prism-zap.js' | relative_url }}" defer></script>
+
+<!-- Trigger highlight after all scripts have loaded -->
+<script>
+  window.addEventListener('DOMContentLoaded', function () {
+    if (window.Prism) {
+      Prism.highlightAll();
+    }
+  });
+</script>
+
+<!-- Small style tweak so the code looks good against just-the-docs background -->
+<style>
+  pre[class*="language-"],
+  code[class*="language-"] {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.85em;
+  }
+  pre[class*="language-"] {
+    border-radius: 6px;
+    padding: 1em;
+    overflow: auto;
+  }
+  /* Make ZAP! tokens slightly more distinctive */
+  .token.zap-attribute { color: #d9480f; font-weight: 600; }
+  .token.zap-preprocessor { color: #5f3dc4; font-weight: 600; }
+  .token.zap-type { color: #0b7285; font-weight: 600; }
+  .token.zap-storage { color: #862e9c; }
+</style>

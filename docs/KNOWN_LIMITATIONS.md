@@ -1,3 +1,9 @@
+---
+layout: default
+title: Known Limitations
+nav_order: 7
+---
+
 # ZAP! Known Limitations & Workarounds
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 

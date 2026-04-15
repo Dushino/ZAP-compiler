@@ -64,7 +64,7 @@ Environment: Windows 11, zapc 1.0
 
 - Describe the feature and **why** it's useful for 6502/Atari development
 - Show a proposed syntax example in ZAP! code
-- Note if this affects the grammar (`DOC/grammar.ebnf`), standard library, or code generation
+- Note if this affects the grammar (`docs/grammar.ebnf`), standard library, or code generation
 - Consider backward compatibility — will existing programs still compile?
 
 ---
@@ -136,11 +136,11 @@ The `.err` file first line must match the compiler's error output exactly, inclu
 
 For any change that affects language syntax, semantics, or compiler behavior:
 
-- Update `DOC/ZAP_LANGUAGE_REFERENCE.md` — the language spec
-- Update `DOC/grammar.ebnf` — if grammar rules changed
-- Update `DOC/ERROR_MESSAGES.md` — if new errors are introduced
-- Update `DOC/KNOWN_LIMITATIONS.md` — if a limitation is removed or added
-- Update `DOC/STDLIB.md` — if standard library functions changed
+- Update `docs/ZAP_LANGUAGE_REFERENCE.md` — the language spec
+- Update `docs/grammar.ebnf` — if grammar rules changed
+- Update `docs/ERROR_MESSAGES.md` — if new errors are introduced
+- Update `docs/KNOWN_LIMITATIONS.md` — if a limitation is removed or added
+- Update `docs/STDLIB.md` — if standard library functions changed
 - Cross-check examples in `examples/` still compile
 - Cross-check IDE extension in `IDE_Integration/` (syntax highlighting covers new keywords, etc.)
 
@@ -148,7 +148,7 @@ For any change that affects language syntax, semantics, or compiler behavior:
 
 - Platform-agnostic code goes in `lib/` root (e.g., `string.zap`, `stdio.zap`)
 - Atari-specific code goes in `lib/atari/`
-- New library functions need documentation in `DOC/STDLIB.md`
+- New library functions need documentation in `docs/STDLIB.md`
 - Library changes must not break existing programs that `.include` the library
 
 ### What NOT to Include in a PR
@@ -181,7 +181,7 @@ For any change that affects language syntax, semantics, or compiler behavior:
 ## Getting Help
 
 - **Questions about ZAP! language:** open a Discussion (not an Issue)
-- **Compiler internals:** see `DOC/ARCHITECTURE.md`
+- **Compiler internals:** see `docs/ARCHITECTURE.md`
 - **Test failures:** include the full test output and which variant failed (6502/65C02/O1)
 
 ---

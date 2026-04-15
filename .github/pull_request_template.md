@@ -31,11 +31,11 @@
 
 If this PR changes language syntax, semantics, or compiler behavior, please confirm:
 
-- [ ] Updated `DOC/ZAP_LANGUAGE_REFERENCE.md` (if language changed)
-- [ ] Updated `DOC/grammar.ebnf` (if grammar changed)
-- [ ] Updated `DOC/ERROR_MESSAGES.md` (if new errors added)
-- [ ] Updated `DOC/KNOWN_LIMITATIONS.md` (if a limitation changed)
-- [ ] Updated `DOC/STDLIB.md` (if standard library changed)
+- [ ] Updated `docs/ZAP_LANGUAGE_REFERENCE.md` (if language changed)
+- [ ] Updated `docs/grammar.ebnf` (if grammar changed)
+- [ ] Updated `docs/ERROR_MESSAGES.md` (if new errors added)
+- [ ] Updated `docs/KNOWN_LIMITATIONS.md` (if a limitation changed)
+- [ ] Updated `docs/STDLIB.md` (if standard library changed)
 - [ ] Updated `examples/` (if relevant)
 - [ ] Updated IDE extension in `IDE_Integration/` (if syntax/keywords changed)
 

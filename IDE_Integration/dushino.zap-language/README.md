@@ -130,7 +130,7 @@ As you type, gray suggestions appear after a short delay. Press **Tab** to accep
 
 Also works with local models via Ollama (set `zap.ai.endpoint` to `http://localhost:11434` and provider to `openai`).
 
-> AI completions are optional and disabled by default. See [IDE Integration Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/IDE_INTEGRATION.md) for full setup.
+> AI completions are optional and disabled by default. See [IDE Integration Guide](https://github.com/Dushino/ZAP-compiler/blob/main/docs/IDE_INTEGRATION.md) for full setup.
 
 ### Build Integration
 | Shortcut | Action |
@@ -179,16 +179,16 @@ Inline assembler: `ASM … END` (embedded ca65 syntax highlighting)
 
 ## Documentation
 
-- [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/GETTING_STARTED.md)
-- [IDE Integration Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/IDE_INTEGRATION.md)
-- [Language Reference](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/ZAP_LANGUAGE_REFERENCE.md)
-- [Standard Library](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/STDLIB.md)
+- [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/docs/GETTING_STARTED.md)
+- [IDE Integration Guide](https://github.com/Dushino/ZAP-compiler/blob/main/docs/IDE_INTEGRATION.md)
+- [Language Reference](https://github.com/Dushino/ZAP-compiler/blob/main/docs/ZAP_LANGUAGE_REFERENCE.md)
+- [Standard Library](https://github.com/Dushino/ZAP-compiler/blob/main/docs/STDLIB.md)
 
 ---
 
 ## Installation
 
-See the [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/DOC/GETTING_STARTED.md) for full installation instructions, or run the install script in the `IDE_Integration/` folder of the repository.
+See the [Getting Started Guide](https://github.com/Dushino/ZAP-compiler/blob/main/docs/GETTING_STARTED.md) for full installation instructions, or run the install script in the `IDE_Integration/` folder of the repository.
 
 ---
 

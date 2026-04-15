@@ -9,18 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GitHub Pages documentation site** at `dushino.github.io/ZAP-compiler/` with full ZAP! syntax highlighting
+  - Built with Jekyll + `just-the-docs` theme
+  - Custom Prism.js language definition for ZAP! (`docs/assets/prism/prism-zap.js`)
+  - Sidebar navigation, search, "Edit on GitHub" links
+- "Docs" badge in `README.md` linking to the Pages site
 - Public release preparation: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`
 - GitHub issue templates (bug report, feature request) and pull request template
 - GitHub Actions CI workflow that runs the test suite on Ubuntu with cc65
-- "Building the Compiler from Source" section in `DOC/GETTING_STARTED.md`
+- "Building the Compiler from Source" section in `docs/GETTING_STARTED.md`
 - Link to `CONTRIBUTING.md` in `README.md`
 
 ### Changed
 
+- **Renamed `DOC/` → `docs/`** to match GitHub Pages conventions. All references in README, CONTRIBUTING, PR template, etc. updated.
 - `make_dist.bat` and `make_dist.sh` now respect `ZAPC_INSTALL_DIR` environment variable instead of hardcoded paths
 - `work/go.bat` and `benchmarks/go.bat` now respect `ALTIRRA` environment variable instead of hardcoded paths
 - IDE extension version aligned with compiler version (0.9.4)
-- `.gitignore` extended to cover `.venv/`, generated `.s` files, and PyInstaller artifacts
+- `.gitignore` extended to cover `.venv/`, generated `.s` files, PyInstaller artifacts, and Jekyll build artifacts under `docs/`
 
 ## [0.9.4] - 2026-04
 

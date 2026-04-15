@@ -29,7 +29,7 @@ Have you considered other approaches? Why is this one better?
 
 Please check all that apply:
 
-- [ ] Affects the grammar (`DOC/grammar.ebnf`)
+- [ ] Affects the grammar (`docs/grammar.ebnf`)
 - [ ] Affects the standard library (`lib/`)
 - [ ] Affects code generation
 - [ ] Affects the optimizer

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Architecture
+nav_order: 8
+---
+
 # ZAP! Compiler Architecture
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Advanced Topics
+nav_order: 4
+---
+
 # ZAP! Advanced Programming Topics
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 

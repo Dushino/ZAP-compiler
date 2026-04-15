@@ -1,3 +1,9 @@
+---
+layout: default
+title: Standard Library
+nav_order: 5
+---
+
 # ZAP! Standard Library Reference
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 

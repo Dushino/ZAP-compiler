@@ -1,3 +1,9 @@
+---
+layout: default
+title: IDE Integration
+nav_order: 9
+---
+
 # ZAP IDE Integration Guide
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine.

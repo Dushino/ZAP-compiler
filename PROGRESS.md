@@ -7,6 +7,44 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## GitHub Pages site with ZAP! syntax highlighting (2026-04-15)
+
+### Phase 1 — Restructure
+- Renamed `DOC/` → `docs/` (via `git mv`, preserves history)
+- Updated references in: `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/feature_request.md`, `IDE_Integration/dushino.zap-language/README.md`, `lib/README.md`, `CLAUDE.md`
+- Historical log entries in `PROGRESS.md` and `memory/MEMORY.md` intentionally left as-is
+
+### Phase 2 — Jekyll scaffold
+- `docs/_config.yml` — `just-the-docs` remote theme, kramdown with highlighter disabled (so Prism handles all highlighting), search enabled, "Edit on GitHub" link
+- `docs/index.md` — landing page adapted from README with quickstart and nav buttons
+- `docs/Gemfile` — pins `github-pages` gem so local preview matches GitHub's build
+- Front matter added to all 8 doc files with `nav_order` for sidebar ordering
+- `docs/PROGRESS.md` (stale 176-line duplicate from old `DOC/`) excluded from Jekyll build via `_config.yml` — flagged for removal separately
+
+### Phase 3 — Prism.js integration
+- `docs/_includes/head_custom.html` — loads Prism 1.29.0 from cdnjs with SRI hashes, imports bash/python/json/yaml/makefile/batch built-in languages, loads custom ZAP! language, triggers `highlightAll()` on DOMContentLoaded
+- Style tweaks for code blocks (border-radius, font, color accents for ZAP!-specific tokens)
+
+### Phase 4 — Custom ZAP! language for Prism
+- `docs/assets/prism/prism-zap.js` — ~100 lines of JavaScript
+- Ports all patterns from `IDE_Integration/dushino.zap-language/syntaxes/zap.tmLanguage.json`
+- Covers: comments (block + line), strings with escapes, preprocessor directives, attribute modifiers, types (`byte`/`word`/`long`), storage (`const`/`static`), control-flow keywords, numbers (hex/binary/decimal/char literal), function calls, `@` address operator, operators, punctuation
+- Case-insensitive patterns (ZAP! is case-insensitive for identifiers)
+
+### Phase 6 — README polish
+- Added "Docs" badge linking to `dushino.github.io/ZAP-compiler/`
+- Added "Browse online" callout above the doc file list
+
+### Next (user action)
+- Push changes to GitHub
+- Repo Settings → Pages → Source: Deploy from a branch → `main` / `/docs` → Save
+- Wait ~1 min for first build, then visit the Pages URL to verify
+
+### Flagged for approval (destructive)
+- `docs/PROGRESS.md` — stale 176-line duplicate of the root `PROGRESS.md`. Should be deleted with `git rm docs/PROGRESS.md` once confirmed it's not referenced anywhere important.
+
+---
+
 ## Public release preparation (2026-04-14)
 
 ### Project files added

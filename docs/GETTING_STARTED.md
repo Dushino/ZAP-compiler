@@ -1,3 +1,9 @@
+---
+layout: default
+title: Getting Started
+nav_order: 2
+---
+
 # ZAP! Programming Language - Getting Started Guide
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 
