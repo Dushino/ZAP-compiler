@@ -56,7 +56,8 @@
       "Bash(python -m pytest tests/ -q)",
       "Bash(/c/Windows/System32/cmd.exe //c \"C:\\\\Users\\\\dusan.holub\\\\src\\\\ZAP-compiler\\\\make.bat tests\")",
       "Bash(cmd.exe //C \"make.bat test tests\\\\pass\\\\170-skipped-default-args\")",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

@@ -25,8 +25,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cc65
 
+      - name: Install 6502 simulator
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install git+https://github.com/Dushino/6502_simulator.git
+          # The pip entry point is '6502-simulator', but the Makefile expects '6502_simulator'.
+          # Create a symlink in a directory that's on PATH.
+          ln -sf "$(command -v 6502-simulator)" "$HOME/.local/bin/6502_simulator"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Show compiler version
         run: python compiler.py --version
+
+      - name: Show simulator version
+        run: 6502_simulator --help || true
 
       - name: Run test suite
         run: make tests
