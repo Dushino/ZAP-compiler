@@ -2,11 +2,12 @@ source "https://rubygems.org"
 
 # GitHub Pages gem — pins Jekyll + plugins to versions GitHub Pages supports.
 # This lets you preview the site locally with the same software GitHub uses.
+#
+# NOTE: we intentionally do NOT list `gem "just-the-docs"` here. The theme is
+# loaded via `remote_theme: just-the-docs/just-the-docs` in _config.yml, which
+# the jekyll-remote-theme plugin (bundled in github-pages) fetches at build
+# time. Adding it as a separate gem breaks github-pages' locked dependency tree.
 gem "github-pages", group: :jekyll_plugins
-
-# just-the-docs theme (loaded via remote_theme in _config.yml for GitHub Pages,
-# but also listed here so local `bundle exec jekyll serve` works.)
-gem "just-the-docs"
 
 # Windows and JRuby do not include zoneinfo files, so bundle the tzinfo-data gem
 # and associated library.
