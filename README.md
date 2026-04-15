@@ -16,6 +16,20 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 In benchmark comparisons, ZAP! generates code that runs **~44% faster than Action!** on the Atari 8-bit platform — see [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md).
 
+## A Note from the Author
+
+ZAP! is a personal project, built with care for retro computing, in close collaboration with AI under my direction. Every architectural decision, release gate, and test result has been reviewed and guided by a human — but much of the code, tests, documentation, and tooling was drafted with AI assistance. It took real effort and care to get the project to where it is today.
+
+A few honest notes if you plan to use or contribute to ZAP!:
+
+- **The compiler hasn't been battle-tested on large real-world projects.** Expect rough edges, quirky corner cases, and the occasional bug. The documentation is extensive but hasn't been fully proofread — if something reads wrong, it probably is. Bug reports with minimal reproducers are genuinely welcome.
+
+- **Please be kind with contributions.** I'm one person with limited time. I ask that pull requests be thoughtfully reviewed by a human before submission — small, focused, well-tested changes are much more valuable to me than large speculative ones. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+- **Questions are welcome** — drop by [Discussions](https://github.com/Dushino/ZAP-compiler/discussions) anytime. You don't need to have a bug to start a conversation.
+
+Thank you for your patience and curiosity. 🙏
+
 ## Documentation
 
 **Full documentation lives at [dushino.github.io/ZAP-compiler](https://dushino.github.io/ZAP-compiler/)** — with ZAP! syntax highlighting, search, and sidebar navigation.
