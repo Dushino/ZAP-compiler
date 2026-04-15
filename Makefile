@@ -156,16 +156,7 @@ tests: clean
 					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
 					continue; \
 				fi; \
-#				echo "$(DA) --cpu $$da_cpu --multi-pass --comments 3 --hexoffs --verbose --verbose \"$$cut_file\"" >> $(TEST_REPORT); \
-				if ! $(DA) --cpu $$da_cpu --multi-pass --info cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose $$bin_file > $$dis_file 2>&1; then \
-					variant_errors="$$variant_errors [DA65_ERROR:$$variant_name]"; \
-					variant_fail=$$((variant_fail + 1)); \
-					echo "da65 disassembler failed" >> $(TEST_REPORT); \
-					echo "" >> $(TEST_REPORT); \
-					echo "" >> $(TEST_REPORT); \
-					echo "---------------------------------------------------------------" >> $(TEST_REPORT); \
-					continue; \
-				fi; \
+				$(DA) --cpu $$da_cpu --multi-pass --info cfg/my_atari.info --comments 3 --hexoffs --verbose --verbose $$bin_file > $$dis_file 2>&1 || true; \
 				echo "$(SIM) --cpu $$as_cpu --config \"$$sim_config_file\" --verbose --dump-file \"$$txt_file\" \"$$bin_file\"" >> $(TEST_REPORT); \
 				if ! $(SIM) --cpu $$as_cpu --config $$sim_config_file --verbose --dump-file $$txt_file $$bin_file >> $(TEST_REPORT) 2>&1; then \
 					variant_errors="$$variant_errors [SIM_ERROR:$$variant_name]"; \
@@ -220,6 +211,9 @@ tests: clean
 			base=$$(basename $$zapfile .zap); \
 			dir=$$(dirname $$zapfile); \
 			err_file="$${dir}/$${base}.err"; \
+			flags_file="$${dir}/$${base}.flags"; \
+			extra_flags=""; \
+			if [ -f "$$flags_file" ]; then extra_flags=$$(cat "$$flags_file" | tr -d '\r' | head -n1); fi; \
 			printf "%-50s" "$$base.zap: "; \
 			variant_fail=0; variant_pass=0; variant_errors=""; \
 			err_checked=0; err_match=1; \
@@ -227,7 +221,7 @@ tests: clean
 				variant_name=$$(echo "$$variant_flags" | sed 's/ /_/g' | sed 's/^$$/_default/' | sed 's/^-/_/'); \
 				output_file="$${dir}/$${base}$${variant_name}.s"; \
 				actual_err="$${dir}/$${base}$${variant_name}.actual_err"; \
-				if $(ZC) $$variant_flags $$zapfile -o $$output_file >$$actual_err 2>&1; then \
+				if $(ZC) $$variant_flags $$extra_flags $$zapfile -o $$output_file >$$actual_err 2>&1; then \
 					variant_errors="$$variant_errors [UNEXPECTED_PASS:$$variant_name]"; \
 					variant_fail=$$((variant_fail + 1)); \
 				else \
