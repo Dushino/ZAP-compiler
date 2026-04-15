@@ -31,7 +31,10 @@ jobs:
           python -m pip install git+https://github.com/Dushino/6502_simulator.git
           # The pip entry point is '6502-simulator', but the Makefile expects '6502_simulator'.
           # Create a symlink in a directory that's on PATH.
-          ln -sf "$(command -v 6502-simulator)" "$HOME/.local/bin/6502_simulator"
+          mkdir -p "$HOME/.local/bin"
+          SIM_PATH="$(command -v 6502-simulator)"
+          echo "6502-simulator installed at: $SIM_PATH"
+          ln -sf "$SIM_PATH" "$HOME/.local/bin/6502_simulator"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Show compiler version
