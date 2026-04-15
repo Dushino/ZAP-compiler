@@ -1,19 +1,11 @@
 ---
-layout: default
-title: Home
-nav_order: 1
-description: "ZAP! is a high-level language that compiles to 6502 assembly for Atari 8-bit systems."
-permalink: /
 ---
 
 # ZAP!
-{: .fs-9 }
 
 A high-level language that compiles to **6502 / 65C02 assembly**, targeting **Atari 8-bit** computers. Combines high-level constructs (structs, enums, functions, loops) with low-level control (pointers, hardware registers, inline assembly) and produces tight, optimized 6502 code.
-{: .fs-6 .fw-300 }
 
-[Get started](GETTING_STARTED){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/Dushino/ZAP-compiler){: .btn .fs-5 .mb-4 .mb-md-0 }
+[Get started](GETTING_STARTED) · [View on GitHub](https://github.com/Dushino/ZAP-compiler)
 
 ---
 

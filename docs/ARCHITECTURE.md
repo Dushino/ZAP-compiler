@@ -1,7 +1,4 @@
 ---
-layout: default
-title: Architecture
-nav_order: 8
 ---
 
 # ZAP! Compiler Architecture

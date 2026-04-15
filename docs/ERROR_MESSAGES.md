@@ -1,8 +1,5 @@
 
 ---
-layout: default
-title: Error Messages
-nav_order: 6
 ---
 
 # ZAP! Compiler Error Messages

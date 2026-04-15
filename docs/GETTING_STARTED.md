@@ -1,7 +1,4 @@
 ---
-layout: default
-title: Getting Started
-nav_order: 2
 ---
 
 # ZAP! Programming Language - Getting Started Guide

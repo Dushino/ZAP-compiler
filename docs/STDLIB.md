@@ -1,7 +1,4 @@
 ---
-layout: default
-title: Standard Library
-nav_order: 5
 ---
 
 # ZAP! Standard Library Reference

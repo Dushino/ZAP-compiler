@@ -1,7 +1,4 @@
 ---
-layout: default
-title: IDE Integration
-nav_order: 9
 ---
 
 # ZAP IDE Integration Guide
