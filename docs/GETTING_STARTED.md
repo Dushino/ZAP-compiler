@@ -1,4 +1,5 @@
 ---
+nav_order: 2
 ---
 
 # ZAP! Programming Language - Getting Started Guide

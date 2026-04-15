@@ -1,11 +1,12 @@
 ---
+nav_order: 1
 ---
 
 # ZAP!
 
 A high-level language that compiles to **6502 / 65C02 assembly**, targeting **Atari 8-bit** computers. Combines high-level constructs (structs, enums, functions, loops) with low-level control (pointers, hardware registers, inline assembly) and produces tight, optimized 6502 code.
 
-[Get started](GETTING_STARTED) · [View on GitHub](https://github.com/Dushino/ZAP-compiler)
+[Get started](GETTING_STARTED.md) · [View on GitHub](https://github.com/Dushino/ZAP-compiler)
 
 ---
 
@@ -39,14 +40,14 @@ In benchmark comparisons, ZAP! generates code that runs **~44% faster than Actio
 
 Browse the guides using the sidebar, or start with:
 
-- [Getting Started Guide](GETTING_STARTED) — beginner tutorial
-- [Language Reference](ZAP_LANGUAGE_REFERENCE) — complete language spec
-- [Advanced Topics](ADVANCED_TOPICS) — pointers, inline assembly, optimization
-- [Standard Library](STDLIB) — built-in functions and modules
-- [Error Messages](ERROR_MESSAGES) — compiler error catalog
-- [Known Limitations](KNOWN_LIMITATIONS) — current limitations
-- [Architecture](ARCHITECTURE) — how the compiler works internally
-- [IDE Integration](IDE_INTEGRATION) — VS Code setup
+- [Getting Started Guide](GETTING_STARTED.md) — beginner tutorial
+- [Language Reference](ZAP_LANGUAGE_REFERENCE.md) — complete language spec
+- [Advanced Topics](ADVANCED_TOPICS.md) — pointers, inline assembly, optimization
+- [Standard Library](STDLIB.md) — built-in functions and modules
+- [Error Messages](ERROR_MESSAGES.md) — compiler error catalog
+- [Known Limitations](KNOWN_LIMITATIONS.md) — current limitations
+- [Architecture](ARCHITECTURE.md) — how the compiler works internally
+- [IDE Integration](IDE_INTEGRATION.md) — VS Code setup
 
 ## License
 

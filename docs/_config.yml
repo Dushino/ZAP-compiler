@@ -7,6 +7,16 @@ baseurl: /ZAP-compiler
 remote_theme: just-the-docs/just-the-docs
 color_scheme: light
 
+# Plugins (allowlisted by GitHub Pages)
+plugins:
+  - jekyll-relative-links   # Rewrites [foo](foo.md) to [foo](foo.html) so
+                            # the same link works on GitHub blob view AND
+                            # on the built Pages site.
+
+relative_links:
+  enabled: true
+  collections: true
+
 # Markdown / highlighting
 # We disable kramdown's built-in highlighter so fenced code blocks render as
 # plain <pre><code class="language-xxx">. Prism.js then highlights them in the
@@ -25,8 +35,8 @@ exclude:
   - Gemfile.lock
   - vendor
 
-# Sidebar navigation — defined here so individual .md files don't need
-# per-page front matter (keeps them clean when browsed on github.com).
+# Per-page layout and title defined here so individual .md files only need
+# a minimal 'nav_order' front matter (keeps them mostly clean on github.com).
 defaults:
   - scope:
       path: ""
@@ -36,48 +46,39 @@ defaults:
       path: "index.md"
     values:
       title: Home
-      nav_order: 1
       permalink: /
   - scope:
       path: "GETTING_STARTED.md"
     values:
       title: Getting Started
-      nav_order: 2
   - scope:
       path: "ZAP_LANGUAGE_REFERENCE.md"
     values:
       title: Language Reference
-      nav_order: 3
   - scope:
       path: "ADVANCED_TOPICS.md"
     values:
       title: Advanced Topics
-      nav_order: 4
   - scope:
       path: "STDLIB.md"
     values:
       title: Standard Library
-      nav_order: 5
   - scope:
       path: "ERROR_MESSAGES.md"
     values:
       title: Error Messages
-      nav_order: 6
   - scope:
       path: "KNOWN_LIMITATIONS.md"
     values:
       title: Known Limitations
-      nav_order: 7
   - scope:
       path: "ARCHITECTURE.md"
     values:
       title: Architecture
-      nav_order: 8
   - scope:
       path: "IDE_INTEGRATION.md"
     values:
       title: IDE Integration
-      nav_order: 9
 
 heading_anchors: true
 search_enabled: true
