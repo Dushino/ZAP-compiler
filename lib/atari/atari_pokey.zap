@@ -36,6 +36,7 @@
 ; https://www.atariarchives.org/mapping/memorymap.php
 ;-------------------------------------------------------------------------
 
+.module "atari_pokey.zap"
 
 ; Read Addresses
 struct POKEY_RD_struct #port #RD

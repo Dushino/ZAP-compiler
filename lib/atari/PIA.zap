@@ -26,6 +26,7 @@
 ; https://www.atariarchives.org/mapping/memorymap.php
 ;-------------------------------------------------------------------------
 
+.moduloe "PIA.zap"
 
 ; Read / write Addresses
 struct PIA_RD_struct #port
