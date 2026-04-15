@@ -2,6 +2,8 @@
 nav_order: 3
 ---
 
+{% raw %}
+
 # ZAP! Language Reference Manual
 
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 
@@ -3291,3 +3293,5 @@ end
 
 **For questions, issues, or suggestions regarding the ZAP! language, please visit the repository:**
 https://github.com/Dushino/ZAP-compiler
+
+{% endraw %}
