@@ -18,15 +18,20 @@ relative_links:
   collections: true
 
 # Markdown / highlighting
-# We disable kramdown's built-in highlighter so fenced code blocks render as
-# plain <pre><code class="language-xxx">. Prism.js then highlights them in the
-# browser, including our custom 'zap' language.
+# We disable kramdown's built-in Rouge highlighter so fenced code blocks
+# render as plain <pre><code class="language-xxx">. Prism.js then highlights
+# them in the browser, including our custom 'zap' language.
 markdown: kramdown
 kramdown:
-  syntax_highlighter_opts:
-    disable: true
   input: GFM
   hard_wrap: false
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    # Keep Rouge enabled (required by github-pages) but make it emit
+    # code-element classes that Prism can pick up.
+    css_class: 'highlight'
+    block:
+      line_numbers: false
 
 # Exclude stale / non-public files from the Jekyll build
 exclude:

@@ -28,9 +28,28 @@
 <!-- Custom ZAP! language definition -->
 <script src="{{ '/assets/prism/prism-zap.js' | relative_url }}" defer></script>
 
-<!-- Trigger highlight after all scripts have loaded -->
+<!-- Fix up code blocks: kramdown+Rouge wraps fenced blocks with
+     <div class="language-xxx highlighter-rouge"> but Prism needs
+     <code class="language-xxx"> directly. Copy the class from the outer
+     wrapper to the inner <code> element, then trigger Prism highlighting. -->
 <script>
   window.addEventListener('DOMContentLoaded', function () {
+    // Find every div that has a language-xxx class and copy that class
+    // down to the inner <code> element so Prism can find it.
+    document.querySelectorAll('div[class*="language-"]').forEach(function (wrapper) {
+      var langClass = null;
+      wrapper.classList.forEach(function (cls) {
+        if (cls.indexOf('language-') === 0) {
+          langClass = cls;
+        }
+      });
+      if (!langClass) return;
+      var code = wrapper.querySelector('pre > code');
+      if (code && !code.classList.contains(langClass)) {
+        code.classList.add(langClass);
+      }
+    });
+
     if (window.Prism) {
       Prism.highlightAll();
     }
