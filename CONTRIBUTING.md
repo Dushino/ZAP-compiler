@@ -100,6 +100,21 @@ make tests
 
 All 4 variants are tested for each pass test (65C02, 6502, 65C02+O1, 6502+O1). **All must pass.**
 
+#### Prerequisites for Running Tests Locally
+
+To run the full suite you need:
+
+- **Python 3.x** — to run the ZAP! compiler
+- **cc65 toolchain** (`ca65`, `ld65`, `da65`) — to assemble and link. See [cc65.github.io](https://cc65.github.io/) for installation
+- **6502 simulator** (`6502_simulator` in `PATH`) — runs compiled binaries and produces memory dumps for reference comparison. Without it every positive test will fail with `[SIM_ERROR]`. Install from https://github.com/Dushino/6502_simulator:
+  ```bash
+  pip install git+https://github.com/Dushino/6502_simulator.git
+  # pip installs as '6502-simulator' (hyphen); the Makefile expects underscore
+  ln -sf "$(command -v 6502-simulator)" ~/.local/bin/6502_simulator
+  ```
+
+See [tests/README.md](tests/README.md) for more details on the test harness and how to create new tests.
+
 #### For New Features — Add Tests
 
 At least one **pass test** in `tests/pass/NNN-descriptive-name/`:

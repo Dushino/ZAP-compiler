@@ -22,6 +22,24 @@ tests/
     └── *.zap      Test source files
 ```
 
+## Prerequisites
+
+Before running the test suite locally you need:
+
+- **Python 3.x** — to run the compiler
+- **cc65 toolchain** (`ca65`, `ld65`, `da65`) — to assemble and link the generated code. Install via `apt-get install cc65` (Ubuntu/Debian), `brew install cc65` (macOS), or from https://cc65.github.io/ (Windows)
+- **6502 simulator** — required by every positive test to run the compiled binary and produce a memory dump for comparison against the `.ref` file. Install it from https://github.com/Dushino/6502_simulator:
+  ```bash
+  pip install git+https://github.com/Dushino/6502_simulator.git
+  ```
+  The pip entry point installs as `6502-simulator` (hyphen). On Linux/macOS the `Makefile` expects `6502_simulator` (underscore) to be in `PATH` — create a symlink, e.g.:
+  ```bash
+  ln -sf "$(command -v 6502-simulator)" ~/.local/bin/6502_simulator
+  ```
+  On Windows, `make.bat` locates `6502_simulator.exe` in `PATH` — build a standalone binary with PyInstaller if you need that name exactly.
+
+Without the simulator, all positive tests will fail with `[SIM_ERROR]` because there's nothing to produce the memory dump the test harness compares against. Negative tests (in `tests/fail/`) don't need the simulator — they only require the ZAP! compiler.
+
 ## Running Tests
 
 ### Linux/Unix
