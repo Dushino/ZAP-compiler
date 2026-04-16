@@ -1,26 +1,35 @@
-# ZAP Compiler Test Suite
+# ZAP! Compiler Test Suite
 
-;
-; The author of this software stands in solidarity with 🇺🇦 Ukraine. 
-; We believe in a world where international borders are respected and human rights are upheld. 
-; We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
+The author of this software stands in solidarity with 🇺🇦 Ukraine.
+We believe in a world where international borders are respected and human rights are upheld.
+We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
 
+---
 
 ## Overview
 
-The test suite provides comprehensive validation of the ZAP compiler across multiple optimization levels and CPU targets. Tests are executed in alphabetical order, allowing you to organize them by complexity using naming conventions like `001_test_name.zap`, `002_test_name.zap`, etc.
+The test suite provides comprehensive validation of the ZAP! compiler across multiple optimization levels and CPU targets. Every positive test compiles in **four variants** (default 65C02, `-6502`, `-O1`, and `-6502 -O1`) to catch regressions across the full matrix of supported targets.
+
+As of the current release, the suite contains roughly **175 positive tests** (in `tests/pass/`) and **139 negative tests** (in `tests/fail/`). The CI workflow runs the full suite on every push and pull request.
 
 ## Directory Structure
 
 ```
 tests/
-├── pass/          Tests that SHOULD compile and run successfully
-│   ├── *.zap      Test source files
-│   ├── *.ref      Reference output files (REQUIRED for each test)
-│   └── *.json     Configuration file for simulator (REQUIRED for each test)
-└── fail/          Tests that SHOULD fail compilation (negative tests)
-    └── *.zap      Test source files
+├── pass/          Tests that SHOULD compile, link, and produce expected output
+│   └── NNN-descriptive-name/
+│       ├── NNN-descriptive-name.zap    Test source
+│       ├── NNN-descriptive-name.json   Simulator config (REQUIRED)
+│       ├── NNN-descriptive-name.ref    Reference memory dump (REQUIRED)
+│       └── NNN-descriptive-name.flags  (optional) extra compiler flags
+└── fail/          Tests that SHOULD be rejected by the compiler
+    └── descriptive-name/
+        ├── descriptive-name.zap        Test source (must fail to compile)
+        ├── descriptive-name.err        Expected error message (REQUIRED)
+        └── descriptive-name.flags      (optional) extra compiler flags
 ```
+
+Each test lives in its own subdirectory, numbered for positive tests (`001-` through the current count) to give a rough complexity ordering.
 
 ## Prerequisites
 
@@ -52,127 +61,119 @@ make tests
 make.bat tests
 ```
 
+### Running a single directory
+
+On Linux/Unix you can target a single test subdirectory:
+
+```bash
+make test pass/015-for-loop
+```
+
 ## Test Execution Flow
 
-For each positive test (in `tests/pass/`), the test suite:
+For each positive test (in `tests/pass/NNN-name/`), the test harness:
 
-1. **Requires a `.ref` file** - Each test must have a corresponding `.ref` reference file containing expected simulator output
-2. **Tests 4 compilation variants**:
-   - Default (65C02 target)
-   - `--O1`  (optimizations)
-   - `-6502` (NMOS 6502 target)
-   - `-6502 --O1` (NMOS 6502 with optimizations)
+1. **Checks for required files**: `.zap` (source), `.json` (simulator config), `.ref` (expected output)
+2. **Compiles in 4 variants**:
+   - Default (65C02 target, no optimization)
+   - `-6502` (NMOS 6502 target, no optimization)
+   - `-O1` (65C02 + peephole optimization)
+   - `-6502 -O1` (NMOS 6502 + peephole optimization)
 3. **For each variant**:
-   - Compiles ZAP → assembly (detects ZAP compiler errors)
-   - Assembles → object file with ca65 (detects CA65 errors)
-   - Assembles Atari header file (detects CA65 errors)
-   - Links with ld65 (detects LD65 errors)
-   - Creates binary and cuts header (skip first 6 bytes)
-   - Disassembles with da65
-   - **Runs in 6502 simulator** and dumps memory (40000-40120 hex)
-   - **Compares output with `.ref` file** (detects OUTPUT_MISMATCH errors)
-4. **Reports results** - Pass only if all 4 variants succeed and outputs match reference
+   - Compiles ZAP! → assembly with `zapc`
+   - Assembles → object file with `ca65`
+   - Assembles the Atari executable header (`lib/atari/exehdr.s`)
+   - Links with `ld65` using `cfg/my_atari.cfg`
+   - Runs the binary in the **6502 simulator** and dumps memory ranges specified in the `.json`
+   - Compares the dump against the `.ref` file byte-for-byte
+4. **Reports results** — pass only if all 4 variants succeed and all memory dumps match
 
 For negative tests (in `tests/fail/`):
-- Attempts to compile with `-6502`
-- Must fail to pass the test
-- Success is "correctly rejected"
+
+- Compiles with each of the 4 variants; every variant must **fail**
+- If an `.err` file is present, the compiler's error output is compared against it (line:column must match the expected error)
+- Test passes if all 4 variants correctly reject the source and the error message matches
 
 ## Test Results Output
 
 Each test shows one of these results:
 
-**✓ PASS (all 4 variants)**
-- All 4 compilation variants succeeded
-- All simulator outputs matched the reference file
+| Result | Meaning |
+|---|---|
+| ✅ **PASS (all 4 variants)** | Positive test: all 4 variants compiled, linked, ran, and memory dumps matched |
+| ✅ **PASS (correctly rejected, error message verified)** | Negative test: compiler rejected all 4 variants with the expected error |
+| ❌ **FAIL (X/4 variants failed)** | Positive test: one or more variants broke. Error codes indicate which stage |
+| ❌ **FAIL (X/4 variants passed)** | Negative test: compiler incorrectly accepted code that should fail |
+| ❌ **FAIL (wrong error message)** | Negative test: rejected but with the wrong error message |
 
-**✗ FAIL (X/4 variants failed)**
-- One or more variants failed
-- Shows error codes for debugging:
-  - `[ZAP_ERROR]` - ZAP compiler failed to compile
-  - `[CA65_ERROR]` - ca65 assembler failed
-  - `[LD65_ERROR]` - ld65 linker failed
-  - `[SIM_ERROR]` - 6502 simulator failed to run
-  - `[OUTPUT_MISMATCH]` - Simulator output doesn't match `.ref` file
+Error codes in FAIL lines indicate the failing stage:
 
-## Creating Reference Files
-
-When you create a new test in `tests/pass/`:
-
-1. Create your test file: `tests/pass/001_my_test.zap`
-2. Compile and run manually to generate reference output:
-   ```bash
-   python3 compiler.py tests/pass/001_my_test.zap -o test.s
-   ca65 -I lib -t none --cpu 65c02 -g test.s -o test.o
-   ca65 -I lib -t none --cpu 65c02 -g lib/atari/exehdr.s -o exehdr.o
-   ld65 -C cfg/my_atari.cfg test.o exehdr.o -o test.com
-   6502_simulator --cpu 65c02 --config tests/pass/001_my_test.json --verbose --dump-file tests/pass/001_my_test.ref test.com
-   ```
-3. Verify the reference output is correct
-4. Run `make tests` to validate
+- `[ZAP_ERROR]` — ZAP! compiler crashed or rejected a positive test
+- `[CA65_ERROR]` — ca65 assembler failed
+- `[LD65_ERROR]` — ld65 linker failed
+- `[DA65_ERROR]` — da65 disassembler failed (non-fatal, treated as a warning)
+- `[SIM_ERROR]` — 6502 simulator couldn't run the binary
+- `[OUTPUT_MISMATCH]` — memory dump didn't match the `.ref` file
+- `[UNEXPECTED_PASS]` — negative test compiled without error (should have failed)
+- `[MSG_MISMATCH]` — negative test rejected with the wrong error message
 
 ## Adding New Tests
 
-### Positive Tests (should compile and pass)
+### Positive Test
 
-1. Add `.zap` file to `tests/pass/` with a name like `001_feature_name.zap`
-2. Create a `.ref` reference file with expected simulator output
-3. Example test file:
+1. Pick the next available number: `ls tests/pass/` and pick `NNN+1`
+2. Create a directory: `tests/pass/NNN-descriptive-name/`
+3. Write your test source as `NNN-descriptive-name.zap`:
    ```zap
-   ; tests/pass/001_simple_math.zap
-   PROC main()
-     BYTE result
-     result = 2 + 3
-   RETURN
+   byte result
+
+   proc main()
+       result = 2 + 3
+   end
    ```
+4. Create `NNN-descriptive-name.json` with simulator config:
+   ```json
+   {
+       "max_cycles": 10000,
+       "verbose": true,
+       "dump_memory": ["0x4000-0x4007"]
+   }
+   ```
+   The `dump_memory` ranges should cover the memory addresses your test populates. The test harness compares these ranges against the `.ref` file.
+5. Generate the `.ref` file by running the compile-and-dump pipeline manually:
+   ```bash
+   cd tests/pass/NNN-descriptive-name
+   python3 ../../../compiler.py NNN-descriptive-name.zap -o test.s
+   ca65 -I ../../../lib -t none --cpu 65c02 -g test.s -o test.o
+   ca65 -I ../../../lib -t none --cpu 65c02 -g ../../../lib/atari/exehdr.s -o exehdr.o
+   ld65 -C ../../../cfg/my_atari.cfg test.o exehdr.o -o test.com
+   6502_simulator --cpu 65c02 --config NNN-descriptive-name.json --verbose --dump-file NNN-descriptive-name.ref test.com
+   ```
+6. Inspect `NNN-descriptive-name.ref` to confirm the memory contents are what you expect
+7. Run `make tests` (or `make test pass/NNN-descriptive-name` for just your test) to validate all 4 variants
 
-### Negative Tests (should fail)
+### Negative Test
 
-1. Add `.zap` file to `tests/fail/` with a name like `test_invalid_syntax.zap`
-2. No reference file needed - test passes if compilation fails
-3. Examples:
-   - Duplicate identifiers
-   - Type errors
-   - Syntax errors
-   - Semantic violations
+1. Create a directory: `tests/fail/descriptive-name/` (no numeric prefix required, but consistent numbering helps)
+2. Write your test source as `descriptive-name.zap` — it must be rejected by the compiler
+3. Create `descriptive-name.err` with the expected error output. The first line must match the compiler's output exactly, including line:column:
+   ```
+   3:5: error: Use of uninitialized variable 'X'
+   ```
+4. Run `make tests` — the test passes if all 4 variants are rejected and the error message matches
 
-## Current Test Status
+### Per-test compiler flags (optional)
 
-**Positive Tests:**
-- Status: In `tests/pass/todo/` (pending .ref file creation)
-- Tests awaiting reference files:
-  - test_variables_decl.zap
-  - test_math_1.zap
-  - test_cmp.zap (has .ref file)
-  - test_hardware_vars.zap (has .ref file)
-  - test_variables_optimiz.zap
-
-**Negative Tests (6) - All Ready:**
-- ✓ test_dup.zap - Duplicate global variable names
-- ✓ test_dup_define.zap - Duplicate .define symbols
-- ✓ test_dup_func_param.zap - Duplicate function parameters
-- ✓ test_dup_local.zap - Duplicate local variables
-- ✓ test_dup_param.zap - Duplicate procedure parameters
-- ✓ test_dup_param_local.zap - Parameter/local name collision
-
-## Test Organization
-
-To organize tests by complexity, use numeric prefixes:
+If your test requires extra flags (for example `-ZPSTART 0x80` to reproduce a zero-page budget scenario), put them in a `.flags` file next to the `.zap`:
 
 ```
-tests/pass/
-├── 001_simple_math.zap
-├── 002_variable_operations.zap
-├── 003_functions.zap
-├── 004_procedures.zap
-├── 005_arrays.zap
-├── 010_advanced_features.zap
-...
+-ZPSTART 0x80
 ```
 
-This ensures tests run from simple to complex, making it easier to debug compilation issues.
-- test_dup_define.zap - Duplicate .define symbols
-- test_dup_func_param.zap - Duplicate function parameters
-- test_dup_local.zap - Duplicate local variables
-- test_dup_param.zap - Duplicate procedure parameters
-- test_dup_param_local.zap - Parameter/local name collision
+The test harness appends these to every variant's invocation.
+
+## Naming Convention
+
+Positive tests use `NNN-descriptive-name` where `NNN` is a zero-padded 3-digit number. Numeric prefixes keep tests running in a predictable order that roughly mirrors complexity. Negative tests can use any slug, though most match the positive test they correspond to (e.g., `025-structs-simple-error`).
+
+Use dashes, not underscores, in directory and file names.
