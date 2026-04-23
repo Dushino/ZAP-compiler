@@ -7,6 +7,18 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## KNOWN_LIMITATIONS: "No Struct Arithmetic" rephrased for clarity (2026-04-23)
+
+- Expanded the one-line note into a short narrative section with rationale, an
+  explicit list of blocked operators, an example contrasting what is and isn't
+  allowed (scalar fields and struct pointers still work), and a workaround.
+- Behavior of the compiler is unchanged; pure documentation clarification.
+- Cross-check: [docs/ERROR_MESSAGES.md](docs/ERROR_MESSAGES.md) and
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) already consistent — no changes
+  needed there.
+
+---
+
 ## GitHub Pages site with ZAP! syntax highlighting (2026-04-15)
 
 ### Phase 1 — Restructure

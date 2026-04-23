@@ -342,7 +342,43 @@ Adding two pointers is not allowed (`ptr1 + ptr2`). You can add a pointer and an
 
 ### No Struct Arithmetic
 
-Struct values cannot appear in binary expressions (`+`, `-`, `*`, etc.) or comparisons.
+A struct variable holds a group of fields, not a single number, so the
+compiler cannot add, subtract, multiply, or compare two structs as a whole.
+Any binary operator (`+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`,
+`&&`, `||`) applied directly to a struct value is rejected at compile time.
+
+This restriction applies **only to whole struct values**. Individual struct
+fields behave like ordinary scalars, and pointers to structs behave like
+ordinary pointers:
+
+```zap
+struct Point
+    byte x
+    byte y
+end
+
+Point p1
+Point p2
+Point ptr a, b
+
+; NOT allowed — whole struct values:
+; byte sum = p1 + p2           ; ERROR: struct in arithmetic
+; if p1 == p2 then ... end if  ; ERROR: struct in comparison
+
+; Allowed — scalar fields:
+byte sum = p1.x + p2.x         ; OK: BYTE + BYTE
+if p1.x == p2.x then           ; OK: comparing scalars
+    ; ...
+end if
+
+; Allowed — struct pointers:
+if a == b then ... end if      ; OK: pointer comparison
+a = a + 1                      ; OK: pointer arithmetic
+```
+
+**Workaround:** If you need to "compare" or "combine" two structs,
+operate on their fields one by one, or write a helper PROC that does the
+field-wise work for you.
 
 ### No Bitwise Operations on Pointers
 
