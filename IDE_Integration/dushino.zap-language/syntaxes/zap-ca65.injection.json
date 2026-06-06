@@ -18,6 +18,20 @@
           "include": "source.ca65"
         }
       ]
+    },
+    {
+      "comment": "proc/func #asm body: assembly starts on the line after the declaration header",
+      "name": "meta.embedded.asm.ca65.proc.zap",
+      "begin": "^\\s*(?:[Pp][Rr][Oo][Cc]|[Ff][Uu][Nn][Cc])\\b[^\\n]*#[Aa][Ss][Mm]\\b[^\\n]*$",
+      "end": "^\\s*([Ee][Nn][Dd])\\b",
+      "endCaptures": {
+        "1": { "name": "keyword.control.zap" }
+      },
+      "patterns": [
+        {
+          "include": "source.ca65"
+        }
+      ]
     }
   ]
 }

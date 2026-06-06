@@ -410,6 +410,8 @@ class FuncDecl:
     keep: bool = False      # #KEEP prevents dead-code elimination of unused func
     noexport: bool = False  # #NOEXPORT prevents export even in non-module files
     export: bool = False
+    pure_asm: bool = False  # #ASM - entire body is raw assembly, no return sequence emitted
+    asm_body: str = ""      # raw assembly text for pure_asm funcs
     line: int = 0
     col: int = 0
     filename: str = ""

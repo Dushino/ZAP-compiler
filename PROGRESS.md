@@ -7,6 +7,39 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## `#asm` on `proc`/`func`: emit equates before body; extend to `func` (2026-06-06)
+
+### Problem
+`proc #asm` previously had an early return that fired BEFORE parameter name equates and local
+variable equates were emitted. Raw assembly in the body could not reference `_PROCNAME$PARAM`
+symbols. Also, `#asm` was not supported on `func` declarations at all.
+
+### Changes
+- **`ast_nodes.py`** — Added `pure_asm: bool` and `asm_body: str` fields to `FuncDecl`
+- **`parser.py`** (`parse_func`) — Added `#ASM` DECLMOD handling; consumes `TOK_ASM_BLOCK` and
+  returns early with `pure_asm=True`, matching the existing `parse_proc` behaviour
+- **`sema_func.py`** — Suppressed "FUNC must have RETURN" check for `pure_asm` funcs
+- **`codegen_expr.py`** (`gen_proc`) — Moved pure_asm body emission to AFTER param equates and
+  local equates; extracted reusable `_emit_pure_asm_body()` helper
+- **`codegen_expr.py`** (`gen_func`) — Added pure_asm conditional (after equates, no RTS)
+- **`compiler_pipeline.py`** — Threads `pure_asm`/`asm_body` through `FuncDecl` DCE rebuild
+- **`module_system.py`** — Extended `func #asm` body-skip logic alongside existing `proc #asm`
+
+### Tests
+- **209-pure-asm-proc-params**: `proc my_poke(byte val) #asm` — verifies param equate generated
+  and assembly can reference `_MY_POKE$VAL`; stores to fixed address 0x4200, ref: `4200: 42`
+- **210-pure-asm-func**: `func byte add_bytes(byte a, byte b) #asm` — verifies func #asm works
+  end-to-end; adds 3+4 in assembly, result stored to `result @ $4200`, ref: `4200: 07`
+- All 176 pass + 139 fail tests pass.
+
+### VS Code / IDE
+- **`zap-ca65.injection.json`** — Added second injection pattern for `proc/func #asm` bodies:
+  `begin` matches a declaration line containing `#asm`, `end` matches bare `end`; content
+  between gets `source.ca65` highlighting (assembly starts on the line after the header)
+- **`zap-language-0.9.4.vsix`** — Rebuilt with `vsce package --no-dependencies`
+
+---
+
 ## KNOWN_LIMITATIONS: "No Struct Arithmetic" rephrased for clarity (2026-04-23)
 
 - Expanded the one-line note into a short narrative section with rationale, an

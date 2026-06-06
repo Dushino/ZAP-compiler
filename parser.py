@@ -602,10 +602,11 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
         
-        # Optional declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        # Optional declaration modifiers: #KEEP, #NOEXPORT, #EXPORT, #ASM
         keep = False
         noexport = False
         export = False
+        pure_asm = False
         while self.cur.type == TOK_DECLMOD:
             val: str = self.cur.value.upper()
             if val == 'KEEP':
@@ -614,10 +615,25 @@ class Parser:
                 noexport = True
             elif val == 'EXPORT':
                 export = True
+            elif val == 'ASM':
+                pure_asm = True
             else:
                 self.error(f"Unsupported declaration modifier '{val}'")
             self.advance()
-        
+
+        # #ASM func: consume raw assembly block token and return without parsing body
+        if pure_asm:
+            if self.cur.type != TOK_ASM_BLOCK:
+                self.error("Expected assembly body after #asm")
+            asm_body: str = self.cur.value
+            self.advance()
+            line_text: str = self.source_lines[start_line-1] if 1 <= start_line <= len(self.source_lines) else ""
+            self.proc_src[name] = (self.filename, start_line, start_col, line_text)
+            return FuncDecl(name, TypeNode(ret_type_base, ret_is_pointer), params, [], [],
+                            keep=keep, noexport=noexport, export=export,
+                            pure_asm=True, asm_body=asm_body,
+                            line=start_line, col=start_col, filename=self.filename)
+
         while self.cur.type in (TOK_TYPE, TOK_TYPEMOD) or (self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names):
             decl: Declaration = self.parse_declaration()
             for d in decl.declarators:
@@ -625,10 +641,10 @@ class Parser:
                     raise SyntaxError(f"Duplicate local '{d.name}' in function", line=d.line, col=d.col)
                 seen_names.add(d.name)
             locals.append(decl)
-        
+
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
             body.append(self.parse_stmt())
-        
+
         # consume END keyword
         self.expect(TOK_KEYWORD, "END")
 

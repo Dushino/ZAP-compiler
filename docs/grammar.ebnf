@@ -96,7 +96,10 @@ asm_block_text  ::= (* verbatim ca65 assembly text up to the closing "end" line 
 (* ============ FUNCTIONS ============ *)
 func_decl       ::= "func" type IDENT "(" [ param_list ] ")" [ decl_modifiers ] func_body "end" ;
 
-func_body       ::= { local_decl } { statement } "return" expression ;
+(* func_body is raw assembly text when #asm is present in decl_modifiers;
+   otherwise it is normal ZAP declarations and statements with a required return. *)
+func_body       ::= { local_decl } { statement } "return" expression   (* normal ZAP body *)
+                  | asm_block_text ;                                    (* pure assembly body when #asm modifier used *)
 
 (* ============ PARAMETERS ============ *)
 param_list      ::= param { "," param } ;

@@ -281,7 +281,7 @@ class FuncAnalyzer:
         # Restore the shared expression type-checker to the caller's scope.
         self.expr_tc.symtab = prev_symtab
 
-        if not has_return:
+        if not has_return and not getattr(func, 'pure_asm', False):
             proc_src = self.debug.get("proc_src") or {}
             info = proc_src.get(func.name)
             if info:

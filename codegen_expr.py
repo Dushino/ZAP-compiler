@@ -14504,24 +14504,6 @@ class CodeGen:
         self.emit("; -- Procedure " + proc.ast.name + " --")
         self.emit(f"{self.asm_symbol_name(proc.ast.name)}:")
 
-        # Pure-asm proc: emit body verbatim with no prologue/epilogue/RTS
-        if getattr(proc.ast, 'pure_asm', False):
-            self.emit("; ASM_BLOCK_BEGIN")
-            for asm_line in proc.ast.asm_body.splitlines():
-                sl = asm_line.strip()
-                if not sl:
-                    self.emit("")
-                elif sl.endswith(":") or (sl.split() and ":" in sl.split()[0]):
-                    self.emit(sl)
-                else:
-                    self.emit(f"\t{sl}")
-            self.emit("; ASM_BLOCK_END")
-            self.emit(f'\t.segment "{self.seg_code}"')
-            self.current_symtab = prev_symtab
-            if prev_tc_symtab is not None:
-                self.tc.symtab = prev_tc_symtab
-            return
-
         # Emit parameter name equates for inline assembly references
         proc_specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(proc.ast.name)
         if proc_specs:
@@ -14542,12 +14524,16 @@ class CodeGen:
         for sym in proc.locals:
             self.gen_init(cast(Symbol, sym))
 
-        # body (dead-store pre-pass removes consecutive overwrites of same scalar)
-        for stmt in self._elim_dead_stores(proc.ast.body):
-            self.gen_stmt(stmt)
+        # Pure-asm proc: emit body verbatim after equates, no RTS
+        if getattr(proc.ast, 'pure_asm', False):
+            self._emit_pure_asm_body(proc.ast.asm_body)
+        else:
+            # body (dead-store pre-pass removes consecutive overwrites of same scalar)
+            for stmt in self._elim_dead_stores(proc.ast.body):
+                self.gen_stmt(stmt)
 
-        if not (proc.ast.body and isinstance(proc.ast.body[-1], ReturnStmt)):
-            self.emit("\tRTS")
+            if not (proc.ast.body and isinstance(proc.ast.body[-1], ReturnStmt)):
+                self.emit("\tRTS")
 
         # restore
         self.current_symtab = prev_symtab
@@ -14579,6 +14565,20 @@ class CodeGen:
             self.tc_check(arg)
             resolved.append((i, pname, width, sem_type, cast(Expr, arg)))
         return resolved
+
+    def _emit_pure_asm_body(self, asm_body: str) -> None:
+        """Emit a raw assembly body verbatim, indenting instructions and leaving labels flush."""
+        self.emit("; ASM_BLOCK_BEGIN")
+        for asm_line in asm_body.splitlines():
+            sl = asm_line.strip()
+            if not sl:
+                self.emit("")
+            elif sl.endswith(":") or (sl.split() and ":" in sl.split()[0]):
+                self.emit(sl)
+            else:
+                self.emit(f"\t{sl}")
+        self.emit("; ASM_BLOCK_END")
+        self.emit(f'\t.segment "{self.seg_code}"')
 
     def _emit_param_name_equates(self, callee_name: str, specs: list[tuple[str, int, object, SemType]]) -> None:
         """Emit equate declarations for parameter names to their actual storage locations.
@@ -15995,13 +15995,17 @@ class CodeGen:
         for sym in func.locals:
             self.gen_init(cast(Symbol, sym))
 
-        # body (dead-store pre-pass removes consecutive overwrites of same scalar)
-        for stmt in self._elim_dead_stores(func.ast.body):
-            self.gen_stmt(stmt)
+        # Pure-asm func: emit body verbatim after equates, no return sequence
+        if getattr(func.ast, 'pure_asm', False):
+            self._emit_pure_asm_body(func.ast.asm_body)
+        else:
+            # body (dead-store pre-pass removes consecutive overwrites of same scalar)
+            for stmt in self._elim_dead_stores(func.ast.body):
+                self.gen_stmt(stmt)
 
-        # fallback (if no RETURN was encountered — semantic error)
-        if not (func.ast.body and isinstance(func.ast.body[-1], ReturnStmt)):
-            self.emit("\tRTS")
+            # fallback (if no RETURN was encountered — semantic error)
+            if not (func.ast.body and isinstance(func.ast.body[-1], ReturnStmt)):
+                self.emit("\tRTS")
 
         self.current_symtab = prev_symtab
         if prev_tc_symtab is not None:

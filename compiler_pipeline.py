@@ -2012,6 +2012,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     keep=getattr(af.ast, 'keep', False),
                     noexport=getattr(af.ast, 'noexport', False),
                     export=getattr(af.ast, 'export', False),
+                    pure_asm=getattr(af.ast, 'pure_asm', False),
+                    asm_body=getattr(af.ast, 'asm_body', ''),
                 )
 
     # Predeclare for-loop temps so liveness can track them safely

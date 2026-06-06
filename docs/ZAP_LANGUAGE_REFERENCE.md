@@ -449,12 +449,18 @@ Modifiers:
 - `#EXPORT` — When the file is *not* a `.module`, this forces the symbol to be exported (useful for small libraries implemented in plain files).
 - `#PORT` — Marks a variable as a hardware port-mapped variable. See the "Port Variables" section for details.
 - `#RD` / `#WR` — Read/write qualifiers used together with `#PORT` to indicate whether the port is readable and/or writable. If neither `#RD` nor `#WR` is specified, both are allowed by default.
-- `#ASM` — Marks a `proc` as a **pure assembly procedure**. The entire body between `proc...end` is treated as raw ca65 assembly text — no ZAP statements are allowed, no automatic `RTS` is emitted, and no prologue or epilogue code is generated. This is intended for interrupt service routines and other low-level handlers that must control their own exit sequence (e.g., `rti`).
+- `#ASM` — Marks a `proc` or `func` as a **pure assembly procedure/function**. The entire body between the declaration and `end` is treated as raw ca65 assembly text. All parameter name equates and local variable equates are still emitted before the body so that assembly code can reference ZAP-generated symbols. No automatic `RTS` is emitted. This is intended for interrupt service routines, hardware access routines, and other low-level code that must control its own exit sequence.
 
-#### Pure Assembly Procedures (#ASM)
+#### Pure Assembly Procedures and Functions (#ASM)
 
-The `#asm` modifier on a `proc` declaration turns the entire body into verbatim assembly code. The body is passed directly to the ca65 assembler output unchanged — comments, ca65 directives (`.segment`, `.byte`, etc.), and any instruction syntax (including ca65 immediate-mode addressing like `lda #$FF`) are all legal.
+The `#asm` modifier turns the entire body into verbatim assembly code. The compiler still emits the standard infrastructure before the body:
+- Parameter name equates (`_PROCNAME$PARAMNAME = actual_slot`) so the assembly can reference parameters by name
+- Local variable equates for any declared locals
+- Register→slot stores for register-passed arguments
 
+After that infrastructure, the raw assembly body is emitted verbatim. No automatic `RTS` or return sequence is appended — the programmer is responsible.
+
+**Interrupt handlers (no parameters):**
 ```zap
 proc NMI_HANDLER() #keep #asm
     ; NMI handler — must return with RTI, not RTS
@@ -467,19 +473,37 @@ proc IRQ_HANDLER() #keep #asm
     sta $D200   ; clear IRQ source
     rti
 end
+```
 
-proc RESET_HANDLER() #keep #asm
-    jmp _MAIN
+**Parameterized proc — write a byte to an address:**
+```zap
+proc my_poke(byte val) #asm
+    ; _MY_POKE$VAL is an equate pointing to val's ZP slot
+    lda _MY_POKE$VAL
+    sta $4200
+    rts
 end
 ```
 
-Rules and notes for `#asm` procedures:
-- `#asm` is only valid on `proc` declarations, not `func`.
+**Pure-asm func — returns a value in register A:**
+```zap
+func byte add_bytes(byte a, byte b) #asm
+    ; _ADD_BYTES$A and _ADD_BYTES$B are equates for the ZP slots
+    clc
+    lda _ADD_BYTES$A
+    adc _ADD_BYTES$B
+    rts    ; result in A per ZAP calling convention
+end
+```
+
+Rules and notes for `#asm` procedures and functions:
+- `#asm` is valid on both `proc` and `func` declarations.
+- Parameter name equates (`_PROCNAME$PARAM`) are emitted before the body so the assembly can reference ZAP parameters by name.
 - The body may contain any ca65 assembly syntax: instructions, directives, labels, comments.
-- **No automatic `RTS` is appended.** The programmer is responsible for the return sequence (typically `rti` for interrupt handlers, or `jmp` for reset handlers).
+- **No automatic `RTS` is appended.** The programmer is responsible for the exit sequence (`rts`, `rti`, `jmp`, etc.).
 - No local variable declarations or ZAP statements are allowed in the body.
 - `#asm` may be combined with `#keep`, `#noexport`, and `#export`.
-- The body is emitted verbatim into the output assembly surrounded by `; ASM_BLOCK_BEGIN` / `; ASM_BLOCK_END` markers (same as inline `asm...end` blocks).
+- The body is emitted verbatim into the output assembly surrounded by `; ASM_BLOCK_BEGIN` / `; ASM_BLOCK_END` markers.
 - Optimization passes skip the body entirely.
 
 Rules and notes (general modifiers):

@@ -78,13 +78,22 @@
 - Segments: .segment "name"
 
 ## Test suite
-- tests/pass/ — 162 positive tests (numbered 001–173, with some gaps)
-- tests/fail/ — 73 negative tests (error detection)
+- tests/pass/ — 176 positive tests (numbered 001–210, with some gaps)
+- tests/fail/ — 139 negative tests (error detection)
 - Each positive test: 4 variants (65C02, 65C02+O1, 6502, 6502+O1)
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
 - generated_tests/ — ~50 Python unit tests for focused feature testing
 - `.ref` files must have exactly ONE trailing newline (two newlines → OUTPUT_MISMATCH)
 - Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
+- Tests 209-210: use fixed absolute address 0x4200 for dump (stable across optimization variants)
+
+## `#asm` proc/func infrastructure fix (2026-06-06)
+- `#asm` now works on both `proc` AND `func` declarations
+- Compiler emits param name equates (`_NAME$PARAM = slot`) BEFORE the raw body so assembly can reference them
+- `sema_func.py`: suppressed "FUNC must have RETURN" check when `pure_asm=True`
+- `codegen_expr.py`: `_emit_pure_asm_body()` helper shared by both gen_proc and gen_func
+- `zap-ca65.injection.json`: second injection pattern for `proc/func #asm` body highlighting in VS Code
+- Tests 209 (proc params) and 210 (func) added; use fixed address 0x4200 for stable cross-variant output
 
 ## LONG Datatype Gap Fixes + Subscript Speed-Up (2026-03-16)
 - **Phase 1** (`_gen_subscript`): element_size=2 + constant base label: uses `ASL A / TAX / LDA #$00 / ROL A / TAY / CLC / TXA / ADC #<lbl / STA TMP0 / TYA / ADC #>lbl / STA TMP0+1` — eliminates TMP3 memory ops, saves ~10 cycles per subscript.

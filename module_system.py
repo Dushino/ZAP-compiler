@@ -121,7 +121,7 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                if (lower_stripped.startswith('proc') or lower_stripped.startswith('func')) and '#asm' in lower_stripped:
                     in_pure_asm_proc = True
                 elif lower_stripped == 'end' and in_pure_asm_proc:
                     in_pure_asm_proc = False
@@ -172,7 +172,7 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                if (lower_stripped.startswith('proc') or lower_stripped.startswith('func')) and '#asm' in lower_stripped:
                     in_pure_asm_proc = True
                 elif lower_stripped == 'end' and in_pure_asm_proc:
                     in_pure_asm_proc = False
@@ -512,7 +512,7 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                if (lower_stripped.startswith('proc') or lower_stripped.startswith('func')) and '#asm' in lower_stripped:
                     in_pure_asm_proc = True
                 elif lower_stripped == 'end' and in_pure_asm_proc:
                     in_pure_asm_proc = False
@@ -549,7 +549,7 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                if (lower_stripped.startswith('proc') or lower_stripped.startswith('func')) and '#asm' in lower_stripped:
                     in_pure_asm_proc = True
                 elif lower_stripped == 'end' and in_pure_asm_proc:
                     in_pure_asm_proc = False
