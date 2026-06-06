@@ -36,7 +36,7 @@ __LVSLOT_1:	.res 5
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -51,7 +51,7 @@ _MAIN$ARR               = __LVSLOT_1
 _MAIN$I                 = __LVSLOT_2
 _MAIN$FOR_END_1         = __LVSLOT_3
 _MAIN$FOR_END_2         = __LVSLOT_4
-; /home/dusan/src/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 7:     for i = 0 to 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 7:     for i = 0 to 5
 	LDA #$00
 	STA _MAIN$I
 	LDA #$05
@@ -65,7 +65,7 @@ __ZAP_while_1:
 	LDA _MAIN$I
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_3
-; /home/dusan/src/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 8:         arr[i] = i * 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 8:         arr[i] = i * 2
 	LDA _MAIN$I
 	ASL
 	STA (__TMP0),Y
@@ -76,7 +76,7 @@ __ZAP_LSR_NC_4:
 	INC _MAIN$I
 	JMP __ZAP_while_1
 __ZAP_endwhile_3:
-; /home/dusan/src/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 11:     for i = 0 to 5 STEP 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 11:     for i = 0 to 5 STEP 2
 	LDA #$00
 	STA _MAIN$I
 	LDA #$05
@@ -85,7 +85,7 @@ __ZAP_while_5:
 	LDA _MAIN$I
 	CMP _MAIN$FOR_END_2
 	BCS __ZAP_endwhile_6
-; /home/dusan/src/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 12:         arr[i] = arr[i] + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 12:         arr[i] = arr[i] + 1
 	LDA _MAIN$I
 	LDX #$00
 	CLC
@@ -115,7 +115,7 @@ __ZAP_while_5:
 	INC _MAIN$I
 	JMP __ZAP_while_5
 __ZAP_endwhile_6:
-; /home/dusan/src/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 15:     result = arr[4]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/050-control-flow-for/050-control-flow-for.zap 15:     result = arr[4]
 	LDA _MAIN$ARR+4
 	STA _RESULT
 	RTS

@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -28,9 +28,9 @@ _RESULT                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure TEST1 --
 _TEST1:
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 7:         result = result + $01
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 7:         result = result + $01
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 15:         result = result + $01
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 15:         result = result + $01
 	INC _RESULT
 	RTS
 
@@ -38,9 +38,9 @@ _TEST1:
 ; ---------------------------------------------------------------------------
 ; -- Procedure TEST2 --
 _TEST2:
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 25:         result = result + $01
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 25:         result = result + $01
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 29:         result = result + $01
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 29:         result = result + $01
 	INC _RESULT
 	RTS
 
@@ -48,9 +48,9 @@ _TEST2:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 38:     test1()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 38:     test1()
 	JSR _TEST1
-; /home/dusan/src/ZAP-compiler/tests/pass/073-directives/073-directives.zap 39:     test2()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/073-directives/073-directives.zap 39:     test2()
 	JMP _TEST2
 
 

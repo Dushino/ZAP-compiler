@@ -19,7 +19,7 @@ _TEN                    = $0A
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/066-const-scalar/066-const-scalar.zap 2: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/066-const-scalar/066-const-scalar.zap 2: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -30,7 +30,7 @@ _TEN                    = $0A
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/066-const-scalar/066-const-scalar.zap 5:     result = TEN + 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/066-const-scalar/066-const-scalar.zap 5:     result = TEN + 2
 	LDA #$0C
 	STA _RESULT
 	RTS

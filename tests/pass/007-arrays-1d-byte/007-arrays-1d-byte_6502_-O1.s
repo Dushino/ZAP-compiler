@@ -27,7 +27,7 @@ __LVSLOT_1:	.res 5
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -40,7 +40,7 @@ __LVSLOT_1:	.res 5
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 4:     byte arr[5] = { 1, 2, 3, 4, 5}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 4:     byte arr[5] = { 1, 2, 3, 4, 5}
 	; Copy array [1, 2, 3, 4, 5] (5 elements)
 	LDX #$00
 __ZAP_ARR_COPY_1:
@@ -49,22 +49,22 @@ __ZAP_ARR_COPY_1:
 	INX
 	CPX #5
 	BNE __ZAP_ARR_COPY_1
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 6:     arr[0] = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 6:     arr[0] = 10
 	LDA #$0A
 	STA _MAIN$ARR+0
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 7:     arr[1] = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 7:     arr[1] = 20
 	LDA #$14
 	STA _MAIN$ARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 8:     arr[2] = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 8:     arr[2] = 30
 	LDA #$1E
 	STA _MAIN$ARR+2
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 9:     arr[3] = 40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 9:     arr[3] = 40
 	LDA #$28
 	STA _MAIN$ARR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 10:     arr[4] = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 10:     arr[4] = 50
 	LDA #$32
 	STA _MAIN$ARR+4
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 11:     sum = arr[0] + arr[1] + arr[2] + arr[3] + arr[4]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 11:     sum = arr[0] + arr[1] + arr[2] + arr[3] + arr[4]
 	LDA _MAIN$ARR+0
 	CLC
 	ADC _MAIN$ARR+1
@@ -75,7 +75,7 @@ __ZAP_ARR_COPY_1:
 	CLC
 	ADC _MAIN$ARR+4
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 12:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/007-arrays-1d-byte/007-arrays-1d-byte.zap 12:     result = sum
 	STA _RESULT
 	RTS
 

@@ -23,7 +23,7 @@ __LVSLOT_4:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -38,7 +38,7 @@ _ADD$X                  = __LVSLOT_3
 _ADD$Y                  = __LVSLOT_4
 	STA _ADD$X
 	STX _ADD$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 4:     return x + y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 4:     return x + y
 	CLC
 	ADC _ADD$Y
 	RTS
@@ -49,16 +49,16 @@ _ADD$Y                  = __LVSLOT_4
 _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 8:     byte a = add()      ; uses defaults 2+3=5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 8:     byte a = add()      ; uses defaults 2+3=5
 	LDA #$02
 	LDX #$03
 	JSR _ADD
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 9:     byte b = add(4)     ; uses 4+3=7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 9:     byte b = add(4)     ; uses 4+3=7
 	LDA #$04
 	JSR _ADD
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 10:     result = a + b      ; expect 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/088-default-param-usage/088-default-param-usage.zap 10:     result = a + b      ; expect 12
 	LDA _MAIN$A
 	CLC
 	ADC _MAIN$B

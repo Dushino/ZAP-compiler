@@ -25,7 +25,7 @@ __LVSLOT_5:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -39,17 +39,17 @@ __LVSLOT_5:	.res 4
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 4:     word x = 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 4:     word x = 1000
 	LDA #$E8
 	STA _MAIN$X
 	LDA #$03
 	STA _MAIN$X+1
-; /home/dusan/src/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 5:     word y = 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 5:     word y = 300
 	LDA #$2C
 	STA _MAIN$Y
 	LDA #$01
 	STA _MAIN$Y+1
-; /home/dusan/src/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 7:     result = x - y ; 700 (0x02BC)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/098-subtraction-16bit/098-subtraction-16bit.zap 7:     result = x - y ; 700 (0x02BC)
 	LDA _MAIN$X
 	STA __MATH0
 	LDA _MAIN$X+1

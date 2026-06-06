@@ -28,7 +28,7 @@ __LVSLOT_1:	.res 3
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 5: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 5: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -40,7 +40,7 @@ __LVSLOT_1:	.res 3
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$R                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 9:     r.values[0] = $02
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 9:     r.values[0] = $02
 	LDA #<_MAIN$R
 	LDX #>_MAIN$R
 	STA __TMP0
@@ -56,7 +56,7 @@ _MAIN$R                 = __LVSLOT_1
 	LDA #2
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 10:     r.values[1] = $14
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 10:     r.values[1] = $14
 	LDA #<_MAIN$R
 	LDX #>_MAIN$R
 	STA __TMP0
@@ -71,7 +71,7 @@ _MAIN$R                 = __LVSLOT_1
 	STA __TMP0+1
 	LDA #20
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 11:     r.values[2] = $06
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 11:     r.values[2] = $06
 	LDA #<_MAIN$R
 	LDX #>_MAIN$R
 	STA __TMP0
@@ -86,7 +86,7 @@ _MAIN$R                 = __LVSLOT_1
 	STA __TMP0+1
 	LDA #6
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 12:     result = r.values[0] + r.values[1] + r.values[2] ; $1C
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/035-structs-arrays/035-structs-arrays.zap 12:     result = r.values[0] + r.values[1] + r.values[2] ; $1C
 	LDA #<_MAIN$R
 	LDX #>_MAIN$R
 	STA __TMP0

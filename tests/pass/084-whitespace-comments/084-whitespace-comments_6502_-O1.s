@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,13 +34,13 @@ __LVSLOT_2:	.res 1
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 5:     byte x = 1  ; inline comment
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 5:     byte x = 1  ; inline comment
 	LDA #$01
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 8:     byte y = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 8:     byte y = 2
 	LDA #$02
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 9:     result = x + y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/084-whitespace-comments/084-whitespace-comments.zap 9:     result = x + y
 	LDA _MAIN$X
 	CLC
 	ADC _MAIN$Y

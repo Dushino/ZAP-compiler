@@ -25,7 +25,7 @@ __LVSLOT_1:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 10: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 10: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -37,13 +37,13 @@ __LVSLOT_1:	.res 2
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$O                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 14:     o.inner.v = 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 14:     o.inner.v = 9
 	LDA #$09
 	STA _MAIN$O
-; /home/dusan/src/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 15:     o.extra = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 15:     o.extra = 2
 	LDA #$02
 	STA _MAIN$O+1
-; /home/dusan/src/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 16:     result = o.inner.v + o.extra
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 16:     result = o.inner.v + o.extra
 	LDA _MAIN$O
 	LDX #$00
 	STA __TMP1

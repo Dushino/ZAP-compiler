@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -32,19 +32,19 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$VAL               = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 5:     val = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 5:     val = 0
 	LDA #$00
 	STA _MAIN$VAL
-; /home/dusan/src/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 7:     while val < 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 7:     while val < 5
 __ZAP_while_1:
 	LDA _MAIN$VAL
 	CMP #$05
 	BCS __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 8:         val = val + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 8:         val = val + 1
 	INC _MAIN$VAL
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 11:     result = val
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/029-loop-termination/029-loop-termination.zap 11:     result = val
 	LDA _MAIN$VAL
 	STA _RESULT
 	RTS

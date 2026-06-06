@@ -28,7 +28,7 @@ __LVSLOT_6:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -42,13 +42,13 @@ _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
 _MAIN$C                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 4:     byte a = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 4:     byte a = 2
 	LDA #$02
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 5:     byte b = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 5:     byte b = 3
 	LDA #$03
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 6:     byte c = a + b * (a + 1) - 1 ; 2 + 3 * 3 - 1 = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 6:     byte c = a + b * (a + 1) - 1 ; 2 + 3 * 3 - 1 = 10
 	LDA _MAIN$A
 	STA __MATH0
 	INC __MATH0
@@ -64,7 +64,7 @@ _MAIN$C                 = __LVSLOT_1
 	LDA __MATH0
 	LDX #$00
 	STA _MAIN$C
-; /home/dusan/src/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 7:     result = c
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/087-expressions/087-expressions.zap 7:     result = c
 	STA _RESULT
 	RTS
 

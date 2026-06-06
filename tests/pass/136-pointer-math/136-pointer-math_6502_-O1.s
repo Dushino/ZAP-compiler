@@ -38,7 +38,7 @@ __LVSLOT_8:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -51,37 +51,37 @@ __LVSLOT_8:	.res 2
 _MAIN:
 _MAIN$RESULT_WORD       = __LVSLOT_1
 _MAIN$FOR_END_1         = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 4:     byte byte_var @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 4:     byte byte_var @40001 = 0
 	LDA #$00
 	STA _MAIN$BYTE_VAR
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 5:     word word_var @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 5:     word word_var @40002 = 0
 	STA _MAIN$WORD_VAR
 	STA _MAIN$WORD_VAR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 6:     long long_var @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 6:     long long_var @40004 = 0
 	STA _MAIN$LONG_VAR
 	STA _MAIN$LONG_VAR+1
 	STA _MAIN$LONG_VAR+2
 	STA _MAIN$LONG_VAR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 7:     byte ^ptr_var @40007 = @byte_var
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 7:     byte ^ptr_var @40007 = @byte_var
 	LDA #<$9C41
 	LDX #>$9C41
 	STA _MAIN$PTR_VAR
 	STX _MAIN$PTR_VAR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 8:     word ^ptr_word @40008 = @word_var
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 8:     word ^ptr_word @40008 = @word_var
 	LDA #<$9C42
 	LDX #>$9C42
 	STA _MAIN$PTR_WORD
 	STX _MAIN$PTR_WORD+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 9:     long ^ptr_long @40010 = @long_var
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 9:     long ^ptr_long @40010 = @long_var
 	LDA #<$9C44
 	LDX #>$9C44
 	STA _MAIN$PTR_LONG
 	STX _MAIN$PTR_LONG+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 11:     word result_word = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 11:     word result_word = 0
 	LDA #$00
 	STA _MAIN$RESULT_WORD
 	STA _MAIN$RESULT_WORD+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 14:     if ptr_long == @long_var
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 14:     if ptr_long == @long_var
 	LDA #<$9C44
 	LDX #>$9C44
 	STA __TMP0
@@ -92,16 +92,16 @@ _MAIN$FOR_END_1         = __LVSLOT_2
 	BNE __ZAP_else_1
 	CPX __TMP0+1
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 15:         byte_var = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 15:         byte_var = 1
 	LDA #$01
 	STA _MAIN$BYTE_VAR
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 17:         byte_var = 2    
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 17:         byte_var = 2    
 	LDA #$02
 	STA _MAIN$BYTE_VAR
 __ZAP_endif_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 20:     ptr_long = ptr_long + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 20:     ptr_long = ptr_long + 1
 	LDA _MAIN$PTR_LONG
 	CLC
 	ADC #$04
@@ -109,7 +109,7 @@ __ZAP_endif_2:
 	BCC __ZAP_CARRY_ADD_PTR_5
 	INC _MAIN$PTR_LONG+1
 __ZAP_CARRY_ADD_PTR_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 21:     ptr_long = 1 + ptr_long
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 21:     ptr_long = 1 + ptr_long
 	LDA _MAIN$PTR_LONG
 	CLC
 	ADC #$04
@@ -117,7 +117,7 @@ __ZAP_CARRY_ADD_PTR_5:
 	BCC __ZAP_CARRY_ADD_PTR_6
 	INC _MAIN$PTR_LONG+1
 __ZAP_CARRY_ADD_PTR_6:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 22:     ptr_long = ptr_long - 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 22:     ptr_long = ptr_long - 1
 	LDA _MAIN$PTR_LONG
 	SEC
 	SBC #$04
@@ -125,7 +125,7 @@ __ZAP_CARRY_ADD_PTR_6:
 	BCS __ZAP_CARRY_SUB_PTR_7
 	DEC _MAIN$PTR_LONG+1
 __ZAP_CARRY_SUB_PTR_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 25:     if ptr_long == @long_var + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 25:     if ptr_long == @long_var + 1
 	LDA #<$9C44
 	LDX #>$9C44
 	STA __TMP1
@@ -148,11 +148,11 @@ __ZAP_CARRY_SUB_PTR_7:
 	BNE __ZAP_else_8
 	CPX __TMP0+1
 	BNE __ZAP_else_8
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 26:         byte_var = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 26:         byte_var = 1
 	LDA #$01
 	STA _MAIN$BYTE_VAR
 __ZAP_else_8:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 31:     ptr_var = ptr_var + 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 31:     ptr_var = ptr_var + 5
 	LDA _MAIN$PTR_VAR
 	CLC
 	ADC #$05
@@ -160,7 +160,7 @@ __ZAP_else_8:
 	LDA _MAIN$PTR_VAR+1
 	ADC #$00
 	STA _MAIN$PTR_VAR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 32:     ptr_var = 5 + ptr_var
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 32:     ptr_var = 5 + ptr_var
 	LDA _MAIN$PTR_VAR
 	CLC
 	ADC #$05
@@ -168,7 +168,7 @@ __ZAP_else_8:
 	LDA _MAIN$PTR_VAR+1
 	ADC #$00
 	STA _MAIN$PTR_VAR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 34:     ptr_word = ptr_word + 3  ; Should scale by 2 (sizeof WORD)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 34:     ptr_word = ptr_word + 3  ; Should scale by 2 (sizeof WORD)
 	LDA _MAIN$PTR_WORD
 	CLC
 	ADC #$06
@@ -176,7 +176,7 @@ __ZAP_else_8:
 	BCC __ZAP_CARRY_ADD_PTR_12
 	INC _MAIN$PTR_WORD+1
 __ZAP_CARRY_ADD_PTR_12:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 35:     ptr_word = 3 + ptr_word  ; Should scale by 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 35:     ptr_word = 3 + ptr_word  ; Should scale by 2
 	LDA _MAIN$PTR_WORD
 	CLC
 	ADC #$06
@@ -184,7 +184,7 @@ __ZAP_CARRY_ADD_PTR_12:
 	BCC __ZAP_CARRY_ADD_PTR_13
 	INC _MAIN$PTR_WORD+1
 __ZAP_CARRY_ADD_PTR_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 38:     ptr_word = ptr_word - 2  ; Should scale by 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 38:     ptr_word = ptr_word - 2  ; Should scale by 2
 	LDA _MAIN$PTR_WORD
 	SEC
 	SBC #$04
@@ -192,7 +192,7 @@ __ZAP_CARRY_ADD_PTR_13:
 	BCS __ZAP_CARRY_SUB_PTR_14
 	DEC _MAIN$PTR_WORD+1
 __ZAP_CARRY_SUB_PTR_14:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 41:     result_word = ptr_word - @word_var  ; Should divide by 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 41:     result_word = ptr_word - @word_var  ; Should divide by 2
 	LDA _MAIN$PTR_WORD
 	LDX _MAIN$PTR_WORD+1
 	STA _MAIN$RESULT_WORD
@@ -214,15 +214,15 @@ __ZAP_CARRY_SUB_PTR_14:
 	LDA _MAIN$RESULT_WORD+1
 	SBC __TMP2+1
 	STA _MAIN$RESULT_WORD+1
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 44:     if ptr_word == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 44:     if ptr_word == 0
 	LDA _MAIN$PTR_WORD
 	ORA _MAIN$PTR_WORD+1
 	BNE __ZAP_else_15
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 45:         byte_var = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 45:         byte_var = 1
 	LDA #$01
 	STA _MAIN$BYTE_VAR
 __ZAP_else_15:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 48:     if ptr_word > @word_var
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 48:     if ptr_word > @word_var
 	LDA #<$9C42
 	LDX #>$9C42
 	STA __TMP0
@@ -236,11 +236,11 @@ __ZAP_else_15:
 	BEQ __ZAP_else_18
 	BCC __ZAP_else_18
 __ZAP_then_20:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 49:         byte_var = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 49:         byte_var = 2
 	LDA #$02
 	STA _MAIN$BYTE_VAR
 __ZAP_else_18:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 54:     if !ptr_word
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 54:     if !ptr_word
 	LDA _MAIN$PTR_WORD
 	LDX _MAIN$PTR_WORD+1
 	STA __MATH0
@@ -254,11 +254,11 @@ __ZAP_NOT_NONZERO_25:
 __ZAP_NOT_END_26:
 	STA __MATH0
 	BEQ __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 55:         byte_var = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 55:         byte_var = 3
 	LDA #$03
 	STA _MAIN$BYTE_VAR
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 60:     for ptr_var = @byte_var to @byte_var + 10 step 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 60:     for ptr_var = @byte_var to @byte_var + 10 step 1
 	LDA #<$9C41
 	LDX #>$9C41
 	STA _MAIN$PTR_VAR
@@ -288,7 +288,7 @@ __ZAP_while_27:
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_28
 __ZAP_while_body_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 61:         result_word = result_word + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 61:         result_word = result_word + 1
 	INC _MAIN$RESULT_WORD
 	BNE __ZAP_INC_WORD_31
 	INC _MAIN$RESULT_WORD+1
@@ -298,7 +298,7 @@ __ZAP_INC_WORD_31:
 	INC _MAIN$PTR_VAR+1
 	JMP __ZAP_while_27
 __ZAP_endwhile_28:
-; /home/dusan/src/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 65:     result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/136-pointer-math/136-pointer-math.zap 65:     result = 1
 	LDA #$01
 	STA _RESULT
 	RTS

@@ -22,7 +22,7 @@ __LVSLOT_2:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -37,19 +37,19 @@ _MAIN:
 _MAIN$DATA              = __LVSLOT_1
 _MAIN$PTR               = __LVSLOT_2
 _MAIN$VALUE             = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 4:     byte data = 77
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 4:     byte data = 77
 	LDA #$4D
 	STA _MAIN$DATA
-; /home/dusan/src/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 5:     byte ^ptr = @data
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 5:     byte ^ptr = @data
 	LDA #<_MAIN$DATA
 	LDX #>_MAIN$DATA
 	STA _MAIN$PTR
 	STX _MAIN$PTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 8:     value = ptr^
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 8:     value = ptr^
 	LDY #$00
 	LDA (_MAIN$PTR),Y
 	STA _MAIN$VALUE
-; /home/dusan/src/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 9:     result = value
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/025-pointers-dereference/025-pointers-dereference.zap 9:     result = value
 	LDX #$00
 	STA _RESULT
 	STX _RESULT+1

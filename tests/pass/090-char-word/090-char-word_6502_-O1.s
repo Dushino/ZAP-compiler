@@ -31,7 +31,7 @@ __LVSLOT_9:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 4: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 4: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -45,12 +45,12 @@ _MAIN:
 _MAIN$W                 = __LVSLOT_1
 _MAIN$LOW               = __LVSLOT_2
 _MAIN$HIGH              = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 9:     word w = $6261                  ; equivalent of what 'a''b' used to produce
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 9:     word w = $6261                  ; equivalent of what 'a''b' used to produce
 	LDA #$61
 	STA _MAIN$W
 	LDA #$62
 	STA _MAIN$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 10:     byte low = w & $FF              ; $61
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 10:     byte low = w & $FF              ; $61
 	LDA _MAIN$W
 	AND #$FF
 	TAY
@@ -61,7 +61,7 @@ _MAIN$HIGH              = __LVSLOT_3
 	STA __MATH0
 	STX __MATH0+1
 	STA _MAIN$LOW
-; /home/dusan/src/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 11:     byte high = (w >> 8) & $FF      ; $62
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 11:     byte high = (w >> 8) & $FF      ; $62
 	LDA _MAIN$W
 	LDX _MAIN$W+1
 	STA __TMP0
@@ -94,7 +94,7 @@ _MAIN$HIGH              = __LVSLOT_3
 	LDA __MATH0
 	LDX __MATH0+1
 	STA _MAIN$HIGH
-; /home/dusan/src/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 12:     result = low + high             ; 0x61 + 0x62 = 97 + 98 = 195 = $C3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/090-char-word/090-char-word.zap 12:     result = low + high             ; 0x61 + 0x62 = 97 + 98 = 195 = $C3
 	LDA _MAIN$LOW
 	CLC
 	ADC _MAIN$HIGH

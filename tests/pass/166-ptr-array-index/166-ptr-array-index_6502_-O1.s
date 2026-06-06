@@ -43,12 +43,12 @@ _EARR:	.res 6
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 18: byte result @$9C40 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 18: byte result @$9C40 = 0
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 25: byte  barr[3] = {$AA, $BB, $CC}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 25: byte  barr[3] = {$AA, $BB, $CC}
 	; Copy array [170, 187, 204] (3 elements)
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 25: byte  barr[3] = {$AA, $BB, $CC}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 25: byte  barr[3] = {$AA, $BB, $CC}
 	; Copy array [170, 187, 204] (3 elements)
 	TAX
 __ZAP_ARR_COPY_1:
@@ -57,7 +57,7 @@ __ZAP_ARR_COPY_1:
 	INX
 	CPX #3
 	BNE __ZAP_ARR_COPY_1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 26: word  warr[3] = {$1111, $2222, $3333}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 26: word  warr[3] = {$1111, $2222, $3333}
 	; Copy array [4369, 8738, 13107] (3 elements)
 	LDX #$00
 __ZAP_ARR_COPY_2:
@@ -69,7 +69,7 @@ __ZAP_ARR_COPY_2:
 	INX
 	CPX #6
 	BNE __ZAP_ARR_COPY_2
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 27: long  larr[3] = {$11111111, $22222222, $33333333}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 27: long  larr[3] = {$11111111, $22222222, $33333333}
 	; Copy array [286331153, 572662306, 858993459] (3 elements, 12 bytes)
 	LDA #<__ARRAY_DATA_3
 	LDX #>__ARRAY_DATA_3
@@ -81,7 +81,7 @@ __ZAP_ARR_COPY_2:
 	STX __TMP2+1
 	LDX #12
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 28: MyPt  sarr[3] = {{1, 2}, {3, 4}, {5, 6}}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 28: MyPt  sarr[3] = {{1, 2}, {3, 4}, {5, 6}}
 	LDA #$01
 	STA _SARR+0
 	LDA #$02
@@ -94,9 +94,9 @@ __ZAP_ARR_COPY_2:
 	STA _SARR+4
 	LDA #$06
 	STA _SARR+5
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 29: word  earr[3] = {100, 200, 300}             ; ENUM values stored as WORD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 29: word  earr[3] = {100, 200, 300}             ; ENUM values stored as WORD
 	; Copy array [100, 200, 300] (3 elements)
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 29: word  earr[3] = {100, 200, 300}             ; ENUM values stored as WORD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 29: word  earr[3] = {100, 200, 300}             ; ENUM values stored as WORD
 	; Copy array [100, 200, 300] (3 elements)
 	LDX #$00
 __ZAP_ARR_COPY_3:
@@ -121,19 +121,19 @@ _MAIN$WPTR              = __LVSLOT_1
 _MAIN$LPTR              = __LVSLOT_1
 _MAIN$SPTR              = __LVSLOT_1
 _MAIN$TMP               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 39:     lptr = @larr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 39:     lptr = @larr
 	LDA #<_LARR
 	LDX #>_LARR
 	STA _MAIN$LPTR
 	STX _MAIN$LPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 40:     lptr += 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 40:     lptr += 2
 	CLC
 	ADC #$08
 	STA _MAIN$LPTR
 	BCC __ZAP_CARRY_ADD_PTR_4
 	INC _MAIN$LPTR+1
 __ZAP_CARRY_ADD_PTR_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 41:     if lptr^ == $33333333
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 41:     if lptr^ == $33333333
 	LDA #$33
 	STA __MATH0
 	STA __MATH0+1
@@ -170,24 +170,24 @@ __ZAP_CARRY_ADD_PTR_4:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 42:         result = result | 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 42:         result = result | 1
 	LDA _RESULT
 	ORA #$01
 	STA _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 46:     sptr = @sarr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 46:     sptr = @sarr
 	LDA #<_SARR
 	LDX #>_SARR
 	STA _MAIN$SPTR
 	STX _MAIN$SPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 47:     sptr += 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 47:     sptr += 1
 	CLC
 	ADC #$02
 	STA _MAIN$SPTR
 	BCC __ZAP_CARRY_ADD_PTR_9
 	INC _MAIN$SPTR+1
 __ZAP_CARRY_ADD_PTR_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 48:     tmp = sptr^.x + sptr^.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 48:     tmp = sptr^.x + sptr^.y
 	LDY #$00
 	LDA (_MAIN$SPTR),Y
 	STA _MAIN$TMP
@@ -196,49 +196,49 @@ __ZAP_CARRY_ADD_PTR_9:
 	CLC
 	ADC _MAIN$TMP
 	STA _MAIN$TMP
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 49:     if tmp == 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 49:     if tmp == 7
 	CMP #$07
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 50:         result = result | 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 50:         result = result | 2
 	LDA _RESULT
 	ORA #$02
 	STA _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 54:     sptr = @sarr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 54:     sptr = @sarr
 	LDA #<_SARR
 	LDX #>_SARR
 	STA _MAIN$SPTR
 	STX _MAIN$SPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 55:     sptr += 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 55:     sptr += 2
 	CLC
 	ADC #$04
 	STA _MAIN$SPTR
 	BCC __ZAP_CARRY_ADD_PTR_13
 	INC _MAIN$SPTR+1
 __ZAP_CARRY_ADD_PTR_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 56:     if sptr^.x == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 56:     if sptr^.x == 5
 	LDY #$00
 	LDA (_MAIN$SPTR),Y
 	CMP #$05
 	BNE __ZAP_else_14
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 57:         result = result | 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 57:         result = result | 4
 	LDA _RESULT
 	ORA #$04
 	STA _RESULT
 __ZAP_else_14:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 61:     wptr = @earr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 61:     wptr = @earr
 	LDA #<_EARR
 	LDX #>_EARR
 	STA _MAIN$WPTR
 	STX _MAIN$WPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 62:     wptr += 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 62:     wptr += 1
 	CLC
 	ADC #$02
 	STA _MAIN$WPTR
 	BCC __ZAP_CARRY_ADD_PTR_17
 	INC _MAIN$WPTR+1
 __ZAP_CARRY_ADD_PTR_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 63:     if wptr^ == 200
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 63:     if wptr^ == 200
 	LDY #1
 	LDA (_MAIN$WPTR),Y
 	TAX
@@ -248,32 +248,32 @@ __ZAP_CARRY_ADD_PTR_17:
 	BNE __ZAP_else_18
 	CPX #$00
 	BNE __ZAP_else_18
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 64:         result = result | 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 64:         result = result | 8
 	LDA _RESULT
 	ORA #$08
 	STA _RESULT
 __ZAP_else_18:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 68:     bptr = @barr[2]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 68:     bptr = @barr[2]
 	LDA #<(_BARR+2)
 	LDX #>(_BARR+2)
 	STA _MAIN$BPTR
 	STX _MAIN$BPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 69:     if bptr^ == $CC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 69:     if bptr^ == $CC
 	LDY #$00
 	LDA (_MAIN$BPTR),Y
 	CMP #$CC
 	BNE __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 70:         result = result | 16
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 70:         result = result | 16
 	LDA _RESULT
 	ORA #$10
 	STA _RESULT
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 74:     wptr = @warr[2]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 74:     wptr = @warr[2]
 	LDA #<(_WARR+4)
 	LDX #>(_WARR+4)
 	STA _MAIN$WPTR
 	STX _MAIN$WPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 75:     if wptr^ == $3333
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 75:     if wptr^ == $3333
 	LDY #1
 	LDA (_MAIN$WPTR),Y
 	TAX
@@ -283,17 +283,17 @@ __ZAP_else_22:
 	BNE __ZAP_else_25
 	CPX #$33
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 76:         result = result | 32
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 76:         result = result | 32
 	LDA _RESULT
 	ORA #$20
 	STA _RESULT
 __ZAP_else_25:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 80:     lptr = @larr[2]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 80:     lptr = @larr[2]
 	LDA #<(_LARR+8)
 	LDX #>(_LARR+8)
 	STA _MAIN$LPTR
 	STX _MAIN$LPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 81:     if lptr^ == $33333333
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 81:     if lptr^ == $33333333
 	LDA #$33
 	STA __MATH0
 	STA __MATH0+1
@@ -330,22 +330,22 @@ __ZAP_else_25:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_29
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 82:         result = result | 64
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 82:         result = result | 64
 	LDA _RESULT
 	ORA #$40
 	STA _RESULT
 __ZAP_else_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 86:     sptr = @sarr[1]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 86:     sptr = @sarr[1]
 	LDA #<(_SARR+2)
 	LDX #>(_SARR+2)
 	STA _MAIN$SPTR
 	STX _MAIN$SPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 87:     if sptr^.y == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 87:     if sptr^.y == 4
 	LDY #$01
 	LDA (_MAIN$SPTR),Y
 	CMP #$04
 	BNE __ZAP_else_33
-; /home/dusan/src/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 88:         result = result | 128
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/166-ptr-array-index/166-ptr-array-index.zap 88:         result = result | 128
 	LDA _RESULT
 	ORA #$80
 	STA _RESULT

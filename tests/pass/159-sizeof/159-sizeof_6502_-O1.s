@@ -25,7 +25,7 @@ _SV:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 12: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 12: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,54 +36,54 @@ _SV:	.res 2
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 37:     if SIZEOF(Small) == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 37:     if SIZEOF(Small) == 2
 	LDA #$02
 	LDX #$00
 	CMP #$02
 	BNE __ZAP_else_1
 	CPX #$00
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 38:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 38:         result = result + 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 42:     if SIZEOF(Large) == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 42:     if SIZEOF(Large) == 5
 	LDA #$05
 	LDX #$00
 	CMP #$05
 	BNE __ZAP_else_5
 	CPX #$00
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 43:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 43:         result = result + 1
 	INC _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 47:     if SIZEOF(sv) == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 47:     if SIZEOF(sv) == 2
 	LDA #$02
 	LDX #$00
 	CMP #$02
 	BNE __ZAP_else_9
 	CPX #$00
 	BNE __ZAP_else_9
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 48:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 48:         result = result + 1
 	INC _RESULT
 __ZAP_else_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 52:     if SIZEOF(lptr) == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 52:     if SIZEOF(lptr) == 5
 	LDA #$05
 	LDX #$00
 	CMP #$05
 	BNE __ZAP_else_13
 	CPX #$00
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 53:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 53:         result = result + 1
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 57:     if SIZEOF(WithLong) == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 57:     if SIZEOF(WithLong) == 6
 	LDA #$06
 	LDX #$00
 	CMP #$06
 	BNE __ZAP_else_17
 	CPX #$00
 	BNE __ZAP_else_17
-; /home/dusan/src/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 58:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/159-sizeof/159-sizeof.zap 58:         result = result + 1
 	INC _RESULT
 __ZAP_else_17:
 	RTS

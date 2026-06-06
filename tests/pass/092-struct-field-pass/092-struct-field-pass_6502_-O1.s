@@ -27,13 +27,13 @@ _X:	.res 1
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 12:     x = VIA1.ORB    ; read-only field: read allowed
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 12:     x = VIA1.ORB    ; read-only field: read allowed
 	LDA _VIA1
 	STA _X
-; /home/dusan/src/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 13:     VIA1.ORA = $02  ; write-only field: write allowed
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 13:     VIA1.ORA = $02  ; write-only field: write allowed
 	LDA #$02
 	STA _VIA1+1
-; /home/dusan/src/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 14:     VIA1.DDRB = VIA1.DDRB & %01001111
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 14:     VIA1.DDRB = VIA1.DDRB & %01001111
 	LDA _VIA1+2
 	LDX #$00
 	AND #$4F

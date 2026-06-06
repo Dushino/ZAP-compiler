@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/074-incbin/074-incbin.zap 1: BYTE result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/074-incbin/074-incbin.zap 1: BYTE result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -43,9 +43,9 @@ MYFONT:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/074-incbin/074-incbin.zap 15:     setfont()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/074-incbin/074-incbin.zap 15:     setfont()
 	JSR _SETFONT
-; /home/dusan/src/ZAP-compiler/tests/pass/074-incbin/074-incbin.zap 16:     result = 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/074-incbin/074-incbin.zap 16:     result = 42
 	LDA #$2A
 	STA _RESULT
 	RTS

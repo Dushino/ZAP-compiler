@@ -23,7 +23,7 @@ __LVSLOT_3:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -39,7 +39,7 @@ _SET42$VAR1             = __LVSLOT_2
 	STA _SET42$DEST
 	STX _SET42$DEST+1
 	STY _SET42$VAR1
-; /home/dusan/src/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 2:     dest^ = var1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 2:     dest^ = var1
 	LDA _SET42$VAR1
 	LDY #$00
 	STA (_SET42$DEST),Y
@@ -50,15 +50,15 @@ _SET42$VAR1             = __LVSLOT_2
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$X                 = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 9:     byte x = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 9:     byte x = 0
 	LDA #$00
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 10:     set42(@x, 42)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 10:     set42(@x, 42)
 	LDA #<_MAIN$X
 	LDX #>_MAIN$X
 	LDY #$2A
 	JSR _SET42
-; /home/dusan/src/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 11:     result = x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/039-procedures-basic/039-procedures-basic.zap 11:     result = x
 	LDA _MAIN$X
 	STA _RESULT
 	RTS

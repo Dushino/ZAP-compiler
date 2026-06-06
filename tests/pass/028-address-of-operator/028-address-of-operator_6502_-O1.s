@@ -22,7 +22,7 @@ __LVSLOT_2:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -35,19 +35,19 @@ __LVSLOT_2:	.res 2
 _MAIN:
 _MAIN$DATA              = __LVSLOT_1
 _MAIN$P                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 4:     byte data = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 4:     byte data = 5
 	LDA #$05
 	STA _MAIN$DATA
-; /home/dusan/src/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 7:     p = @data
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 7:     p = @data
 	LDA #<_MAIN$DATA
 	LDX #>_MAIN$DATA
 	STA _MAIN$P
 	STX _MAIN$P+1
-; /home/dusan/src/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 8:     p^ = 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 8:     p^ = 12
 	LDA #$0C
 	LDY #$00
 	STA (_MAIN$P),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 9:     result = data
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/028-address-of-operator/028-address-of-operator.zap 9:     result = data
 	LDA _MAIN$DATA
 	STA _RESULT
 	RTS

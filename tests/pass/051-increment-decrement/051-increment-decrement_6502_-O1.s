@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -32,12 +32,12 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 4:     byte x = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 4:     byte x = 10
 	LDA #$0A
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 5:     x = x + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 5:     x = x + 1
 	INC _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 6:     result = x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/051-increment-decrement/051-increment-decrement.zap 6:     result = x
 	LDA _MAIN$X
 	STA _RESULT
 	RTS

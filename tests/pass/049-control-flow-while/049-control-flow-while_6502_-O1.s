@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,24 +34,24 @@ __LVSLOT_2:	.res 1
 _MAIN:
 _MAIN$COUNT             = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 4:     byte count = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 4:     byte count = 3
 	LDA #$03
 	STA _MAIN$COUNT
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 5:     byte sum = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 5:     byte sum = 0
 	LDA #$00
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 7:     while count > 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 7:     while count > 0
 __ZAP_while_1:
 	LDA _MAIN$COUNT
 	BEQ __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 8:         sum = sum + 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 8:         sum = sum + 2
 	INC _MAIN$SUM
 	INC _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 9:         count = count - 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 9:         count = count - 1
 	DEC _MAIN$COUNT
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 12:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/049-control-flow-while/049-control-flow-while.zap 12:     result = sum
 	LDA _MAIN$SUM
 	STA _RESULT
 	RTS

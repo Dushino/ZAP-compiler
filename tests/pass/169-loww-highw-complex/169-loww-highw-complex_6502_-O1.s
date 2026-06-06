@@ -33,10 +33,10 @@ _LS:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 12: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 12: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 13: long la = $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 13: long la = $12345678
 	LDA #$78
 	STA _LA
 	LDA #$56
@@ -45,7 +45,7 @@ _LS:	.res 4
 	STA _LA+2
 	LDA #$12
 	STA _LA+3
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 14: long lb = $00000001
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 14: long lb = $00000001
 	LDA #$01
 	STA _LB
 	LDA #$00
@@ -61,7 +61,7 @@ _LS:	.res 4
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$TW                = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 24:     ls.val = $AABB0011
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 24:     ls.val = $AABB0011
 	LDA #$11
 	STA __MATH0
 	LDA #$00
@@ -78,7 +78,7 @@ _MAIN$TW                = __LVSLOT_1
 	STA _LS+2
 	LDA __MATH0+3
 	STA _LS+3
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 27:     tw = LOWW(la + lb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 27:     tw = LOWW(la + lb)
 	LDA _LB
 	STA __MATH1
 	LDA _LB+1
@@ -100,15 +100,15 @@ _MAIN$TW                = __LVSLOT_1
 	LDX __MATH0+1
 	STA _MAIN$TW
 	STX _MAIN$TW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 28:     if tw == $5679
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 28:     if tw == $5679
 	CMP #$79
 	BNE __ZAP_else_1
 	CPX #$56
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 29:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 29:         result = result + 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 33:     tw = HIGHW(la + lb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 33:     tw = HIGHW(la + lb)
 	LDA _LB
 	STA __MATH1
 	LDA _LB+1
@@ -130,15 +130,15 @@ __ZAP_else_1:
 	LDX __MATH0+3
 	STA _MAIN$TW
 	STX _MAIN$TW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 34:     if tw == $1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 34:     if tw == $1234
 	CMP #$34
 	BNE __ZAP_else_5
 	CPX #$12
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 35:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 35:         result = result + 1
 	INC _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 39:     if LOW(la + lb) == $79
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 39:     if LOW(la + lb) == $79
 	LDA _LB
 	STA __MATH1
 	LDA _LB+1
@@ -159,10 +159,10 @@ __ZAP_else_5:
 	LDA __MATH0
 	CMP #$79
 	BNE __ZAP_else_9
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 40:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 40:         result = result + 1
 	INC _RESULT
 __ZAP_else_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 44:     if HIGH(la + lb) == $56
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 44:     if HIGH(la + lb) == $56
 	LDA _LB
 	STA __MATH1
 	LDA _LB+1
@@ -183,10 +183,10 @@ __ZAP_else_9:
 	LDA __MATH0+1
 	CMP #$56
 	BNE __ZAP_else_12
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 45:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 45:         result = result + 1
 	INC _RESULT
 __ZAP_else_12:
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 49:     tw = LOWW(ls.val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 49:     tw = LOWW(ls.val)
 	LDA _LS
 	STA __MATH0
 	LDA _LS+1
@@ -199,15 +199,15 @@ __ZAP_else_12:
 	LDX __MATH0+1
 	STA _MAIN$TW
 	STX _MAIN$TW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 50:     if tw == $0011
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 50:     if tw == $0011
 	CMP #$11
 	BNE __ZAP_else_15
 	CPX #$00
 	BNE __ZAP_else_15
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 51:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 51:         result = result + 1
 	INC _RESULT
 __ZAP_else_15:
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 55:     tw = HIGHW(ls.val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 55:     tw = HIGHW(ls.val)
 	LDA _LS
 	STA __MATH0
 	LDA _LS+1
@@ -220,12 +220,12 @@ __ZAP_else_15:
 	LDX __MATH0+3
 	STA _MAIN$TW
 	STX _MAIN$TW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 56:     if tw == $AABB
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 56:     if tw == $AABB
 	CMP #$BB
 	BNE __ZAP_else_19
 	CPX #$AA
 	BNE __ZAP_else_19
-; /home/dusan/src/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 57:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/169-loww-highw-complex/169-loww-highw-complex.zap 57:         result = result + 1
 	INC _RESULT
 __ZAP_else_19:
 	RTS

@@ -34,7 +34,7 @@ __LVSLOT_1:	.res 8
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 19: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 19: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -51,7 +51,7 @@ _MAIN$J                 = __LVSLOT_2
 _MAIN$SUM               = __LVSLOT_4
 _MAIN$FOR_END_1         = __LVSLOT_3
 _MAIN$__SBM_1           = __LVSLOT_5
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 33:     items[0].val = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 33:     items[0].val = 1
 	LDA #$00
 	TAX
 	CLC
@@ -63,7 +63,7 @@ _MAIN$__SBM_1           = __LVSLOT_5
 	LDA #$01
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 34:     items[0].flag = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 34:     items[0].flag = 2
 	TXA
 	CLC
 	ADC #<_MAIN$ITEMS
@@ -74,7 +74,7 @@ _MAIN$__SBM_1           = __LVSLOT_5
 	LDA #$02
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 35:     if items[0].val == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 35:     if items[0].val == 1
 	TXA
 	CLC
 	ADC #<_MAIN$ITEMS
@@ -86,10 +86,10 @@ _MAIN$__SBM_1           = __LVSLOT_5
 	LDA (__TMP0),Y
 	CMP #$01
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 36:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 36:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 38:     if items[0].flag == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 38:     if items[0].flag == 2
 	LDA #$00
 	TAX
 	CLC
@@ -102,10 +102,10 @@ __ZAP_else_1:
 	LDA (__TMP0),Y
 	CMP #$02
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 39:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 39:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 43:     items[3].val = 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 43:     items[3].val = 9
 	LDA #$06
 	LDX #$00
 	CLC
@@ -117,7 +117,7 @@ __ZAP_else_4:
 	LDA #$09
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 44:     items[3].flag = 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 44:     items[3].flag = 8
 	LDA #$06
 	CLC
 	ADC #<_MAIN$ITEMS
@@ -128,7 +128,7 @@ __ZAP_else_4:
 	LDA #$08
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 45:     if items[3].val == 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 45:     if items[3].val == 9
 	LDA #$06
 	CLC
 	ADC #<_MAIN$ITEMS
@@ -140,10 +140,10 @@ __ZAP_else_4:
 	LDA (__TMP0),Y
 	CMP #$09
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 46:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 46:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 48:     if items[3].flag == 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 48:     if items[3].flag == 8
 	LDA #$06
 	LDX #$00
 	CLC
@@ -156,13 +156,13 @@ __ZAP_else_7:
 	LDA (__TMP0),Y
 	CMP #$08
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 49:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 49:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 53:     i = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 53:     i = 2
 	LDA #$02
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 54:     items[i].val = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 54:     items[i].val = 5
 	ASL A
 	CLC
 	ADC #<_MAIN$ITEMS
@@ -177,19 +177,19 @@ __ZAP_else_10:
 	LDA #$05
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 55:     items[i].flag = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 55:     items[i].flag = 6
 	LDA #$06
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 56:     if items[i].val == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 56:     if items[i].val == 5
 	LDY #$00
 	LDA (__TMP0),Y
 	CMP #$05
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 57:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 57:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 59:     if items[i].flag == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 59:     if items[i].flag == 6
 	LDA _MAIN$__SBM_1
 	STA __TMP0
 	LDA _MAIN$__SBM_1+1
@@ -198,13 +198,13 @@ __ZAP_else_13:
 	LDA (__TMP0),Y
 	CMP #$06
 	BNE __ZAP_else_16
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 60:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 60:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 64:     sum = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 64:     sum = 0
 	LDA #$00
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 65:     for j = 0 to 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 65:     for j = 0 to 4
 	STA _MAIN$J
 	LDA #$04
 	STA _MAIN$FOR_END_1
@@ -212,7 +212,7 @@ __ZAP_while_19:
 	LDA _MAIN$J
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_20
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 66:         sum = sum + items[j].val
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 66:         sum = sum + items[j].val
 	LDA _MAIN$SUM
 	STA __TMP1
 	LDA _MAIN$J
@@ -231,14 +231,14 @@ __ZAP_while_19:
 	INC _MAIN$J
 	JMP __ZAP_while_19
 __ZAP_endwhile_20:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 68:     if sum == 15
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 68:     if sum == 15
 	LDA _MAIN$SUM
 	CMP #$0F
 	BNE __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 69:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 69:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 73:     if items[2].val == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 73:     if items[2].val == 5
 	LDA #$04
 	LDX #$00
 	CLC
@@ -251,7 +251,7 @@ __ZAP_else_22:
 	LDA (__TMP0),Y
 	CMP #$05
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 74:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/175-struct-array-base-cache/175-struct-array-base-cache.zap 74:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_25:
 	RTS

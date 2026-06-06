@@ -23,7 +23,7 @@ __LVSLOT_4:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,13 +36,13 @@ __LVSLOT_4:	.res 4
 _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 4:     byte a = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 4:     byte a = 10
 	LDA #$0A
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 5:     byte b = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 5:     byte b = 20
 	LDA #$14
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 7:     if !(a < b)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 7:     if !(a < b)
 	LDA _MAIN$A
 	CMP _MAIN$B
 	BCC __ZAP_CMP_TRUE_4
@@ -60,12 +60,12 @@ __ZAP_NOT_NONZERO_6:
 __ZAP_NOT_END_7:
 	STA __MATH0
 	BEQ __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 8:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 8:         result = 1
 	LDA #$01
 	STA _RESULT
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 10:         result = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/115-unary-with-comparison-rpn/115-unary-with-comparison-rpn.zap 10:         result = 0
 	LDA #$00
 	STA _RESULT
 __ZAP_endif_2:

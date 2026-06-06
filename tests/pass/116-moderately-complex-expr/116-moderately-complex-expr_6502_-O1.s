@@ -38,7 +38,7 @@ __LVSLOT_9:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 3: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 3: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -55,25 +55,25 @@ _MAIN$C                 = __LVSLOT_3
 _MAIN$D                 = __LVSLOT_4
 _MAIN$E                 = __LVSLOT_5
 _MAIN$F                 = __LVSLOT_6
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 6:     byte a = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 6:     byte a = 1
 	LDA #$01
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 7:     byte b = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 7:     byte b = 2
 	LDA #$02
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 8:     byte c = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 8:     byte c = 3
 	LDA #$03
 	STA _MAIN$C
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 9:     byte d = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 9:     byte d = 4
 	LDA #$04
 	STA _MAIN$D
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 10:     byte e = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 10:     byte e = 5
 	LDA #$05
 	STA _MAIN$E
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 11:     byte f = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 11:     byte f = 6
 	LDA #$06
 	STA _MAIN$F
-; /home/dusan/src/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 14:     result = ((a + b) * (c + d)) + ((e + f) * 2)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/116-moderately-complex-expr/116-moderately-complex-expr.zap 14:     result = ((a + b) * (c + d)) + ((e + f) * 2)
 	LDA _MAIN$A
 	CLC
 	ADC _MAIN$B

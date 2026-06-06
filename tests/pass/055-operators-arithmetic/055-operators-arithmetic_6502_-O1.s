@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/055-operators-arithmetic/055-operators-arithmetic.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/055-operators-arithmetic/055-operators-arithmetic.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -28,7 +28,7 @@ _RESULT                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/055-operators-arithmetic/055-operators-arithmetic.zap 4:     result = 2 + 3 * 4 - 5    ; 2 + 12 - 5 = 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/055-operators-arithmetic/055-operators-arithmetic.zap 4:     result = 2 + 3 * 4 - 5    ; 2 + 12 - 5 = 9
 	LDA #$09
 	STA _RESULT
 	RTS

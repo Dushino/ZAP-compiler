@@ -36,7 +36,7 @@ __LVSLOT_5:	.res 3
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -48,7 +48,7 @@ __LVSLOT_5:	.res 3
 ; -- Function ADD_PAIR --
 _ADD_PAIR:
 _ADD_PAIR$P             = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 28:     return p.x + p.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 28:     return p.x + p.y
 	LDA _ADD_PAIR$P
 	LDX #$00
 	STA __TMP1
@@ -62,7 +62,7 @@ _ADD_PAIR$P             = __LVSLOT_3
 ; -- Function ADD_WPAIR --
 _ADD_WPAIR:
 _ADD_WPAIR$P            = __LVSLOT_4
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 32:     return p.wx + p.wy
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 32:     return p.wx + p.wy
 	LDA _ADD_WPAIR$P
 	LDX _ADD_WPAIR$P+1
 	STA __TMP1
@@ -85,7 +85,7 @@ _ADD_WPAIR$P            = __LVSLOT_4
 ; -- Function ADD_BW --
 _ADD_BW:
 _ADD_BW$BW              = __LVSLOT_5
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 36:     return bw.b + bw.w
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 36:     return bw.b + bw.w
 	LDA _ADD_BW$BW
 	LDX #$00
 	STA __TMP1
@@ -108,7 +108,7 @@ _ADD_BW$BW              = __LVSLOT_5
 ; -- Function NESTED_SUM --
 _NESTED_SUM:
 _NESTED_SUM$N           = __LVSLOT_5
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 40:     return n.tag + n.p.x + n.p.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 40:     return n.tag + n.p.x + n.p.y
 	LDA _NESTED_SUM$N
 	LDX #$00
 	STA __TMP1
@@ -127,39 +127,39 @@ _NESTED_SUM$N           = __LVSLOT_5
 _MAIN:
 _MAIN$BA                = __LVSLOT_1
 _MAIN$WA                = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 44:     byte ba = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 44:     byte ba = 0
 	LDA #$00
 	STA _MAIN$BA
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 45:     word wa = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 45:     word wa = 0
 	STA _MAIN$WA
 	STA _MAIN$WA+1
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 48:     ba = add_pair({10, 20})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 48:     ba = add_pair({10, 20})
 	LDA #$0A
 	STA _ADD_PAIR$P+0
 	LDA #$14
 	STA _ADD_PAIR$P+1
 	JSR _ADD_PAIR
 	STA _MAIN$BA
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 49:     if ba == 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 49:     if ba == 30
 	CMP #$1E
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 50:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 50:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 54:     ba = add_pair({100, 56})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 54:     ba = add_pair({100, 56})
 	LDA #$64
 	STA _ADD_PAIR$P+0
 	LDA #$38
 	STA _ADD_PAIR$P+1
 	JSR _ADD_PAIR
 	STA _MAIN$BA
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 55:     if ba == 156
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 55:     if ba == 156
 	CMP #$9C
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 56:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 56:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 60:     wa = add_wpair({300, 400})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 60:     wa = add_wpair({300, 400})
 	LDA #$2C
 	LDX #$01
 	STA _ADD_WPAIR$P+0
@@ -170,15 +170,15 @@ __ZAP_else_4:
 	JSR _ADD_WPAIR
 	STA _MAIN$WA
 	STX _MAIN$WA+1
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 61:     if wa == 700
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 61:     if wa == 700
 	CMP #$BC
 	BNE __ZAP_else_7
 	CPX #$02
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 62:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 62:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 66:     wa = add_bw({50, 250})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 66:     wa = add_bw({50, 250})
 	LDA #$32
 	STA _ADD_BW$BW+0
 	LDA #$FA
@@ -188,28 +188,28 @@ __ZAP_else_7:
 	JSR _ADD_BW
 	STA _MAIN$WA
 	STX _MAIN$WA+1
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 67:     if wa == 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 67:     if wa == 300
 	CMP #$2C
 	BNE __ZAP_else_11
 	CPX #$01
 	BNE __ZAP_else_11
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 68:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 68:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_11:
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 72:     ba = add_pair({0, 42})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 72:     ba = add_pair({0, 42})
 	LDA #$00
 	STA _ADD_PAIR$P+0
 	LDA #$2A
 	STA _ADD_PAIR$P+1
 	JSR _ADD_PAIR
 	STA _MAIN$BA
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 73:     if ba == 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 73:     if ba == 42
 	CMP #$2A
 	BNE __ZAP_else_15
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 74:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 74:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_15:
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 78:     if add_pair({3, 4}) == 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 78:     if add_pair({3, 4}) == 7
 	LDA #$03
 	STA _ADD_PAIR$P+0
 	LDA #$04
@@ -217,10 +217,10 @@ __ZAP_else_15:
 	JSR _ADD_PAIR
 	CMP #$07
 	BNE __ZAP_else_18
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 79:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 79:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_18:
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 83:     ba = nested_sum({1, {10, 20}})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 83:     ba = nested_sum({1, {10, 20}})
 	LDA #$01
 	STA _NESTED_SUM$N+0
 	LDA #$0A
@@ -229,10 +229,10 @@ __ZAP_else_18:
 	STA _NESTED_SUM$N+2
 	JSR _NESTED_SUM
 	STA _MAIN$BA
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 84:     if ba == 31
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 84:     if ba == 31
 	CMP #$1F
 	BNE __ZAP_else_21
-; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 85:         result = result + 1     ; 7: 1 + 10 + 20 = 31
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 85:         result = result + 1     ; 7: 1 + 10 + 20 = 31
 	INC _RESULT
 __ZAP_else_21:
 	RTS

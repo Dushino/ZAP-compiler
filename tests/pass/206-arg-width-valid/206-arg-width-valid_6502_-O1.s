@@ -33,15 +33,15 @@ _GL:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 3: byte gb = $42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 3: byte gb = $42
 	LDA #$42
 	STA _GB
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 4: word gw = $1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 4: word gw = $1234
 	LDA #$34
 	STA _GW
 	LDA #$12
 	STA _GW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 5: long gl = $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 5: long gl = $12345678
 	LDA #$78
 	STA _GL
 	LDA #$56
@@ -50,7 +50,7 @@ _GL:	.res 4
 	STA _GL+2
 	LDA #$12
 	STA _GL+3
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 6: byte ^gp = $2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 6: byte ^gp = $2000
 	LDA #$00
 	STA _GP
 	LDA #$20
@@ -107,7 +107,7 @@ _TAKE_TWO$B             = __LVSLOT_3
 _RET_BYTE:
 _RET_BYTE$X             = __LVSLOT_1
 	STA _RET_BYTE$X
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 26:     return x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 26:     return x
 	RTS
 
 
@@ -117,7 +117,7 @@ _RET_WORD:
 _RET_WORD$X             = __LVSLOT_3
 	STA _RET_WORD$X
 	STX _RET_WORD$X+1
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 30:     return x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 30:     return x
 	RTS
 
 
@@ -129,15 +129,15 @@ _MAIN$LW                = __LVSLOT_4
 _MAIN$LL                = __LVSLOT_6
 _MAIN$R                 = __LVSLOT_1
 _MAIN$RW                = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 34:     byte lb = $10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 34:     byte lb = $10
 	LDA #$10
 	STA _MAIN$LB
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 35:     word lw = $2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 35:     word lw = $2000
 	LDA #$00
 	STA _MAIN$LW
 	LDA #$20
 	STA _MAIN$LW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 36:     long ll = $AABBCCDD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 36:     long ll = $AABBCCDD
 	LDA #$DD
 	STA _MAIN$LL
 	LDA #$CC
@@ -146,21 +146,21 @@ _MAIN$RW                = __LVSLOT_3
 	STA _MAIN$LL+2
 	LDA #$AA
 	STA _MAIN$LL+3
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 41:     take_byte(gb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 41:     take_byte(gb)
 	LDA _GB
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 42:     take_byte(lb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 42:     take_byte(lb)
 	LDA _MAIN$LB
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 45:     take_word(gw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 45:     take_word(gw)
 	LDA _GW
 	LDX _GW+1
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 46:     take_word(lw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 46:     take_word(lw)
 	LDA _MAIN$LW
 	LDX _MAIN$LW+1
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 49:     take_long(gl)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 49:     take_long(gl)
 	LDA _GL
 	STA __MATH0
 	LDA _GL+1
@@ -178,7 +178,7 @@ _MAIN$RW                = __LVSLOT_3
 	LDA __MATH0+3
 	STA _TAKE_LONG$X+3
 	JSR _TAKE_LONG
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 50:     take_long(ll)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 50:     take_long(ll)
 	LDA _MAIN$LL
 	STA __MATH0
 	LDA _MAIN$LL+1
@@ -196,98 +196,98 @@ _MAIN$RW                = __LVSLOT_3
 	LDA __MATH0+3
 	STA _TAKE_LONG$X+3
 	JSR _TAKE_LONG
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 53:     take_byte(0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 53:     take_byte(0)
 	LDA #$00
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 54:     take_byte(42)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 54:     take_byte(42)
 	LDA #$2A
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 55:     take_byte(255)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 55:     take_byte(255)
 	LDA #$FF
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 56:     take_byte($FF)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 56:     take_byte($FF)
 	LDA #$FF
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 59:     take_word(0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 59:     take_word(0)
 	LDA #$00
 	TAX
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 60:     take_word(255)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 60:     take_word(255)
 	LDA #$FF
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 61:     take_word(256)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 61:     take_word(256)
 	LDA #$00
 	LDX #$01
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 62:     take_word($FFFF)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 62:     take_word($FFFF)
 	LDA #$FF
 	TAX
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 65:     take_byte(LOW(gw))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 65:     take_byte(LOW(gw))
 	LDA _GW
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 66:     take_byte(HIGH(gw))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 66:     take_byte(HIGH(gw))
 	LDA _GW+1
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 67:     take_byte(LOW(lw))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 67:     take_byte(LOW(lw))
 	LDA _MAIN$LW
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 68:     take_byte(HIGH(lw))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 68:     take_byte(HIGH(lw))
 	LDA _MAIN$LW+1
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 71:     take_word(LOWW(gl))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 71:     take_word(LOWW(gl))
 	LDA _GL
 	LDX _GL+1
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 72:     take_word(HIGHW(gl))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 72:     take_word(HIGHW(gl))
 	LDA _GL+2
 	LDX _GL+3
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 73:     take_word(LOWW(ll))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 73:     take_word(LOWW(ll))
 	LDA _MAIN$LL
 	LDX _MAIN$LL+1
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 74:     take_word(HIGHW(ll))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 74:     take_word(HIGHW(ll))
 	LDA _MAIN$LL+2
 	LDX _MAIN$LL+3
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 77:     take_byte(LOW(LOWW(gl)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 77:     take_byte(LOW(LOWW(gl)))
 	LDA _GL
 	LDX _GL+1
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 78:     take_byte(HIGH(LOWW(gl)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 78:     take_byte(HIGH(LOWW(gl)))
 	LDA _GL
 	LDX _GL+1
 	TXA
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 79:     take_byte(LOW(HIGHW(gl)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 79:     take_byte(LOW(HIGHW(gl)))
 	LDA _GL+2
 	LDX _GL+3
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 80:     take_byte(HIGH(HIGHW(gl)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 80:     take_byte(HIGH(HIGHW(gl)))
 	LDA _GL+2
 	LDX _GL+3
 	TXA
 	JSR _TAKE_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 83:     take_ptr(gp)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 83:     take_ptr(gp)
 	LDA _GP
 	LDX _GP+1
 	JSR _TAKE_PTR
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 86:     take_two(gb, gw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 86:     take_two(gb, gw)
 	LDA _GW
 	LDX _GW+1
 	STA _TAKE_TWO$B
 	STX _TAKE_TWO$B+1
 	LDA _GB
 	JSR _TAKE_TWO
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 87:     take_two($42, $1234)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 87:     take_two($42, $1234)
 	LDA #$34
 	STA _TAKE_TWO$B
 	LDA #$12
 	STA _TAKE_TWO$B+1
 	LDA #$42
 	JSR _TAKE_TWO
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 88:     take_two(LOW(gw), gw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 88:     take_two(LOW(gw), gw)
 	LDA _GW
 	PHA
 	LDX _GW+1
@@ -295,14 +295,14 @@ _MAIN$RW                = __LVSLOT_3
 	STX _TAKE_TWO$B+1
 	PLA
 	JSR _TAKE_TWO
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 91:     take_word(gb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 91:     take_word(gb)
 	LDA _GB
 	LDX #$00
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 92:     take_word(lb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 92:     take_word(lb)
 	LDA _MAIN$LB
 	JSR _TAKE_WORD
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 95:     take_long(gb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 95:     take_long(gb)
 	LDA _GB
 	LDX #$00
 	LDA __MATH0
@@ -314,7 +314,7 @@ _MAIN$RW                = __LVSLOT_3
 	LDA __MATH0+3
 	STA _TAKE_LONG$X+3
 	JSR _TAKE_LONG
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 96:     take_long(gw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 96:     take_long(gw)
 	LDA _GW
 	LDX _GW+1
 	LDA __MATH0
@@ -326,40 +326,40 @@ _MAIN$RW                = __LVSLOT_3
 	LDA __MATH0+3
 	STA _TAKE_LONG$X+3
 	JSR _TAKE_LONG
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 99:     r = ret_byte(gb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 99:     r = ret_byte(gb)
 	LDA _GB
 	JSR _RET_BYTE
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 100:     r = ret_byte($42)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 100:     r = ret_byte($42)
 	LDA #$42
 	JSR _RET_BYTE
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 101:     r = ret_byte(LOW(gw))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 101:     r = ret_byte(LOW(gw))
 	LDA _GW
 	JSR _RET_BYTE
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 103:     rw = ret_word(gw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 103:     rw = ret_word(gw)
 	LDA _GW
 	LDX _GW+1
 	JSR _RET_WORD
 	STA _MAIN$RW
 	STX _MAIN$RW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 104:     rw = ret_word($1234)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 104:     rw = ret_word($1234)
 	LDA #$34
 	LDX #$12
 	JSR _RET_WORD
 	STA _MAIN$RW
 	STX _MAIN$RW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 105:     rw = ret_word(LOWW(gl))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 105:     rw = ret_word(LOWW(gl))
 	LDA _GL
 	LDX _GL+1
 	JSR _RET_WORD
 	STA _MAIN$RW
 	STX _MAIN$RW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 108:     ret_byte(gb)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 108:     ret_byte(gb)
 	LDA _GB
 	JSR _RET_BYTE
-; /home/dusan/src/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 109:     ret_word(gw)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/206-arg-width-valid/206-arg-width-valid.zap 109:     ret_word(gw)
 	LDA _GW
 	LDX _GW+1
 	JMP _RET_WORD

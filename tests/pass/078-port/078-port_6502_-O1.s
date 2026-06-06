@@ -26,16 +26,16 @@ _VIA2                   = $9C50
 ; ---------------------------------------------------------------------------
 ; -- Procedure HELPER --
 _HELPER:
-; /home/dusan/src/ZAP-compiler/tests/pass/078-port/078-port.zap 26:     VIA1.ORB = $01      ; #wr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/078-port/078-port.zap 26:     VIA1.ORB = $01      ; #wr
 	LDA #$01
 	STA _VIA1
-; /home/dusan/src/ZAP-compiler/tests/pass/078-port/078-port.zap 27:     VIA1.DDRB = $FF     ; #rd #wr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/078-port/078-port.zap 27:     VIA1.DDRB = $FF     ; #rd #wr
 	LDA #$FF
 	STA _VIA1+2
-; /home/dusan/src/ZAP-compiler/tests/pass/078-port/078-port.zap 28:     VIA2.ORB = $02      ; #wr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/078-port/078-port.zap 28:     VIA2.ORB = $02      ; #wr
 	LDA #$02
 	STA _VIA2
-; /home/dusan/src/ZAP-compiler/tests/pass/078-port/078-port.zap 29:     VIA2.DDRB = $FF     ; #rd #wr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/078-port/078-port.zap 29:     VIA2.DDRB = $FF     ; #rd #wr
 	LDA #$FF
 	STA _VIA2+2
 	RTS
@@ -44,7 +44,7 @@ _HELPER:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/078-port/078-port.zap 34:     helper()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/078-port/078-port.zap 34:     helper()
 	JMP _HELPER
 
 

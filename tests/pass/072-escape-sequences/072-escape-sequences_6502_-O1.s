@@ -47,22 +47,22 @@ __BSSSLOT_8:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 4: byte r1 @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 4: byte r1 @40000 = 0
 	LDA #$00
 	STA _R1
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 5: byte r2 @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 5: byte r2 @40001 = 0
 	STA _R2
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 6: byte r3 @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 6: byte r3 @40002 = 0
 	STA _R3
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 7: byte r4 @40003 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 7: byte r4 @40003 = 0
 	STA _R4
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 8: byte r5 @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 8: byte r5 @40004 = 0
 	STA _R5
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 9: byte r6 @40005 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 9: byte r6 @40005 = 0
 	STA _R6
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 10: byte r7 @40006 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 10: byte r7 @40006 = 0
 	STA _R7
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 11: byte r8 @40007 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 11: byte r8 @40007 = 0
 	STA _R8
 ; Call MAIN
 	JSR _MAIN
@@ -80,28 +80,28 @@ _MAIN$OCT_7             = __LVSLOT_5
 _MAIN$BIN_FF            = __LVSLOT_6
 _MAIN$BIN_F             = __LVSLOT_7
 _MAIN$MIXED             = __BSSSLOT_8
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 15:     byte hex_ff = '\xFF'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 15:     byte hex_ff = '\xFF'
 	LDA #$FF
 	STA _MAIN$HEX_FF
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 16:     byte hex_f = '\xF'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 16:     byte hex_f = '\xF'
 	LDA #$0F
 	STA _MAIN$HEX_F
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 20:     byte oct_max = '\377'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 20:     byte oct_max = '\377'
 	LDA #$FF
 	STA _MAIN$OCT_MAX
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 21:     byte oct_a = '\101'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 21:     byte oct_a = '\101'
 	LDA #$41
 	STA _MAIN$OCT_A
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 22:     byte oct_7 = '\7'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 22:     byte oct_7 = '\7'
 	LDA #$07
 	STA _MAIN$OCT_7
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 25:     byte bin_ff = '\b11111111'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 25:     byte bin_ff = '\b11111111'
 	LDA #$FF
 	STA _MAIN$BIN_FF
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 26:     byte bin_f = '\b1111'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 26:     byte bin_f = '\b1111'
 	LDA #$0F
 	STA _MAIN$BIN_F
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 30:     byte mixed[4] = "\x41\101\b01000001"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 30:     byte mixed[4] = "\x41\101\b01000001"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -112,28 +112,28 @@ _MAIN$MIXED             = __BSSSLOT_8
 	STX __TMP2+1
 	LDX #4
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 32:     r1 = hex_ff      ; expect 255 = 0xFF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 32:     r1 = hex_ff      ; expect 255 = 0xFF
 	LDA _MAIN$HEX_FF
 	STA _R1
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 33:     r2 = hex_f       ; expect 15  = 0x0F
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 33:     r2 = hex_f       ; expect 15  = 0x0F
 	LDA _MAIN$HEX_F
 	STA _R2
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 34:     r3 = oct_max     ; expect 255 = 0xFF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 34:     r3 = oct_max     ; expect 255 = 0xFF
 	LDA _MAIN$OCT_MAX
 	STA _R3
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 35:     r4 = oct_a       ; expect 65  = 0x41
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 35:     r4 = oct_a       ; expect 65  = 0x41
 	LDA _MAIN$OCT_A
 	STA _R4
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 36:     r5 = oct_7       ; expect 7   = 0x07
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 36:     r5 = oct_7       ; expect 7   = 0x07
 	LDA _MAIN$OCT_7
 	STA _R5
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 37:     r6 = bin_ff      ; expect 255 = 0xFF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 37:     r6 = bin_ff      ; expect 255 = 0xFF
 	LDA _MAIN$BIN_FF
 	STA _R6
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 38:     r7 = bin_f       ; expect 15  = 0x0F
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 38:     r7 = bin_f       ; expect 15  = 0x0F
 	LDA _MAIN$BIN_F
 	STA _R7
-; /home/dusan/src/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 39:     r8 = mixed[0]    ; expect 65  = 0x41 (all three are 'A')
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/072-escape-sequences/072-escape-sequences.zap 39:     r8 = mixed[0]    ; expect 65  = 0x41 (all three are 'A')
 	LDA _MAIN$MIXED+0
 	STA _R8
 	RTS

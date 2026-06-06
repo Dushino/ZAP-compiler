@@ -29,7 +29,7 @@ __LVSLOT_7:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -45,18 +45,18 @@ _MAIN$B                 = __LVSLOT_2
 _MAIN$C                 = __LVSLOT_3
 _MAIN$D                 = __LVSLOT_4
 _MAIN$R                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 4:     byte a = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 4:     byte a = 5
 	LDA #$05
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 5:     byte b = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 5:     byte b = 10
 	LDA #$0A
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 6:     byte c = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 6:     byte c = 3
 	LDA #$03
 	STA _MAIN$C
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 7:     byte d = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 7:     byte d = 3
 	STA _MAIN$D
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 9:     byte r = (a < b) && (c == d)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 9:     byte r = (a < b) && (c == d)
 	LDA _MAIN$A
 	CMP _MAIN$B
 	BCC __ZAP_CMP_TRUE_1
@@ -90,7 +90,7 @@ __ZAP_AND_END_6:
 	STA __MATH0
 	LDX #$00
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 10:     result = r
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/110-logical-and-rpn/110-logical-and-rpn.zap 10:     result = r
 	STA _RESULT
 	RTS
 

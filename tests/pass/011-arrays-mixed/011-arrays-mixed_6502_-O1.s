@@ -31,7 +31,7 @@ __LVSLOT_1:	.res 6
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -45,22 +45,22 @@ __LVSLOT_1:	.res 6
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 6:     arr[0] = 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 6:     arr[0] = 1000
 	LDA #$E8
 	LDX #$03
 	STA _MAIN$ARR+0
 	STX _MAIN$ARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 7:     arr[1] = 2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 7:     arr[1] = 2000
 	LDA #$D0
 	LDX #$07
 	STA _MAIN$ARR+2
 	STX _MAIN$ARR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 8:     arr[2] = 3000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 8:     arr[2] = 3000
 	LDA #$B8
 	LDX #$0B
 	STA _MAIN$ARR+4
 	STX _MAIN$ARR+5
-; /home/dusan/src/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 9:     sum = arr[0] + arr[1] + arr[2]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 9:     sum = arr[0] + arr[1] + arr[2]
 	LDA _MAIN$ARR+0
 	LDX _MAIN$ARR+1
 	STA __MATH0
@@ -78,7 +78,7 @@ _MAIN$SUM               = __LVSLOT_2
 	LDA __MATH0
 	LDX __MATH0+1
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 10:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/011-arrays-mixed/011-arrays-mixed.zap 10:     result = sum
 	LDX #$00
 	STA _RESULT
 	STX _RESULT+1

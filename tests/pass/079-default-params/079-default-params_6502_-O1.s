@@ -29,10 +29,10 @@ __LVSLOT_7:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 3: byte result @40000 = 0  ; at the end should be $39
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 3: byte result @40000 = 0  ; at the end should be $39
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 4: byte x      @40001 = 0  ; at the end should be $17
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 4: byte x      @40001 = 0  ; at the end should be $17
 	STA _X
 ; Call MAIN
 	JSR _MAIN
@@ -46,11 +46,11 @@ _TEST1$A                = __LVSLOT_1
 _TEST1$B                = __LVSLOT_2
 	STA _TEST1$A
 	STX _TEST1$B
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 7:     result = a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 7:     result = a + b
 	CLC
 	ADC _TEST1$B
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 8:     return result
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 8:     return result
 	RTS
 
 
@@ -63,7 +63,7 @@ _TEST2$C                = __LVSLOT_3
 	STA _TEST2$A
 	STX _TEST2$B
 	STY _TEST2$C
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 12:     result = a + b + c
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 12:     result = a + b + c
 	CLC
 	ADC _TEST2$B
 	STA __MATH0
@@ -74,7 +74,7 @@ _TEST2$C                = __LVSLOT_3
 	ADC __MATH1
 	STA __MATH0
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 13:     return result   
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 13:     return result   
 	RTS
 
 
@@ -85,7 +85,7 @@ _ADD$X                  = __LVSLOT_1
 _ADD$Y                  = __LVSLOT_2
 	STA _ADD$X
 	STX _ADD$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 17:     return x + y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 17:     return x + y
 	CLC
 	ADC _ADD$Y
 	RTS
@@ -94,12 +94,12 @@ _ADD$Y                  = __LVSLOT_2
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 23:     result = test1(1, 2)                    ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 23:     result = test1(1, 2)                    ; 3
 	LDA #$01
 	LDX #$02
 	JSR _TEST1
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 27:     result = result + test1(4)          ; 3 + 9 = 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 27:     result = result + test1(4)          ; 3 + 9 = 12
 	PHA
 	LDA #$04
 	LDX #$05
@@ -109,12 +109,12 @@ _MAIN:
 	CLC
 	ADC __TMP0
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 31:     x = add(2, 8)                       ; 2 + 8 = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 31:     x = add(2, 8)                       ; 2 + 8 = 10
 	LDA #$02
 	LDX #$08
 	JSR _ADD
 	STA _X
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 35:     x = x + add(3)                          ; 10 + 13 = 23 $17
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 35:     x = x + add(3)                          ; 10 + 13 = 23 $17
 	PHA
 	LDA #$03
 	LDX #$0A
@@ -124,7 +124,7 @@ _MAIN:
 	CLC
 	ADC __TMP0
 	STA _X
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 39:     result = result + test2(1, 2, 3)        ; 12 + 6 = 18
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 39:     result = result + test2(1, 2, 3)        ; 12 + 6 = 18
 	LDA _RESULT
 	PHA
 	LDA #$01
@@ -144,7 +144,7 @@ _MAIN:
 	CLC
 	ADC __TMP0
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 42:     result = result + test2(4, 5)           ; 18 + 39 = 57  $39
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/079-default-params/079-default-params.zap 42:     result = result + test2(4, 5)           ; 18 + 39 = 57  $39
 	PHA
 	LDA #$04
 	PHA

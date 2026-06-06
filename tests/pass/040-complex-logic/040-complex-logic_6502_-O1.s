@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,20 +34,20 @@ __LVSLOT_2:	.res 1
 _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 4:     byte a = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 4:     byte a = 1
 	LDA #$01
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 5:     byte b = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 5:     byte b = 0
 	LDA #$00
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 7:     while a == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 7:     while a == 1
 __ZAP_while_1:
 	LDA _MAIN$A
 	CMP #$01
 	BNE __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 8:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 8:         result = result + 1
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 9:         a = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/040-complex-logic/040-complex-logic.zap 9:         a = b
 	LDA _MAIN$B
 	STA _MAIN$A
 	JMP __ZAP_while_1

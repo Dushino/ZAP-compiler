@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/076-CPU-as-symbol1/076-CPU-as-symbol1.zap 4: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/076-CPU-as-symbol1/076-CPU-as-symbol1.zap 4: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -28,7 +28,7 @@ _RESULT                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure HELPER --
 _HELPER:
-; /home/dusan/src/ZAP-compiler/tests/pass/076-CPU-as-symbol1/076-CPU-as-symbol1.zap 10:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/076-CPU-as-symbol1/076-CPU-as-symbol1.zap 10:         result = result + 1
 	INC _RESULT
 	RTS
 
@@ -36,7 +36,7 @@ _HELPER:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/076-CPU-as-symbol1/076-CPU-as-symbol1.zap 20:     helper()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/076-CPU-as-symbol1/076-CPU-as-symbol1.zap 20:     helper()
 	JMP _HELPER
 
 

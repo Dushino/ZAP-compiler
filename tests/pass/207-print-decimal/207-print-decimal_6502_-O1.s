@@ -99,16 +99,16 @@ _PRINTB$RALIGN          = __LVSLOT_4
 	STA _PRINTB$ARG
 	STX _PRINTB$LZERO
 	STY _PRINTB$RALIGN
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 51:     print_bin[0] = arg
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 51:     print_bin[0] = arg
 	STA _PRINT_BIN+0
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 52:     print_bin[1] = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 52:     print_bin[1] = 0
 	LDA #$00
 	STA _PRINT_BIN+1
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 53:     print_bin[2] = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 53:     print_bin[2] = 0
 	STA _PRINT_BIN+2
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 54:     print_bin[3] = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 54:     print_bin[3] = 0
 	STA _PRINT_BIN+3
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 55:     bcd_convert()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 55:     bcd_convert()
 	JMP _BCD_CONVERT
 
 
@@ -121,7 +121,7 @@ _PRINTW$RALIGN          = __LVSLOT_3
 	STA _PRINTW$ARG
 	STX _PRINTW$ARG+1
 	STY _PRINTW$LZERO
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 59:     bcd_convert()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 59:     bcd_convert()
 	JMP _BCD_CONVERT
 
 
@@ -131,7 +131,7 @@ _PRINTL:
 _PRINTL$ARG             = __LVSLOT_7
 _PRINTL$LZERO           = __LVSLOT_2
 _PRINTL$RALIGN          = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 63:     bcd_convert()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 63:     bcd_convert()
 	JMP _BCD_CONVERT
 
 
@@ -150,15 +150,15 @@ _MAIN:
 _MAIN$B                 = __LVSLOT_1
 _MAIN$W                 = __LVSLOT_5
 _MAIN$L                 = __LVSLOT_8
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 71:     byte  b = 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 71:     byte  b = 42
 	LDA #$2A
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 72:     word  w = 12345
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 72:     word  w = 12345
 	LDA #$39
 	STA _MAIN$W
 	LDA #$30
 	STA _MAIN$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 73:     long  l = 1000000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 73:     long  l = 1000000
 	LDA #$40
 	STA _MAIN$L
 	LDA #$42
@@ -167,7 +167,7 @@ _MAIN$L                 = __LVSLOT_8
 	STA _MAIN$L+2
 	LDA #$00
 	STA _MAIN$L+3
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 76:     printb(b)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 76:     printb(b)
 	LDA _MAIN$B
 	PHA
 	LDA #$01
@@ -179,7 +179,7 @@ _MAIN$L                 = __LVSLOT_8
 	TAX
 	PLA
 	JSR _PRINTB
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 77:     printb(b, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 77:     printb(b, 0)
 	LDA _MAIN$B
 	PHA
 	LDA #$00
@@ -192,7 +192,7 @@ _MAIN$L                 = __LVSLOT_8
 	TAX
 	PLA
 	JSR _PRINTB
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 78:     printb(b, 0, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 78:     printb(b, 0, 0)
 	LDA _MAIN$B
 	PHA
 	LDA #$00
@@ -204,7 +204,7 @@ _MAIN$L                 = __LVSLOT_8
 	TAX
 	PLA
 	JSR _PRINTB
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 79:     printb(b, 1, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 79:     printb(b, 1, 0)
 	LDA _MAIN$B
 	PHA
 	LDA #$01
@@ -217,7 +217,7 @@ _MAIN$L                 = __LVSLOT_8
 	TAX
 	PLA
 	JSR _PRINTB
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 80:     printb(0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 80:     printb(0)
 	LDA #$00
 	PHA
 	LDA #$01
@@ -229,7 +229,7 @@ _MAIN$L                 = __LVSLOT_8
 	TAX
 	PLA
 	JSR _PRINTB
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 81:     printb(255)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 81:     printb(255)
 	LDA #$FF
 	PHA
 	LDA #$01
@@ -241,42 +241,42 @@ _MAIN$L                 = __LVSLOT_8
 	TAX
 	PLA
 	JSR _PRINTB
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 84:     printw(w)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 84:     printw(w)
 	LDA #$01
 	STA _PRINTW$RALIGN
 	LDA _MAIN$W
 	LDX _MAIN$W+1
 	LDY #$01
 	JSR _PRINTW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 85:     printw(w, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 85:     printw(w, 0)
 	LDA #$01
 	STA _PRINTW$RALIGN
 	LDA _MAIN$W
 	LDX _MAIN$W+1
 	LDY #$00
 	JSR _PRINTW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 86:     printw(w, 0, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 86:     printw(w, 0, 0)
 	LDA #$00
 	STA _PRINTW$RALIGN
 	LDA _MAIN$W
 	LDX _MAIN$W+1
 	LDY #$00
 	JSR _PRINTW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 87:     printw(0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 87:     printw(0)
 	LDA #$01
 	STA _PRINTW$RALIGN
 	LDA #$00
 	TAX
 	LDY #$01
 	JSR _PRINTW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 88:     printw(65535)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 88:     printw(65535)
 	LDA #$01
 	STA _PRINTW$RALIGN
 	LDA #$FF
 	TAX
 	LDY #$01
 	JSR _PRINTW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 91:     printl(l)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 91:     printl(l)
 	LDA _MAIN$L
 	STA __MATH0
 	LDA _MAIN$L+1
@@ -297,7 +297,7 @@ _MAIN$L                 = __LVSLOT_8
 	STA _PRINTL$LZERO
 	STA _PRINTL$RALIGN
 	JSR _PRINTL
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 92:     printl(l, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 92:     printl(l, 0)
 	LDA _MAIN$L
 	STA __MATH0
 	LDA _MAIN$L+1
@@ -319,7 +319,7 @@ _MAIN$L                 = __LVSLOT_8
 	LDA #$01
 	STA _PRINTL$RALIGN
 	JSR _PRINTL
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 93:     printl(l, 0, 0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 93:     printl(l, 0, 0)
 	LDA _MAIN$L
 	STA __MATH0
 	LDA _MAIN$L+1
@@ -340,7 +340,7 @@ _MAIN$L                 = __LVSLOT_8
 	STA _PRINTL$LZERO
 	STA _PRINTL$RALIGN
 	JSR _PRINTL
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 94:     printl(0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 94:     printl(0)
 	LDA #$00
 	STA _PRINTL$ARG
 	STA _PRINTL$ARG+1
@@ -350,18 +350,18 @@ _MAIN$L                 = __LVSLOT_8
 	STA _PRINTL$LZERO
 	STA _PRINTL$RALIGN
 	JSR _PRINTL
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 97:     putx(b)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 97:     putx(b)
 	LDA _MAIN$B
 	JSR _PUTX
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 98:     putxw(w)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 98:     putxw(w)
 	LDA _MAIN$W
 	LDX _MAIN$W+1
 	JSR _PUTXW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 99:     putxw(0)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 99:     putxw(0)
 	LDA #$00
 	TAX
 	JSR _PUTXW
-; /home/dusan/src/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 100:     putxw($ABCD)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/207-print-decimal/207-print-decimal.zap 100:     putxw($ABCD)
 	LDA #$CD
 	LDX #$AB
 	JMP _PUTXW

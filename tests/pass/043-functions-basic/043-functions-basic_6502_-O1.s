@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 2: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 2: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,15 +36,15 @@ _ADD2$A                 = __LVSLOT_1
 _ADD2$B                 = __LVSLOT_2
 	STA _ADD2$A
 	STX _ADD2$B
-; /home/dusan/src/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 6:     if a > 5 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 6:     if a > 5 
 	CMP #$05
 	BEQ __ZAP_else_1
 	BCC __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 7:         return a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 7:         return a
 	LDA _ADD2$A
 	RTS
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 10:     return a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 10:     return a + b
 	LDA _ADD2$A
 	CLC
 	ADC _ADD2$B
@@ -54,7 +54,7 @@ __ZAP_else_1:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 14:     result = add2(2, 4)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/043-functions-basic/043-functions-basic.zap 14:     result = add2(2, 4)
 	LDA #$02
 	LDX #$04
 	JSR _ADD2

@@ -47,7 +47,7 @@ __RETBUF_MAKE_WVEC:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 25: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 25: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -63,12 +63,12 @@ _MAKE_VEC$B             = __LVSLOT_2
 	STA _MAKE_VEC$A
 	STX _MAKE_VEC$B
 _MAKE_VEC$V             = __LVSLOT_6
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 39:     v.x = a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 39:     v.x = a
 	STA _MAKE_VEC$V
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 40:     v.y = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 40:     v.y = b
 	LDA _MAKE_VEC$B
 	STA _MAKE_VEC$V+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 41:     return v
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 41:     return v
 	LDA #<_MAKE_VEC$V
 	STA __TMP0
 	LDA #>_MAKE_VEC$V
@@ -92,15 +92,15 @@ _MAKE_WVEC$B            = __LVSLOT_8
 	STA _MAKE_WVEC$A
 	STX _MAKE_WVEC$A+1
 _MAKE_WVEC$W            = __LVSLOT_12
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 46:     w.wx = a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 46:     w.wx = a
 	STA _MAKE_WVEC$W
 	STX _MAKE_WVEC$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 47:     w.wy = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 47:     w.wy = b
 	LDA _MAKE_WVEC$B
 	LDX _MAKE_WVEC$B+1
 	STA _MAKE_WVEC$W+2
 	STX _MAKE_WVEC$W+2+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 48:     return w
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 48:     return w
 	LDA #<_MAKE_WVEC$W
 	STA __TMP0
 	LDA #>_MAKE_WVEC$W
@@ -127,7 +127,7 @@ _MAIN$WX                = __LVSLOT_9
 _MAIN$WY                = __LVSLOT_9
 _MAIN$W                 = __LVSLOT_10
 _MAIN$WTMP              = __LVSLOT_11
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 55:     Vec tmp = make_vec(5, 6)        ; declaration with call initializer (checks 9-10)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 55:     Vec tmp = make_vec(5, 6)        ; declaration with call initializer (checks 9-10)
 	LDA #$05
 	LDX #$06
 	JSR _MAKE_VEC
@@ -141,7 +141,7 @@ _MAIN$WTMP              = __LVSLOT_11
 	STA __TMP2+1
 	LDX #$02
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 59:     WVec wtmp = make_wvec(300, 400) ; declaration with call initializer (checks 11-12)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 59:     WVec wtmp = make_wvec(300, 400) ; declaration with call initializer (checks 11-12)
 	LDA #$90
 	STA _MAKE_WVEC$B
 	LDA #$01
@@ -159,57 +159,57 @@ _MAIN$WTMP              = __LVSLOT_11
 	STA __TMP2+1
 	LDX #$04
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 62:     bx = make_vec(10, 20).x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 62:     bx = make_vec(10, 20).x
 	LDA #$0A
 	LDX #$14
 	JSR _MAKE_VEC
 	LDA __RETBUF_MAKE_VEC
 	STA _MAIN$BX
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 63:     if bx == 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 63:     if bx == 10
 	CMP #$0A
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 64:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 64:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 66:     by = make_vec(10, 20).y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 66:     by = make_vec(10, 20).y
 	LDA #$0A
 	LDX #$14
 	JSR _MAKE_VEC
 	LDA __RETBUF_MAKE_VEC+1
 	STA _MAIN$BY
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 67:     if by == 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 67:     if by == 20
 	CMP #$14
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 68:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 68:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 72:     v.x = make_vec(3, 4).x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 72:     v.x = make_vec(3, 4).x
 	LDA #$03
 	LDX #$04
 	JSR _MAKE_VEC
 	LDA __RETBUF_MAKE_VEC
 	STA _MAIN$V
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 73:     if v.x == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 73:     if v.x == 3
 	LDX #$00
 	CMP #$03
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 74:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 74:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 76:     v.y = make_vec(3, 4).y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 76:     v.y = make_vec(3, 4).y
 	LDA #$03
 	LDX #$04
 	JSR _MAKE_VEC
 	LDA __RETBUF_MAKE_VEC+1
 	STA _MAIN$V+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 77:     if v.y == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 77:     if v.y == 4
 	LDX #$00
 	CMP #$04
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 78:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 78:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 82:     wx = make_wvec(100, 200).wx
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 82:     wx = make_wvec(100, 200).wx
 	LDA #$C8
 	STA _MAKE_WVEC$B
 	LDA #$00
@@ -221,15 +221,15 @@ __ZAP_else_10:
 	LDX __RETBUF_MAKE_WVEC+1
 	STA _MAIN$WX
 	STX _MAIN$WX+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 83:     if wx == 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 83:     if wx == 100
 	CMP #$64
 	BNE __ZAP_else_13
 	CPX #$00
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 84:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 84:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 86:     wy = make_wvec(100, 200).wy
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 86:     wy = make_wvec(100, 200).wy
 	LDA #$C8
 	STA _MAKE_WVEC$B
 	LDA #$00
@@ -241,15 +241,15 @@ __ZAP_else_13:
 	LDX __RETBUF_MAKE_WVEC+2+1
 	STA _MAIN$WY
 	STX _MAIN$WY+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 87:     if wy == 200
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 87:     if wy == 200
 	CMP #$C8
 	BNE __ZAP_else_17
 	CPX #$00
 	BNE __ZAP_else_17
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 88:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 88:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 92:     w.wx = make_wvec(50, 60).wx
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 92:     w.wx = make_wvec(50, 60).wx
 	LDA #$3C
 	STA _MAKE_WVEC$B
 	LDA #$00
@@ -261,15 +261,15 @@ __ZAP_else_17:
 	LDX __RETBUF_MAKE_WVEC+1
 	STA _MAIN$W
 	STX _MAIN$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 93:     if w.wx == 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 93:     if w.wx == 50
 	CMP #$32
 	BNE __ZAP_else_21
 	CPX #$00
 	BNE __ZAP_else_21
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 94:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 94:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_21:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 96:     w.wy = make_wvec(50, 60).wy
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 96:     w.wy = make_wvec(50, 60).wy
 	LDA #$3C
 	STA _MAKE_WVEC$B
 	LDA #$00
@@ -281,48 +281,48 @@ __ZAP_else_21:
 	LDX __RETBUF_MAKE_WVEC+2+1
 	STA _MAIN$W+2
 	STX _MAIN$W+2+1
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 97:     if w.wy == 60
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 97:     if w.wy == 60
 	CMP #$3C
 	BNE __ZAP_else_25
 	CPX #$00
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 98:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 98:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_25:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 102:     if tmp.x == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 102:     if tmp.x == 5
 	LDA _MAIN$TMP
 	LDX #$00
 	CMP #$05
 	BNE __ZAP_else_29
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 103:         result = result + 1     ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 103:         result = result + 1     ; 9
 	INC _RESULT
 __ZAP_else_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 105:     if tmp.y == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 105:     if tmp.y == 6
 	LDA _MAIN$TMP+1
 	LDX #$00
 	CMP #$06
 	BNE __ZAP_else_32
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 106:         result = result + 1     ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 106:         result = result + 1     ; 10
 	INC _RESULT
 __ZAP_else_32:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 110:     if wtmp.wx == 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 110:     if wtmp.wx == 300
 	LDA _MAIN$WTMP
 	LDX _MAIN$WTMP+1
 	CMP #$2C
 	BNE __ZAP_else_35
 	CPX #$01
 	BNE __ZAP_else_35
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 111:         result = result + 1     ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 111:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_35:
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 113:     if wtmp.wy == 400
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 113:     if wtmp.wy == 400
 	LDA _MAIN$WTMP+2
 	LDX _MAIN$WTMP+2+1
 	CMP #$90
 	BNE __ZAP_else_39
 	CPX #$01
 	BNE __ZAP_else_39
-; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 114:         result = result + 1     ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 114:         result = result + 1     ; 12
 	INC _RESULT
 __ZAP_else_39:
 	RTS

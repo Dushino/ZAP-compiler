@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -33,12 +33,12 @@ __LVSLOT_1:	.res 1
 _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 4:     byte a = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 4:     byte a = 5
 	LDA #$05
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 5:     byte b = a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 5:     byte b = a
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 6:     result = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/052-assignment-chain/052-assignment-chain.zap 6:     result = b
 	STA _RESULT
 	RTS
 

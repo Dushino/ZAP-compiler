@@ -45,7 +45,7 @@ __LVSLOT_6:	.res 10
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 4: byte ^curptr = 40000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 4: byte ^curptr = 40000
 	LDA #$40
 	STA _CURPTR
 	LDA #$9C
@@ -60,10 +60,10 @@ __LVSLOT_6:	.res 10
 _PUTCHAR:
 _PUTCHAR$CH             = __LVSLOT_1
 	STA _PUTCHAR$CH
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 29:     curptr^ = ch
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 29:     curptr^ = ch
 	LDY #$00
 	STA (_CURPTR),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 30:     curptr = curptr + 1        
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 30:     curptr = curptr + 1        
 	INC _CURPTR
 	BNE __ZAP_INC_WORD_1
 	INC _CURPTR+1
@@ -78,23 +78,23 @@ _PUTS$STR               = __LVSLOT_3
 	STA _PUTS$STR
 	STX _PUTS$STR+1
 _PUTS$CH                = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 41:     ch = str^
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 41:     ch = str^
 	LDY #$00
 	LDA (_PUTS$STR),Y
 	STA _PUTS$CH
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 42:     while ch != 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 42:     while ch != 0
 __ZAP_while_2:
 	LDA _PUTS$CH
 	BEQ __ZAP_endwhile_3
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 43:         putchar(ch)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 43:         putchar(ch)
 	LDA _PUTS$CH
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 44:         str = str + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 44:         str = str + 1
 	INC _PUTS$STR
 	BNE __ZAP_INC_WORD_5
 	INC _PUTS$STR+1
 __ZAP_INC_WORD_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 45:         ch = str^
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 45:         ch = str^
 	LDY #$00
 	LDA (_PUTS$STR),Y
 	STA _PUTS$CH
@@ -107,7 +107,7 @@ __ZAP_endwhile_3:
 ; -- Function TEST1 --
 _TEST1:
 _TEST1$S                = __LVSLOT_6
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 51:     return s.a + s.b + s.c + s.ptr + s.e + s.p.x + s.p.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 51:     return s.a + s.b + s.c + s.ptr + s.e + s.p.x + s.p.y
 	LDA _TEST1$S
 	LDX #$00
 	STA __MATH0
@@ -152,7 +152,7 @@ _MAIN:
 _MAIN$MSG1              = __LVSLOT_4
 _MAIN$S1                = __LVSLOT_5
 _MAIN$RV                = __LVSLOT_7
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 58:     byte msg1[] = "ABCDEF"          ; BSS segment
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 58:     byte msg1[] = "ABCDEF"          ; BSS segment
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -163,15 +163,15 @@ _MAIN$RV                = __LVSLOT_7
 	STX __TMP2+1
 	LDX #7
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 65:     puts(msg1)    
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 65:     puts(msg1)    
 	LDA #<_MAIN$MSG1
 	LDX #>_MAIN$MSG1
 	JSR _PUTS
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 66:     puts(msg2)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 66:     puts(msg2)
 	LDA #<__ARRAY_DATA_1
 	LDX #>__ARRAY_DATA_1
 	JSR _PUTS
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 68:     s1 = {1, 2, 1204, 40000, MyEnum.B, {10, 20}}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 68:     s1 = {1, 2, 1204, 40000, MyEnum.B, {10, 20}}
 	LDA #$01
 	STA _MAIN$S1+0
 	LDA #$02
@@ -192,7 +192,7 @@ _MAIN$RV                = __LVSLOT_7
 	LDX #$00
 	STA _MAIN$S1+8
 	STX _MAIN$S1+9
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 69:     rv = test1(s1)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 69:     rv = test1(s1)
 	LDA #<_MAIN$S1
 	STA __TMP0
 	LDA #>_MAIN$S1
@@ -206,12 +206,12 @@ _MAIN$RV                = __LVSLOT_7
 	JSR _TEST1
 	STA _MAIN$RV
 	STX _MAIN$RV+1
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 70:     putchar(low(rv))    ; should be 41239 / 256 = $17
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 70:     putchar(low(rv))    ; should be 41239 / 256 = $17
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 71:     putchar(high(rv))    ; should be 41239 % 256 = $A1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 71:     putchar(high(rv))    ; should be 41239 % 256 = $A1
 	LDA _MAIN$RV+1
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 73:     rv = test1(s2)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 73:     rv = test1(s2)
 	LDA #<__ARRAY_DATA_2
 	STA __TMP0
 	LDA #>__ARRAY_DATA_2
@@ -225,12 +225,12 @@ _MAIN$RV                = __LVSLOT_7
 	JSR _TEST1
 	STA _MAIN$RV
 	STX _MAIN$RV+1
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 74:     putchar(low(rv))    ; should be 41238 / 256 = $17
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 74:     putchar(low(rv))    ; should be 41238 / 256 = $17
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 75:     putchar(high(rv))    ; should be 41238 % 256 = $A1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 75:     putchar(high(rv))    ; should be 41238 % 256 = $A1
 	LDA _MAIN$RV+1
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 77:     rv = test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 77:     rv = test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
 	LDA #$01
 	STA _TEST1$S+0
 	LDA #$02
@@ -254,12 +254,12 @@ _MAIN$RV                = __LVSLOT_7
 	JSR _TEST1
 	STA _MAIN$RV
 	STX _MAIN$RV+1
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 78:     putchar(low(rv))    ; should be 41239 / 256 = $17
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 78:     putchar(low(rv))    ; should be 41239 / 256 = $17
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 79:     putchar(high(rv))    ; should be 41239 % 256 = $A1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 79:     putchar(high(rv))    ; should be 41239 % 256 = $A1
 	LDA _MAIN$RV+1
 	JSR _PUTCHAR
-; /home/dusan/src/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 81:     test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/118-stdio/118-stdio.zap 81:     test1({1, 2, 1204, 40000, MyEnum.B, {10, 20}})
 	LDA #$01
 	STA _TEST1$S+0
 	LDA #$02

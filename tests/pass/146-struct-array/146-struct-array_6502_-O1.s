@@ -40,7 +40,7 @@ __LVSLOT_3:	.res 6
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 25: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 25: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -60,7 +60,7 @@ _MAIN$SUM               = __LVSLOT_6
 _MAIN$FOR_END_1         = __LVSLOT_5
 _MAIN$__SBM_1           = __LVSLOT_7
 _MAIN$__SBM_2           = __LVSLOT_7
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 38:     Point src[3] = {{1, 2}, {3, 4}, {5, 6}}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 38:     Point src[3] = {{1, 2}, {3, 4}, {5, 6}}
 	LDA #$01
 	STA _MAIN$SRC+0
 	LDA #$02
@@ -73,7 +73,7 @@ _MAIN$__SBM_2           = __LVSLOT_7
 	STA _MAIN$SRC+4
 	LDA #$06
 	STA _MAIN$SRC+5
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 45:     pts[0].x = 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 45:     pts[0].x = 11
 	LDA #$00
 	TAX
 	CLC
@@ -85,7 +85,7 @@ _MAIN$__SBM_2           = __LVSLOT_7
 	LDA #$0B
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 46:     pts[0].y = 22
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 46:     pts[0].y = 22
 	TXA
 	CLC
 	ADC #<_MAIN$PTS
@@ -96,7 +96,7 @@ _MAIN$__SBM_2           = __LVSLOT_7
 	LDA #$16
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 47:     if pts[0].x == 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 47:     if pts[0].x == 11
 	TXA
 	CLC
 	ADC #<_MAIN$PTS
@@ -108,10 +108,10 @@ _MAIN$__SBM_2           = __LVSLOT_7
 	LDA (__TMP0),Y
 	CMP #$0B
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 48:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 48:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 50:     if pts[0].y == 22
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 50:     if pts[0].y == 22
 	LDA #$00
 	TAX
 	CLC
@@ -124,10 +124,10 @@ __ZAP_else_1:
 	LDA (__TMP0),Y
 	CMP #$16
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 51:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 51:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 55:     pts[2].x = 33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 55:     pts[2].x = 33
 	LDA #$04
 	LDX #$00
 	CLC
@@ -139,7 +139,7 @@ __ZAP_else_4:
 	LDA #$21
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 56:     pts[2].y = 44
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 56:     pts[2].y = 44
 	LDA #$04
 	CLC
 	ADC #<_MAIN$PTS
@@ -150,7 +150,7 @@ __ZAP_else_4:
 	LDA #$2C
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 57:     if pts[2].x == 33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 57:     if pts[2].x == 33
 	LDA #$04
 	CLC
 	ADC #<_MAIN$PTS
@@ -162,10 +162,10 @@ __ZAP_else_4:
 	LDA (__TMP0),Y
 	CMP #$21
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 58:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 58:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 60:     if pts[2].y == 44
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 60:     if pts[2].y == 44
 	LDA #$04
 	LDX #$00
 	CLC
@@ -178,13 +178,13 @@ __ZAP_else_7:
 	LDA (__TMP0),Y
 	CMP #$2C
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 61:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 61:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 65:     i = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 65:     i = 1
 	LDA #$01
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 66:     pts[i].x = 55
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 66:     pts[i].x = 55
 	ASL A
 	CLC
 	ADC #<_MAIN$PTS
@@ -199,19 +199,19 @@ __ZAP_else_10:
 	LDA #$37
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 67:     pts[i].y = 66
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 67:     pts[i].y = 66
 	LDA #$42
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 68:     if pts[i].x == 55
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 68:     if pts[i].x == 55
 	LDY #$00
 	LDA (__TMP0),Y
 	CMP #$37
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 69:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 69:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 71:     if pts[i].y == 66
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 71:     if pts[i].y == 66
 	LDA _MAIN$__SBM_1
 	STA __TMP0
 	LDA _MAIN$__SBM_1+1
@@ -220,10 +220,10 @@ __ZAP_else_13:
 	LDA (__TMP0),Y
 	CMP #$42
 	BNE __ZAP_else_16
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 72:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 72:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 76:     if src[0].x == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 76:     if src[0].x == 1
 	LDA #$00
 	TAX
 	CLC
@@ -236,10 +236,10 @@ __ZAP_else_16:
 	LDA (__TMP0),Y
 	CMP #$01
 	BNE __ZAP_else_19
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 77:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 77:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_19:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 79:     if src[0].y == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 79:     if src[0].y == 2
 	LDA #$00
 	TAX
 	CLC
@@ -252,10 +252,10 @@ __ZAP_else_19:
 	LDA (__TMP0),Y
 	CMP #$02
 	BNE __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 80:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 80:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 82:     if src[2].x == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 82:     if src[2].x == 5
 	LDA #$04
 	LDX #$00
 	CLC
@@ -268,13 +268,13 @@ __ZAP_else_22:
 	LDA (__TMP0),Y
 	CMP #$05
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 83:         result = result + 1     ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 83:         result = result + 1     ; 9
 	INC _RESULT
 __ZAP_else_25:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 87:     sum = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 87:     sum = 0
 	LDA #$00
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 88:     for j = 0 to 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 88:     for j = 0 to 3
 	STA _MAIN$J
 	LDA #$03
 	STA _MAIN$FOR_END_1
@@ -282,7 +282,7 @@ __ZAP_while_28:
 	LDA _MAIN$J
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_29
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 89:         sum = sum + src[j].x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 89:         sum = sum + src[j].x
 	LDA _MAIN$SUM
 	STA __TMP1
 	LDA _MAIN$J
@@ -301,14 +301,14 @@ __ZAP_while_28:
 	INC _MAIN$J
 	JMP __ZAP_while_28
 __ZAP_endwhile_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 91:     if sum == 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 91:     if sum == 9
 	LDA _MAIN$SUM
 	CMP #$09
 	BNE __ZAP_else_31
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 92:         result = result + 1     ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 92:         result = result + 1     ; 10
 	INC _RESULT
 __ZAP_else_31:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 96:     grid[1].col[2] = 77
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 96:     grid[1].col[2] = 77
 	LDA #$03
 	LDX #$00
 	CLC
@@ -332,7 +332,7 @@ __ZAP_else_31:
 	LDA #77
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 97:     if grid[1].col[2] == 77
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 97:     if grid[1].col[2] == 77
 	LDA #$03
 	CLC
 	ADC #<_MAIN$GRID
@@ -354,13 +354,13 @@ __ZAP_else_31:
 	LDA (__TMP0),Y
 	CMP #$4D
 	BNE __ZAP_else_34
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 98:         result = result + 1     ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 98:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_34:
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 100:     j = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 100:     j = 0
 	LDA #$00
 	STA _MAIN$J
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 101:     grid[j].col[1] = 88
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 101:     grid[j].col[1] = 88
 	STA __TMP3
 	STA __TMP4
 	CLC
@@ -394,7 +394,7 @@ __ZAP_else_34:
 	LDA #88
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 102:     if grid[j].col[1] == 88
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 102:     if grid[j].col[1] == 88
 	LDA _MAIN$J
 	STA __TMP3
 	TXA
@@ -428,7 +428,7 @@ __ZAP_else_34:
 	LDA (__TMP0),Y
 	CMP #$58
 	BNE __ZAP_else_37
-; /home/dusan/src/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 103:         result = result + 1     ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/146-struct-array/146-struct-array.zap 103:         result = result + 1     ; 12
 	INC _RESULT
 __ZAP_else_37:
 	RTS

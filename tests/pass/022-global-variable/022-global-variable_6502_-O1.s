@@ -19,7 +19,7 @@ _GLOBAL_VALUE:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/022-global-variable/022-global-variable.zap 1: byte global_value = 55
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/022-global-variable/022-global-variable.zap 1: byte global_value = 55
 	LDA #$37
 	STA _GLOBAL_VALUE
 ; Call MAIN
@@ -30,7 +30,7 @@ _GLOBAL_VALUE:	.res 1
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/022-global-variable/022-global-variable.zap 5:     result = global_value
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/022-global-variable/022-global-variable.zap 5:     result = global_value
 	LDA _GLOBAL_VALUE
 	STA _RESULT
 	RTS

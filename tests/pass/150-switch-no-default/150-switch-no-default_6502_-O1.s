@@ -25,7 +25,7 @@ __LVSLOT_4:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 21: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 21: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -41,113 +41,113 @@ _MAIN$HIT               = __LVSLOT_2
 _MAIN$WVAL              = __LVSLOT_3
 _MAIN$LVAL              = __LVSLOT_4
 _MAIN$CNT               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 31:     bval = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 31:     bval = 5
 	LDA #$05
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 32:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 32:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 33:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 33:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$05
 	BNE __ZAP_endswitch_1
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 35:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 35:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 36:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 36:             break
 __ZAP_endswitch_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 38:     if hit == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 38:     if hit == 1
 	LDA _MAIN$HIT
 	CMP #$01
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 39:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 39:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 43:     bval = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 43:     bval = 7
 	LDA #$07
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 44:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 44:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 45:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 45:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$05
 	BNE __ZAP_endswitch_7
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 47:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 47:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 48:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 48:             break
 __ZAP_endswitch_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 50:     if hit == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 50:     if hit == 0
 	LDA _MAIN$HIT
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 51:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 51:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 55:     wval = 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 55:     wval = 1000
 	LDA #$E8
 	STA _MAIN$WVAL
 	LDA #$03
 	STA _MAIN$WVAL+1
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 56:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 56:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 57:     switch wval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 57:     switch wval
 	LDA _MAIN$WVAL+1
 	CMP #$03
 	BNE __ZAP_endswitch_13
 	LDA _MAIN$WVAL
 	CMP #$E8
 	BNE __ZAP_endswitch_13
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 59:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 59:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 60:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 60:             break
 __ZAP_endswitch_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 62:     if hit == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 62:     if hit == 1
 	LDA _MAIN$HIT
 	CMP #$01
 	BNE __ZAP_else_16
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 63:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 63:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 67:     wval = 999
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 67:     wval = 999
 	LDA #$E7
 	STA _MAIN$WVAL
 	LDA #$03
 	STA _MAIN$WVAL+1
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 68:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 68:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 69:     switch wval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 69:     switch wval
 	LDA _MAIN$WVAL+1
 	CMP #$03
 	BNE __ZAP_endswitch_19
 	LDA _MAIN$WVAL
 	CMP #$E8
 	BNE __ZAP_endswitch_19
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 71:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 71:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 72:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 72:             break
 __ZAP_endswitch_19:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 74:     if hit == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 74:     if hit == 0
 	LDA _MAIN$HIT
 	BNE __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 75:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 75:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 79:     lval = 131072
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 79:     lval = 131072
 	LDA #$00
 	STA _MAIN$LVAL
 	STA _MAIN$LVAL+1
 	STA _MAIN$LVAL+3
 	LDA #$02
 	STA _MAIN$LVAL+2
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 80:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 80:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 81:     switch lval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 81:     switch lval
 	LDA _MAIN$LVAL+3
 	BNE __ZAP_endswitch_25
 	LDA _MAIN$LVAL+2
@@ -157,19 +157,19 @@ __ZAP_else_22:
 	BNE __ZAP_endswitch_25
 	LDA _MAIN$LVAL
 	BNE __ZAP_endswitch_25
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 83:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 83:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 84:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 84:             break
 __ZAP_endswitch_25:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 86:     if hit == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 86:     if hit == 1
 	LDA _MAIN$HIT
 	CMP #$01
 	BNE __ZAP_else_28
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 87:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 87:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_28:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 91:     lval = 131071
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 91:     lval = 131071
 	LDA #$FF
 	STA _MAIN$LVAL
 	STA _MAIN$LVAL+1
@@ -177,9 +177,9 @@ __ZAP_else_28:
 	STA _MAIN$LVAL+2
 	LDA #$00
 	STA _MAIN$LVAL+3
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 92:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 92:     hit = 0
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 93:     switch lval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 93:     switch lval
 	LDA _MAIN$LVAL+3
 	BNE __ZAP_endswitch_31
 	LDA _MAIN$LVAL+2
@@ -189,24 +189,24 @@ __ZAP_else_28:
 	BNE __ZAP_endswitch_31
 	LDA _MAIN$LVAL
 	BNE __ZAP_endswitch_31
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 95:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 95:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 96:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 96:             break
 __ZAP_endswitch_31:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 98:     if hit == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 98:     if hit == 0
 	LDA _MAIN$HIT
 	BNE __ZAP_else_34
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 99:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 99:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_34:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 103:     bval = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 103:     bval = 10
 	LDA #$0A
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 104:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 104:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 105:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 105:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$0A
 	BEQ __ZAP_case_38
@@ -214,25 +214,25 @@ __ZAP_else_34:
 	CMP #$14
 	BNE __ZAP_endswitch_37
 __ZAP_case_38:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 108:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 108:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 109:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 109:             break
 __ZAP_endswitch_37:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 111:     if hit == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 111:     if hit == 1
 	LDA _MAIN$HIT
 	CMP #$01
 	BNE __ZAP_else_41
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 112:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 112:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_41:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 116:     bval = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 116:     bval = 20
 	LDA #$14
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 117:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 117:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 118:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 118:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$0A
 	BEQ __ZAP_case_45
@@ -240,25 +240,25 @@ __ZAP_else_41:
 	CMP #$14
 	BNE __ZAP_endswitch_44
 __ZAP_case_45:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 121:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 121:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 122:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 122:             break
 __ZAP_endswitch_44:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 124:     if hit == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 124:     if hit == 1
 	LDA _MAIN$HIT
 	CMP #$01
 	BNE __ZAP_else_48
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 125:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 125:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_48:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 129:     bval = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 129:     bval = 30
 	LDA #$1E
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 130:     hit = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 130:     hit = 0
 	LDA #$00
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 131:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 131:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$0A
 	BEQ __ZAP_case_52
@@ -266,24 +266,24 @@ __ZAP_else_48:
 	CMP #$14
 	BNE __ZAP_endswitch_51
 __ZAP_case_52:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 134:             hit = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 134:             hit = 1
 	LDA #$01
 	STA _MAIN$HIT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 135:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 135:             break
 __ZAP_endswitch_51:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 137:     if hit == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 137:     if hit == 0
 	LDA _MAIN$HIT
 	BNE __ZAP_else_55
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 138:         result = result + 1     ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 138:         result = result + 1     ; 9
 	INC _RESULT
 __ZAP_else_55:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 142:     bval = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 142:     bval = 1
 	LDA #$01
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 143:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 143:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 144:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 144:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$01
 	BEQ __ZAP_case_59
@@ -292,27 +292,27 @@ __ZAP_else_55:
 	BNE __ZAP_endswitch_58
 	JMP __ZAP_case_60
 __ZAP_case_59:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 146:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 146:             cnt = cnt + 1
 	INC _MAIN$CNT
 __ZAP_case_60:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 148:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 148:             cnt = cnt + 1
 	INC _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 149:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 149:             break
 __ZAP_endswitch_58:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 151:     if cnt == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 151:     if cnt == 2
 	LDA _MAIN$CNT
 	CMP #$02
 	BNE __ZAP_else_63
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 152:         result = result + 1     ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 152:         result = result + 1     ; 10
 	INC _RESULT
 __ZAP_else_63:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 156:     bval = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 156:     bval = 2
 	LDA #$02
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 157:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 157:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 158:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 158:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$01
 	BEQ __ZAP_case_67
@@ -321,27 +321,27 @@ __ZAP_else_63:
 	BNE __ZAP_endswitch_66
 	JMP __ZAP_case_68
 __ZAP_case_67:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 160:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 160:             cnt = cnt + 1
 	INC _MAIN$CNT
 __ZAP_case_68:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 162:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 162:             cnt = cnt + 1
 	INC _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 163:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 163:             break
 __ZAP_endswitch_66:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 165:     if cnt == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 165:     if cnt == 1
 	LDA _MAIN$CNT
 	CMP #$01
 	BNE __ZAP_else_71
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 166:         result = result + 1     ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 166:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_71:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 170:     bval = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 170:     bval = 3
 	LDA #$03
 	STA _MAIN$BVAL
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 171:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 171:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 172:     switch bval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 172:     switch bval
 	LDA _MAIN$BVAL
 	CMP #$01
 	BEQ __ZAP_case_75
@@ -350,17 +350,17 @@ __ZAP_else_71:
 	BNE __ZAP_endswitch_74
 	JMP __ZAP_case_76
 __ZAP_case_75:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 174:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 174:             cnt = cnt + 1
 	INC _MAIN$CNT
 __ZAP_case_76:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 176:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 176:             cnt = cnt + 1
 	INC _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 177:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 177:             break
 __ZAP_endswitch_74:
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 179:     if cnt == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 179:     if cnt == 0
 	LDA _MAIN$CNT
 	BNE __ZAP_else_79
-; /home/dusan/src/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 180:         result = result + 1     ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/150-switch-no-default/150-switch-no-default.zap 180:         result = result + 1     ; 12
 	INC _RESULT
 __ZAP_else_79:
 	RTS

@@ -49,10 +49,10 @@ _LARR:	.res 8
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 15: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 15: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 17: long lval  = $11223344
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 17: long lval  = $11223344
 	LDA #$44
 	STA _LVAL
 	LDA #$33
@@ -61,7 +61,7 @@ _LARR:	.res 8
 	STA _LVAL+2
 	LDA #$11
 	STA _LVAL+3
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 18: long larr[2] = {$55667788, $AABBCCDD}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 18: long larr[2] = {$55667788, $AABBCCDD}
 	LDA #$88
 	STA _LARR+0
 	LDA #$77
@@ -94,7 +94,7 @@ _MAIN$LARR10            = __LVSLOT_7
 _MAIN$LV2               = __LVSLOT_8
 _MAIN$LARR_NC           = __LVSLOT_5
 _MAIN$LARR64            = __LVSLOT_9
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 23:     long larr1[1] = {$12345678}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 23:     long larr1[1] = {$12345678}
 	LDA #$78
 	STA _MAIN$LARR1+0
 	LDA #$56
@@ -103,7 +103,7 @@ _MAIN$LARR64            = __LVSLOT_9
 	STA _MAIN$LARR1+2
 	LDA #$12
 	STA _MAIN$LARR1+3
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 24:     long larr2[2] = {$11111111, $DEADBEEF}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 24:     long larr2[2] = {$11111111, $DEADBEEF}
 	LDA #$11
 	STA _MAIN$LARR2+0
 	STA _MAIN$LARR2+1
@@ -117,9 +117,9 @@ _MAIN$LARR64            = __LVSLOT_9
 	STA _MAIN$LARR2+6
 	LDA #$DE
 	STA _MAIN$LARR2+7
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 25:     long larr3[3] = {$00000001, $00000002, $CAFEBABE}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 25:     long larr3[3] = {$00000001, $00000002, $CAFEBABE}
 	; Copy array [1, 2, 3405691582] (3 elements, 12 bytes)
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 25:     long larr3[3] = {$00000001, $00000002, $CAFEBABE}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 25:     long larr3[3] = {$00000001, $00000002, $CAFEBABE}
 	; Copy array [1, 2, 3405691582] (3 elements, 12 bytes)
 	LDA #<__ARRAY_DATA_1
 	LDX #>__ARRAY_DATA_1
@@ -131,7 +131,7 @@ _MAIN$LARR64            = __LVSLOT_9
 	STX __TMP2+1
 	LDX #12
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 26:     long larr10[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 26:     long larr10[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	; Copy array [1, 2, 3, 4, 5...] (10 elements, 40 bytes)
 	LDA #<__ARRAY_DATA_2
 	LDX #>__ARRAY_DATA_2
@@ -143,7 +143,7 @@ _MAIN$LARR64            = __LVSLOT_9
 	STX __TMP2+1
 	LDX #40
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 27:     long lv2 = $BABE0001
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 27:     long lv2 = $BABE0001
 	LDA #$01
 	STA _MAIN$LV2
 	LDA #$00
@@ -152,7 +152,7 @@ _MAIN$LARR64            = __LVSLOT_9
 	STA _MAIN$LV2+2
 	LDA #$BA
 	STA _MAIN$LV2+3
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 28:     long larr_nc[2] = {lv2, 0}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 28:     long larr_nc[2] = {lv2, 0}
 	LDA _MAIN$LV2
 	STA __MATH0
 	LDA _MAIN$LV2+1
@@ -174,9 +174,9 @@ _MAIN$LARR64            = __LVSLOT_9
 	STA _MAIN$LARR_NC+5
 	STA _MAIN$LARR_NC+6
 	STA _MAIN$LARR_NC+7
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 29:     long larr64[64] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 29:     long larr64[64] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
 	; Copy array [0, 1, 2, 3, 4...] (64 elements, 256 bytes)
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 29:     long larr64[64] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 29:     long larr64[64] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
 	; Copy array [0, 1, 2, 3, 4...] (64 elements, 256 bytes)
 	LDA #<__ARRAY_DATA_3
 	LDX #>__ARRAY_DATA_3
@@ -191,12 +191,12 @@ _MAIN$LARR64            = __LVSLOT_9
 	LDA #$01
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 35:     lptr = @lval
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 35:     lptr = @lval
 	LDA #<_LVAL
 	LDX #>_LVAL
 	STA _MAIN$LPTR
 	STX _MAIN$LPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 36:     lptr^ = $11223344
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 36:     lptr^ = $11223344
 	LDA #$44
 	STA __MATH0
 	LDA #$33
@@ -217,7 +217,7 @@ _MAIN$LARR64            = __LVSLOT_9
 	INY
 	LDA __MATH0+3
 	STA (_MAIN$LPTR),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 37:     if lval == $11223344
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 37:     if lval == $11223344
 	LDA _LVAL+3
 	CMP #$11
 	BNE __ZAP_else_1
@@ -230,22 +230,22 @@ _MAIN$LARR64            = __LVSLOT_9
 	LDA _LVAL
 	CMP #$44
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 38:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 38:         result = result + 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 42:     lptr = @larr
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 42:     lptr = @larr
 	LDA #<_LARR
 	LDX #>_LARR
 	STA _MAIN$LPTR
 	STX _MAIN$LPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 43:     lptr = lptr + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 43:     lptr = lptr + 1
 	CLC
 	ADC #$04
 	STA _MAIN$LPTR
 	BCC __ZAP_CARRY_ADD_PTR_5
 	INC _MAIN$LPTR+1
 __ZAP_CARRY_ADD_PTR_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 44:     if lptr^ == $AABBCCDD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 44:     if lptr^ == $AABBCCDD
 	LDA #$DD
 	STA __MATH0
 	LDA #$CC
@@ -285,10 +285,10 @@ __ZAP_CARRY_ADD_PTR_5:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_6
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 45:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 45:         result = result + 1
 	INC _RESULT
 __ZAP_else_6:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 49:     if larr1[0] == $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 49:     if larr1[0] == $12345678
 	LDA #$78
 	STA __MATH0
 	LDA #$56
@@ -324,10 +324,10 @@ __ZAP_else_6:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 50:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 50:         result = result + 1
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 54:     if larr2[1] == $DEADBEEF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 54:     if larr2[1] == $DEADBEEF
 	LDA #$EF
 	STA __MATH0
 	LDA #$BE
@@ -363,10 +363,10 @@ __ZAP_else_10:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_14
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 55:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 55:         result = result + 1
 	INC _RESULT
 __ZAP_else_14:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 59:     if larr3[2] == $CAFEBABE
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 59:     if larr3[2] == $CAFEBABE
 	LDA #$BE
 	STA __MATH0
 	LDA #$BA
@@ -402,10 +402,10 @@ __ZAP_else_14:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_18
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 60:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 60:         result = result + 1
 	INC _RESULT
 __ZAP_else_18:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 64:     if larr10[9] == 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 64:     if larr10[9] == 10
 	LDA #$0A
 	LDX #$00
 	STA __MATH1
@@ -431,10 +431,10 @@ __ZAP_else_18:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 65:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 65:         result = result + 1
 	INC _RESULT
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 69:     if larr_nc[0] == $BABE0001
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 69:     if larr_nc[0] == $BABE0001
 	LDA #$01
 	STA __MATH0
 	LDA #$00
@@ -470,10 +470,10 @@ __ZAP_else_22:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_26
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 70:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 70:         result = result + 1
 	INC _RESULT
 __ZAP_else_26:
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 74:     if larr64[63] == 63
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 74:     if larr64[63] == 63
 	LDA #$3F
 	LDX #$00
 	STA __MATH1
@@ -499,7 +499,7 @@ __ZAP_else_26:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_30
-; /home/dusan/src/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 75:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/163-long-ptr-and-array-init/163-long-ptr-and-array-init.zap 75:         result = result + 1
 	INC _RESULT
 __ZAP_else_30:
 	RTS

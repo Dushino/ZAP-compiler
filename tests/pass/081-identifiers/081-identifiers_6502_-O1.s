@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/081-identifiers/081-identifiers.zap 3: bYte Result @40000 = $aF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/081-identifiers/081-identifiers.zap 3: bYte Result @40000 = $aF
 	LDA #$AF
 	STA _RESULT
 ; Call MAIN
@@ -32,10 +32,10 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$A1_AC             = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/081-identifiers/081-identifiers.zap 6:     byte a1_Ac = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/081-identifiers/081-identifiers.zap 6:     byte a1_Ac = 1
 	LDA #$01
 	STA _MAIN$A1_AC
-; /home/dusan/src/ZAP-compiler/tests/pass/081-identifiers/081-identifiers.zap 8:     resulT = A1_aC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/081-identifiers/081-identifiers.zap 8:     resulT = A1_aC
 	STA _RESULT
 	RTS
 

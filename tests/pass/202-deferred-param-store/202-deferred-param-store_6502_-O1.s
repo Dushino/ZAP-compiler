@@ -49,7 +49,7 @@ __LVSLOT_2:	.res 3
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 7: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 7: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -66,20 +66,20 @@ _COUNT_BYTES$PTR        = __LVSLOT_10
 _COUNT_BYTES$COUNT      = __LVSLOT_5
 	LDA #$00
 	STA _COUNT_BYTES$COUNT
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 14:     while ptr^ != 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 14:     while ptr^ != 0
 __ZAP_while_1:
 	LDY #$00
 	LDA (_COUNT_BYTES$PTR),Y
 	BEQ __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 15:         count += 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 15:         count += 1
 	INC _COUNT_BYTES$COUNT
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 16:         ptr += 1        ; modifies __LVSLOT holding 'ptr'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 16:         ptr += 1        ; modifies __LVSLOT holding 'ptr'
 	INC _COUNT_BYTES$PTR
 	BNE __ZAP_while_1
 	INC _COUNT_BYTES$PTR+1
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 18:     return count
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 18:     return count
 	LDA _COUNT_BYTES$COUNT
 	RTS
 
@@ -91,7 +91,7 @@ _WRITE_DATA$CHANNEL     = __LVSLOT_4
 _WRITE_DATA$BUF         = __LVSLOT_11
 _WRITE_DATA$LEN         = __LVSLOT_5
 	STA _WRITE_DATA$CHANNEL
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 25:     return buf^ + len
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 25:     return buf^ + len
 	LDY #$00
 	LDA (_WRITE_DATA$BUF),Y
 	STA __TMP1
@@ -109,7 +109,7 @@ _SUM3$B                 = __LVSLOT_8
 _SUM3$C                 = __LVSLOT_9
 	STA _SUM3$A
 	STX _SUM3$A+1
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 31:     return a + b + c
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 31:     return a + b + c
 	STA __MATH0
 	STX __MATH0+1
 	LDA _SUM3$B
@@ -129,7 +129,7 @@ _DOUBLE:
 _DOUBLE$X               = __LVSLOT_9
 	STA _DOUBLE$X
 	STX _DOUBLE$X+1
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 35:     return x + x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 35:     return x + x
 	STA __MATH0
 	STX __MATH0+1
 	LDA _DOUBLE$X
@@ -147,7 +147,7 @@ _MAIN$TEXT              = __LVSLOT_1
 _MAIN$TEXT2             = __LVSLOT_2
 _MAIN$R                 = __LVSLOT_3
 _MAIN$W                 = __LVSLOT_6
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 40:     byte text[] = "Hello"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 40:     byte text[] = "Hello"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -158,14 +158,14 @@ _MAIN$W                 = __LVSLOT_6
 	STX __TMP2+1
 	LDX #6
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 41:     byte text2[] = "AB"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 41:     byte text2[] = "AB"
 	LDA #$41
 	STA _MAIN$TEXT2+0
 	LDA #$42
 	STA _MAIN$TEXT2+1
 	LDA #$00
 	STA _MAIN$TEXT2+2
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 48:     r = write_data(1, text, count_bytes(text))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 48:     r = write_data(1, text, count_bytes(text))
 	LDA #<_MAIN$TEXT
 	LDX #>_MAIN$TEXT
 	JSR _COUNT_BYTES
@@ -177,13 +177,13 @@ _MAIN$W                 = __LVSLOT_6
 	LDA #$01
 	JSR _WRITE_DATA
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 49:     if r == 77
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 49:     if r == 77
 	CMP #$4D
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 50:         result += 1     ; +1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 50:         result += 1     ; +1
 	INC _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 54:     r = write_data(2, text2, count_bytes(text2))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 54:     r = write_data(2, text2, count_bytes(text2))
 	LDA #<_MAIN$TEXT2
 	LDX #>_MAIN$TEXT2
 	JSR _COUNT_BYTES
@@ -195,13 +195,13 @@ __ZAP_else_5:
 	LDA #$02
 	JSR _WRITE_DATA
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 57:     if r == 67
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 57:     if r == 67
 	CMP #$43
 	BNE __ZAP_else_8
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 58:         result += 1     ; +2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 58:         result += 1     ; +2
 	INC _RESULT
 __ZAP_else_8:
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 64:     w = sum3(100, double(50), double(75))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 64:     w = sum3(100, double(50), double(75))
 	LDA #$32
 	LDX #$00
 	JSR _DOUBLE
@@ -222,15 +222,15 @@ __ZAP_else_8:
 	JSR _SUM3
 	STA _MAIN$W
 	STX _MAIN$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 65:     if w == 350
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 65:     if w == 350
 	CMP #$5E
 	BNE __ZAP_else_11
 	CPX #$01
 	BNE __ZAP_else_11
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 66:         result += 1     ; +3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 66:         result += 1     ; +3
 	INC _RESULT
 __ZAP_else_11:
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 72:     r = write_data(0, text, count_bytes(text) + count_bytes(text2))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 72:     r = write_data(0, text, count_bytes(text) + count_bytes(text2))
 	LDA #<_MAIN$TEXT
 	LDX #>_MAIN$TEXT
 	JSR _COUNT_BYTES
@@ -250,10 +250,10 @@ __ZAP_else_11:
 	LDA #$00
 	JSR _WRITE_DATA
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 73:     if r == 79
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 73:     if r == 79
 	CMP #$4F
 	BNE __ZAP_else_15
-; /home/dusan/src/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 74:         result += 1     ; +4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/202-deferred-param-store/202-deferred-param-store.zap 74:         result += 1     ; +4
 	INC _RESULT
 __ZAP_else_15:
 	RTS

@@ -24,7 +24,7 @@ __LVSLOT_3:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 5: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 5: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -40,7 +40,7 @@ _ADD$V                  = __LVSLOT_2
 	STA _ADD$DST
 	STX _ADD$DST+1
 	STY _ADD$V
-; /home/dusan/src/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 2:     dst^ = dst^ + v
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 2:     dst^ = dst^ + v
 	LDY #$00
 	LDA (_ADD$DST),Y
 	STA __TMP1
@@ -55,15 +55,15 @@ _ADD$V                  = __LVSLOT_2
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$X                 = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 8:     byte x = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 8:     byte x = 5
 	LDA #$05
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 9:     add(@x, 3)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 9:     add(@x, 3)
 	LDA #<_MAIN$X
 	LDX #>_MAIN$X
 	LDY #$03
 	JSR _ADD
-; /home/dusan/src/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 10:     result = x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/041-procedures-parameters/041-procedures-parameters.zap 10:     result = x
 	LDA _MAIN$X
 	STA _RESULT
 	RTS

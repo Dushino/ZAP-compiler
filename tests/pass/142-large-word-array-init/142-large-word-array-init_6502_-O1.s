@@ -34,7 +34,7 @@ __LVSLOT_1:	.res 256
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -46,7 +46,7 @@ __LVSLOT_1:	.res 256
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 9:     word arr[128] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 9:     word arr[128] = {
 	; Copy array [1, 2, 3, 4, 5...] (128 elements, 256 bytes)
 	LDA #<__ARRAY_DATA_1
 	LDX #>__ARRAY_DATA_1
@@ -61,24 +61,24 @@ _MAIN$ARR               = __LVSLOT_1
 	LDA #$01
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 20:     if arr[0] == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 20:     if arr[0] == 1
 	LDA _MAIN$ARR+0
 	LDX _MAIN$ARR+1
 	CMP #$01
 	BNE __ZAP_else_1
 	CPX #$00
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 21:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 21:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 24:     if arr[127] == 128
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 24:     if arr[127] == 128
 	LDA _MAIN$ARR+254
 	LDX _MAIN$ARR+255
 	CMP #$80
 	BNE __ZAP_else_5
 	CPX #$00
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 25:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/142-large-word-array-init/142-large-word-array-init.zap 25:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_5:
 	RTS

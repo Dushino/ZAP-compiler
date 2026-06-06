@@ -34,22 +34,22 @@ __LVSLOT_4:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 19: byte out0 @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 19: byte out0 @40000 = 0
 	LDA #$00
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 20: byte out1 @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 20: byte out1 @40001 = 0
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 21: byte out2 @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 21: byte out2 @40002 = 0
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 22: byte out3 @40003 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 22: byte out3 @40003 = 0
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 23: byte out4 @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 23: byte out4 @40004 = 0
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 24: byte out5 @40005 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 24: byte out5 @40005 = 0
 	STA _OUT5
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 25: byte out6 @40006 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 25: byte out6 @40006 = 0
 	STA _OUT6
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 26: byte out7 @40007 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 26: byte out7 @40007 = 0
 	STA _OUT7
 ; Call MAIN
 	JSR _MAIN
@@ -59,34 +59,34 @@ __LVSLOT_4:	.res 2
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 30:     arr[0] = $10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 30:     arr[0] = $10
 	LDA #$10
 	STA _ARR+0
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 31:     arr[1] = $20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 31:     arr[1] = $20
 	LDA #$20
 	STA _ARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 32:     arr[2] = $30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 32:     arr[2] = $30
 	LDA #$30
 	STA _ARR+2
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 33:     arr[3] = $40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 33:     arr[3] = $40
 	LDA #$40
 	STA _ARR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 34:     arr[4] = $50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 34:     arr[4] = $50
 	LDA #$50
 	STA _ARR+4
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 37:     out0 = arr[FIRST]       ; expect $10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 37:     out0 = arr[FIRST]       ; expect $10
 	LDA _ARR+0
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 38:     out1 = arr[LAST]        ; expect $50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 38:     out1 = arr[LAST]        ; expect $50
 	LDA _ARR+4
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 39:     out2 = arr[MID]         ; expect $30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 39:     out2 = arr[MID]         ; expect $30
 	LDA _ARR+2
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 40:     out3 = arr[LAST - 1]    ; expect $40  (constant expression)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 40:     out3 = arr[LAST - 1]    ; expect $40  (constant expression)
 	LDA _ARR+3
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 43:     sarr[0].a = $AA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 43:     sarr[0].a = $AA
 	LDA #$00
 	TAX
 	CLC
@@ -98,7 +98,7 @@ _MAIN:
 	LDA #$AA
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 44:     sarr[1].a = $BB
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 44:     sarr[1].a = $BB
 	LDA #$03
 	CLC
 	ADC #<_SARR
@@ -108,7 +108,7 @@ _MAIN:
 	STA __TMP0+1
 	LDA #$BB
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 45:     sarr[2].a = $CC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 45:     sarr[2].a = $CC
 	LDA #$06
 	CLC
 	ADC #<_SARR
@@ -118,7 +118,7 @@ _MAIN:
 	STA __TMP0+1
 	LDA #$CC
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 46:     sarr[3].a = $DD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 46:     sarr[3].a = $DD
 	LDA #$09
 	CLC
 	ADC #<_SARR
@@ -128,7 +128,7 @@ _MAIN:
 	STA __TMP0+1
 	LDA #$DD
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 49:     out4 = sarr[FIRST].a    ; expect $AA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 49:     out4 = sarr[FIRST].a    ; expect $AA
 	TXA
 	CLC
 	ADC #<_SARR
@@ -138,7 +138,7 @@ _MAIN:
 	STA __TMP0+1
 	LDA (__TMP0),Y
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 50:     out5 = sarr[LAST - 1].a ; expect $DD  (LAST-1=3)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 50:     out5 = sarr[LAST - 1].a ; expect $DD  (LAST-1=3)
 	LDA #$09
 	CLC
 	ADC #<_SARR
@@ -148,7 +148,7 @@ _MAIN:
 	STA __TMP0+1
 	LDA (__TMP0),Y
 	STA _OUT5
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 51:     out6 = sarr[MID].a      ; expect $CC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 51:     out6 = sarr[MID].a      ; expect $CC
 	LDA #$06
 	CLC
 	ADC #<_SARR
@@ -158,22 +158,22 @@ _MAIN:
 	STA __TMP0+1
 	LDA (__TMP0),Y
 	STA _OUT6
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 54:     warr[0] = $1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 54:     warr[0] = $1234
 	LDA #$34
 	LDX #$12
 	STA _WARR+0
 	STX _WARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 55:     warr[1] = $5678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 55:     warr[1] = $5678
 	LDA #$78
 	LDX #$56
 	STA _WARR+2
 	STX _WARR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 56:     warr[2] = $9ABC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 56:     warr[2] = $9ABC
 	LDA #$BC
 	LDX #$9A
 	STA _WARR+4
 	STX _WARR+5
-; /home/dusan/src/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 57:     out7 = low(warr[MID])   ; expect low($9ABC) = $BC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/171-const-fold-array-index/171-const-fold-array-index.zap 57:     out7 = low(warr[MID])   ; expect low($9ABC) = $BC
 	STA _OUT7
 	RTS
 

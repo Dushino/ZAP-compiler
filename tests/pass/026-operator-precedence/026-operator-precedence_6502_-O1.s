@@ -24,7 +24,7 @@ __LVSLOT_4:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -37,10 +37,10 @@ __LVSLOT_4:	.res 4
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 4:     byte x = 15
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 4:     byte x = 15
 	LDA #$0F
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 5:     byte y = x + x + x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 5:     byte y = x + x + x
 	CLC
 	ADC _MAIN$X
 	STA __MATH0
@@ -52,7 +52,7 @@ _MAIN$Y                 = __LVSLOT_1
 	STA __MATH0
 	LDX #$00
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 6:     result = y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/026-operator-precedence/026-operator-precedence.zap 6:     result = y
 	STA _RESULT
 	RTS
 

@@ -29,7 +29,7 @@ __LVSLOT_1:	.res 12
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -43,7 +43,7 @@ __LVSLOT_1:	.res 12
 _MAIN:
 _MAIN$MATRIX            = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 8:     matrix[0][0] = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 8:     matrix[0][0] = 1
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	STA __TMP0
@@ -51,7 +51,7 @@ _MAIN$SUM               = __LVSLOT_2
 	LDA #1
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 9:     matrix[0][1] = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 9:     matrix[0][1] = 2
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -62,7 +62,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #2
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 10:     matrix[0][2] = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 10:     matrix[0][2] = 3
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -73,7 +73,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #3
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 11:     matrix[0][3] = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 11:     matrix[0][3] = 4
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -84,7 +84,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #4
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 13:     matrix[1][0] = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 13:     matrix[1][0] = 5
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -95,7 +95,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #5
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 14:     matrix[1][1] = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 14:     matrix[1][1] = 6
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -106,7 +106,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #6
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 15:     matrix[1][2] = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 15:     matrix[1][2] = 7
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -117,7 +117,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #7
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 16:     matrix[1][3] = 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 16:     matrix[1][3] = 8
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -128,7 +128,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #8
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 18:     matrix[2][0] = 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 18:     matrix[2][0] = 9
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -139,7 +139,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #9
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 19:     matrix[2][1] = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 19:     matrix[2][1] = 10
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -150,7 +150,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #10
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 20:     matrix[2][2] = 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 20:     matrix[2][2] = 11
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -161,7 +161,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #11
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 21:     matrix[2][3] = 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 21:     matrix[2][3] = 12
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	CLC
@@ -172,7 +172,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #12
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 24:     sum = matrix[0][0] + matrix[1][1] + matrix[2][2]  ; 1 + 6 + 11 = 18 (0x12)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 24:     sum = matrix[0][0] + matrix[1][1] + matrix[2][2]  ; 1 + 6 + 11 = 18 (0x12)
 	LDA #<_MAIN$MATRIX
 	LDX #>_MAIN$MATRIX
 	STA __TMP0
@@ -203,7 +203,7 @@ _MAIN$SUM               = __LVSLOT_2
 	CLC
 	ADC _MAIN$SUM
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 25:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/012-arrays-multidim-2d/012-arrays-multidim-2d.zap 25:     result = sum
 	LDX #$00
 	STA _RESULT
 	STX _RESULT+1

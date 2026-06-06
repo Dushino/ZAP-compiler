@@ -27,16 +27,16 @@ _MAIN$Z                 = $9C44
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/102-word-range/102-word-range.zap 13:     word x @40000 = Big.B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/102-word-range/102-word-range.zap 13:     word x @40000 = Big.B
 	LDA #$2D
 	LDX #$01
 	STA _MAIN$X
 	STX _MAIN$X+1
-; /home/dusan/src/ZAP-compiler/tests/pass/102-word-range/102-word-range.zap 14:     word y @40002 = Big.A
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/102-word-range/102-word-range.zap 14:     word y @40002 = Big.A
 	LDA #$2C
 	STA _MAIN$Y
 	STX _MAIN$Y+1
-; /home/dusan/src/ZAP-compiler/tests/pass/102-word-range/102-word-range.zap 15:     word z @40004 = Big.C
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/102-word-range/102-word-range.zap 15:     word z @40004 = Big.C
 	LDA #$FF
 	STA _MAIN$Z
 	STA _MAIN$Z+1

@@ -23,7 +23,7 @@ __LVSLOT_4:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -38,21 +38,21 @@ _MAIN$I                 = __LVSLOT_1
 _MAIN$J                 = __LVSLOT_2
 _MAIN$K                 = __LVSLOT_3
 _MAIN$CNT               = __LVSLOT_4
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 4:     byte i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 4:     byte i = 0
 	LDA #$00
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 5:     byte j = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 5:     byte j = 0
 	STA _MAIN$J
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 6:     byte k = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 6:     byte k = 0
 	STA _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 7:     byte cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 7:     byte cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 11:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 11:     i = 0
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 12:     repeat
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 12:     repeat
 __ZAP_repeat_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 13:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 13:         i = i + 1
 	INC _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 14:         if i == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 14:         if i == 3
 	LDA _MAIN$I
 	CMP #$03
 	BEQ __ZAP_endrepeat_3
@@ -60,72 +60,72 @@ __ZAP_repeat_1:
 	CMP #$0A
 	BNE __ZAP_repeat_1
 __ZAP_endrepeat_3:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 18:     if i == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 18:     if i == 3
 	LDA _MAIN$I
 	CMP #$03
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 19:         result = result + 1     ; 1: break stopped at i=3, not i=10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 19:         result = result + 1     ; 1: break stopped at i=3, not i=10
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 24:     j = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 24:     j = 0
 	LDA #$00
 	STA _MAIN$J
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 25:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 25:     cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 26:     repeat
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 26:     repeat
 __ZAP_repeat_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 27:         j = j + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 27:         j = j + 1
 	INC _MAIN$J
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 28:         if j == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 28:         if j == 2
 	LDA _MAIN$J
 	CMP #$02
 	BEQ __ZAP_repeat_cond_11
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 31:         cnt = cnt + 1           ; runs on j=1,3,4 but NOT j=2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 31:         cnt = cnt + 1           ; runs on j=1,3,4 but NOT j=2
 	INC _MAIN$CNT
 __ZAP_repeat_cond_11:
 	LDA _MAIN$J
 	CMP #$04
 	BNE __ZAP_repeat_10
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 33:     if j == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 33:     if j == 4
 	LDA _MAIN$J
 	CMP #$04
 	BNE __ZAP_else_16
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 34:         result = result + 1     ; 2: loop ran to condition
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 34:         result = result + 1     ; 2: loop ran to condition
 	INC _RESULT
 __ZAP_else_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 36:     if cnt == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 36:     if cnt == 3
 	LDA _MAIN$CNT
 	CMP #$03
 	BNE __ZAP_else_19
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 37:         result = result + 1     ; 3: continue skipped one cnt++ (on j=2 iteration)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 37:         result = result + 1     ; 3: continue skipped one cnt++ (on j=2 iteration)
 	INC _RESULT
 __ZAP_else_19:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 42:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 42:     i = 0
 	LDA #$00
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 43:     j = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 43:     j = 0
 	STA _MAIN$J
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 44:     repeat
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 44:     repeat
 __ZAP_repeat_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 45:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 45:         i = i + 1
 	INC _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 46:         k = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 46:         k = 0
 	LDA #$00
 	STA _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 47:         while k < 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 47:         while k < 10
 __ZAP_while_25:
 	LDA _MAIN$K
 	CMP #$0A
 	BCS __ZAP_endwhile_26
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 48:             k = k + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 48:             k = k + 1
 	INC _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 49:             if k == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 49:             if k == 3
 	LDA _MAIN$K
 	CMP #$03
 	BEQ __ZAP_endwhile_26
 	JMP __ZAP_while_25
 __ZAP_endwhile_26:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 53:         j = j + k               ; k==3 each time
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 53:         j = j + k               ; k==3 each time
 	LDA _MAIN$J
 	CLC
 	ADC _MAIN$K
@@ -133,82 +133,82 @@ __ZAP_endwhile_26:
 	LDA _MAIN$I
 	CMP #$02
 	BNE __ZAP_repeat_22
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 55:     if i == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 55:     if i == 2
 	LDA _MAIN$I
 	CMP #$02
 	BNE __ZAP_else_31
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 56:         result = result + 1     ; 4: repeat ran twice (inner break didn't exit repeat)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 56:         result = result + 1     ; 4: repeat ran twice (inner break didn't exit repeat)
 	INC _RESULT
 __ZAP_else_31:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 58:     if j == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 58:     if j == 6
 	LDA _MAIN$J
 	CMP #$06
 	BNE __ZAP_else_34
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 59:         result = result + 1     ; 5: inner while broke at k=3 each outer iteration (3+3=6)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 59:         result = result + 1     ; 5: inner while broke at k=3 each outer iteration (3+3=6)
 	INC _RESULT
 __ZAP_else_34:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 65:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 65:     i = 0
 	LDA #$00
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 66:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 66:     cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 67:     repeat
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 67:     repeat
 __ZAP_repeat_37:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 68:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 68:         i = i + 1
 	INC _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 69:         k = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 69:         k = 0
 	LDA #$00
 	STA _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 70:         while k < 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 70:         while k < 4
 __ZAP_while_40:
 	LDA _MAIN$K
 	CMP #$04
 	BCS __ZAP_endwhile_41
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 71:             k = k + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 71:             k = k + 1
 	INC _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 72:             if k == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 72:             if k == 2
 	LDA _MAIN$K
 	CMP #$02
 	BEQ __ZAP_while_40
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 75:             cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 75:             cnt = cnt + 1
 	INC _MAIN$CNT
 	JMP __ZAP_while_40
 __ZAP_endwhile_41:
 	LDA _MAIN$I
 	CMP #$02
 	BNE __ZAP_repeat_37
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 78:     if i == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 78:     if i == 2
 	LDA _MAIN$I
 	CMP #$02
 	BNE __ZAP_else_46
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 79:         result = result + 1     ; 6: outer repeat ran twice
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 79:         result = result + 1     ; 6: outer repeat ran twice
 	INC _RESULT
 __ZAP_else_46:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 81:     if cnt == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 81:     if cnt == 6
 	LDA _MAIN$CNT
 	CMP #$06
 	BNE __ZAP_else_49
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 82:         result = result + 1     ; 7: continue in while skipped one cnt++ per outer iter (3*2=6)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 82:         result = result + 1     ; 7: continue in while skipped one cnt++ per outer iter (3*2=6)
 	INC _RESULT
 __ZAP_else_49:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 87:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 87:     i = 0
 	LDA #$00
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 88:     j = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 88:     j = 0
 	STA _MAIN$J
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 89:     while i < 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 89:     while i < 3
 __ZAP_while_52:
 	LDA _MAIN$I
 	CMP #$03
 	BCS __ZAP_endwhile_53
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 90:         k = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 90:         k = 0
 	LDA #$00
 	STA _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 91:         repeat
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 91:         repeat
 __ZAP_repeat_55:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 92:             k = k + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 92:             k = k + 1
 	INC _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 93:             if k == 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 93:             if k == 2
 	LDA _MAIN$K
 	CMP #$02
 	BEQ __ZAP_endrepeat_57
@@ -216,27 +216,27 @@ __ZAP_repeat_55:
 	CMP #$0A
 	BNE __ZAP_repeat_55
 __ZAP_endrepeat_57:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 97:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 97:         i = i + 1
 	INC _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 98:         j = j + k               ; k==2 each time
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 98:         j = j + k               ; k==2 each time
 	LDA _MAIN$J
 	CLC
 	ADC _MAIN$K
 	STA _MAIN$J
 	JMP __ZAP_while_52
 __ZAP_endwhile_53:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 100:     if i == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 100:     if i == 3
 	LDA _MAIN$I
 	CMP #$03
 	BNE __ZAP_else_61
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 101:         result = result + 1     ; 8: while ran 3 times (inner break didn't exit while)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 101:         result = result + 1     ; 8: while ran 3 times (inner break didn't exit while)
 	INC _RESULT
 __ZAP_else_61:
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 103:     if j == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 103:     if j == 6
 	LDA _MAIN$J
 	CMP #$06
 	BNE __ZAP_else_64
-; /home/dusan/src/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 104:         result = result + 1     ; 9: inner repeat broke at k=2 each iteration (2+2+2=6)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/155-repeat-break-continue/155-repeat-break-continue.zap 104:         result = result + 1     ; 9: inner repeat broke at k=2 each iteration (2+2+2=6)
 	INC _RESULT
 __ZAP_else_64:
 	RTS

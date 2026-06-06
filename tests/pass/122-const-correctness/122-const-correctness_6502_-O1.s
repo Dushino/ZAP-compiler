@@ -23,14 +23,14 @@ _C2                     = $32
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 12: byte res_scalar @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 12: byte res_scalar @40000 = 0
 	LDA #$00
 	STA _RES_SCALAR
-; /home/dusan/src/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 13: byte res_array @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 13: byte res_array @40001 = 0
 	STA _RES_ARRAY
-; /home/dusan/src/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 14: byte res_struct @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 14: byte res_struct @40002 = 0
 	STA _RES_STRUCT
-; /home/dusan/src/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 15: word res_addr @40003 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 15: word res_addr @40003 = 0
 	STA _RES_ADDR
 	STA _RES_ADDR+1
 ; Call MAIN
@@ -41,10 +41,10 @@ _C2                     = $32
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 19:     res_scalar = C1 - C2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 19:     res_scalar = C1 - C2
 	LDA #$32
 	STA _RES_SCALAR
-; /home/dusan/src/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 22:     res_array = CA[1]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/122-const-correctness/122-const-correctness.zap 22:     res_array = CA[1]
 	LDA #$01
 	TAY
 	LDA __ARRAY_DATA_1,Y

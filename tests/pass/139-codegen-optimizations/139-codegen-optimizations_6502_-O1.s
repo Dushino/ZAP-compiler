@@ -33,7 +33,7 @@ __LVSLOT_9:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 9: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 9: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -56,69 +56,69 @@ _MAIN$LSW               = __LVSLOT_6
 _MAIN$CNT               = __LVSLOT_7
 _MAIN$S                 = __LVSLOT_8
 _MAIN$E                 = __LVSLOT_9
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 15:     long la = $01010101     ; 16843009: all bytes $01, so 1 LDA + 4 STA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 15:     long la = $01010101     ; 16843009: all bytes $01, so 1 LDA + 4 STA
 	LDA #$01
 	STA _MAIN$LA
 	STA _MAIN$LA+1
 	STA _MAIN$LA+2
 	STA _MAIN$LA+3
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 16:     long lb = 65536         ; $00010000: groups {$00:[0,1,3], $01:[2]} -> 2 LDA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 16:     long lb = 65536         ; $00010000: groups {$00:[0,1,3], $01:[2]} -> 2 LDA
 	LDA #$00
 	STA _MAIN$LB
 	STA _MAIN$LB+1
 	STA _MAIN$LB+3
 	LDA #$01
 	STA _MAIN$LB+2
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 17:     long lc = $01000001     ; 16777217: groups {$01:[0,3], $00:[1,2]} -> 2 LDA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 17:     long lc = $01000001     ; 16777217: groups {$01:[0,3], $00:[1,2]} -> 2 LDA
 	STA _MAIN$LC
 	STA _MAIN$LC+3
 	LDA #$00
 	STA _MAIN$LC+1
 	STA _MAIN$LC+2
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 18:     word wa = $0303         ; lo==hi -> 1 LDA + 2 STA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 18:     word wa = $0303         ; lo==hi -> 1 LDA + 2 STA
 	LDA #$03
 	STA _MAIN$WA
 	STA _MAIN$WA+1
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 21:     long x = 100            ; $00000064
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 21:     long x = 100            ; $00000064
 	LDA #$64
 	STA _MAIN$X
 	LDA #$00
 	STA _MAIN$X+1
 	STA _MAIN$X+2
 	STA _MAIN$X+3
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 22:     long y = 200            ; $000000C8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 22:     long y = 200            ; $000000C8
 	LDA #$C8
 	STA _MAIN$Y
 	LDA #$00
 	STA _MAIN$Y+1
 	STA _MAIN$Y+2
 	STA _MAIN$Y+3
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 25:     byte bsw = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 25:     byte bsw = 7
 	LDA #$07
 	STA _MAIN$BSW
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 26:     word wsw = $0303
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 26:     word wsw = $0303
 	LDA #$03
 	STA _MAIN$WSW
 	STA _MAIN$WSW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 27:     long lsw = $01000001
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 27:     long lsw = $01000001
 	LDA #$01
 	STA _MAIN$LSW
 	STA _MAIN$LSW+3
 	LDA #$00
 	STA _MAIN$LSW+1
 	STA _MAIN$LSW+2
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 30:     long cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 30:     long cnt = 0
 	STA _MAIN$CNT
 	STA _MAIN$CNT+1
 	STA _MAIN$CNT+2
 	STA _MAIN$CNT+3
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 31:     long s = 65536          ; $00010000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 31:     long s = 65536          ; $00010000
 	STA _MAIN$S
 	STA _MAIN$S+1
 	STA _MAIN$S+3
 	LDA #$01
 	STA _MAIN$S+2
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 32:     long e = 65540          ; $00010004
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 32:     long e = 65540          ; $00010004
 	LDA #$04
 	STA _MAIN$E
 	LDA #$00
@@ -126,7 +126,7 @@ _MAIN$E                 = __LVSLOT_9
 	STA _MAIN$E+3
 	LDA #$01
 	STA _MAIN$E+2
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 37:     if la == $01010101
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 37:     if la == $01010101
 	LDA _MAIN$LA+3
 	CMP #$01
 	BNE __ZAP_else_1
@@ -139,10 +139,10 @@ _MAIN$E                 = __LVSLOT_9
 	LDA _MAIN$LA
 	CMP #$01
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 38:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 38:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 40:     if lb == 65536
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 40:     if lb == 65536
 	LDA _MAIN$LB+3
 	BNE __ZAP_else_5
 	LDA _MAIN$LB+2
@@ -152,10 +152,10 @@ __ZAP_else_1:
 	BNE __ZAP_else_5
 	LDA _MAIN$LB
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 41:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 41:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 43:     if lc == $01000001
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 43:     if lc == $01000001
 	LDA _MAIN$LC+3
 	CMP #$01
 	BNE __ZAP_else_9
@@ -166,20 +166,20 @@ __ZAP_else_5:
 	LDA _MAIN$LC
 	CMP #$01
 	BNE __ZAP_else_9
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 44:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 44:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 46:     if wa == $0303
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 46:     if wa == $0303
 	LDA _MAIN$WA
 	CMP #$03
 	BNE __ZAP_else_13
 	LDX _MAIN$WA+1
 	CPX #$03
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 47:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 47:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 53:     if x < y                ; 100 < 200 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 53:     if x < y                ; 100 < 200 -> true
 	LDA _MAIN$X+3
 	CMP _MAIN$Y+3
 	BNE __ZAP_CMP32_DECIDE_20
@@ -193,10 +193,10 @@ __ZAP_else_13:
 	CMP _MAIN$Y
 __ZAP_CMP32_DECIDE_20:
 	BCS __ZAP_else_17
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 54:         result = result + 1 ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 54:         result = result + 1 ; 5
 	INC _RESULT
 __ZAP_else_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 56:     if y > x                ; 200 > 100 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 56:     if y > x                ; 200 > 100 -> true
 	LDA _MAIN$Y+3
 	CMP _MAIN$X+3
 	BNE __ZAP_CMP32_DECIDE_24
@@ -211,10 +211,10 @@ __ZAP_else_17:
 __ZAP_CMP32_DECIDE_24:
 	BEQ __ZAP_else_21
 	BCC __ZAP_else_21
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 57:         result = result + 1 ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 57:         result = result + 1 ; 6
 	INC _RESULT
 __ZAP_else_21:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 59:     if x <= 100             ; 100 <= 100 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 59:     if x <= 100             ; 100 <= 100 -> true
 	LDA _MAIN$X+3
 	CMP #$00
 	BNE __ZAP_CMP32_DECIDE_29
@@ -230,10 +230,10 @@ __ZAP_CMP32_DECIDE_29:
 	BCC __ZAP_then_28
 	BNE __ZAP_else_26
 __ZAP_then_28:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 60:         result = result + 1 ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 60:         result = result + 1 ; 7
 	INC _RESULT
 __ZAP_else_26:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 62:     if x >= 100             ; 100 >= 100 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 62:     if x >= 100             ; 100 >= 100 -> true
 	LDA _MAIN$X+3
 	CMP #$00
 	BNE __ZAP_CMP32_DECIDE_33
@@ -247,10 +247,10 @@ __ZAP_else_26:
 	CMP #$64
 __ZAP_CMP32_DECIDE_33:
 	BCC __ZAP_else_30
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 63:         result = result + 1 ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 63:         result = result + 1 ; 8
 	INC _RESULT
 __ZAP_else_30:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 65:     if x == 100             ; 100 == 100 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 65:     if x == 100             ; 100 == 100 -> true
 	LDA _MAIN$X+3
 	BNE __ZAP_else_34
 	LDA _MAIN$X+2
@@ -260,10 +260,10 @@ __ZAP_else_30:
 	LDA _MAIN$X
 	CMP #$64
 	BNE __ZAP_else_34
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 66:         result = result + 1 ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 66:         result = result + 1 ; 9
 	INC _RESULT
 __ZAP_else_34:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 68:     if y != 100             ; 200 != 100 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 68:     if y != 100             ; 200 != 100 -> true
 	LDA _MAIN$Y+3
 	BNE __ZAP_then_40
 	LDA _MAIN$Y+2
@@ -274,10 +274,10 @@ __ZAP_else_34:
 	CMP #$64
 	BEQ __ZAP_else_38
 __ZAP_then_40:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 69:         result = result + 1 ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 69:         result = result + 1 ; 10
 	INC _RESULT
 __ZAP_else_38:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 73:     if lb < la              ; 65536 < 16843009 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 73:     if lb < la              ; 65536 < 16843009 -> true
 	LDA _MAIN$LB+3
 	CMP _MAIN$LA+3
 	BNE __ZAP_CMP32_DECIDE_44
@@ -291,10 +291,10 @@ __ZAP_else_38:
 	CMP _MAIN$LA
 __ZAP_CMP32_DECIDE_44:
 	BCS __ZAP_else_41
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 74:         result = result + 1 ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 74:         result = result + 1 ; 11
 	INC _RESULT
 __ZAP_else_41:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 76:     if lc == lb             ; 16777217 == 65536 -> false, skip
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 76:     if lc == lb             ; 16777217 == 65536 -> false, skip
 	LDA _MAIN$LC+3
 	CMP _MAIN$LB+3
 	BNE __ZAP_else_45
@@ -307,11 +307,11 @@ __ZAP_else_41:
 	LDA _MAIN$LC
 	CMP _MAIN$LB
 	BNE __ZAP_else_45
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 77:         result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 77:         result = 255
 	LDA #$FF
 	STA _RESULT
 __ZAP_else_45:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 79:     if lc > lb              ; 16777217 > 65536 -> true
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 79:     if lc > lb              ; 16777217 > 65536 -> true
 	LDA _MAIN$LC+3
 	CMP _MAIN$LB+3
 	BNE __ZAP_CMP32_DECIDE_52
@@ -326,39 +326,39 @@ __ZAP_else_45:
 __ZAP_CMP32_DECIDE_52:
 	BEQ __ZAP_else_49
 	BCC __ZAP_else_49
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 80:         result = result + 1 ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 80:         result = result + 1 ; 12
 	INC _RESULT
 __ZAP_else_49:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 86:     switch bsw
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 86:     switch bsw
 	LDA _MAIN$BSW
 	CMP #$07
 	BNE __ZAP_case_56
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 88:             result = result + 1 ; 13
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 88:             result = result + 1 ; 13
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 89:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 89:             break
 	JMP __ZAP_endswitch_54
 __ZAP_case_56:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 91:             result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 91:             result = 255
 	LDA #$FF
 	STA _RESULT
 __ZAP_endswitch_54:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 94:     switch wsw
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 94:     switch wsw
 	LDA _MAIN$WSW+1
 	CMP #$03
 	BNE __ZAP_case_60
 	LDA _MAIN$WSW
 	CMP #$03
 	BNE __ZAP_case_60
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 96:             result = result + 1 ; 14
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 96:             result = result + 1 ; 14
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 97:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 97:             break
 	JMP __ZAP_endswitch_58
 __ZAP_case_60:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 99:             result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 99:             result = 255
 	LDA #$FF
 	STA _RESULT
 __ZAP_endswitch_58:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 102:     switch lsw
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 102:     switch lsw
 	LDA _MAIN$LSW+3
 	CMP #$01
 	BNE __ZAP_case_64
@@ -369,22 +369,22 @@ __ZAP_endswitch_58:
 	LDA _MAIN$LSW
 	CMP #$01
 	BNE __ZAP_case_64
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 104:             result = result + 1 ; 15
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 104:             result = result + 1 ; 15
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 105:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 105:             break
 	JMP __ZAP_endswitch_62
 __ZAP_case_64:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 107:             result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 107:             result = 255
 	LDA #$FF
 	STA _RESULT
 __ZAP_endswitch_62:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 113:     la = $01010101          ; runtime: 1 LDA #$01 + 4 STA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 113:     la = $01010101          ; runtime: 1 LDA #$01 + 4 STA
 	LDA #$01
 	STA _MAIN$LA
 	STA _MAIN$LA+1
 	STA _MAIN$LA+2
 	STA _MAIN$LA+3
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 114:     if la == $01010101
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 114:     if la == $01010101
 	CMP #$01
 	BNE __ZAP_else_66
 	LDA _MAIN$LA+2
@@ -396,17 +396,17 @@ __ZAP_endswitch_62:
 	LDA _MAIN$LA
 	CMP #$01
 	BNE __ZAP_else_66
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 115:         result = result + 1 ; 16
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 115:         result = result + 1 ; 16
 	INC _RESULT
 __ZAP_else_66:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 118:     la = 65536              ; runtime: grouped $00 and $01
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 118:     la = 65536              ; runtime: grouped $00 and $01
 	LDA #$00
 	STA _MAIN$LA
 	STA _MAIN$LA+1
 	STA _MAIN$LA+3
 	LDA #$01
 	STA _MAIN$LA+2
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 119:     if la == 65536
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 119:     if la == 65536
 	LDA _MAIN$LA+3
 	BNE __ZAP_else_70
 	LDA _MAIN$LA+2
@@ -416,10 +416,10 @@ __ZAP_else_66:
 	BNE __ZAP_else_70
 	LDA _MAIN$LA
 	BNE __ZAP_else_70
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 120:         result = result + 1 ; 17
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 120:         result = result + 1 ; 17
 	INC _RESULT
 __ZAP_else_70:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 127:     for s = s to e step 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 127:     for s = s to e step 1
 __ZAP_while_74:
 	LDA _MAIN$S+3
 	CMP _MAIN$E+3
@@ -434,7 +434,7 @@ __ZAP_while_74:
 	CMP _MAIN$E
 __ZAP_CMP32_DECIDE_77:
 	BCS __ZAP_endwhile_75
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 128:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 128:         cnt = cnt + 1
 	INC _MAIN$CNT
 	BNE __ZAP_SKIP_INC32_78
 	INC _MAIN$CNT+1
@@ -452,7 +452,7 @@ __ZAP_SKIP_INC32_78:
 	INC _MAIN$S+3
 	JMP __ZAP_while_74
 __ZAP_endwhile_75:
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 130:     if cnt == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 130:     if cnt == 4
 	LDA _MAIN$CNT+3
 	BNE __ZAP_else_80
 	LDA _MAIN$CNT+2
@@ -462,7 +462,7 @@ __ZAP_endwhile_75:
 	LDA _MAIN$CNT
 	CMP #$04
 	BNE __ZAP_else_80
-; /home/dusan/src/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 131:         result = result + 1 ; 18
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/139-codegen-optimizations/139-codegen-optimizations.zap 131:         result = result + 1 ; 18
 	INC _RESULT
 __ZAP_else_80:
 	RTS

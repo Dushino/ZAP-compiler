@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/082-identifiers-shadow/082-identifiers-shadow.zap 2: byte result @40000 = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/082-identifiers-shadow/082-identifiers-shadow.zap 2: byte result @40000 = 1
 	LDA #$01
 	STA _RESULT
 ; Call MAIN

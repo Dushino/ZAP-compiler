@@ -34,7 +34,7 @@ __LVSLOT_1:	.res 6
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -48,7 +48,7 @@ __LVSLOT_1:	.res 6
 _MAIN:
 _MAIN$GREETING          = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 4:     byte greeting[6] = "hello"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 4:     byte greeting[6] = "hello"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -59,7 +59,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STX __TMP2+1
 	LDX #6
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 8:     sum = greeting[0] + greeting[1] + greeting[2] + greeting[3] + greeting[4]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 8:     sum = greeting[0] + greeting[1] + greeting[2] + greeting[3] + greeting[4]
 	LDA _MAIN$GREETING+0
 	LDX #$00
 	CLC
@@ -84,7 +84,7 @@ __ZAP_ARRAY_NO_CARRY_3:
 __ZAP_ARRAY_NO_CARRY_4:
 	STA _MAIN$SUM
 	STX _MAIN$SUM+1
-; /home/dusan/src/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 9:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/021-arrays-string-init/021-arrays-string-init.zap 9:     result = sum
 	STA _RESULT
 	STX _RESULT+1
 	RTS

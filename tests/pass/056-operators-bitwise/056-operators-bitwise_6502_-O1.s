@@ -32,7 +32,7 @@ __LVSLOT_8:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -50,35 +50,35 @@ _MAIN$XORV              = __LVSLOT_2
 _MAIN$NOTV              = __LVSLOT_3
 _MAIN$SHL               = __LVSLOT_5
 _MAIN$SHR               = __LVSLOT_4
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 4:     byte a = $3c
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 4:     byte a = $3c
 	LDA #$3C
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 5:     byte b = $0f
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 5:     byte b = $0f
 	LDA #$0F
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 7:     byte orv  = a | b     ; $3f
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 7:     byte orv  = a | b     ; $3f
 	LDA _MAIN$A
 	ORA _MAIN$B
 	STA _MAIN$ORV
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 8:     byte xorv = a ^ b     ; $33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 8:     byte xorv = a ^ b     ; $33
 	LDA _MAIN$A
 	EOR _MAIN$B
 	STA _MAIN$XORV
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 9:     byte notv = ~a        ; $c3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 9:     byte notv = ~a        ; $c3
 	LDA _MAIN$A
 	LDX #$00
 	EOR #$FF
 	STA _MAIN$NOTV
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 10:     byte shl  = b << 1    ; $1e
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 10:     byte shl  = b << 1    ; $1e
 	LDA _MAIN$B
 	ASL
 	STA _MAIN$SHL
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 11:     byte shr  = a >> 2    ; $0f
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 11:     byte shr  = a >> 2    ; $0f
 	LDA _MAIN$A
 	LSR
 	LSR
 	STA _MAIN$SHR
-; /home/dusan/src/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 13:     result = orv + xorv + notv + shl + shr   ; aggregated byte math -> $62
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/056-operators-bitwise/056-operators-bitwise.zap 13:     result = orv + xorv + notv + shl + shr   ; aggregated byte math -> $62
 	LDA _MAIN$ORV
 	CLC
 	ADC _MAIN$XORV

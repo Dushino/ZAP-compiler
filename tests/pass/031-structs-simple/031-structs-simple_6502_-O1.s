@@ -24,7 +24,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/031-structs-simple/031-structs-simple.zap 5: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/031-structs-simple/031-structs-simple.zap 5: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,10 +36,10 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$P                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/031-structs-simple/031-structs-simple.zap 9:     p.age = 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/031-structs-simple/031-structs-simple.zap 9:     p.age = 42
 	LDA #$2A
 	STA _MAIN$P
-; /home/dusan/src/ZAP-compiler/tests/pass/031-structs-simple/031-structs-simple.zap 10:     result = p.age
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/031-structs-simple/031-structs-simple.zap 10:     result = p.age
 	STA _RESULT
 	RTS
 

@@ -30,18 +30,18 @@ _LVAL:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 4: byte val = $42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 4: byte val = $42
 	LDA #$42
 	STA _VAL
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 5: word addr = $D400
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 5: word addr = $D400
 	LDA #$00
 	STA _ADDR
 	LDA #$D4
 	STA _ADDR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 6: byte baddr = $80
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 6: byte baddr = $80
 	LDA #$80
 	STA _BADDR
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 7: long laddr = $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 7: long laddr = $12345678
 	LDA #$78
 	STA _LADDR
 	LDA #$56
@@ -50,12 +50,12 @@ _LVAL:	.res 4
 	STA _LADDR+2
 	LDA #$12
 	STA _LADDR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 8: word wval = $1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 8: word wval = $1234
 	LDA #$34
 	STA _WVAL
 	LDA #$12
 	STA _WVAL+1
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 9: long lval = $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 9: long lval = $12345678
 	LDA #$78
 	STA _LVAL
 	LDA #$56
@@ -72,14 +72,14 @@ _LVAL:	.res 4
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 13:     result = PEEK(baddr)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 13:     result = PEEK(baddr)
 	LDA _BADDR
 	STA __MATH0
 	STX __MATH0+1
 	LDY #$00
 	LDA (__MATH0),Y
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 16:     result = PEEK(addr)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 16:     result = PEEK(addr)
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -87,12 +87,12 @@ _MAIN:
 	LDA (__MATH0),Y
 	LDX #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 19:     result = PEEK($D400)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 19:     result = PEEK($D400)
 	LDA $D400
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 20:     result = PEEK($80)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 20:     result = PEEK($80)
 	LDA $0080
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 23:     result = PEEK(addr + 1)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 23:     result = PEEK(addr + 1)
 	LDA _ADDR
 	STA __MATH0
 	LDA #$01
@@ -101,31 +101,31 @@ _MAIN:
 	LDA __MATH0
 	LDA (__MATH0),Y
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 24:     result = PEEK(baddr + 2)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 24:     result = PEEK(baddr + 2)
 	LDA _BADDR
 	CLC
 	ADC #$02
 	LDA (__MATH0),Y
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 25:     result = PEEK($D400 + 3)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 25:     result = PEEK($D400 + 3)
 	LDA $D403
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 28:     result = PEEK(LOWW(laddr))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 28:     result = PEEK(LOWW(laddr))
 	LDA _LADDR
 	LDX _LADDR+1
 	LDA (__MATH0),Y
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 29:     result = PEEK(HIGHW(laddr))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 29:     result = PEEK(HIGHW(laddr))
 	LDA _LADDR+2
 	LDX _LADDR+3
 	LDA (__MATH0),Y
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 32:     POKE($D400, $42)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 32:     POKE($D400, $42)
 	LDA #$42
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 33:     POKE($D400, val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 33:     POKE($D400, val)
 	LDA _VAL
 	STA $D400
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 34:     POKE(addr, val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 34:     POKE(addr, val)
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -133,13 +133,13 @@ _MAIN:
 	LDA _VAL
 	LDX #$00
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 35:     POKE(baddr, val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 35:     POKE(baddr, val)
 	LDA _BADDR
 	STA __MATH0
 	STX __MATH0+1
 	LDA _VAL
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 38:     POKE(addr + 1, val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 38:     POKE(addr + 1, val)
 	LDA _ADDR
 	LDX _ADDR+1
 	STX __MATH0+1
@@ -152,30 +152,30 @@ __ZAP_ADD16C_NC_1:
 	LDA _VAL
 	LDY #$00
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 39:     POKE(baddr + 2, val)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 39:     POKE(baddr + 2, val)
 	LDA _BADDR
 	CLC
 	ADC #$02
 	LDA _VAL
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 40:     POKE($D400 + 3, $FF)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 40:     POKE($D400 + 3, $FF)
 	LDA #$FF
 	STA $D403
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 43:     POKE(addr, LOW(wval))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 43:     POKE(addr, LOW(wval))
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
 	STX __MATH0+1
 	LDA _WVAL
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 44:     POKE(addr, HIGH(wval))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 44:     POKE(addr, HIGH(wval))
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
 	STX __MATH0+1
 	LDA _WVAL+1
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 47:     POKE(addr, LOW(LOWW(lval)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 47:     POKE(addr, LOW(LOWW(lval)))
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -183,7 +183,7 @@ __ZAP_ADD16C_NC_1:
 	LDA _LVAL
 	LDX _LVAL+1
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 48:     POKE(addr, HIGH(LOWW(lval)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 48:     POKE(addr, HIGH(LOWW(lval)))
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -191,7 +191,7 @@ __ZAP_ADD16C_NC_1:
 	LDA _LVAL
 	LDA _LVAL+1
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 49:     POKE(addr, LOW(HIGHW(lval)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 49:     POKE(addr, LOW(HIGHW(lval)))
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -199,7 +199,7 @@ __ZAP_ADD16C_NC_1:
 	LDA _LVAL+2
 	LDX _LVAL+3
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 50:     POKE(addr, HIGH(HIGHW(lval)))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 50:     POKE(addr, HIGH(HIGHW(lval)))
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -207,7 +207,7 @@ __ZAP_ADD16C_NC_1:
 	LDA _LVAL+2
 	LDA _LVAL+3
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 53:     POKE(addr, val + 1)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 53:     POKE(addr, val + 1)
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -216,14 +216,14 @@ __ZAP_ADD16C_NC_1:
 	CLC
 	ADC #$01
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 54:     POKE(addr, $42 + $10)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 54:     POKE(addr, $42 + $10)
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
 	STX __MATH0+1
 	LDA #$52
 	STA (__MATH0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 57:     result = PEEK(addr) + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 57:     result = PEEK(addr) + 1
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0
@@ -234,7 +234,7 @@ __ZAP_ADD16C_NC_1:
 	CLC
 	ADC _RESULT
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 58:     result = PEEK(addr) + val
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/205-peek-poke/205-peek-poke.zap 58:     result = PEEK(addr) + val
 	LDA _ADDR
 	LDX _ADDR+1
 	STA __MATH0

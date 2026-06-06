@@ -27,7 +27,7 @@ __LVSLOT_1:	.res 5
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -41,7 +41,7 @@ __LVSLOT_1:	.res 5
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 4:     byte arr[] = {10, 20, 30, 40, 50}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 4:     byte arr[] = {10, 20, 30, 40, 50}
 	; Copy array [10, 20, 30, 40, 50] (5 elements)
 	LDX #$00
 __ZAP_ARR_COPY_1:
@@ -50,7 +50,7 @@ __ZAP_ARR_COPY_1:
 	INX
 	CPX #5
 	BNE __ZAP_ARR_COPY_1
-; /home/dusan/src/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 8:     sum = arr[0] + arr[1] + arr[2] + arr[3] + arr[4]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 8:     sum = arr[0] + arr[1] + arr[2] + arr[3] + arr[4]
 	LDA _MAIN$ARR+0
 	CLC
 	ADC _MAIN$ARR+1
@@ -61,7 +61,7 @@ __ZAP_ARR_COPY_1:
 	CLC
 	ADC _MAIN$ARR+4
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 11:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/019-arrays-inferred-size/019-arrays-inferred-size.zap 11:     result = sum
 	LDX #$00
 	STA _RESULT
 	STX _RESULT+1

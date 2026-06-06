@@ -40,7 +40,7 @@ __LVSLOT_7:	.res 256
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 23: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 23: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -58,7 +58,7 @@ _MAIN$W129              = __LVSLOT_5
 _MAIN$P127              = __LVSLOT_4
 _MAIN$P128              = __LVSLOT_7
 _MAIN$P129              = __LVSLOT_6
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 31:     byte b255[255] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 31:     byte b255[255] = {
 	; Copy array [5, 5, 5, 5, 5...] (255 elements, 255 bytes)
 	LDA #<__ARRAY_DATA_1
 	LDX #>__ARRAY_DATA_1
@@ -70,7 +70,7 @@ _MAIN$P129              = __LVSLOT_6
 	STX __TMP2+1
 	LDX #255
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 49:     byte b257[257] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 49:     byte b257[257] = {
 	; Copy array [7, 7, 7, 7, 7...] (257 elements, 257 bytes)
 	LDA #<__ARRAY_DATA_2
 	LDX #>__ARRAY_DATA_2
@@ -84,7 +84,7 @@ _MAIN$P129              = __LVSLOT_6
 	STA __TMP4
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 68:     word w127[127] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 68:     word w127[127] = {
 	; Copy array [100, 100, 100, 100, 100...] (127 elements, 254 bytes)
 	LDA #<__ARRAY_DATA_3
 	LDX #>__ARRAY_DATA_3
@@ -96,7 +96,7 @@ _MAIN$P129              = __LVSLOT_6
 	STX __TMP2+1
 	LDX #254
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 78:     word w129[129] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 78:     word w129[129] = {
 	; Copy array [200, 200, 200, 200, 200...] (129 elements, 258 bytes)
 	LDA #<__ARRAY_DATA_4
 	LDX #>__ARRAY_DATA_4
@@ -111,7 +111,7 @@ _MAIN$P129              = __LVSLOT_6
 	LDA #$01
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 89:     Pair p127[127] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 89:     Pair p127[127] = {
 	LDA #<__ARRAY_DATA_5
 	LDX #>__ARRAY_DATA_5
 	STA __TMP0
@@ -122,7 +122,7 @@ _MAIN$P129              = __LVSLOT_6
 	STX __TMP2+1
 	LDX #254
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 107:     Pair p128[128] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 107:     Pair p128[128] = {
 	LDA #<__ARRAY_DATA_6
 	LDX #>__ARRAY_DATA_6
 	STA __TMP0
@@ -136,7 +136,7 @@ _MAIN$P129              = __LVSLOT_6
 	LDA #$01
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 125:     Pair p129[129] = {
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 125:     Pair p129[129] = {
 	LDA #<__ARRAY_DATA_7
 	LDX #>__ARRAY_DATA_7
 	STA __TMP0
@@ -150,75 +150,75 @@ _MAIN$P129              = __LVSLOT_6
 	LDA #$01
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 146:     if b255[0] == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 146:     if b255[0] == 5
 	LDA _MAIN$B255+0
 	CMP #$05
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 147:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 147:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 149:     if b255[254] == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 149:     if b255[254] == 5
 	LDA _MAIN$B255+254
 	CMP #$05
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 150:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 150:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 154:     if b257[0] == 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 154:     if b257[0] == 7
 	LDA _MAIN$B257+0
 	CMP #$07
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 155:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 155:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 157:     if b257[256] == 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 157:     if b257[256] == 7
 	LDA _MAIN$B257+256
 	CMP #$07
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 158:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 158:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 162:     if w127[0] == 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 162:     if w127[0] == 100
 	LDA _MAIN$W127+0
 	LDX _MAIN$W127+1
 	CMP #$64
 	BNE __ZAP_else_13
 	CPX #$00
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 163:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 163:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 165:     if w127[126] == 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 165:     if w127[126] == 100
 	LDA _MAIN$W127+252
 	LDX _MAIN$W127+253
 	CMP #$64
 	BNE __ZAP_else_17
 	CPX #$00
 	BNE __ZAP_else_17
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 166:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 166:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 170:     if w129[0] == 200
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 170:     if w129[0] == 200
 	LDA _MAIN$W129+0
 	LDX _MAIN$W129+1
 	CMP #$C8
 	BNE __ZAP_else_21
 	CPX #$00
 	BNE __ZAP_else_21
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 171:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 171:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_21:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 173:     if w129[128] == 200
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 173:     if w129[128] == 200
 	LDA _MAIN$W129+256
 	LDX _MAIN$W129+257
 	CMP #$C8
 	BNE __ZAP_else_25
 	CPX #$00
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 174:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 174:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_25:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 178:     if p127[0].x == 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 178:     if p127[0].x == 10
 	LDA #$00
 	TAX
 	CLC
@@ -231,10 +231,10 @@ __ZAP_else_25:
 	LDA (__TMP0),Y
 	CMP #$0A
 	BNE __ZAP_else_29
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 179:         result = result + 1     ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 179:         result = result + 1     ; 9
 	INC _RESULT
 __ZAP_else_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 181:     if p127[126].y == 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 181:     if p127[126].y == 20
 	LDA #$FC
 	LDX #$00
 	CLC
@@ -247,10 +247,10 @@ __ZAP_else_29:
 	LDA (__TMP0),Y
 	CMP #$14
 	BNE __ZAP_else_32
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 182:         result = result + 1     ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 182:         result = result + 1     ; 10
 	INC _RESULT
 __ZAP_else_32:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 186:     if p128[0].x == 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 186:     if p128[0].x == 30
 	LDA #$00
 	TAX
 	CLC
@@ -263,10 +263,10 @@ __ZAP_else_32:
 	LDA (__TMP0),Y
 	CMP #$1E
 	BNE __ZAP_else_35
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 187:         result = result + 1     ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 187:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_35:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 189:     if p128[127].y == 40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 189:     if p128[127].y == 40
 	LDA #$FE
 	LDX #$00
 	CLC
@@ -279,10 +279,10 @@ __ZAP_else_35:
 	LDA (__TMP0),Y
 	CMP #$28
 	BNE __ZAP_else_38
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 190:         result = result + 1     ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 190:         result = result + 1     ; 12
 	INC _RESULT
 __ZAP_else_38:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 194:     if p129[0].x == 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 194:     if p129[0].x == 50
 	LDA #$00
 	TAX
 	CLC
@@ -295,10 +295,10 @@ __ZAP_else_38:
 	LDA (__TMP0),Y
 	CMP #$32
 	BNE __ZAP_else_41
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 195:         result = result + 1     ; 13
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 195:         result = result + 1     ; 13
 	INC _RESULT
 __ZAP_else_41:
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 197:     if p129[128].y == 60
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 197:     if p129[128].y == 60
 	LDA #$00
 	LDX #$01
 	CLC
@@ -311,7 +311,7 @@ __ZAP_else_41:
 	LDA (__TMP0),Y
 	CMP #$3C
 	BNE __ZAP_else_44
-; /home/dusan/src/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 198:         result = result + 1     ; 14
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/153-array-init-boundary/153-array-init-boundary.zap 198:         result = result + 1     ; 14
 	INC _RESULT
 __ZAP_else_44:
 	RTS

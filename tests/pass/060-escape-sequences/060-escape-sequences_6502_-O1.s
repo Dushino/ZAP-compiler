@@ -36,10 +36,10 @@ __BSSSLOT_3:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 1: byte result1 @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 1: byte result1 @40000 = 0
 	LDA #$00
 	STA _RESULT1
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 2: byte result2 @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 2: byte result2 @40001 = 0
 	STA _RESULT2
 ; Call MAIN
 	JSR _MAIN
@@ -52,13 +52,13 @@ _MAIN:
 _MAIN$TAB               = __LVSLOT_1
 _MAIN$NEWLINE           = __LVSLOT_2
 _MAIN$STR               = __BSSSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 6:     byte tab = '\t'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 6:     byte tab = '\t'
 	LDA #$09
 	STA _MAIN$TAB
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 7:     byte newline = '\n'
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 7:     byte newline = '\n'
 	LDA #$0A
 	STA _MAIN$NEWLINE
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 9:     byte str[4] = "\n\t\\"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 9:     byte str[4] = "\n\t\\"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -69,12 +69,12 @@ _MAIN$STR               = __BSSSLOT_3
 	STX __TMP2+1
 	LDX #4
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 12:     result1 = tab + newline
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 12:     result1 = tab + newline
 	LDA _MAIN$TAB
 	CLC
 	ADC _MAIN$NEWLINE
 	STA _RESULT1
-; /home/dusan/src/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 15:     result2 = str[2] ; Expect backslash
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/060-escape-sequences/060-escape-sequences.zap 15:     result2 = str[2] ; Expect backslash
 	LDA _MAIN$STR+2
 	STA _RESULT2
 	RTS

@@ -34,10 +34,10 @@ _WARR:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 18: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 18: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 19: long lval   @40002 = $12345678   ; bytes $9C42-$9C45: $78 $56 $34 $12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 19: long lval   @40002 = $12345678   ; bytes $9C42-$9C45: $78 $56 $34 $12
 	LDA #$78
 	STA _LVAL
 	LDA #$56
@@ -55,107 +55,107 @@ _WARR:	.res 4
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$TW                = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 35:     sp.wx   = $AABB
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 35:     sp.wx   = $AABB
 	LDA #$BB
 	LDX #$AA
 	STA _SP
 	STX _SP+1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 36:     warr[0] = $CCDD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 36:     warr[0] = $CCDD
 	LDA #$DD
 	LDX #$CC
 	STA _WARR+0
 	STX _WARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 37:     wvar    = $EEFF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 37:     wvar    = $EEFF
 	LDA #$FF
 	STA _WVAR
 	LDA #$EE
 	STA _WVAR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 38:     wptr    = @wvar
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 38:     wptr    = @wvar
 	LDA #<_WVAR
 	LDX #>_WVAR
 	STA _WPTR
 	STX _WPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 41:     if LOW(lval) == $78
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 41:     if LOW(lval) == $78
 	LDA _LVAL
 	CMP #$78
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 42:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 42:         result = result + 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 46:     if HIGH(lval) == $56
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 46:     if HIGH(lval) == $56
 	LDA _LVAL+1
 	CMP #$56
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 47:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 47:         result = result + 1
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 51:     if LOWW(lval) == $5678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 51:     if LOWW(lval) == $5678
 	LDA _LVAL
 	LDX _LVAL+1
 	CMP #$78
 	BNE __ZAP_else_7
 	CPX #$56
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 52:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 52:         result = result + 1
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 56:     if HIGHW(lval) == $1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 56:     if HIGHW(lval) == $1234
 	LDA _LVAL+2
 	LDX _LVAL+3
 	CMP #$34
 	BNE __ZAP_else_11
 	CPX #$12
 	BNE __ZAP_else_11
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 57:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 57:         result = result + 1
 	INC _RESULT
 __ZAP_else_11:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 61:     if LOW(HIGHW(lval)) == $34
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 61:     if LOW(HIGHW(lval)) == $34
 	LDA _LVAL+2
 	LDX _LVAL+3
 	CMP #$34
 	BNE __ZAP_else_15
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 62:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 62:         result = result + 1
 	INC _RESULT
 __ZAP_else_15:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 66:     if HIGH(HIGHW(lval)) == $12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 66:     if HIGH(HIGHW(lval)) == $12
 	LDA _LVAL+2
 	LDX _LVAL+3
 	TXA
 	CMP #$12
 	BNE __ZAP_else_18
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 67:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 67:         result = result + 1
 	INC _RESULT
 __ZAP_else_18:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 71:     tw = HIGHW(lval)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 71:     tw = HIGHW(lval)
 	LDA _LVAL+2
 	LDX _LVAL+3
 	STA _MAIN$TW
 	STX _MAIN$TW+1
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 72:     if HIGH(tw) == $12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 72:     if HIGH(tw) == $12
 	LDA _MAIN$TW+1
 	CMP #$12
 	BNE __ZAP_else_21
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 73:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 73:         result = result + 1
 	INC _RESULT
 __ZAP_else_21:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 77:     if LOW(sp.wx) == $BB
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 77:     if LOW(sp.wx) == $BB
 	LDA _SP
 	LDX _SP+1
 	CMP #$BB
 	BNE __ZAP_else_24
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 78:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 78:         result = result + 1
 	INC _RESULT
 __ZAP_else_24:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 82:     if HIGH(sp.wx) == $AA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 82:     if HIGH(sp.wx) == $AA
 	LDA _SP
 	LDX _SP+1
 	TXA
 	CMP #$AA
 	BNE __ZAP_else_27
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 83:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 83:         result = result + 1
 	INC _RESULT
 __ZAP_else_27:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 87:     if HIGH(warr[0]) == $CC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 87:     if HIGH(warr[0]) == $CC
 	LDA #$00
 	TAX
 	CLC
@@ -168,10 +168,10 @@ __ZAP_else_27:
 	LDA (__TMP0),Y
 	CMP #$CC
 	BNE __ZAP_else_30
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 88:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 88:         result = result + 1
 	INC _RESULT
 __ZAP_else_30:
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 92:     if LOW(wptr^) == $FF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 92:     if LOW(wptr^) == $FF
 	LDY #1
 	LDA (_WPTR),Y
 	TAX
@@ -179,7 +179,7 @@ __ZAP_else_30:
 	LDA (_WPTR),Y
 	CMP #$FF
 	BNE __ZAP_else_33
-; /home/dusan/src/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 93:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/160-low-high-loww-highw/160-low-high-loww-highw.zap 93:         result = result + 1
 	INC _RESULT
 __ZAP_else_33:
 	RTS

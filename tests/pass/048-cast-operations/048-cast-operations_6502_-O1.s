@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/048-cast-operations/048-cast-operations.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/048-cast-operations/048-cast-operations.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -32,10 +32,10 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/048-cast-operations/048-cast-operations.zap 4:     byte x = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/048-cast-operations/048-cast-operations.zap 4:     byte x = 100
 	LDA #$64
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/048-cast-operations/048-cast-operations.zap 5:     result = x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/048-cast-operations/048-cast-operations.zap 5:     result = x
 	STA _RESULT
 	RTS
 

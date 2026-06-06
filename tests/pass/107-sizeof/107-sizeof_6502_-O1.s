@@ -26,22 +26,22 @@ _MS:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 1: word result1 @40000 = $1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 1: word result1 @40000 = $1234
 	LDA #$34
 	STA _RESULT1
 	LDA #$12
 	STA _RESULT1+1
-; /home/dusan/src/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 2: word result2 @40002 = $2345
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 2: word result2 @40002 = $2345
 	LDA #$45
 	STA _RESULT2
 	LDA #$23
 	STA _RESULT2+1
-; /home/dusan/src/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 3: word result3 @40004 = $2345
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 3: word result3 @40004 = $2345
 	LDA #$45
 	STA _RESULT3
 	LDA #$23
 	STA _RESULT3+1
-; /home/dusan/src/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 4: word result4 @40006 = $2345
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 4: word result4 @40006 = $2345
 	LDA #$45
 	STA _RESULT4
 	LDA #$23
@@ -54,12 +54,12 @@ _MS:	.res 4
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 17:     result1 = sizeof(MyStruct)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 17:     result1 = sizeof(MyStruct)
 	LDA #$04
 	LDX #$00
 	STA _RESULT1
 	STX _RESULT1+1
-; /home/dusan/src/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 18:     result2 = sizeof(ms)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/107-sizeof/107-sizeof.zap 18:     result2 = sizeof(ms)
 	STA _RESULT2
 	STX _RESULT2+1
 	RTS

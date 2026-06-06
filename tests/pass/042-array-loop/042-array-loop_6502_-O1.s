@@ -31,7 +31,7 @@ __LVSLOT_1:	.res 10
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -44,15 +44,15 @@ __LVSLOT_1:	.res 10
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$I                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 6:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 6:     i = 0
 	LDA #$00
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 8:     while i < 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 8:     while i < 10
 __ZAP_while_1:
 	LDA _MAIN$I
 	CMP #$0A
 	BCS __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 9:         arr[i] = i
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 9:         arr[i] = i
 	LDA _MAIN$I
 	LDX #$00
 	STA __TMP2
@@ -67,11 +67,11 @@ __ZAP_while_1:
 	LDA __TMP2
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 10:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 10:         i = i + 1
 	INC _MAIN$I
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 13:     result = arr[9]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/042-array-loop/042-array-loop.zap 13:     result = arr[9]
 	LDA _MAIN$ARR+9
 	STA _RESULT
 	RTS

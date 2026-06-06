@@ -26,139 +26,139 @@ _W_RESULTS              = $9C5E
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 20:     b_results[0] = State.INIT + State.START       ; 15
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 20:     b_results[0] = State.INIT + State.START       ; 15
 	LDA #$0F
 	STA _B_RESULTS+0
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 21:     b_results[1] = State.RUNNING - State.START    ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 21:     b_results[1] = State.RUNNING - State.START    ; 5
 	LDA #$05
 	STA _B_RESULTS+1
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 22:     b_results[2] = State.INIT * 2                 ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 22:     b_results[2] = State.INIT * 2                 ; 10
 	LDA #$0A
 	STA _B_RESULTS+2
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 23:     b_results[3] = State.STOPPED / State.INIT     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 23:     b_results[3] = State.STOPPED / State.INIT     ; 4
 	LDA #$04
 	STA _B_RESULTS+3
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 24:     b_results[4] = State.RUNNING % 6              ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 24:     b_results[4] = State.RUNNING % 6              ; 3
 	LDA #$03
 	STA _B_RESULTS+4
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 25:     b_results[5] = State.START & 15               ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 25:     b_results[5] = State.START & 15               ; 10
 	LDA #$0A
 	STA _B_RESULTS+5
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 26:     b_results[6] = State.INIT | 2                 ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 26:     b_results[6] = State.INIT | 2                 ; 7
 	LDA #$07
 	STA _B_RESULTS+6
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 27:     b_results[7] = State.INIT ^ 3                 ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 27:     b_results[7] = State.INIT ^ 3                 ; 6
 	LDA #$06
 	STA _B_RESULTS+7
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 28:     b_results[8] = State.INIT << 1                ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 28:     b_results[8] = State.INIT << 1                ; 10
 	LDA #$0A
 	STA _B_RESULTS+8
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 29:     b_results[9] = State.STOPPED >> 1             ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 29:     b_results[9] = State.STOPPED >> 1             ; 10
 	STA _B_RESULTS+9
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 30:     b_results[10] = State.INIT == 5               ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 30:     b_results[10] = State.INIT == 5               ; 1
 	LDA #$01
 	STA _B_RESULTS+10
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 31:     b_results[11] = State.START != 10             ; 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 31:     b_results[11] = State.START != 10             ; 0
 	LDA #$00
 	STA _B_RESULTS+11
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 32:     b_results[12] = State.START < State.RUNNING   ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 32:     b_results[12] = State.START < State.RUNNING   ; 1
 	LDA #$01
 	STA _B_RESULTS+12
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 33:     b_results[13] = State.STOPPED > State.START   ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 33:     b_results[13] = State.STOPPED > State.START   ; 1
 	STA _B_RESULTS+13
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 34:     b_results[14] = State.INIT <= 5               ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 34:     b_results[14] = State.INIT <= 5               ; 1
 	STA _B_RESULTS+14
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 35:     b_results[15] = State.RUNNING >= 10           ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 35:     b_results[15] = State.RUNNING >= 10           ; 1
 	STA _B_RESULTS+15
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 36:     b_results[16] = (State.INIT == 5) && (State.START == 10) ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 36:     b_results[16] = (State.INIT == 5) && (State.START == 10) ; 1
 	STA _B_RESULTS+16
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 37:     b_results[17] = (State.INIT == 0) || (State.START == 10) ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 37:     b_results[17] = (State.INIT == 0) || (State.START == 10) ; 1
 	STA _B_RESULTS+17
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 38:     b_results[18] = !(State.INIT == 0)            ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 38:     b_results[18] = !(State.INIT == 0)            ; 1
 	STA _B_RESULTS+18
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 39:     b_results[19] = ~State.INIT                   ; 250 (0xfa)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 39:     b_results[19] = ~State.INIT                   ; 250 (0xfa)
 	LDA #$FA
 	STA _B_RESULTS+19
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 42:     w_results[0] = BigState.IDLE + 500            ; 1500
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 42:     w_results[0] = BigState.IDLE + 500            ; 1500
 	LDA #$DC
 	LDX #$05
 	STA _W_RESULTS+0
 	STX _W_RESULTS+1
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 43:     w_results[1] = BigState.DONE - BigState.ACTIVE; 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 43:     w_results[1] = BigState.DONE - BigState.ACTIVE; 1000
 	LDA #$E8
 	LDX #$03
 	STA _W_RESULTS+2
 	STX _W_RESULTS+3
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 44:     w_results[2] = BigState.IDLE * 2              ; 2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 44:     w_results[2] = BigState.IDLE * 2              ; 2000
 	LDA #$D0
 	LDX #$07
 	STA _W_RESULTS+4
 	STX _W_RESULTS+5
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 45:     w_results[3] = BigState.DONE / 3              ; 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 45:     w_results[3] = BigState.DONE / 3              ; 1000
 	LDA #$E8
 	LDX #$03
 	STA _W_RESULTS+6
 	STX _W_RESULTS+7
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 46:     w_results[4] = BigState.ACTIVE % 3            ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 46:     w_results[4] = BigState.ACTIVE % 3            ; 2
 	LDA #$02
 	LDX #$00
 	STA _W_RESULTS+8
 	STX _W_RESULTS+9
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 47:     w_results[5] = BigState.IDLE & 1023           ; 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 47:     w_results[5] = BigState.IDLE & 1023           ; 1000
 	LDA #$E8
 	LDX #$03
 	STA _W_RESULTS+10
 	STX _W_RESULTS+11
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 48:     w_results[6] = BigState.IDLE | 1              ; 1001
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 48:     w_results[6] = BigState.IDLE | 1              ; 1001
 	LDA #$E9
 	STA _W_RESULTS+12
 	STX _W_RESULTS+13
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 49:     w_results[7] = BigState.IDLE ^ 3              ; 1003
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 49:     w_results[7] = BigState.IDLE ^ 3              ; 1003
 	LDA #$EB
 	STA _W_RESULTS+14
 	STX _W_RESULTS+15
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 50:     w_results[8] = BigState.IDLE << 1             ; 2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 50:     w_results[8] = BigState.IDLE << 1             ; 2000
 	LDA #$D0
 	LDX #$07
 	STA _W_RESULTS+16
 	STX _W_RESULTS+17
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 51:     w_results[9] = BigState.ACTIVE >> 1           ; 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 51:     w_results[9] = BigState.ACTIVE >> 1           ; 1000
 	LDA #$E8
 	LDX #$03
 	STA _W_RESULTS+18
 	STX _W_RESULTS+19
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 52:     w_results[10] = BigState.IDLE == 1000         ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 52:     w_results[10] = BigState.IDLE == 1000         ; 1
 	LDA #$01
 	LDX #$00
 	STA _W_RESULTS+20
 	STX _W_RESULTS+21
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 53:     w_results[11] = BigState.ACTIVE != 2000       ; 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 53:     w_results[11] = BigState.ACTIVE != 2000       ; 0
 	TXA
 	STA _W_RESULTS+22
 	STX _W_RESULTS+23
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 54:     w_results[12] = BigState.IDLE < BigState.ACTIVE; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 54:     w_results[12] = BigState.IDLE < BigState.ACTIVE; 1
 	LDA #$01
 	STA _W_RESULTS+24
 	STX _W_RESULTS+25
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 55:     w_results[13] = BigState.DONE > BigState.ACTIVE; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 55:     w_results[13] = BigState.DONE > BigState.ACTIVE; 1
 	STA _W_RESULTS+26
 	STX _W_RESULTS+27
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 56:     w_results[14] = BigState.IDLE <= 1000         ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 56:     w_results[14] = BigState.IDLE <= 1000         ; 1
 	STA _W_RESULTS+28
 	STX _W_RESULTS+29
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 57:     w_results[15] = BigState.ACTIVE >= 1000       ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 57:     w_results[15] = BigState.ACTIVE >= 1000       ; 1
 	STA _W_RESULTS+30
 	STX _W_RESULTS+31
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 58:     w_results[16] = (BigState.IDLE == 1000) && (BigState.ACTIVE == 2000) ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 58:     w_results[16] = (BigState.IDLE == 1000) && (BigState.ACTIVE == 2000) ; 1
 	STA _W_RESULTS+32
 	STX _W_RESULTS+33
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 59:     w_results[17] = (BigState.IDLE == 0) || (BigState.ACTIVE == 2000)    ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 59:     w_results[17] = (BigState.IDLE == 0) || (BigState.ACTIVE == 2000)    ; 1
 	STA _W_RESULTS+34
 	STX _W_RESULTS+35
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 60:     w_results[18] = !(BigState.IDLE == 0)         ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 60:     w_results[18] = !(BigState.IDLE == 0)         ; 1
 	STA _W_RESULTS+36
 	STX _W_RESULTS+37
-; /home/dusan/src/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 61:     w_results[19] = ~BigState.IDLE                ; 64535 (0xfc17)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/134-enum-ops/134-enum-ops.zap 61:     w_results[19] = ~BigState.IDLE                ; 64535 (0xfc17)
 	LDA #$17
 	LDX #$FC
 	STA _W_RESULTS+38

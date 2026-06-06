@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -35,17 +35,17 @@ _INCREMENT_ALL:
 _INCREMENT_ALL$COUNT    = __LVSLOT_1
 	STA _INCREMENT_ALL$COUNT
 _INCREMENT_ALL$I        = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 5:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 5:     i = 0
 	LDA #$00
 	STA _INCREMENT_ALL$I
-; /home/dusan/src/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 6:     while i < count
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 6:     while i < count
 __ZAP_while_1:
 	LDA _INCREMENT_ALL$I
 	CMP _INCREMENT_ALL$COUNT
 	BCS __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 7:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 7:         result = result + 1
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 8:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 8:         i = i + 1
 	INC _INCREMENT_ALL$I
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
@@ -55,7 +55,7 @@ __ZAP_endwhile_2:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 13:     increment_all(15)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/013-nested-procedures/013-nested-procedures.zap 13:     increment_all(15)
 	LDA #$0F
 	JMP _INCREMENT_ALL
 

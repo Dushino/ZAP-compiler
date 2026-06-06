@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -37,11 +37,11 @@ _ADD$B                  = __LVSLOT_2
 	STA _ADD$A
 	STX _ADD$B
 _ADD$RES                = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 4:     byte res = a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 4:     byte res = a + b
 	CLC
 	ADC _ADD$B
 	STA _ADD$RES
-; /home/dusan/src/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 5:     result = res
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 5:     result = res
 	STA _RESULT
 	RTS
 
@@ -49,7 +49,7 @@ _ADD$RES                = __LVSLOT_1
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 9:     add(30, 12)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/014-procedure-call/014-procedure-call.zap 9:     add(30, 12)
 	LDA #$1E
 	LDX #$0C
 	JMP _ADD

@@ -24,7 +24,7 @@ __LVSLOT_1:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/065-initialization-structs/065-initialization-structs.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/065-initialization-structs/065-initialization-structs.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,12 +36,12 @@ __LVSLOT_1:	.res 2
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$P                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/065-initialization-structs/065-initialization-structs.zap 9:     Point p = {10, 20}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/065-initialization-structs/065-initialization-structs.zap 9:     Point p = {10, 20}
 	LDA #$0A
 	STA _MAIN$P+0
 	LDA #$14
 	STA _MAIN$P+1
-; /home/dusan/src/ZAP-compiler/tests/pass/065-initialization-structs/065-initialization-structs.zap 10:     result = p.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/065-initialization-structs/065-initialization-structs.zap 10:     result = p.y
 	STA _RESULT
 	RTS
 

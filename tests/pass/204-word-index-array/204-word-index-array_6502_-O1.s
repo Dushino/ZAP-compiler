@@ -37,7 +37,7 @@ __LVSLOT_4:	.res 600
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -53,7 +53,7 @@ _MAIN$I                 = __LVSLOT_2
 _MAIN$ARR               = __LVSLOT_4
 _MAIN$PRIME             = __LVSLOT_2
 _MAIN$FOR_END_1         = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 16:     for i = 0 to 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 16:     for i = 0 to 512
 	LDA #$00
 	STA _MAIN$I
 	STA _MAIN$I+1
@@ -75,7 +75,7 @@ __ZAP_while_1:
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_3
 __ZAP_while_body_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 17:         flags[i] = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 17:         flags[i] = 0
 	STA (__TMP0),Y
 	INC __TMP0
 	BNE __ZAP_LSR_NC_5
@@ -86,12 +86,12 @@ __ZAP_LSR_NC_5:
 	INC _MAIN$I+1
 	JMP __ZAP_while_1
 __ZAP_endwhile_3:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 19:     i = 260
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 19:     i = 260
 	LDA #$04
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 20:     flags[i] = 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 20:     flags[i] = 42
 	LDA _MAIN$I
 	CLC
 	ADC #<_MAIN$FLAGS
@@ -102,12 +102,12 @@ __ZAP_endwhile_3:
 	LDA #$2A
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 23:     i = 260
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 23:     i = 260
 	LDA #$04
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 24:     if flags[i] == 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 24:     if flags[i] == 42
 	LDA _MAIN$I
 	CLC
 	ADC #<_MAIN$FLAGS
@@ -118,14 +118,14 @@ __ZAP_endwhile_3:
 	LDA (__TMP0),Y
 	CMP #$2A
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 25:         result += 1     ; +1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 25:         result += 1     ; +1
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 29:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 29:     i = 0
 	LDA #$00
 	STA _MAIN$I
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 30:     if flags[i] == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 30:     if flags[i] == 0
 	LDA _MAIN$I
 	CLC
 	ADC #<_MAIN$FLAGS
@@ -136,15 +136,15 @@ __ZAP_else_7:
 	LDY #$00
 	LDA (__TMP0),Y
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 31:         result += 1     ; +2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 31:         result += 1     ; +2
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 36:     i = 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 36:     i = 300
 	LDA #$2C
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 37:     flags[i] = 99
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 37:     flags[i] = 99
 	LDA _MAIN$I
 	CLC
 	ADC #<_MAIN$FLAGS
@@ -155,19 +155,19 @@ __ZAP_else_10:
 	LDA #$63
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 39:     if flags[300] == 99
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 39:     if flags[300] == 99
 	LDA _MAIN$FLAGS+300
 	CMP #$63
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 40:         result += 1     ; +3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 40:         result += 1     ; +3
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 44:     i = 150
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 44:     i = 150
 	LDA #$96
 	STA _MAIN$I
 	LDA #$00
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 45:     arr[i] = 1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 45:     arr[i] = 1234
 	LDA _MAIN$I
 	LDX _MAIN$I+1
 	STA __TMP3
@@ -187,22 +187,22 @@ __ZAP_else_13:
 	LDY #$01
 	LDA #$04
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 48:     if arr[150] == 1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 48:     if arr[150] == 1234
 	LDA _MAIN$ARR+300
 	LDX _MAIN$ARR+301
 	CMP #$D2
 	BNE __ZAP_else_16
 	CPX #$04
 	BNE __ZAP_else_16
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 49:         result += 1     ; +4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 49:         result += 1     ; +4
 	INC _RESULT
 __ZAP_else_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 54:     i = 200
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 54:     i = 200
 	LDA #$C8
 	STA _MAIN$I
 	LDA #$00
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 55:     arr[i] = 5678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 55:     arr[i] = 5678
 	LDA _MAIN$I
 	LDX _MAIN$I+1
 	STA __TMP3
@@ -222,22 +222,22 @@ __ZAP_else_16:
 	LDY #$01
 	LDA #$16
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 56:     if arr[200] == 5678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 56:     if arr[200] == 5678
 	LDA _MAIN$ARR+400
 	LDX _MAIN$ARR+401
 	CMP #$2E
 	BNE __ZAP_else_20
 	CPX #$16
 	BNE __ZAP_else_20
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 57:         result += 1     ; +5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 57:         result += 1     ; +5
 	INC _RESULT
 __ZAP_else_20:
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 61:     i = 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 61:     i = 300
 	LDA #$2C
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 62:     prime = i * 2 + 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 62:     prime = i * 2 + 3
 	LDA _MAIN$I
 	LDX _MAIN$I+1
 	STA __MATH0
@@ -253,12 +253,12 @@ __ZAP_ADD16C_NC_24:
 	LDX __MATH0+1
 	STA _MAIN$PRIME
 	STX _MAIN$PRIME+1
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 63:     if prime == 603
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 63:     if prime == 603
 	CMP #$5B
 	BNE __ZAP_else_25
 	CPX #$02
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 64:         result += 1     ; +6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/204-word-index-array/204-word-index-array.zap 64:         result += 1     ; +6
 	INC _RESULT
 __ZAP_else_25:
 	RTS

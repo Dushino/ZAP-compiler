@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,23 +34,23 @@ __LVSLOT_2:	.res 1
 _MAIN:
 _MAIN$COUNT             = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 4:     byte count = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 4:     byte count = 0
 	LDA #$00
 	STA _MAIN$COUNT
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 5:     byte sum = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 5:     byte sum = 0
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 7:     while count < 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 7:     while count < 10
 __ZAP_while_1:
 	LDA _MAIN$COUNT
 	CMP #$0A
 	BCS __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 8:         sum = sum + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 8:         sum = sum + 1
 	INC _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 9:         count = count + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 9:         count = count + 1
 	INC _MAIN$COUNT
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 12:     result = sum    ; result = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/010-while-loop/010-while-loop.zap 12:     result = sum    ; result = 10
 	LDA _MAIN$SUM
 	STA _RESULT
 	RTS

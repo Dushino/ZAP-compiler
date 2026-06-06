@@ -29,7 +29,7 @@ __LVSLOT_1:	.res 3
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -44,7 +44,7 @@ _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$P                 = __LVSLOT_2
 _MAIN$VALUE             = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 4:     byte arr[3] = {5, 10, 15}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 4:     byte arr[3] = {5, 10, 15}
 	; Copy array [5, 10, 15] (3 elements)
 	LDX #$00
 __ZAP_ARR_COPY_1:
@@ -53,23 +53,23 @@ __ZAP_ARR_COPY_1:
 	INX
 	CPX #3
 	BNE __ZAP_ARR_COPY_1
-; /home/dusan/src/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 5:     byte ^p = @arr[0]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 5:     byte ^p = @arr[0]
 	LDA #<_MAIN$ARR
 	LDX #>_MAIN$ARR
 	STA _MAIN$P
 	STX _MAIN$P+1
-; /home/dusan/src/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 9:     p = p + 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 9:     p = p + 2
 	CLC
 	ADC #$02
 	STA _MAIN$P
 	BCC __ZAP_CARRY_ADD_PTR_2
 	INC _MAIN$P+1
 __ZAP_CARRY_ADD_PTR_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 10:     value = p^
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 10:     value = p^
 	LDY #$00
 	LDA (_MAIN$P),Y
 	STA _MAIN$VALUE
-; /home/dusan/src/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 11:     result = value
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/027-pointers-arithmetic/027-pointers-arithmetic.zap 11:     result = value
 	LDX #$00
 	STA _RESULT
 	STX _RESULT+1

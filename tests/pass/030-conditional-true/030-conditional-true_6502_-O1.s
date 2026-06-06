@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,18 +34,18 @@ __LVSLOT_2:	.res 1
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 4:     byte x = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 4:     byte x = 100
 	LDA #$64
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 5:     byte y = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 5:     byte y = 50
 	LDA #$32
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 7:     if x > y 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 7:     if x > y 
 	LDA _MAIN$X
 	CMP _MAIN$Y
 	BEQ __ZAP_else_1
 	BCC __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 8:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/030-conditional-true/030-conditional-true.zap 8:         result = 1
 	LDA #$01
 	STA _RESULT
 __ZAP_else_1:

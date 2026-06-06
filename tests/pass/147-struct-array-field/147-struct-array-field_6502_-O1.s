@@ -38,7 +38,7 @@ __LVSLOT_3:	.res 6
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 24: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 24: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -58,7 +58,7 @@ _MAIN$J                 = __LVSLOT_4
 _MAIN$K                 = __LVSLOT_4
 _MAIN$SUM               = __LVSLOT_6
 _MAIN$FOR_END_1         = __LVSLOT_5
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 36:     BArr p = {{1, 2, 3, 4}}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 36:     BArr p = {{1, 2, 3, 4}}
 	LDA #$01
 	STA _MAIN$P+0
 	LDA #$02
@@ -67,7 +67,7 @@ _MAIN$FOR_END_1         = __LVSLOT_5
 	STA _MAIN$P+2
 	LDA #$04
 	STA _MAIN$P+3
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 45:     s.data[0] = 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 45:     s.data[0] = 11
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -83,7 +83,7 @@ _MAIN$FOR_END_1         = __LVSLOT_5
 	LDA #11
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 46:     s.data[3] = 44
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 46:     s.data[3] = 44
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -98,7 +98,7 @@ _MAIN$FOR_END_1         = __LVSLOT_5
 	STA __TMP0+1
 	LDA #44
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 47:     if s.data[0] == 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 47:     if s.data[0] == 11
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -113,10 +113,10 @@ _MAIN$FOR_END_1         = __LVSLOT_5
 	LDA (__TMP0),Y
 	CMP #$0B
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 48:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 48:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 50:     if s.data[3] == 44
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 50:     if s.data[3] == 44
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -132,13 +132,13 @@ __ZAP_else_1:
 	LDA (__TMP0),Y
 	CMP #$2C
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 51:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 51:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 55:     i = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 55:     i = 2
 	LDA #$02
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 56:     s.data[i] = 33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 56:     s.data[i] = 33
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -154,7 +154,7 @@ __ZAP_else_4:
 	LDA #33
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 57:     if s.data[2] == 33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 57:     if s.data[2] == 33
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -169,10 +169,10 @@ __ZAP_else_4:
 	LDA (__TMP0),Y
 	CMP #$21
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 58:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 58:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 60:     if s.data[i] == 33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 60:     if s.data[i] == 33
 	LDA #<_MAIN$S
 	LDX #>_MAIN$S
 	STA __TMP0
@@ -188,10 +188,10 @@ __ZAP_else_7:
 	LDA (__TMP0),Y
 	CMP #$21
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 61:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 61:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 65:     if p.data[0] == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 65:     if p.data[0] == 1
 	LDA #<_MAIN$P
 	LDX #>_MAIN$P
 	STA __TMP0
@@ -207,10 +207,10 @@ __ZAP_else_10:
 	LDA (__TMP0),Y
 	CMP #$01
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 66:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 66:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 68:     if p.data[3] == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 68:     if p.data[3] == 4
 	LDA #<_MAIN$P
 	LDX #>_MAIN$P
 	STA __TMP0
@@ -226,13 +226,13 @@ __ZAP_else_13:
 	LDA (__TMP0),Y
 	CMP #$04
 	BNE __ZAP_else_16
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 69:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 69:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 73:     sum = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 73:     sum = 0
 	LDA #$00
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 74:     for j = 0 to 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 74:     for j = 0 to 4
 	STA _MAIN$J
 	LDA #$04
 	STA _MAIN$FOR_END_1
@@ -240,7 +240,7 @@ __ZAP_while_19:
 	LDA _MAIN$J
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_20
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 75:         sum = sum + p.data[j]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 75:         sum = sum + p.data[j]
 	LDA _MAIN$SUM
 	STA __TMP1
 	LDA #<_MAIN$P
@@ -262,14 +262,14 @@ __ZAP_while_19:
 	INC _MAIN$J
 	JMP __ZAP_while_19
 __ZAP_endwhile_20:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 77:     if sum == 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 77:     if sum == 10
 	LDA _MAIN$SUM
 	CMP #$0A
 	BNE __ZAP_else_22
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 78:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 78:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 82:     dst = p
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 82:     dst = p
 	LDA #<_MAIN$P
 	STA __TMP0
 	LDA #>_MAIN$P
@@ -280,7 +280,7 @@ __ZAP_else_22:
 	STA __TMP2+1
 	LDX #$04
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 83:     if dst.data[0] == 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 83:     if dst.data[0] == 1
 	LDA #<_MAIN$DST
 	LDX #>_MAIN$DST
 	STA __TMP0
@@ -296,10 +296,10 @@ __ZAP_else_22:
 	LDA (__TMP0),Y
 	CMP #$01
 	BNE __ZAP_else_25
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 84:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 84:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_25:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 86:     if dst.data[3] == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 86:     if dst.data[3] == 4
 	LDA #<_MAIN$DST
 	LDX #>_MAIN$DST
 	STA __TMP0
@@ -315,10 +315,10 @@ __ZAP_else_25:
 	LDA (__TMP0),Y
 	CMP #$04
 	BNE __ZAP_else_28
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 87:         result = result + 1     ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 87:         result = result + 1     ; 9
 	INC _RESULT
 __ZAP_else_28:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 91:     w.vals[0] = 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 91:     w.vals[0] = 1000
 	LDA #$E8
 	LDX #$03
 	STA __TMP2
@@ -342,7 +342,7 @@ __ZAP_else_28:
 	INY
 	LDA __TMP2+1
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 92:     if w.vals[0] == 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 92:     if w.vals[0] == 1000
 	LDA #<_MAIN$W
 	LDX #>_MAIN$W
 	STA __TMP0
@@ -365,13 +365,13 @@ __ZAP_else_28:
 	BNE __ZAP_else_31
 	CPX #$03
 	BNE __ZAP_else_31
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 93:         result = result + 1     ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 93:         result = result + 1     ; 10
 	INC _RESULT
 __ZAP_else_31:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 95:     k = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 95:     k = 1
 	LDA #$01
 	STA _MAIN$K
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 96:     w.vals[k] = 2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 96:     w.vals[k] = 2000
 	LDA #$D0
 	LDX #$07
 	STA __TMP2
@@ -395,7 +395,7 @@ __ZAP_else_31:
 	INY
 	LDA __TMP2+1
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 97:     if w.vals[1] == 2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 97:     if w.vals[1] == 2000
 	LDA #<_MAIN$W
 	LDX #>_MAIN$W
 	STA __TMP0
@@ -418,10 +418,10 @@ __ZAP_else_31:
 	BNE __ZAP_else_35
 	CPX #$07
 	BNE __ZAP_else_35
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 98:         result = result + 1     ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 98:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_35:
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 100:     if w.vals[k] == 2000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 100:     if w.vals[k] == 2000
 	LDA #<_MAIN$W
 	LDX #>_MAIN$W
 	STA __TMP0
@@ -444,7 +444,7 @@ __ZAP_else_35:
 	BNE __ZAP_else_39
 	CPX #$07
 	BNE __ZAP_else_39
-; /home/dusan/src/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 101:         result = result + 1     ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/147-struct-array-field/147-struct-array-field.zap 101:         result = result + 1     ; 12
 	INC _RESULT
 __ZAP_else_39:
 	RTS

@@ -28,7 +28,7 @@ __LVSLOT_6:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -42,20 +42,20 @@ _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
 _MAIN$Z                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 4:     byte x = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 4:     byte x = 5
 	LDA #$05
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 5:     byte y = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 5:     byte y = 3
 	LDA #$03
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 6:     byte z = x * y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 6:     byte z = x * y
 	LDA _MAIN$X
 	STA __MATH0
 	LDA _MAIN$Y
 	LDX #$00
 	JSR __MUL8_A
 	STA _MAIN$Z
-; /home/dusan/src/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 7:     result = z
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/024-multiplication/024-multiplication.zap 7:     result = z
 	STA _RESULT
 	RTS
 

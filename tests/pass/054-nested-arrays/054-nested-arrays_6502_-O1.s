@@ -27,7 +27,7 @@ __LVSLOT_1:	.res 6
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -40,30 +40,30 @@ __LVSLOT_1:	.res 6
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 6:     arr[0] = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 6:     arr[0] = 10
 	LDA #$0A
 	STA _MAIN$ARR+0
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 7:     arr[1] = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 7:     arr[1] = 20
 	LDA #$14
 	STA _MAIN$ARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 8:     arr[2] = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 8:     arr[2] = 30
 	LDA #$1E
 	STA _MAIN$ARR+2
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 9:     arr[3] = 40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 9:     arr[3] = 40
 	LDA #$28
 	STA _MAIN$ARR+3
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 10:     arr[4] = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 10:     arr[4] = 50
 	LDA #$32
 	STA _MAIN$ARR+4
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 11:     arr[5] = 60
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 11:     arr[5] = 60
 	LDA #$3C
 	STA _MAIN$ARR+5
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 12:     sum = arr[0] + arr[5]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 12:     sum = arr[0] + arr[5]
 	LDA _MAIN$ARR+0
 	CLC
 	ADC _MAIN$ARR+5
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 13:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/054-nested-arrays/054-nested-arrays.zap 13:     result = sum
 	STA _RESULT
 	RTS
 

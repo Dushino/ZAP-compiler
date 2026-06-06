@@ -48,16 +48,16 @@ _MAIN$__ZAP_SWITCH_VAL_8:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 1: byte res_if @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 1: byte res_if @40000 = 0
 	LDA #$00
 	STA _RES_IF
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 2: byte res_while @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 2: byte res_while @40001 = 0
 	STA _RES_WHILE
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 3: byte res_switch @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 3: byte res_switch @40002 = 0
 	STA _RES_SWITCH
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 4: byte res_arr @40003 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 4: byte res_arr @40003 = 0
 	STA _RES_ARR
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 5: byte res_precedence @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 5: byte res_precedence @40004 = 0
 	STA _RES_PRECEDENCE
 ; Call MAIN
 	JSR _MAIN
@@ -73,27 +73,27 @@ _MAIN$C                 = __LVSLOT_3
 _MAIN$I                 = __LVSLOT_4
 _MAIN$ARR               = __LVSLOT_6
 _MAIN$TMP_VAL           = __LVSLOT_5
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 8:     byte a = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 8:     byte a = 2
 	LDA #$02
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 9:     byte b = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 9:     byte b = 3
 	LDA #$03
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 10:     byte c = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 10:     byte c = 4
 	LDA #$04
 	STA _MAIN$C
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 11:     byte i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 11:     byte i = 0
 	LDA #$00
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 13:     byte tmp_val = 0
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 19:     tmp_val = (a + b) * 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 13:     byte tmp_val = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 19:     tmp_val = (a + b) * 2
 	LDA _MAIN$A
 	CLC
 	ADC _MAIN$B
 	STA __MATH0
 	ASL
 	STA _MAIN$TMP_VAL
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 20:     if tmp_val > c + 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 20:     if tmp_val > c + 5
 	LDA _MAIN$C
 	CLC
 	ADC #$05
@@ -102,29 +102,29 @@ _MAIN$TMP_VAL           = __LVSLOT_5
 	CMP __TMP0
 	BEQ __ZAP_else_1
 	BCC __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 21:         res_if = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 21:         res_if = 1
 	LDA #$01
 	STA _RES_IF
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 23:         res_if = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 23:         res_if = 2
 	LDA #$02
 	STA _RES_IF
 __ZAP_endif_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 27:     while i * 2 < 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 27:     while i * 2 < 10
 __ZAP_while_5:
 	LDA _MAIN$I
 	ASL
 	CMP #$0A
 	BCS __ZAP_endwhile_6
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 28:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 28:         i = i + 1
 	INC _MAIN$I
 	JMP __ZAP_while_5
 __ZAP_endwhile_6:
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 30:     res_while = i
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 30:     res_while = i
 	LDA _MAIN$I
 	STA _RES_WHILE
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 33:     switch (a * b) + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 33:     switch (a * b) + 1
 	LDA _MAIN$A
 	STA __MATH0
 	LDA _MAIN$B
@@ -135,20 +135,20 @@ __ZAP_endwhile_6:
 	LDA _MAIN$__ZAP_SWITCH_VAL_8
 	CMP #$07
 	BNE __ZAP_case_11
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 35:             res_switch = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 35:             res_switch = 1
 	LDA #$01
 	STA _RES_SWITCH
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 36:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 36:             break
 	JMP __ZAP_endswitch_9
 __ZAP_case_11:
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 38:             res_switch = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 38:             res_switch = 2
 	LDA #$02
 	STA _RES_SWITCH
 __ZAP_endswitch_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 42:     arr[7] = 88
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 42:     arr[7] = 88
 	LDA #$58
 	STA _MAIN$ARR+7
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 43:     res_arr = arr[a * b + 1]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 43:     res_arr = arr[a * b + 1]
 	LDA _MAIN$A
 	STA __MATH0
 	LDA _MAIN$B
@@ -167,7 +167,7 @@ __ZAP_endswitch_9:
 	LDY #$00
 	LDA (__TMP0),Y
 	STA _RES_ARR
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 47:     if a + b * c == 14
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 47:     if a + b * c == 14
 	LDA _MAIN$B
 	STA __MATH0
 	LDA _MAIN$C
@@ -177,12 +177,12 @@ __ZAP_endswitch_9:
 	STA __MATH0
 	CMP #$0E
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 48:          res_precedence = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 48:          res_precedence = 1
 	LDA #$01
 	STA _RES_PRECEDENCE
 	JMP __ZAP_endif_14
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 50:          res_precedence = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/121-expr-contexts/121-expr-contexts.zap 50:          res_precedence = 2
 	LDA #$02
 	STA _RES_PRECEDENCE
 __ZAP_endif_14:

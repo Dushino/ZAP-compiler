@@ -22,7 +22,7 @@ __LVSLOT_2:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 1: byte value @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 1: byte value @40000 = 0
 	LDA #$00
 	STA _VALUE
 ; Call MAIN
@@ -35,15 +35,15 @@ __LVSLOT_2:	.res 2
 _MAIN:
 _MAIN$TARGET            = __LVSLOT_1
 _MAIN$PTR               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 4:     byte target = 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 4:     byte target = 42
 	LDA #$2A
 	STA _MAIN$TARGET
-; /home/dusan/src/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 5:     byte ^ptr = @value
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 5:     byte ^ptr = @value
 	LDA #<$9C40
 	LDX #>$9C40
 	STA _MAIN$PTR
 	STX _MAIN$PTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 6:     ptr^ = target    
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/004-byte-pointer/004-byte-pointer.zap 6:     ptr^ = target    
 	LDA _MAIN$TARGET
 	LDY #$00
 	STA (_MAIN$PTR),Y

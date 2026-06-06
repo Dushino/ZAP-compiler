@@ -32,18 +32,18 @@ _B:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 2: long a @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 2: long a @40000 = 0
 	LDA #$00
 	STA _A
 	STA _A+1
 	STA _A+2
 	STA _A+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 3: long b = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 3: long b = 0
 	STA _B
 	STA _B+1
 	STA _B+2
 	STA _B+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 4: long c @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 4: long c @40004 = 0
 	STA _C
 	STA _C+1
 	STA _C+2
@@ -56,7 +56,7 @@ _B:	.res 4
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 8:   a = 123456
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 8:   a = 123456
 	LDA #$40
 	STA _A
 	LDA #$E2
@@ -65,14 +65,14 @@ _MAIN:
 	STA _A+2
 	LDA #$00
 	STA _A+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 9:   b = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 9:   b = 100
 	LDA #$64
 	STA _B
 	LDA #$00
 	STA _B+1
 	STA _B+2
 	STA _B+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 10:   c = a + b     ; 123556
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 10:   c = a + b     ; 123556
 	LDA _B
 	STA __MATH1
 	LDA _B+1
@@ -98,7 +98,7 @@ _MAIN:
 	STA _C+2
 	LDA __MATH0+3
 	STA _C+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 11:   c = c - 56    ; 123500
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 11:   c = c - 56    ; 123500
 	LDA #$38
 	STA __MATH1
 	LDA #$00
@@ -122,7 +122,7 @@ _MAIN:
 	STA _C+2
 	LDA __MATH0+3
 	STA _C+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 12:   c = c * 2     ; 247000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 12:   c = c * 2     ; 247000
 	LDA _C
 	STA __MATH0
 	LDA _C+1
@@ -141,7 +141,7 @@ _MAIN:
 	STA _C+2
 	LDA __MATH0+3
 	STA _C+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 13:   c = c / 10    ; 24700
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 13:   c = c / 10    ; 24700
 	LDA #$0A
 	STA __MATH1
 	LDA #$00
@@ -165,7 +165,7 @@ _MAIN:
 	STA _C+2
 	LDA __MATH0+3
 	STA _C+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 14:   c = c << 2    ; 98800
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 14:   c = c << 2    ; 98800
 	ASL _C
 	ROL _C+1
 	ROL _C+2
@@ -174,12 +174,12 @@ _MAIN:
 	ROL _C+1
 	ROL _C+2
 	ROL _C+3
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 15:   c = c >> 1    ; 49400 $C0F8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 15:   c = c >> 1    ; 49400 $C0F8
 	LSR _C+3
 	ROR _C+2
 	ROR _C+1
 	ROR _C
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 17:   if c > 40000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 17:   if c > 40000
 	LDA #$40
 	LDX #$9C
 	STA __MATH1
@@ -208,7 +208,7 @@ _MAIN:
 __ZAP_CMP32_DECIDE_4:
 	BEQ __ZAP_else_1
 	BCC __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 18:      c = c + 1 ; $C0F9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 18:      c = c + 1 ; $C0F9
 	INC _C
 	BNE __ZAP_endif_2
 	INC _C+1
@@ -218,7 +218,7 @@ __ZAP_CMP32_DECIDE_4:
 	INC _C+3
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/133-long/133-long.zap 20:      c = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/133-long/133-long.zap 20:      c = 0
 	LDA #$00
 	STA _C
 	STA _C+1

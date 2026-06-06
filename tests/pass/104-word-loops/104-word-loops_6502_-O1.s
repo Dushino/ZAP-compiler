@@ -31,16 +31,16 @@ __LVSLOT_2:	.res 2
 _MAIN:
 _MAIN$I                 = __LVSLOT_1
 _MAIN$ENDV              = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 5:     word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 5:     word result @40000 = 0
 	LDA #$00
 	STA _MAIN$RESULT
 	STA _MAIN$RESULT+1
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 6:     word endv = 280
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 6:     word endv = 280
 	LDA #$18
 	STA _MAIN$ENDV
 	LDA #$01
 	STA _MAIN$ENDV+1
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 9:     for i = 0 to endv
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 9:     for i = 0 to endv
 	LDA #$00
 	STA _MAIN$I
 	STA _MAIN$I+1
@@ -53,7 +53,7 @@ __ZAP_while_1:
 	CMP _MAIN$ENDV
 	BCS __ZAP_endwhile_2
 __ZAP_while_body_3:
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 10:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 10:         result = result + 1
 	INC _MAIN$RESULT
 	BNE __ZAP_INC_WORD_5
 	INC _MAIN$RESULT+1
@@ -63,11 +63,11 @@ __ZAP_INC_WORD_5:
 	INC _MAIN$I+1
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 16:     i = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 16:     i = 0
 	LDA #$00
 	STA _MAIN$I
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 17:     while i <= endv
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 17:     while i <= endv
 __ZAP_while_7:
 	LDX _MAIN$I+1
 	CPX _MAIN$ENDV+1
@@ -80,17 +80,17 @@ __ZAP_LE_CHK_HI_11:
 	BCC __ZAP_while_body_9
 	BNE __ZAP_endwhile_8
 __ZAP_while_body_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 18:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 18:         result = result + 1
 	INC _MAIN$RESULT
 	BNE __ZAP_INC_WORD_12
 	INC _MAIN$RESULT+1
 __ZAP_INC_WORD_12:
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 19:         i = i + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 19:         i = i + 1
 	INC _MAIN$I
 	BNE __ZAP_INC_WORD_13
 	INC _MAIN$I+1
 __ZAP_INC_WORD_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 20:         if i == 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/104-word-loops/104-word-loops.zap 20:         if i == 100
 	LDA _MAIN$I
 	CMP #$64
 	BNE __ZAP_else_14

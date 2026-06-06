@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -35,18 +35,18 @@ _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
 _MAIN$Z                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 9:     byte x = 42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 9:     byte x = 42
 	LDA #$2A
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 10:     byte y = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 10:     byte y = 100
 	LDA #$64
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 11:     byte z = x + y     ; 42 + 100 = 142, wraps to 142 % 256 = 142
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 11:     byte z = x + y     ; 42 + 100 = 142, wraps to 142 % 256 = 142
 	LDA _MAIN$X
 	CLC
 	ADC _MAIN$Y
 	STA _MAIN$Z
-; /home/dusan/src/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 13:     result = z
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/002-byte-type/002-byte-type.zap 13:     result = z
 	STA _RESULT
 	RTS
 

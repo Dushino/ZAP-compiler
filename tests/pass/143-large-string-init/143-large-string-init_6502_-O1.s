@@ -34,7 +34,7 @@ __LVSLOT_1:	.res 256
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -46,7 +46,7 @@ __LVSLOT_1:	.res 256
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$STR               = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 9:     byte str[256] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 9:     byte str[256] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -60,24 +60,24 @@ _MAIN$STR               = __LVSLOT_1
 	LDA #$01
 	STA __TMP4+1
 	JSR COPY_BYTES16
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 11:     if str[0] == 65
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 11:     if str[0] == 65
 	LDA _MAIN$STR+0
 	CMP #$41
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 12:         result = result + 1     ; 1  ('A' = 65)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 12:         result = result + 1     ; 1  ('A' = 65)
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 15:     if str[254] == 65
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 15:     if str[254] == 65
 	LDA _MAIN$STR+254
 	CMP #$41
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 16:         result = result + 1     ; 2  (last 'A')
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 16:         result = result + 1     ; 2  (last 'A')
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 19:     if str[255] == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 19:     if str[255] == 0
 	LDA _MAIN$STR+255
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 20:         result = result + 1     ; 3  (null terminator)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/143-large-string-init/143-large-string-init.zap 20:         result = result + 1     ; 3  (null terminator)
 	INC _RESULT
 __ZAP_else_7:
 	RTS

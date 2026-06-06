@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,13 +34,13 @@ __LVSLOT_2:	.res 1
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 4:     byte x = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 4:     byte x = 100
 	LDA #$64
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 5:     byte y = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 5:     byte y = 50
 	LDA #$32
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 7:     result = x - y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/017-subtraction/017-subtraction.zap 7:     result = x - y
 	LDA _MAIN$X
 	SEC
 	SBC _MAIN$Y

@@ -41,7 +41,7 @@ __LVSLOT_1:	.res 5
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 9: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 9: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -58,14 +58,14 @@ _WALK_PTR$N             = __LVSLOT_3
 	STX _WALK_PTR$PTR+1
 	STY _WALK_PTR$N
 _WALK_PTR$I             = __LVSLOT_4
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 15:     for i = 0 to n
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 15:     for i = 0 to n
 	LDA #$00
 	STA _WALK_PTR$I
 __ZAP_while_1:
 	LDA _WALK_PTR$I
 	CMP _WALK_PTR$N
 	BCS __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 16:         ptr += 1       ; this MODIFIES the local param 'ptr' (and its __LVSLOT)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 16:         ptr += 1       ; this MODIFIES the local param 'ptr' (and its __LVSLOT)
 	INC _WALK_PTR$PTR
 	BNE __ZAP_INC_WORD_4
 	INC _WALK_PTR$PTR+1
@@ -73,7 +73,7 @@ __ZAP_INC_WORD_4:
 	INC _WALK_PTR$I
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 18:     return ptr^
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 18:     return ptr^
 	LDY #$00
 	LDA (_WALK_PTR$PTR),Y
 	RTS
@@ -87,7 +87,7 @@ _COMBINE$EXTRA          = __LVSLOT_3
 	STA _COMBINE$DATA
 	STX _COMBINE$DATA+1
 	STY _COMBINE$EXTRA
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 26:     return data^ + extra
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 26:     return data^ + extra
 	LDY #$00
 	LDA (_COMBINE$DATA),Y
 	STA __TMP1
@@ -104,7 +104,7 @@ _ADD_W$A                = __LVSLOT_6
 _ADD_W$B                = __LVSLOT_7
 	STA _ADD_W$A
 	STX _ADD_W$A+1
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 32:     return a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 32:     return a + b
 	STA __MATH0
 	STX __MATH0+1
 	LDA _ADD_W$B
@@ -121,7 +121,7 @@ _GET_VAL:
 _GET_VAL$X              = __LVSLOT_7
 	STA _GET_VAL$X
 	STX _GET_VAL$X+1
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 36:     return x + 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 36:     return x + 100
 	STX __MATH0+1
 	CLC
 	ADC #$64
@@ -138,7 +138,7 @@ _MAIN:
 _MAIN$BUF               = __LVSLOT_1
 _MAIN$R                 = __LVSLOT_2
 _MAIN$W                 = __LVSLOT_5
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 41:     byte buf[] = {10, 20, 30, 40, 50}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 41:     byte buf[] = {10, 20, 30, 40, 50}
 	; Copy array [10, 20, 30, 40, 50] (5 elements)
 	LDX #$00
 __ZAP_ARR_COPY_6:
@@ -147,7 +147,7 @@ __ZAP_ARR_COPY_6:
 	INX
 	CPX #5
 	BNE __ZAP_ARR_COPY_6
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 48:     r = combine(buf, walk_ptr(buf, 3))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 48:     r = combine(buf, walk_ptr(buf, 3))
 	LDA #<_MAIN$BUF
 	LDX #>_MAIN$BUF
 	PHA
@@ -165,13 +165,13 @@ __ZAP_ARR_COPY_6:
 	PLA
 	JSR _COMBINE
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 49:     if r == 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 49:     if r == 50
 	CMP #$32
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 50:         result += 1     ; +1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 50:         result += 1     ; +1
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 55:     w = add_w(500, get_val(200))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 55:     w = add_w(500, get_val(200))
 	LDA #$C8
 	LDX #$00
 	JSR _GET_VAL
@@ -182,15 +182,15 @@ __ZAP_else_7:
 	JSR _ADD_W
 	STA _MAIN$W
 	STX _MAIN$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 56:     if w == 800
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 56:     if w == 800
 	CMP #$20
 	BNE __ZAP_else_10
 	CPX #$03
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 57:         result += 1     ; +2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 57:         result += 1     ; +2
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 63:     r = combine(buf, walk_ptr(buf, 1))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 63:     r = combine(buf, walk_ptr(buf, 1))
 	LDA #<_MAIN$BUF
 	LDX #>_MAIN$BUF
 	PHA
@@ -208,13 +208,13 @@ __ZAP_else_10:
 	PLA
 	JSR _COMBINE
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 64:     if r == 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 64:     if r == 30
 	CMP #$1E
 	BNE __ZAP_else_14
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 65:         result += 1     ; +3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 65:         result += 1     ; +3
 	INC _RESULT
 __ZAP_else_14:
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 71:     w = add_w(get_val(10), get_val(20))
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 71:     w = add_w(get_val(10), get_val(20))
 	LDA #$0A
 	LDX #$00
 	JSR _GET_VAL
@@ -232,12 +232,12 @@ __ZAP_else_14:
 	JSR _ADD_W
 	STA _MAIN$W
 	STX _MAIN$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 72:     if w == 230
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 72:     if w == 230
 	CMP #$E6
 	BNE __ZAP_else_17
 	CPX #$00
 	BNE __ZAP_else_17
-; /home/dusan/src/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 73:         result += 1     ; +4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/201-nested-call-args/201-nested-call-args.zap 73:         result += 1     ; +4
 	INC _RESULT
 __ZAP_else_17:
 	RTS

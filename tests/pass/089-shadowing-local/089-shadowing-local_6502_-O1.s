@@ -19,10 +19,10 @@ _MAIN$X                 = $9C42
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 2: byte x @40001 = 1 ; global x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 2: byte x @40001 = 1 ; global x
 	LDA #$01
 	STA _X
 ; Call MAIN
@@ -33,10 +33,10 @@ _MAIN$X                 = $9C42
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 5:     byte x = 5 @40002; local shadows global
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 5:     byte x = 5 @40002; local shadows global
 	LDA #$05
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 6:     result = x ; expect 5 (local)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/089-shadowing-local/089-shadowing-local.zap 6:     result = x ; expect 5 (local)
 	STA _RESULT
 	RTS
 

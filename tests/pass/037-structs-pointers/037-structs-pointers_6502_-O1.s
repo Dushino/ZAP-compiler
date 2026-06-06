@@ -28,7 +28,7 @@ __LVSLOT_1:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -41,20 +41,20 @@ __LVSLOT_1:	.res 2
 _MAIN:
 _MAIN$P                 = __LVSLOT_1
 _MAIN$PP                = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 12:     pp = @p
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 12:     pp = @p
 	LDA #<_MAIN$P
 	LDX #>_MAIN$P
 	STA _MAIN$PP
 	STX _MAIN$PP+1
-; /home/dusan/src/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 13:     pp^.x = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 13:     pp^.x = 3
 	LDA #$03
 	LDY #$00
 	STA (_MAIN$PP),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 14:     pp^.y = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 14:     pp^.y = 4
 	LDA #$04
 	LDY #$01
 	STA (_MAIN$PP),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 16:     result = p.x + p.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 16:     result = p.x + p.y
 	LDA _MAIN$P
 	LDX #$00
 	STA __TMP1

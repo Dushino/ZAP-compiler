@@ -24,7 +24,7 @@ __BSSSLOT_1:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/064-initialization-arrays/064-initialization-arrays.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/064-initialization-arrays/064-initialization-arrays.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,7 +36,7 @@ __BSSSLOT_1:	.res 4
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$ARR               = __BSSSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/064-initialization-arrays/064-initialization-arrays.zap 4:     byte arr[4] = {1, 2, 3, 4}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/064-initialization-arrays/064-initialization-arrays.zap 4:     byte arr[4] = {1, 2, 3, 4}
 	; Copy array [1, 2, 3, 4] (4 elements)
 	LDX #$00
 __ZAP_ARR_COPY_1:
@@ -45,7 +45,7 @@ __ZAP_ARR_COPY_1:
 	INX
 	CPX #4
 	BNE __ZAP_ARR_COPY_1
-; /home/dusan/src/ZAP-compiler/tests/pass/064-initialization-arrays/064-initialization-arrays.zap 5:     result = arr[2]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/064-initialization-arrays/064-initialization-arrays.zap 5:     result = arr[2]
 	LDA _MAIN$ARR+2
 	STA _RESULT
 	RTS

@@ -50,7 +50,7 @@ _OUARR:	.res 10
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 28: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 28: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -65,9 +65,9 @@ _MAKE_FLAT$T            = __LVSLOT_1
 _MAKE_FLAT$V            = __LVSLOT_2
 	STA _MAKE_FLAT$T
 _MAKE_FLAT$R            = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 40:     r.tag = t
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 40:     r.tag = t
 	STA _MAKE_FLAT$R
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 41:     r.val = v
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 41:     r.val = v
 	LDA _MAKE_FLAT$V
 	STA __MATH0
 	LDA _MAKE_FLAT$V+1
@@ -84,10 +84,10 @@ _MAKE_FLAT$R            = __LVSLOT_3
 	STA _MAKE_FLAT$R+1+2
 	LDA __MATH0+3
 	STA _MAKE_FLAT$R+1+3
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 42:     r.pad = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 42:     r.pad = 0
 	LDA #$00
 	STA _MAKE_FLAT$R+5
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 43:     return r
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 43:     return r
 	LDA #<_MAKE_FLAT$R
 	STA __TMP0
 	LDA #>_MAKE_FLAT$R
@@ -106,10 +106,10 @@ _MAKE_FLAT$R            = __LVSLOT_3
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 48:     s1.tag = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 48:     s1.tag = 1
 	LDA #$01
 	STA _S1
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 49:     s1.val = $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 49:     s1.val = $12345678
 	LDA #$78
 	STA __MATH0
 	LDA #$56
@@ -126,10 +126,10 @@ _MAIN:
 	STA _S1+1+2
 	LDA __MATH0+3
 	STA _S1+1+3
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 50:     s1.pad = 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 50:     s1.pad = 9
 	LDA #$09
 	STA _S1+5
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 51:     if s1.val == $12345678
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 51:     if s1.val == $12345678
 	LDA #$78
 	STA __MATH0
 	LDA #$56
@@ -165,10 +165,10 @@ _MAIN:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 52:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 52:         result = result + 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 56:     farr[1].tag = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 56:     farr[1].tag = 2
 	LDA #$06
 	LDX #$00
 	CLC
@@ -180,7 +180,7 @@ __ZAP_else_1:
 	LDA #$02
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 57:     farr[1].val = $ABCD1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 57:     farr[1].val = $ABCD1234
 	LDA #$34
 	STA __MATH0
 	LDA #$12
@@ -208,7 +208,7 @@ __ZAP_else_1:
 	LDA __MATH0+3
 	INY
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 58:     farr[1].pad = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 58:     farr[1].pad = 0
 	LDA #$06
 	CLC
 	ADC #<_FARR
@@ -219,7 +219,7 @@ __ZAP_else_1:
 	TXA
 	LDY #$05
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 59:     if farr[1].val == $ABCD1234
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 59:     if farr[1].val == $ABCD1234
 	LDA #$34
 	STA __MATH0
 	LDA #$12
@@ -266,15 +266,15 @@ __ZAP_else_1:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_5
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 60:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 60:         result = result + 1
 	INC _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 64:     fptr = @pt
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 64:     fptr = @pt
 	LDA #<_PT
 	LDX #>_PT
 	STA _FPTR
 	STX _FPTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 65:     pt.val = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 65:     pt.val = 0
 	LDA #$00
 	TAX
 	LDA __MATH0
@@ -285,7 +285,7 @@ __ZAP_else_5:
 	STA _PT+1+2
 	LDA __MATH0+3
 	STA _PT+1+3
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 66:     fptr^.val = $11223344
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 66:     fptr^.val = $11223344
 	LDA #$44
 	STA __MATH0
 	LDA #$33
@@ -306,7 +306,7 @@ __ZAP_else_5:
 	LDA __MATH0+3
 	INY
 	STA (_FPTR),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 67:     if fptr^.val == $11223344
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 67:     if fptr^.val == $11223344
 	LDA #$44
 	STA __MATH0
 	LDA #$33
@@ -346,13 +346,13 @@ __ZAP_else_5:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_9
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 68:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 68:         result = result + 1
 	INC _RESULT
 __ZAP_else_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 72:     ou.x = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 72:     ou.x = 0
 	LDA #$00
 	STA _OU
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 73:     ou.sub.n = $0A0B0C0D
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 73:     ou.sub.n = $0A0B0C0D
 	LDA #$0D
 	STA __MATH0
 	LDA #$0C
@@ -369,7 +369,7 @@ __ZAP_else_9:
 	STA _OU+1+2
 	LDA __MATH0+3
 	STA _OU+1+3
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 74:     if ou.sub.n == $0A0B0C0D
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 74:     if ou.sub.n == $0A0B0C0D
 	LDA #$0D
 	STA __MATH0
 	LDA #$0C
@@ -405,10 +405,10 @@ __ZAP_else_9:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 75:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 75:         result = result + 1
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 79:     ouarr[0].x = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 79:     ouarr[0].x = 0
 	LDA #$00
 	TAX
 	CLC
@@ -420,7 +420,7 @@ __ZAP_else_13:
 	TXA
 	TAY
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 80:     ouarr[0].sub.n = $DEADBEEF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 80:     ouarr[0].sub.n = $DEADBEEF
 	LDA #$EF
 	STA __MATH0
 	LDA #$BE
@@ -453,7 +453,7 @@ __ZAP_else_13:
 	LDA __MATH0+3
 	INY
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 81:     if ouarr[0].sub.n == $DEADBEEF
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 81:     if ouarr[0].sub.n == $DEADBEEF
 	LDA #$EF
 	STA __MATH0
 	LDA #$BE
@@ -500,10 +500,10 @@ __ZAP_else_13:
 	LDA __MATH0
 	CMP __MATH1
 	BNE __ZAP_else_17
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 82:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 82:         result = result + 1
 	INC _RESULT
 __ZAP_else_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 86:     rv = make_flat(7, $77665544).val
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 86:     rv = make_flat(7, $77665544).val
 	LDA #$44
 	STA _MAKE_FLAT$V
 	LDA #$55
@@ -530,7 +530,7 @@ __ZAP_else_17:
 	STA _RV+2
 	LDA __MATH0+3
 	STA _RV+3
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 87:     if rv == $77665544
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 87:     if rv == $77665544
 	CMP #$77
 	BNE __ZAP_else_21
 	LDA _RV+2
@@ -542,7 +542,7 @@ __ZAP_else_17:
 	LDA _RV
 	CMP #$44
 	BNE __ZAP_else_21
-; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 88:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 88:         result = result + 1
 	INC _RESULT
 __ZAP_else_21:
 	RTS

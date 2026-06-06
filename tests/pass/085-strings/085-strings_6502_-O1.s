@@ -26,7 +26,7 @@ __LVSLOT_6:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/085-strings/085-strings.zap 3: byte msg[] @40000 = "hello\n"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/085-strings/085-strings.zap 3: byte msg[] @40000 = "hello\n"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -45,7 +45,7 @@ __LVSLOT_6:	.res 2
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/085-strings/085-strings.zap 6:     byte len @40007 = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/085-strings/085-strings.zap 6:     byte len @40007 = 6
 	LDA #$06
 	STA _MAIN$LEN
 	RTS

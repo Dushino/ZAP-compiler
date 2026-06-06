@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -32,18 +32,18 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$FLAG              = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 4:     byte flag = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 4:     byte flag = 0
 	LDA #$00
 	STA _MAIN$FLAG
-; /home/dusan/src/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 6:     if flag == 1 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 6:     if flag == 1 
 	CMP #$01
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 7:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 7:         result = 1
 	LDA #$01
 	STA _RESULT
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 9:         result = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/046-control-flow-if-else/046-control-flow-if-else.zap 9:         result = 2
 	LDA #$02
 	STA _RESULT
 __ZAP_endif_2:

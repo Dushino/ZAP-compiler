@@ -21,10 +21,10 @@ _VALUE:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 1: byte value = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 1: byte value = 5
 	LDA #$05
 	STA _VALUE
-; /home/dusan/src/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 2: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 2: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,10 +36,10 @@ _VALUE:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$VALUE             = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 5:     byte value = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 5:     byte value = 2
 	LDA #$02
 	STA _MAIN$VALUE
-; /home/dusan/src/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 6:     result = value
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/070-global-local-scope/070-global-local-scope.zap 6:     result = value
 	STA _RESULT
 	RTS
 

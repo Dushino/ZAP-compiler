@@ -23,7 +23,7 @@ __LVSLOT_3:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -37,33 +37,33 @@ _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
 _MAIN$X1                = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 4:     byte x = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 4:     byte x = 30
 	LDA #$1E
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 5:     byte y = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 5:     byte y = 20
 	LDA #$14
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 6:     word x1 = $012F
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 6:     word x1 = $012F
 	LDA #$2F
 	STA _MAIN$X1
 	LDA #$01
 	STA _MAIN$X1+1
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 8:     if x >= y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 8:     if x >= y
 	LDA _MAIN$X
 	CMP _MAIN$Y
 	BCC __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 9:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 9:         result = 1
 	LDA #$01
 	STA _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 12:     if x1 >= x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 12:     if x1 >= x
 	LDX _MAIN$X1+1
 	BNE __ZAP_then_6
 	LDA _MAIN$X1
 	CMP _MAIN$X
 	BCC __ZAP_else_4
 __ZAP_then_6:
-; /home/dusan/src/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 13:         result = result + $10    
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/038-greater-equal/038-greater-equal.zap 13:         result = result + $10    
 	LDA _RESULT
 	CLC
 	ADC #$10

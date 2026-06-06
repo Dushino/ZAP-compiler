@@ -59,7 +59,7 @@ __BSSSLOT_8:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 28: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 28: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -98,16 +98,16 @@ _MAIN$FOR_END_9         = __LVSLOT_19
 _MAIN$FOR_END_10        = __LVSLOT_17
 _MAIN$FOR_END_11        = __LVSLOT_12
 _MAIN$FOR_END_12        = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 36:     byte target = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 36:     byte target = 6
 	LDA #$06
 	STA _MAIN$TARGET
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 49:     s = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 49:     s = 3
 	LDA #$03
 	STA _MAIN$S
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 50:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 50:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 51:     for i = 0 to 12 step s      ; iters: 0,3,6,9 -> 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 51:     for i = 0 to 12 step s      ; iters: 0,3,6,9 -> 4
 	STA _MAIN$I
 	LDA #$0C
 	STA _MAIN$FOR_END_1
@@ -124,7 +124,7 @@ __ZAP_else_4:
 	BCC __ZAP_endwhile_2
 	BEQ __ZAP_endwhile_2
 __ZAP_endif_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 52:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 52:         cnt = cnt + 1
 	INC _MAIN$CNT
 	LDA _MAIN$I
 	CLC
@@ -132,23 +132,23 @@ __ZAP_endif_5:
 	STA _MAIN$I
 	JMP __ZAP_while_1
 __ZAP_endwhile_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 54:     if cnt == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 54:     if cnt == 4
 	LDA _MAIN$CNT
 	CMP #$04
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 55:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 55:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 59:     a = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 59:     a = 2
 	LDA #$02
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 60:     b = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 60:     b = 5
 	LDA #$05
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 61:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 61:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 62:     for i = a + 1 to b * 2     ; start=3, end=10, iters: 3..9 -> 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 62:     for i = a + 1 to b * 2     ; start=3, end=10, iters: 3..9 -> 7
 	LDA _MAIN$A
 	CLC
 	ADC #1
@@ -160,22 +160,22 @@ __ZAP_while_16:
 	LDA _MAIN$I
 	CMP _MAIN$FOR_END_2
 	BCS __ZAP_endwhile_17
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 63:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 63:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$I
 	JMP __ZAP_while_16
 __ZAP_endwhile_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 65:     if cnt == 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 65:     if cnt == 7
 	LDA _MAIN$CNT
 	CMP #$07
 	BNE __ZAP_else_19
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 66:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 66:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_19:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 70:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 70:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 71:     for w = 0 to 16 step 4     ; iters: 0,4,8,12 -> 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 71:     for w = 0 to 16 step 4     ; iters: 0,4,8,12 -> 4
 	STA _MAIN$W
 	STA _MAIN$W+1
 	LDA #$10
@@ -191,7 +191,7 @@ __ZAP_while_22:
 	CMP _MAIN$FOR_END_3
 	BCS __ZAP_endwhile_23
 __ZAP_while_body_24:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 72:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 72:         cnt = cnt + 1
 	INC _MAIN$CNT
 	LDA _MAIN$W
 	CLC
@@ -202,21 +202,21 @@ __ZAP_while_body_24:
 	STA _MAIN$W+1
 	JMP __ZAP_while_22
 __ZAP_endwhile_23:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 74:     if cnt == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 74:     if cnt == 4
 	LDA _MAIN$CNT
 	CMP #$04
 	BNE __ZAP_else_26
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 75:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 75:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_26:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 79:     ws = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 79:     ws = 5
 	LDA #$05
 	STA _MAIN$WS
 	LDA #$00
 	STA _MAIN$WS+1
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 80:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 80:     cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 81:     for w = 0 to 20 step ws    ; iters: 0,5,10,15 -> 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 81:     for w = 0 to 20 step ws    ; iters: 0,5,10,15 -> 4
 	STA _MAIN$W
 	STA _MAIN$W+1
 	LDA #$14
@@ -252,7 +252,7 @@ __ZAP_LE_CHK_HI_44:
 	BEQ __ZAP_endwhile_30
 __ZAP_else_40:
 __ZAP_endif_33:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 82:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 82:         cnt = cnt + 1
 	INC _MAIN$CNT
 	LDA _MAIN$W
 	CLC
@@ -263,17 +263,17 @@ __ZAP_endif_33:
 	STA _MAIN$W+1
 	JMP __ZAP_while_29
 __ZAP_endwhile_30:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 84:     if cnt == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 84:     if cnt == 4
 	LDA _MAIN$CNT
 	CMP #$04
 	BNE __ZAP_else_45
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 85:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 85:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_45:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 89:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 89:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 90:     for w = 253 to 259         ; iters: 253,254,255,256,257,258 -> 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 90:     for w = 253 to 259         ; iters: 253,254,255,256,257,258 -> 6
 	LDA #$FD
 	STA _MAIN$W
 	LDA #$00
@@ -291,33 +291,33 @@ __ZAP_while_48:
 	CMP _MAIN$FOR_END_5
 	BCS __ZAP_endwhile_49
 __ZAP_while_body_50:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 91:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 91:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$W
 	BNE __ZAP_while_48
 	INC _MAIN$W+1
 	JMP __ZAP_while_48
 __ZAP_endwhile_49:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 93:     if cnt == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 93:     if cnt == 6
 	LDA _MAIN$CNT
 	CMP #$06
 	BNE __ZAP_else_53
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 94:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 94:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_53:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 98:     wa = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 98:     wa = 3
 	LDA #$03
 	STA _MAIN$WA
 	LDA #$00
 	STA _MAIN$WA+1
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 99:     wb = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 99:     wb = 5
 	LDA #$05
 	STA _MAIN$WB
 	LDA #$00
 	STA _MAIN$WB+1
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 100:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 100:     cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 101:     for w = wa + 2 to wb * 3   ; start=5, end=15, iters: 5..14 -> 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 101:     for w = wa + 2 to wb * 3   ; start=5, end=15, iters: 5..14 -> 10
 	LDA _MAIN$WA
 	CLC
 	ADC #$02
@@ -343,24 +343,24 @@ __ZAP_while_56:
 	CMP _MAIN$FOR_END_6
 	BCS __ZAP_endwhile_57
 __ZAP_while_body_58:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 102:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 102:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$W
 	BNE __ZAP_while_56
 	INC _MAIN$W+1
 	JMP __ZAP_while_56
 __ZAP_endwhile_57:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 104:     if cnt == 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 104:     if cnt == 10
 	LDA _MAIN$CNT
 	CMP #$0A
 	BNE __ZAP_else_61
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 105:         result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 105:         result = result + 1     ; 6
 	INC _RESULT
 __ZAP_else_61:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 109:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 109:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 110:     for l = 0 to 15 step 3     ; iters: 0,3,6,9,12 -> 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 110:     for l = 0 to 15 step 3     ; iters: 0,3,6,9,12 -> 5
 	STA _MAIN$L
 	STA _MAIN$L+1
 	STA _MAIN$L+2
@@ -385,7 +385,7 @@ __ZAP_while_64:
 	CMP _MAIN$FOR_END_7
 __ZAP_CMP32_DECIDE_67:
 	BCS __ZAP_endwhile_65
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 111:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 111:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$L
 	BNE __ZAP_SKIP_INC32_68
@@ -412,23 +412,23 @@ __ZAP_SKIP_INC32_69:
 	INC _MAIN$L+3
 	JMP __ZAP_while_64
 __ZAP_endwhile_65:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 113:     if cnt == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 113:     if cnt == 5
 	LDA _MAIN$CNT
 	CMP #$05
 	BNE __ZAP_else_71
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 114:         result = result + 1     ; 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 114:         result = result + 1     ; 7
 	INC _RESULT
 __ZAP_else_71:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 118:     ls = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 118:     ls = 4
 	LDA #$04
 	STA _MAIN$LS
 	LDA #$00
 	STA _MAIN$LS+1
 	STA _MAIN$LS+2
 	STA _MAIN$LS+3
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 119:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 119:     cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 120:     for l = 0 to 12 step ls    ; iters: 0,4,8 -> 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 120:     for l = 0 to 12 step ls    ; iters: 0,4,8 -> 3
 	STA _MAIN$L
 	STA _MAIN$L+1
 	STA _MAIN$L+2
@@ -483,7 +483,7 @@ __ZAP_CMP32_DECIDE_89:
 	BCC __ZAP_endwhile_75
 	BEQ __ZAP_endwhile_75
 __ZAP_endif_78:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 121:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 121:         cnt = cnt + 1
 	INC _MAIN$CNT
 	LDA _MAIN$LS
 	STA __MATH1
@@ -512,17 +512,17 @@ __ZAP_endif_78:
 	STA _MAIN$L+3
 	JMP __ZAP_while_74
 __ZAP_endwhile_75:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 123:     if cnt == 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 123:     if cnt == 3
 	LDA _MAIN$CNT
 	CMP #$03
 	BNE __ZAP_else_90
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 124:         result = result + 1     ; 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 124:         result = result + 1     ; 8
 	INC _RESULT
 __ZAP_else_90:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 128:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 128:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 129:     for l = 65533 to 65537     ; iters: 65533,65534,65535,65536 -> 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 129:     for l = 65533 to 65537     ; iters: 65533,65534,65535,65536 -> 4
 	LDA #$FD
 	STA _MAIN$L
 	LDA #$FF
@@ -550,7 +550,7 @@ __ZAP_while_93:
 	CMP _MAIN$FOR_END_9
 __ZAP_CMP32_DECIDE_96:
 	BCS __ZAP_endwhile_94
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 130:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 130:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$L
 	BNE __ZAP_while_93
@@ -561,14 +561,14 @@ __ZAP_CMP32_DECIDE_96:
 	INC _MAIN$L+3
 	JMP __ZAP_while_93
 __ZAP_endwhile_94:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 132:     if cnt == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 132:     if cnt == 4
 	LDA _MAIN$CNT
 	CMP #$04
 	BNE __ZAP_else_98
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 133:         result = result + 1     ; 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 133:         result = result + 1     ; 9
 	INC _RESULT
 __ZAP_else_98:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 137:     lbase = 100000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 137:     lbase = 100000
 	LDA #$A0
 	STA _MAIN$LBASE
 	LDA #$86
@@ -577,9 +577,9 @@ __ZAP_else_98:
 	STA _MAIN$LBASE+2
 	LDA #$00
 	STA _MAIN$LBASE+3
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 138:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 138:     cnt = 0
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 139:     for l = lbase to lbase + 5 ; iters: 100000..100004 -> 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 139:     for l = lbase to lbase + 5 ; iters: 100000..100004 -> 5
 	LDA _MAIN$LBASE
 	STA _MAIN$L
 	LDA _MAIN$LBASE+1
@@ -625,7 +625,7 @@ __ZAP_while_101:
 	CMP _MAIN$FOR_END_10
 __ZAP_CMP32_DECIDE_104:
 	BCS __ZAP_endwhile_102
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 140:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 140:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$L
 	BNE __ZAP_while_101
@@ -636,14 +636,14 @@ __ZAP_CMP32_DECIDE_104:
 	INC _MAIN$L+3
 	JMP __ZAP_while_101
 __ZAP_endwhile_102:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 142:     if cnt == 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 142:     if cnt == 5
 	LDA _MAIN$CNT
 	CMP #$05
 	BNE __ZAP_else_106
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 143:         result = result + 1     ; 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 143:         result = result + 1     ; 10
 	INC _RESULT
 __ZAP_else_106:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 147:     for ptr = @arr[0] to @arr[0] + 4  ; ptr visits arr[0]..arr[3] (4 addrs)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 147:     for ptr = @arr[0] to @arr[0] + 4  ; ptr visits arr[0]..arr[3] (4 addrs)
 	LDA #<_MAIN$ARR
 	LDX #>_MAIN$ARR
 	STA _MAIN$PTR
@@ -673,7 +673,7 @@ __ZAP_while_109:
 	CMP _MAIN$FOR_END_11
 	BCS __ZAP_endwhile_110
 __ZAP_while_body_111:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 148:         ptr^ = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 148:         ptr^ = 1
 	LDA #$01
 	LDY #$00
 	STA (_MAIN$PTR),Y
@@ -682,7 +682,7 @@ __ZAP_while_body_111:
 	INC _MAIN$PTR+1
 	JMP __ZAP_while_109
 __ZAP_endwhile_110:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 150:     sum = arr[0] + arr[1] + arr[2] + arr[3]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 150:     sum = arr[0] + arr[1] + arr[2] + arr[3]
 	LDA _MAIN$ARR+0
 	CLC
 	ADC _MAIN$ARR+1
@@ -691,21 +691,21 @@ __ZAP_endwhile_110:
 	CLC
 	ADC _MAIN$ARR+3
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 151:     if sum == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 151:     if sum == 4
 	CMP #$04
 	BNE __ZAP_else_114
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 152:         result = result + 1     ; 11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 152:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_114:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 156:     ptr = @target               ; target = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 156:     ptr = @target               ; target = 6
 	LDA #<_MAIN$TARGET
 	LDX #>_MAIN$TARGET
 	STA _MAIN$PTR
 	STX _MAIN$PTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 157:     cnt = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 157:     cnt = 0
 	LDA #$00
 	STA _MAIN$CNT
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 158:     for i = 0 to ptr^          ; end = 6, iters: 0..5 -> 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 158:     for i = 0 to ptr^          ; end = 6, iters: 0..5 -> 6
 	STA _MAIN$I
 	TAY
 	LDA (_MAIN$PTR),Y
@@ -714,16 +714,16 @@ __ZAP_while_117:
 	LDA _MAIN$I
 	CMP _MAIN$FOR_END_12
 	BCS __ZAP_endwhile_118
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 159:         cnt = cnt + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 159:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$I
 	JMP __ZAP_while_117
 __ZAP_endwhile_118:
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 161:     if cnt == 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 161:     if cnt == 6
 	LDA _MAIN$CNT
 	CMP #$06
 	BNE __ZAP_else_120
-; /home/dusan/src/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 162:         result = result + 1     ; 12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/152-for-loop-types/152-for-loop-types.zap 162:         result = result + 1     ; 12
 	INC _RESULT
 __ZAP_else_120:
 	RTS

@@ -35,26 +35,26 @@ __LVSLOT_6:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 8: byte gname[4] @40010 = "C\x9B"  ; C $9B NUL
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 8: byte gname[4] @40010 = "C\x9B"  ; C $9B NUL
 	LDA #$43
 	STA _GNAME+0
 	LDA #$9B
 	STA _GNAME+1
 	LDA #$00
 	STA _GNAME+2
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 15: byte out0 @40000 = 0    ; cname[0] = 'A' = $41
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 15: byte out0 @40000 = 0    ; cname[0] = 'A' = $41
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 16: byte out1 @40001 = 0    ; cname[1] = 'B' = $42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 16: byte out1 @40001 = 0    ; cname[1] = 'B' = $42
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 17: byte out2 @40002 = 0    ; cname[2] = $9B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 17: byte out2 @40002 = 0    ; cname[2] = $9B
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 18: byte out3 @40003 = 0    ; gname[0] = 'C' = $43
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 18: byte out3 @40003 = 0    ; gname[0] = 'C' = $43
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 19: byte out4 @40004 = 0    ; gname[1] = $9B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 19: byte out4 @40004 = 0    ; gname[1] = $9B
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 20: byte out5 @40005 = 0    ; string-literal arg: byte 0 = 'X' = $58
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 20: byte out5 @40005 = 0    ; string-literal arg: byte 0 = 'X' = $58
 	STA _OUT5
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 21: byte out6 @40006 = 0    ; string-literal arg: byte 1 = $9B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 21: byte out6 @40006 = 0    ; string-literal arg: byte 1 = $9B
 	STA _OUT6
 ; Call MAIN
 	JSR _MAIN
@@ -69,7 +69,7 @@ _BYTE_AT$IDX            = __LVSLOT_2
 	STA _BYTE_AT$PTR
 	STX _BYTE_AT$PTR+1
 	STY _BYTE_AT$IDX
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 12:     return (ptr + idx)^
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 12:     return (ptr + idx)^
 	STA __MATH0
 	LDA _BYTE_AT$PTR+1
 	STA __MATH0+1
@@ -88,28 +88,28 @@ _BYTE_AT$IDX            = __LVSLOT_2
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 25:     out0 = cname[0]     ; expect $41
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 25:     out0 = cname[0]     ; expect $41
 	LDA #$00
 	TAY
 	LDA __ARRAY_DATA_1,Y
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 26:     out1 = cname[1]     ; expect $42
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 26:     out1 = cname[1]     ; expect $42
 	LDA #$01
 	TAY
 	LDA __ARRAY_DATA_1,Y
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 27:     out2 = cname[2]     ; expect $9B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 27:     out2 = cname[2]     ; expect $9B
 	LDA #$02
 	TAY
 	LDA __ARRAY_DATA_1,Y
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 30:     out3 = gname[0]     ; expect $43
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 30:     out3 = gname[0]     ; expect $43
 	LDA _GNAME+0
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 31:     out4 = gname[1]     ; expect $9B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 31:     out4 = gname[1]     ; expect $9B
 	LDA _GNAME+1
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 34:     out5 = byte_at("X\x9B", 0)   ; expect $58 ('X')
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 34:     out5 = byte_at("X\x9B", 0)   ; expect $58 ('X')
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	PHA
@@ -124,7 +124,7 @@ _MAIN:
 	PLA
 	JSR _BYTE_AT
 	STA _OUT5
-; /home/dusan/src/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 35:     out6 = byte_at("X\x9B", 1)   ; expect $9B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/173-string-highbyte/173-string-highbyte.zap 35:     out6 = byte_at("X\x9B", 1)   ; expect $9B
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	PHA

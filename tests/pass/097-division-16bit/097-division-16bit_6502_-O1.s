@@ -25,7 +25,7 @@ __LVSLOT_5:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -39,17 +39,17 @@ __LVSLOT_5:	.res 4
 _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 4:     word a = 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 4:     word a = 1000
 	LDA #$E8
 	STA _MAIN$A
 	LDA #$03
 	STA _MAIN$A+1
-; /home/dusan/src/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 5:     word b = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 5:     word b = 30
 	LDA #$1E
 	STA _MAIN$B
 	LDA #$00
 	STA _MAIN$B+1
-; /home/dusan/src/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 7:     result = a / b ; integer division 1000/30 = 33 (0x0021)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/097-division-16bit/097-division-16bit.zap 7:     result = a / b ; integer division 1000/30 = 33 (0x0021)
 	LDA _MAIN$A
 	STA __MATH0
 	LDA _MAIN$A+1

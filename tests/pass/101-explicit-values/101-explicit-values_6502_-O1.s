@@ -25,7 +25,7 @@ _MAIN$X                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/101-explicit-values/101-explicit-values.zap 11:     byte x @40000 = E.B
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/101-explicit-values/101-explicit-values.zap 11:     byte x @40000 = E.B
 	LDA #$02
 	STA _MAIN$X
 	RTS

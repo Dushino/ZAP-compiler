@@ -43,10 +43,10 @@ _HELPER:
 _MAIN:
 _MAIN$I                 = __LVSLOT_1
 _MAIN$__SBM_1           = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 17:     byte i = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 17:     byte i = 3
 	LDA #$03
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 20:     vecs[i].x = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 20:     vecs[i].x = 10
 	ASL A
 	CLC
 	ADC #<_VECS
@@ -61,11 +61,11 @@ _MAIN$__SBM_1           = __LVSLOT_2
 	LDA #$0A
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 23:     if vecs[i].y == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 23:     if vecs[i].y == 0
 	LDY #$01
 	LDA (__TMP0),Y
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 24:         vecs[i].y = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 24:         vecs[i].y = 20
 	LDA _MAIN$__SBM_1
 	STA __TMP0
 	LDA _MAIN$__SBM_1+1
@@ -74,9 +74,9 @@ _MAIN$__SBM_1           = __LVSLOT_2
 	LDY #$01
 	STA (__TMP0),Y
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 28:     helper()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 28:     helper()
 	JSR _HELPER
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 29:     vecs[i].x = vecs[i].x + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 29:     vecs[i].x = vecs[i].x + 1
 	LDA _MAIN$__SBM_1
 	STA __TMP0
 	LDA _MAIN$__SBM_1+1
@@ -89,10 +89,10 @@ __ZAP_else_1:
 	ADC __TMP1
 	STA __TMP2
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 32:     i = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 32:     i = 5
 	LDA #$05
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 33:     vecs[i].x = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 33:     vecs[i].x = 50
 	ASL A
 	CLC
 	ADC #<_VECS
@@ -106,7 +106,7 @@ __ZAP_else_1:
 	STA _MAIN$__SBM_1+1
 	LDA #$32
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 34:     vecs[i].y = 60
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/176-struct-base-memo/176-struct-base-memo.zap 34:     vecs[i].y = 60
 	LDA #$3C
 	LDY #$01
 	STA (__TMP0),Y

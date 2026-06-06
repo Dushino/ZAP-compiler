@@ -25,7 +25,7 @@ __LVSLOT_5:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 3: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 3: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -39,12 +39,12 @@ _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
 _MAIN$C                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 6:     byte a = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 6:     byte a = 10
 	LDA #$0A
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 7:     byte b = 0x0A
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 7:     byte b = 0x0A
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 8:     byte c = a + b + 'A' + $10 + 0b00000010 ; 10+10+65+16+2=103
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 8:     byte c = a + b + 'A' + $10 + 0b00000010 ; 10+10+65+16+2=103
 	LDA _MAIN$A
 	CLC
 	ADC _MAIN$B
@@ -69,7 +69,7 @@ _MAIN$C                 = __LVSLOT_1
 	STA __MATH0
 	LDX #$00
 	STA _MAIN$C
-; /home/dusan/src/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 9:     result = c
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/083-integer-literals/083-integer-literals.zap 9:     result = c
 	STA _RESULT
 	RTS
 

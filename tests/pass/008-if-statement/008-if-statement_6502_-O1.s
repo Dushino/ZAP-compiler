@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -28,14 +28,14 @@ _RESULT                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 7:     result = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 7:     result = 0
 	LDA #$00
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 8:     while result == 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 8:     while result == 0
 __ZAP_while_1:
 	LDA _RESULT
 	BNE __ZAP_endwhile_2
-; /home/dusan/src/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 9:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/008-if-statement/008-if-statement.zap 9:         result = 1
 	LDA #$01
 	STA _RESULT
 	JMP __ZAP_while_1

@@ -27,7 +27,7 @@ __LVSLOT_1:	.res 3
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -40,16 +40,16 @@ __LVSLOT_1:	.res 3
 _MAIN:
 _MAIN$ARR               = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 6:     arr[0] = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 6:     arr[0] = 10
 	LDA #$0A
 	STA _MAIN$ARR+0
-; /home/dusan/src/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 7:     arr[1] = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 7:     arr[1] = 20
 	LDA #$14
 	STA _MAIN$ARR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 8:     arr[2] = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 8:     arr[2] = 30
 	LDA #$1E
 	STA _MAIN$ARR+2
-; /home/dusan/src/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 9:     sum = arr[0] + arr[1] + arr[2] + arr[1] - arr[0] - arr[0]  ; 60
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 9:     sum = arr[0] + arr[1] + arr[2] + arr[1] - arr[0] - arr[0]  ; 60
 	LDA _MAIN$ARR+0
 	CLC
 	ADC _MAIN$ARR+1
@@ -62,7 +62,7 @@ _MAIN$SUM               = __LVSLOT_2
 	SEC
 	SBC _MAIN$ARR+0
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 10:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/005-simple-array/005-simple-array.zap 10:     result = sum
 	STA _RESULT
 	RTS
 

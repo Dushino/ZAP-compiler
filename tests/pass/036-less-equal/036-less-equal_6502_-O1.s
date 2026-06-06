@@ -23,7 +23,7 @@ __LVSLOT_3:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -37,28 +37,28 @@ _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
 _MAIN$X1                = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 4:     byte x = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 4:     byte x = 10
 	LDA #$0A
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 5:     byte y = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 5:     byte y = 20
 	LDA #$14
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 6:     word x1 = $0a10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 6:     word x1 = $0a10
 	LDA #$10
 	STA _MAIN$X1
 	LDA #$0A
 	STA _MAIN$X1+1
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 8:     if x <= y 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 8:     if x <= y 
 	LDA _MAIN$X
 	CMP _MAIN$Y
 	BCC __ZAP_then_3
 	BNE __ZAP_else_1
 __ZAP_then_3:
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 9:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 9:         result = 1
 	LDA #$01
 	STA _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 12:     if x <= x1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 12:     if x <= x1
 	LDX #$00
 	CPX _MAIN$X1+1
 	BCC __ZAP_then_6
@@ -70,7 +70,7 @@ __ZAP_LE_CHK_HI_8:
 	BCC __ZAP_then_6
 	BNE __ZAP_else_4
 __ZAP_then_6:
-; /home/dusan/src/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 13:         result = result + $10 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/036-less-equal/036-less-equal.zap 13:         result = result + $10 
 	LDA _RESULT
 	CLC
 	ADC #$10

@@ -32,7 +32,7 @@ __LVSLOT_1:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 7: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 7: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -44,7 +44,7 @@ __LVSLOT_1:	.res 2
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$P                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 10:     Point p = ORIG
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 10:     Point p = ORIG
 	LDA #<__ARRAY_DATA_1
 	STA __TMP0
 	LDA #>__ARRAY_DATA_1
@@ -55,7 +55,7 @@ _MAIN$P                 = __LVSLOT_1
 	STA __TMP2+1
 	LDX #$02
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 11:     result = p.x + p.y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 11:     result = p.x + p.y
 	LDA _MAIN$P
 	LDX #$00
 	STA __TMP1

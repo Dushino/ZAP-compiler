@@ -33,12 +33,12 @@ __LVSLOT_3:	.res 5
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 1: byte res_mixed @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 1: byte res_mixed @40000 = 0
 	LDA #$00
 	STA _RES_MIXED
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 2: byte res_array @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 2: byte res_array @40001 = 0
 	STA _RES_ARRAY
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 3: byte res_func @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 3: byte res_func @40002 = 0
 	STA _RES_FUNC
 ; Call MAIN
 	JSR _MAIN
@@ -50,25 +50,25 @@ __LVSLOT_3:	.res 5
 _MAIN:
 _MAIN$VAL               = __LVSLOT_1
 _MAIN$ARR               = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 9:     byte val = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 9:     byte val = 5
 	LDA #$05
 	STA _MAIN$VAL
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 13:     res_mixed = val + K
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 13:     res_mixed = val + K
 	CLC
 	ADC #10
 	STA _RES_MIXED
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 16:     arr[0] = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 16:     arr[0] = 1
 	LDA #$01
 	STA _MAIN$ARR+0
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 17:     arr[4] = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 17:     arr[4] = 2
 	LDA #$02
 	STA _MAIN$ARR+4
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 18:     res_array = arr[0] + arr[4]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 18:     res_array = arr[0] + arr[4]
 	LDA _MAIN$ARR+0
 	CLC
 	ADC _MAIN$ARR+4
 	STA _RES_ARRAY
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 21:     res_func = add_const(K, 2)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 21:     res_func = add_const(K, 2)
 	LDA #$0A
 	LDX #$02
 	JSR _ADD_CONST
@@ -83,7 +83,7 @@ _ADD_CONST$A            = __LVSLOT_1
 _ADD_CONST$B            = __LVSLOT_2
 	STA _ADD_CONST$A
 	STX _ADD_CONST$B
-; /home/dusan/src/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 25:     return a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/120-var-const-combinations/120-var-const-combinations.zap 25:     return a + b
 	CLC
 	ADC _ADD_CONST$B
 	RTS

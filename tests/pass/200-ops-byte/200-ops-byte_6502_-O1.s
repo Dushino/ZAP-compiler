@@ -42,14 +42,14 @@ _C:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 4: byte b @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 4: byte b @40000 = 0
 	LDA #$00
 	STA _B
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 5: byte c = 0 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 5: byte c = 0 
 	STA _C
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 6: byte d[4] @40000 = {$01, $02, $03, $04}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 6: byte d[4] @40000 = {$01, $02, $03, $04}
 	; Copy array [1, 2, 3, 4] (4 elements)
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 6: byte d[4] @40000 = {$01, $02, $03, $04}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 6: byte d[4] @40000 = {$01, $02, $03, $04}
 	; Copy array [1, 2, 3, 4] (4 elements)
 	TAX
 __ZAP_ARR_COPY_1:
@@ -58,14 +58,14 @@ __ZAP_ARR_COPY_1:
 	INX
 	CPX #4
 	BNE __ZAP_ARR_COPY_1
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 13: byte ^pc @40002 = $2345
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 13: byte ^pc @40002 = $2345
 	LDA #$45
 	STA _PC
 	LDA #$23
 	STA _PC+1
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 14: byte ^pd[4] @40000+12 = {$1300, $1301, $1302, $1303}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 14: byte ^pd[4] @40000+12 = {$1300, $1301, $1302, $1303}
 	; Copy array [4864, 4865, 4866, 4867] (4 elements)
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 14: byte ^pd[4] @40000+12 = {$1300, $1301, $1302, $1303}
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 14: byte ^pd[4] @40000+12 = {$1300, $1301, $1302, $1303}
 	; Copy array [4864, 4865, 4866, 4867] (4 elements)
 	LDX #$00
 __ZAP_ARR_COPY_2:
@@ -86,45 +86,45 @@ __ZAP_ARR_COPY_2:
 ; -- Procedure MAIN --
 _MAIN:
 ; [dead store eliminated: A overwritten by next statement]
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 45:    a = 4 || 5  ; const || const
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 45:    a = 4 || 5  ; const || const
 	LDA #$01
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 46:    c = a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 46:    c = a
 	STA _C
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 75:    a = ~ca || 5   
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 75:    a = ~ca || 5   
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 78:    a = ~a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 78:    a = ~a
 	EOR #$FF
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 79:    a = ~a + 1  ; INC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 79:    a = ~a + 1  ; INC
 	EOR #$FF
 	STA _A
 	INC _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 80:    a = ~a - 1  ; DEC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 80:    a = ~a - 1  ; DEC
 	LDA _A
 	EOR #$FF
 	STA _A
 	DEC _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 81:    a = a * 2   ; << 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 81:    a = a * 2   ; << 1
 	LDA _A
 	ASL
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 82:    a = a / 2   ; >> 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 82:    a = a / 2   ; >> 2
 	LSR
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 83:    a = ~a + 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 83:    a = ~a + 5
 	EOR #$FF
 	CLC
 	ADC #$05
 	STA __MATH0
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 84:    a = ~a - 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 84:    a = ~a - 5
 	EOR #$FF
 	SEC
 	SBC #$05
 	STA __MATH0
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 85:    a = ~a * 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 85:    a = ~a * 5
 	EOR #$FF
 	STA __TMP3
 	LDA #$00
@@ -153,21 +153,21 @@ __ZAP_SHIFTADD_CARRY_5:
 __ZAP_SHIFTADD_CARRY_6:
 	LDX __TMP4+1
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 86:    a = ~a / 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 86:    a = ~a / 5
 	EOR #$FF
 	STA __MATH0
 	LDA #$05
 	LDX #$00
 	JSR __DIV8_A
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 87:    a = ~a % 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 87:    a = ~a % 5
 	EOR #$FF
 	STA __MATH0
 	LDA #$05
 	LDX #$00
 	JSR __MOD8_A
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 88:    a = ~a << 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 88:    a = ~a << 5
 	EOR #$FF
 	ASL
 	ASL
@@ -175,7 +175,7 @@ __ZAP_SHIFTADD_CARRY_6:
 	ASL
 	ASL
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 89:    a = ~a >> 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 89:    a = ~a >> 5
 	EOR #$FF
 	LSR
 	LSR
@@ -183,22 +183,22 @@ __ZAP_SHIFTADD_CARRY_6:
 	LSR
 	LSR
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 90:    a = ~a & 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 90:    a = ~a & 5
 	EOR #$FF
 	AND #$05
 	STA __MATH0
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 91:    a = ~a | 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 91:    a = ~a | 5
 	EOR #$FF
 	ORA #$05
 	STA __MATH0
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 92:    a = ~a ^ 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 92:    a = ~a ^ 5
 	EOR #$FF
 	EOR #$05
 	STA __MATH0
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 93:    a = ~a && 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 93:    a = ~a && 5
 	EOR #$FF
 	STA __MATH0
 	LDA #$05
@@ -213,39 +213,39 @@ __ZAP_AND_ZERO_7:
 	LDA #$00
 __ZAP_AND_END_8:
 	STA __MATH0
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 116:    a = !ca
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 116:    a = !ca
 	LDA #$00
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 138:    a = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 138:    a = 0
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 139:    a = a + 1   ; INC
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 141:    a = a * 2   ; << 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 139:    a = a + 1   ; INC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 141:    a = a * 2   ; << 1
 	ASL
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 147:    a = b % 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 147:    a = b % 10
 	LDA _B
 	STA __MATH0
 	LDA #$0A
 	LDX #$00
 	JSR __MOD8_A
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 148:    a = a >> 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 148:    a = a >> 2
 	LSR
 	LSR
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 149:    a = a << 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 149:    a = a << 2
 	ASL
 	ASL
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 150:    a = a & $0f
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 150:    a = a & $0f
 	AND #$0F
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 151:    a = a | $80
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 151:    a = a | $80
 	ORA #$80
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 152:    a = a ^ $ff
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 152:    a = a ^ $ff
 	EOR #$FF
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 153:    a = a && b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 153:    a = a && b
 	STA __MATH0
 	LDA _B
 	STA __MATH1
@@ -259,55 +259,55 @@ __ZAP_AND_ZERO_9:
 	LDA #$00
 __ZAP_AND_END_10:
 	STA __MATH0
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 158:    a = 1 + 2 * 3     ; expression to RPN
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 158:    a = 1 + 2 * 3     ; expression to RPN
 	LDA #$07
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 159:    a = a - 1         ; should use DEC
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 161:    a = a * 2         ; should use ASL
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 159:    a = a - 1         ; should use DEC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 161:    a = a * 2         ; should use ASL
 	ASL
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 162:    a = a / 2         ; should use LSR
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 162:    a = a / 2         ; should use LSR
 	LSR
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 163:    a = a + b         ; should use ADD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 163:    a = a + b         ; should use ADD
 	CLC
 	ADC _B
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 164:    a = a - b         ; should use SUB
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 164:    a = a - b         ; should use SUB
 	SEC
 	SBC _B
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 165:    a = a * b         ; should use MUL
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 165:    a = a * b         ; should use MUL
 	STA __MATH0
 	LDA _B
 	LDX #$00
 	JSR __MUL8_A
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 166:    a = a / b         ; should use DIV
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 166:    a = a / b         ; should use DIV
 	STA __MATH0
 	LDA _B
 	LDX #$00
 	JSR __DIV8_A
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 167:    a = a % b         ; should use MOD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 167:    a = a % b         ; should use MOD
 	STA __MATH0
 	LDA _B
 	LDX #$00
 	JSR __MOD8_A
 	STA _A
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 170:    c = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 170:    c = 2
 	LDA #$02
 	STA _C
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 171:    d[0] = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 171:    d[0] = 6
 	LDA #$06
 	STA _D+0
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 172:    d[1] = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 172:    d[1] = 7
 	LDA #$07
 	STA _D+1
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 173:    d[2] = 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 173:    d[2] = 8
 	LDA #$08
 	STA _D+2
-; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 174:    d[3] = 9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 174:    d[3] = 9
 	LDA #$09
 	STA _D+3
 	RTS

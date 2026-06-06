@@ -18,10 +18,10 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/069-fixed-address-variables/069-fixed-address-variables.zap 1: byte flag @40010 = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/069-fixed-address-variables/069-fixed-address-variables.zap 1: byte flag @40010 = 7
 	LDA #$07
 	STA _FLAG
-; /home/dusan/src/ZAP-compiler/tests/pass/069-fixed-address-variables/069-fixed-address-variables.zap 2: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/069-fixed-address-variables/069-fixed-address-variables.zap 2: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -32,7 +32,7 @@ _RESULT                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/069-fixed-address-variables/069-fixed-address-variables.zap 5:     result = flag
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/069-fixed-address-variables/069-fixed-address-variables.zap 5:     result = flag
 	LDA _FLAG
 	STA _RESULT
 	RTS

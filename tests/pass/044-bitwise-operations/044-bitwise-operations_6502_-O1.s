@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -35,18 +35,18 @@ _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_2
 _MAIN$Z                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 4:     byte x = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 4:     byte x = 255
 	LDA #$FF
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 5:     byte y = 127
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 5:     byte y = 127
 	LDA #$7F
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 6:     byte z = x - y
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 6:     byte z = x - y
 	LDA _MAIN$X
 	SEC
 	SBC _MAIN$Y
 	STA _MAIN$Z
-; /home/dusan/src/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 7:     result = z
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/044-bitwise-operations/044-bitwise-operations.zap 7:     result = z
 	STA _RESULT
 	RTS
 

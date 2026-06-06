@@ -29,7 +29,7 @@ __LVSLOT_1:	.res 24
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -43,7 +43,7 @@ __LVSLOT_1:	.res 24
 _MAIN:
 _MAIN$CUBE              = __LVSLOT_1
 _MAIN$SUM               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 8:     cube[0][0][0] = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 8:     cube[0][0][0] = 1
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	STA __TMP0
@@ -51,7 +51,7 @@ _MAIN$SUM               = __LVSLOT_2
 	LDA #1
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 9:     cube[0][0][1] = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 9:     cube[0][0][1] = 2
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -62,7 +62,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #2
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 10:     cube[0][1][0] = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 10:     cube[0][1][0] = 3
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -73,7 +73,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #3
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 11:     cube[0][1][1] = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 11:     cube[0][1][1] = 4
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -84,7 +84,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #4
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 14:     cube[1][0][0] = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 14:     cube[1][0][0] = 10
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -95,7 +95,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #10
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 15:     cube[1][0][1] = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 15:     cube[1][0][1] = 20
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -106,7 +106,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #20
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 16:     cube[1][1][0] = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 16:     cube[1][1][0] = 30
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -117,7 +117,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #30
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 17:     cube[1][1][1] = 40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 17:     cube[1][1][1] = 40
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	CLC
@@ -128,7 +128,7 @@ _MAIN$SUM               = __LVSLOT_2
 	STA __TMP0+1
 	LDA #40
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 21:     sum = cube[0][0][0] + cube[0][1][1] + cube[1][0][0] + cube[1][1][1]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 21:     sum = cube[0][0][0] + cube[0][1][1] + cube[1][0][0] + cube[1][1][1]
 	LDA #<_MAIN$CUBE
 	LDX #>_MAIN$CUBE
 	STA __TMP0
@@ -171,7 +171,7 @@ _MAIN$SUM               = __LVSLOT_2
 	CLC
 	ADC _MAIN$SUM
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 22:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/015-arrays-multidim-3d/015-arrays-multidim-3d.zap 22:     result = sum
 	LDX #$00
 	STA _RESULT
 	STX _RESULT+1

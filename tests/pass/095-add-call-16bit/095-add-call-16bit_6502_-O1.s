@@ -25,7 +25,7 @@ __LVSLOT_5:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/095-add-call-16bit/095-add-call-16bit.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/095-add-call-16bit/095-add-call-16bit.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -41,7 +41,7 @@ _ADDW$A                 = __LVSLOT_1
 _ADDW$B                 = __LVSLOT_2
 	STA _ADDW$A
 	STX _ADDW$A+1
-; /home/dusan/src/ZAP-compiler/tests/pass/095-add-call-16bit/095-add-call-16bit.zap 4:     return a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/095-add-call-16bit/095-add-call-16bit.zap 4:     return a + b
 	STA __MATH0
 	STX __MATH0+1
 	LDA _ADDW$B
@@ -55,7 +55,7 @@ _ADDW$B                 = __LVSLOT_2
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/095-add-call-16bit/095-add-call-16bit.zap 8:     result = addw(1000) ; 1000 + 300 = 1300 (0x0514)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/095-add-call-16bit/095-add-call-16bit.zap 8:     result = addw(1000) ; 1000 + 300 = 1300 (0x0514)
 	LDA #$2C
 	STA _ADDW$B
 	LDA #$01

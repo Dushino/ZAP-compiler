@@ -17,7 +17,7 @@ _RESULT                 = $9C40
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 4: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 4: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -28,17 +28,17 @@ _RESULT                 = $9C40
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 9:     result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 9:     result = result + 1
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 14:     result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 14:     result = result + 1
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 22:     result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 22:     result = result + 1     ; 3
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 26:     result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 26:     result = result + 1     ; 4
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 31:     result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 31:     result = result + 1     ; 5
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 36:     result = result + 1     ; 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/091-define-ifdef/091-define-ifdef.zap 36:     result = result + 1     ; 6
 	INC _RESULT
 	RTS
 

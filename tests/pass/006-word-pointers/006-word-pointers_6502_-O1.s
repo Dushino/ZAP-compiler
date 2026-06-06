@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -35,19 +35,19 @@ __LVSLOT_2:	.res 2
 _MAIN:
 _MAIN$TARGET            = __LVSLOT_1
 _MAIN$PTR               = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 4:     word target = 3000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 4:     word target = 3000
 	LDA #$B8
 	STA _MAIN$TARGET
 	LDA #$0B
 	STA _MAIN$TARGET+1
-; /home/dusan/src/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 5:     word ptr = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 5:     word ptr = 0
 	LDA #$00
-; /home/dusan/src/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 6:     ptr = @target
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 6:     ptr = @target
 	LDA #<_MAIN$TARGET
 	LDX #>_MAIN$TARGET
 	STA _MAIN$PTR
 	STX _MAIN$PTR+1
-; /home/dusan/src/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 7:     result = target
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/006-word-pointers/006-word-pointers.zap 7:     result = target
 	LDA _MAIN$TARGET
 	LDX _MAIN$TARGET+1
 	STA _RESULT

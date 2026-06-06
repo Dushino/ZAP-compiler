@@ -35,7 +35,7 @@ __LVSLOT_9:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 1: word result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 1: word result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	STA _RESULT+1
@@ -50,22 +50,22 @@ _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
 _MAIN$C                 = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 4:     word a = 1000
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 4:     word a = 1000
 	LDA #$E8
 	STA _MAIN$A
 	LDA #$03
 	STA _MAIN$A+1
-; /home/dusan/src/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 5:     word b = 200
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 5:     word b = 200
 	LDA #$C8
 	STA _MAIN$B
 	LDA #$00
 	STA _MAIN$B+1
-; /home/dusan/src/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 6:     word c = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 6:     word c = 50
 	LDA #$32
 	STA _MAIN$C
 	LDA #$00
 	STA _MAIN$C+1
-; /home/dusan/src/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 8:     result = a + b * (c + 1) - 10 ; 1000 + 200 * 51 - 10 = 1000 + 10200 - 10 = 11190 (0x2B96)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/096-arithmetic-16bit/096-arithmetic-16bit.zap 8:     result = a + b * (c + 1) - 10 ; 1000 + 200 * 51 - 10 = 1000 + 10200 - 10 = 11190 (0x2B96)
 	LDA _MAIN$C
 	LDX _MAIN$C+1
 	STX __MATH0+1

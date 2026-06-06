@@ -24,7 +24,7 @@ __LVSLOT_4:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -39,14 +39,14 @@ _MAIN$MY_LONG           = __LVSLOT_1
 _MAIN$END_VAL           = __LVSLOT_2
 _MAIN$FOR_COUNT         = __LVSLOT_4
 _MAIN$SWITCH_VAL        = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 4:     long my_long = 65536
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 4:     long my_long = 65536
 	LDA #$00
 	STA _MAIN$MY_LONG
 	STA _MAIN$MY_LONG+1
 	STA _MAIN$MY_LONG+3
 	LDA #$01
 	STA _MAIN$MY_LONG+2
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 5:     long end_val = 65540
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 5:     long end_val = 65540
 	LDA #$04
 	STA _MAIN$END_VAL
 	LDA #$00
@@ -54,39 +54,39 @@ _MAIN$SWITCH_VAL        = __LVSLOT_3
 	STA _MAIN$END_VAL+3
 	LDA #$01
 	STA _MAIN$END_VAL+2
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 6:     byte for_count = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 6:     byte for_count = 0
 	LDA #$00
 	STA _MAIN$FOR_COUNT
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 7:     long switch_val = 131072
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 7:     long switch_val = 131072
 	STA _MAIN$SWITCH_VAL
 	STA _MAIN$SWITCH_VAL+1
 	STA _MAIN$SWITCH_VAL+3
 	LDA #$02
 	STA _MAIN$SWITCH_VAL+2
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 10:     if my_long
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 10:     if my_long
 	LDA _MAIN$MY_LONG
 	ORA _MAIN$MY_LONG+1
 	ORA _MAIN$MY_LONG+2
 	ORA _MAIN$MY_LONG+3
 	BEQ __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 11:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 11:         result = result + 1
 	INC _RESULT
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 13:         result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 13:         result = 255
 	LDA #$FF
 	STA _RESULT
 __ZAP_endif_2:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 17:     while my_long
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 17:     while my_long
 __ZAP_while_4:
 	LDA _MAIN$MY_LONG
 	ORA _MAIN$MY_LONG+1
 	ORA _MAIN$MY_LONG+2
 	ORA _MAIN$MY_LONG+3
 	BEQ __ZAP_endwhile_5
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 18:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 18:         result = result + 1
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 19:         my_long = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 19:         my_long = 0
 	LDA #$00
 	STA _MAIN$MY_LONG
 	STA _MAIN$MY_LONG+1
@@ -94,14 +94,14 @@ __ZAP_while_4:
 	STA _MAIN$MY_LONG+3
 	JMP __ZAP_while_4
 __ZAP_endwhile_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 23:     my_long = 65536
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 23:     my_long = 65536
 	LDA #$00
 	STA _MAIN$MY_LONG
 	STA _MAIN$MY_LONG+1
 	STA _MAIN$MY_LONG+3
 	LDA #$01
 	STA _MAIN$MY_LONG+2
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 24:     for my_long = my_long to end_val step 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 24:     for my_long = my_long to end_val step 1
 __ZAP_while_7:
 	LDA _MAIN$MY_LONG+3
 	CMP _MAIN$END_VAL+3
@@ -116,7 +116,7 @@ __ZAP_while_7:
 	CMP _MAIN$END_VAL
 __ZAP_CMP32_DECIDE_10:
 	BCS __ZAP_endwhile_8
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 25:         for_count = for_count + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 25:         for_count = for_count + 1
 	INC _MAIN$FOR_COUNT
 	INC _MAIN$MY_LONG
 	BNE __ZAP_while_7
@@ -127,14 +127,14 @@ __ZAP_CMP32_DECIDE_10:
 	INC _MAIN$MY_LONG+3
 	JMP __ZAP_while_7
 __ZAP_endwhile_8:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 27:     if for_count == 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 27:     if for_count == 4
 	LDA _MAIN$FOR_COUNT
 	CMP #$04
 	BNE __ZAP_else_12
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 28:         result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 28:         result = result + 1
 	INC _RESULT
 __ZAP_else_12:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 32:     switch switch_val
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 32:     switch switch_val
 	LDA _MAIN$SWITCH_VAL+3
 	BNE __ZAP_switch_next_20
 	LDA _MAIN$SWITCH_VAL+2
@@ -156,18 +156,18 @@ __ZAP_switch_next_20:
 	BNE __ZAP_case_18
 	JMP __ZAP_case_17
 __ZAP_case_16:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 34:             result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 34:             result = 255
 	LDA #$FF
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 35:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 35:             break
 	JMP __ZAP_endswitch_15
 __ZAP_case_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 37:             result = result + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 37:             result = result + 1
 	INC _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 38:             break
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 38:             break
 	JMP __ZAP_endswitch_15
 __ZAP_case_18:
-; /home/dusan/src/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 40:             result = 255
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/138-long-control-flow/138-long-control-flow.zap 40:             result = 255
 	LDA #$FF
 	STA _RESULT
 __ZAP_endswitch_15:

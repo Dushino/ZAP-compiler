@@ -21,7 +21,7 @@ __LVSLOT_2:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -35,18 +35,18 @@ _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
 _MAIN$DIFF              = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 4:     byte a = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 4:     byte a = 100
 	LDA #$64
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 5:     byte b = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 5:     byte b = 50
 	LDA #$32
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 9:     byte diff = a - b       ; 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 9:     byte diff = a - b       ; 50
 	LDA _MAIN$A
 	SEC
 	SBC _MAIN$B
 	STA _MAIN$DIFF
-; /home/dusan/src/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 12:     result = diff           ; Store diff = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/018-arithmetic-operators/018-arithmetic-operators.zap 12:     result = diff           ; Store diff = 50
 	STA _RESULT
 	RTS
 

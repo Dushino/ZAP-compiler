@@ -34,10 +34,10 @@ __LVSLOT_1:	.res 15
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 1: byte result1 @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 1: byte result1 @40000 = 0
 	LDA #$00
 	STA _RESULT1
-; /home/dusan/src/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 2: byte result2 @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 2: byte result2 @40001 = 0
 	STA _RESULT2
 ; Call MAIN
 	JSR _MAIN
@@ -49,7 +49,7 @@ __LVSLOT_1:	.res 15
 _MAIN:
 _MAIN$STR1              = __LVSLOT_1
 _MAIN$STR2              = __BSSSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 5:     byte str1[15] = "ZAPA"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 5:     byte str1[15] = "ZAPA"
 	LDA #<__STR_DATA_1
 	LDX #>__STR_DATA_1
 	STA __TMP0
@@ -60,7 +60,7 @@ _MAIN$STR2              = __BSSSLOT_2
 	STX __TMP2+1
 	LDX #5
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 6:     byte str2[4] = "ZAP"
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 6:     byte str2[4] = "ZAP"
 	LDA #<__STR_DATA_2
 	LDX #>__STR_DATA_2
 	STA __TMP0
@@ -71,10 +71,10 @@ _MAIN$STR2              = __BSSSLOT_2
 	STX __TMP2+1
 	LDX #4
 	JSR __COPY_BYTES
-; /home/dusan/src/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 8:     result1 = str1[0]  ; Expect 'Z' (90)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 8:     result1 = str1[0]  ; Expect 'Z' (90)
 	LDA _MAIN$STR1+0
 	STA _RESULT1
-; /home/dusan/src/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 9:     result2 = str2[1]  ; Expect 'A' (65)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/059-string-literals/059-string-literals.zap 9:     result2 = str2[1]  ; Expect 'A' (65)
 	LDA _MAIN$STR2+1
 	STA _RESULT2
 	RTS

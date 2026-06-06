@@ -33,22 +33,22 @@ __LVSLOT_8:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 4: byte out0 @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 4: byte out0 @40000 = 0
 	LDA #$00
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 5: byte out1 @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 5: byte out1 @40001 = 0
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 6: byte out2 @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 6: byte out2 @40002 = 0
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 7: byte out3 @40003 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 7: byte out3 @40003 = 0
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 8: byte out4 @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 8: byte out4 @40004 = 0
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 9: byte out5 @40005 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 9: byte out5 @40005 = 0
 	STA _OUT5
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 10: byte out6 @40006 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 10: byte out6 @40006 = 0
 	STA _OUT6
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 11: byte out7 @40007 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 11: byte out7 @40007 = 0
 	STA _OUT7
 ; Call MAIN
 	JSR _MAIN
@@ -60,10 +60,10 @@ __LVSLOT_8:	.res 2
 _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 17:     a = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 17:     a = 7
 	LDA #$07
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 18:     b = a * 3      ; 7 * 3  = 21 = $15
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 18:     b = a * 3      ; 7 * 3  = 21 = $15
 	STA __TMP3
 	LDA #$00
 	STA __TMP4
@@ -87,12 +87,12 @@ __ZAP_SHIFTADD_CARRY_2:
 __ZAP_SHIFTADD_CARRY_3:
 	LDX __TMP4+1
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 19:     out0 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 19:     out0 = b
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 21:     a = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 21:     a = 5
 	LDA #$05
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 22:     b = a * 5      ; 5 * 5  = 25 = $19
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 22:     b = a * 5      ; 5 * 5  = 25 = $19
 	STA __TMP3
 	LDA #$00
 	STA __TMP4
@@ -120,12 +120,12 @@ __ZAP_SHIFTADD_CARRY_6:
 __ZAP_SHIFTADD_CARRY_7:
 	LDX __TMP4+1
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 23:     out1 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 23:     out1 = b
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 25:     a = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 25:     a = 4
 	LDA #$04
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 26:     b = a * 6      ; 4 * 6  = 24 = $18
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 26:     b = a * 6      ; 4 * 6  = 24 = $18
 	STA __TMP3
 	LDA #$00
 	STA __TMP4
@@ -153,12 +153,12 @@ __ZAP_SHIFTADD_CARRY_10:
 __ZAP_SHIFTADD_CARRY_11:
 	LDX __TMP4+1
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 27:     out2 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 27:     out2 = b
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 29:     a = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 29:     a = 3
 	LDA #$03
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 30:     b = a * 10     ; 3 * 10 = 30 = $1E
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 30:     b = a * 10     ; 3 * 10 = 30 = $1E
 	STA __TMP3
 	LDA #$00
 	STA __TMP4
@@ -190,12 +190,12 @@ __ZAP_SHIFTADD_CARRY_15:
 __ZAP_SHIFTADD_CARRY_16:
 	LDX __TMP4+1
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 31:     out3 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 31:     out3 = b
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 33:     a = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 33:     a = 2
 	LDA #$02
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 34:     b = a * 12     ; 2 * 12 = 24 = $18
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 34:     b = a * 12     ; 2 * 12 = 24 = $18
 	STA __TMP3
 	LDA #$00
 	STA __TMP4
@@ -227,12 +227,12 @@ __ZAP_SHIFTADD_CARRY_20:
 __ZAP_SHIFTADD_CARRY_21:
 	LDX __TMP4+1
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 35:     out4 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 35:     out4 = b
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 38:     a = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 38:     a = 6
 	LDA #$06
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 39:     b = 3 * a      ; 3 * 6  = 18 = $12
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 39:     b = 3 * a      ; 3 * 6  = 18 = $12
 	STA __TMP3
 	LDA #$00
 	STA __TMP4
@@ -256,26 +256,26 @@ __ZAP_SHIFTADD_CARRY_23:
 __ZAP_SHIFTADD_CARRY_24:
 	LDX __TMP4+1
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 40:     out5 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 40:     out5 = b
 	STA _OUT5
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 43:     a = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 43:     a = 7
 	LDA #$07
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 44:     b = a * 4      ; 7 * 4  = 28 = $1C
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 44:     b = a * 4      ; 7 * 4  = 28 = $1C
 	ASL
 	ASL
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 45:     out6 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 45:     out6 = b
 	STA _OUT6
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 47:     a = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 47:     a = 7
 	LDA #$07
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 48:     b = a * 8      ; 7 * 8  = 56 = $38
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 48:     b = a * 8      ; 7 * 8  = 56 = $38
 	ASL
 	ASL
 	ASL
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 49:     out7 = b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 49:     out7 = b
 	STA _OUT7
 	RTS
 

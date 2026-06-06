@@ -22,7 +22,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/062-constants/062-constants.zap 2: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/062-constants/062-constants.zap 2: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,10 +34,10 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/062-constants/062-constants.zap 5:     byte x = MAX_VALUE
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/062-constants/062-constants.zap 5:     byte x = MAX_VALUE
 	LDA #$64
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/062-constants/062-constants.zap 6:     result = x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/062-constants/062-constants.zap 6:     result = x
 	STA _RESULT
 	RTS
 

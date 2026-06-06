@@ -22,7 +22,7 @@ __LVSLOT_3:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,20 +36,20 @@ _MAIN:
 _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
 _MAIN$SUM               = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 4:     byte a = 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 4:     byte a = 100
 	LDA #$64
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 5:     byte b = 50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 5:     byte b = 50
 	LDA #$32
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 6:     byte sum = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 6:     byte sum = 0
 	LDA #$00
-; /home/dusan/src/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 8:     sum = a + b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 8:     sum = a + b
 	LDA _MAIN$A
 	CLC
 	ADC _MAIN$B
 	STA _MAIN$SUM
-; /home/dusan/src/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 9:     result = sum
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/016-comparison-operators/016-comparison-operators.zap 9:     result = sum
 	STA _RESULT
 	RTS
 

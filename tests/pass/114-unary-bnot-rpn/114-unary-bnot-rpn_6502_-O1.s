@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -33,22 +33,22 @@ __LVSLOT_1:	.res 1
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
 _MAIN$Y                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 4:     byte x = 0x0F  ; 0000 1111 in binary
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 4:     byte x = 0x0F  ; 0000 1111 in binary
 	LDA #$0F
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 5:     byte y = ~x    ; Should be 1111 0000 = 0xF0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 5:     byte y = ~x    ; Should be 1111 0000 = 0xF0
 	LDX #$00
 	EOR #$FF
 	STA _MAIN$Y
-; /home/dusan/src/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 6:     if y == 0xF0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 6:     if y == 0xF0
 	CMP #$F0
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 7:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 7:         result = 1
 	LDA #$01
 	STA _RESULT
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 9:         result = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/114-unary-bnot-rpn/114-unary-bnot-rpn.zap 9:         result = 0
 	LDA #$00
 	STA _RESULT
 __ZAP_endif_2:

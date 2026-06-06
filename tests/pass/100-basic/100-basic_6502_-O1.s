@@ -23,7 +23,7 @@ _C:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/100-basic/100-basic.zap 7: byte c = Color.GREEN
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/100-basic/100-basic.zap 7: byte c = Color.GREEN
 	LDA #$01
 	STA _C
 ; Call MAIN
@@ -34,10 +34,10 @@ _C:	.res 1
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/100-basic/100-basic.zap 11:     byte x @40000 = Color.BLUE
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/100-basic/100-basic.zap 11:     byte x @40000 = Color.BLUE
 	LDA #$02
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/100-basic/100-basic.zap 12:     arr[Color.RED] = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/100-basic/100-basic.zap 12:     arr[Color.RED] = 1
 	LDA #$00
 	TAX
 	CLC
@@ -49,7 +49,7 @@ _MAIN:
 	LDA #$01
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/100-basic/100-basic.zap 13:     arr[Color.GREEN] = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/100-basic/100-basic.zap 13:     arr[Color.GREEN] = 2
 	CLC
 	ADC #<_ARR
 	STA __TMP0
@@ -58,7 +58,7 @@ _MAIN:
 	STA __TMP0+1
 	LDA #$02
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/100-basic/100-basic.zap 14:     arr[Color.BLUE] = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/100-basic/100-basic.zap 14:     arr[Color.BLUE] = 3
 	CLC
 	ADC #<_ARR
 	STA __TMP0

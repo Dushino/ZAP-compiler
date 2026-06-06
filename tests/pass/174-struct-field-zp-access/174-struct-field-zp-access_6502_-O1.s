@@ -32,7 +32,7 @@ __LVSLOT_3:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 18: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 18: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -46,7 +46,7 @@ _MAIN:
 _MAIN$PTS               = __LVSLOT_1
 _MAIN$PP                = __LVSLOT_2
 _MAIN$R                 = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 38:     pts[2].x = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 38:     pts[2].x = 10
 	LDA #$04
 	LDX #$00
 	CLC
@@ -58,7 +58,7 @@ _MAIN$R                 = __LVSLOT_3
 	LDA #$0A
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 39:     pts[2].y = 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 39:     pts[2].y = 20
 	LDA #$04
 	CLC
 	ADC #<_MAIN$PTS
@@ -69,7 +69,7 @@ _MAIN$R                 = __LVSLOT_3
 	LDA #$14
 	LDY #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 40:     if pts[2].x == 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 40:     if pts[2].x == 10
 	LDA #$04
 	CLC
 	ADC #<_MAIN$PTS
@@ -81,10 +81,10 @@ _MAIN$R                 = __LVSLOT_3
 	LDA (__TMP0),Y
 	CMP #$0A
 	BNE __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 41:         result = result + 1     ; 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 41:         result = result + 1     ; 1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 43:     if pts[2].y == 20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 43:     if pts[2].y == 20
 	LDA #$04
 	LDX #$00
 	CLC
@@ -97,51 +97,51 @@ __ZAP_else_1:
 	LDA (__TMP0),Y
 	CMP #$14
 	BNE __ZAP_else_4
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 44:         result = result + 1     ; 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 44:         result = result + 1     ; 2
 	INC _RESULT
 __ZAP_else_4:
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 48:     pp = @pts[1]
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 48:     pp = @pts[1]
 	LDA #<(_MAIN$PTS+2)
 	LDX #>(_MAIN$PTS+2)
 	STA _MAIN$PP
 	STX _MAIN$PP+1
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 49:     pp^.x = 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 49:     pp^.x = 30
 	LDA #$1E
 	LDY #$00
 	STA (_MAIN$PP),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 50:     pp^.y = 40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 50:     pp^.y = 40
 	LDA #$28
 	LDY #$01
 	STA (_MAIN$PP),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 51:     if pp^.x == 30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 51:     if pp^.x == 30
 	LDY #$00
 	LDA (_MAIN$PP),Y
 	CMP #$1E
 	BNE __ZAP_else_7
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 52:         result = result + 1     ; 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 52:         result = result + 1     ; 3
 	INC _RESULT
 __ZAP_else_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 54:     if pp^.y == 40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 54:     if pp^.y == 40
 	LDY #$01
 	LDA (_MAIN$PP),Y
 	CMP #$28
 	BNE __ZAP_else_10
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 55:         result = result + 1     ; 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 55:         result = result + 1     ; 4
 	INC _RESULT
 __ZAP_else_10:
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 59:     r.x0 = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 59:     r.x0 = 5
 	LDA #$05
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 60:     r.y0 = 6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 60:     r.y0 = 6
 	LDA #$06
 	STA _MAIN$R+1
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 61:     r.x1 = 7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 61:     r.x1 = 7
 	LDA #$07
 	STA _MAIN$R+2
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 62:     r.y1 = 8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 62:     r.y1 = 8
 	LDA #$08
 	STA _MAIN$R+3
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 63:     if r.x0 + r.y0 + r.x1 + r.y1 == 26
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 63:     if r.x0 + r.y0 + r.x1 + r.y1 == 26
 	LDA _MAIN$R
 	LDX #$00
 	STA __TMP1
@@ -158,7 +158,7 @@ __ZAP_else_10:
 	ADC __TMP1
 	CMP #$1A
 	BNE __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 64:         result = result + 1     ; 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 64:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
 	RTS

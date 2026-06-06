@@ -22,7 +22,7 @@ __LVSLOT_3:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -34,10 +34,10 @@ __LVSLOT_3:	.res 4
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$X                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 4:     byte x = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 4:     byte x = 5
 	LDA #$05
 	STA _MAIN$X
-; /home/dusan/src/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 5:     if !x
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 5:     if !x
 	BNE __ZAP_NOT_NONZERO_4
 	LDA #$01
 	JMP __ZAP_NOT_END_5
@@ -46,12 +46,12 @@ __ZAP_NOT_NONZERO_4:
 __ZAP_NOT_END_5:
 	STA __MATH0
 	BEQ __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 6:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 6:         result = 1
 	LDA #$01
 	STA _RESULT
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 8:         result = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/113-unary-not-rpn/113-unary-not-rpn.zap 8:         result = 0
 	LDA #$00
 	STA _RESULT
 __ZAP_endif_2:

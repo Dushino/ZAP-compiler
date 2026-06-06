@@ -20,7 +20,7 @@ __LVSLOT_1:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/047-shift-operations/047-shift-operations.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/047-shift-operations/047-shift-operations.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -32,10 +32,10 @@ __LVSLOT_1:	.res 1
 ; -- Procedure MAIN --
 _MAIN:
 _MAIN$SHIFT             = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/047-shift-operations/047-shift-operations.zap 4:     byte shift = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/047-shift-operations/047-shift-operations.zap 4:     byte shift = 5
 	LDA #$05
 	STA _MAIN$SHIFT
-; /home/dusan/src/ZAP-compiler/tests/pass/047-shift-operations/047-shift-operations.zap 5:     result = shift + shift
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/047-shift-operations/047-shift-operations.zap 5:     result = shift + shift
 	CLC
 	ADC _MAIN$SHIFT
 	STA _RESULT

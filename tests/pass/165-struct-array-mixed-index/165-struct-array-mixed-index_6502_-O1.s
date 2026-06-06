@@ -37,18 +37,18 @@ __LVSLOT_9:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 47: byte out0 @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 47: byte out0 @40000 = 0
 	LDA #$00
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 48: byte out1 @40001 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 48: byte out1 @40001 = 0
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 49: byte out2 @40002 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 49: byte out2 @40002 = 0
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 50: byte out3 @40003 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 50: byte out3 @40003 = 0
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 51: byte out4 @40004 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 51: byte out4 @40004 = 0
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 52: byte out5 @40005 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 52: byte out5 @40005 = 0
 	STA _OUT5
 ; Call MAIN
 	JSR _MAIN
@@ -61,7 +61,7 @@ _MAIN:
 _MAIN$I                 = __LVSLOT_1
 _MAIN$__SBM_1           = __LVSLOT_2
 _MAIN$__SBM_2           = __LVSLOT_2
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 58:     arr3[0].a = $10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 58:     arr3[0].a = $10
 	LDA #$00
 	TAX
 	CLC
@@ -73,7 +73,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	LDA #$10
 	LDY #$00
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 59:     arr3[1].a = $20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 59:     arr3[1].a = $20
 	LDA #$03
 	CLC
 	ADC #<_ARR3
@@ -83,7 +83,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$20
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 60:     arr3[2].a = $30
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 60:     arr3[2].a = $30
 	LDA #$06
 	CLC
 	ADC #<_ARR3
@@ -93,7 +93,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$30
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 61:     arr3[3].a = $40
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 61:     arr3[3].a = $40
 	LDA #$09
 	CLC
 	ADC #<_ARR3
@@ -103,7 +103,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$40
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 62:     arr3[4].a = $50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 62:     arr3[4].a = $50
 	LDA #$0C
 	CLC
 	ADC #<_ARR3
@@ -113,10 +113,10 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$50
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 63:     i = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 63:     i = 1
 	LDA #$01
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 64:     out0 = arr3[i].a    ; expect $20
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 64:     out0 = arr3[i].a    ; expect $20
 	STA __TMP3
 	TXA
 	STA __TMP4
@@ -141,10 +141,10 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA _MAIN$__SBM_1+1
 	LDA (__TMP0),Y
 	STA _OUT0
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 65:     i = 4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 65:     i = 4
 	LDA #$04
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 66:     out1 = arr3[i].a    ; expect $50
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 66:     out1 = arr3[i].a    ; expect $50
 	STA __TMP3
 	TXA
 	STA __TMP4
@@ -169,7 +169,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA _MAIN$__SBM_1+1
 	LDA (__TMP0),Y
 	STA _OUT1
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 69:     arr5[0].a = $11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 69:     arr5[0].a = $11
 	TXA
 	CLC
 	ADC #<_ARR5
@@ -179,7 +179,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$11
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 70:     arr5[1].a = $22
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 70:     arr5[1].a = $22
 	LDA #$05
 	CLC
 	ADC #<_ARR5
@@ -189,7 +189,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$22
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 71:     arr5[2].a = $33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 71:     arr5[2].a = $33
 	LDA #$0A
 	CLC
 	ADC #<_ARR5
@@ -199,7 +199,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$33
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 72:     arr5[3].a = $44
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 72:     arr5[3].a = $44
 	LDA #$0F
 	CLC
 	ADC #<_ARR5
@@ -209,10 +209,10 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$44
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 73:     i = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 73:     i = 2
 	LDA #$02
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 74:     out2 = arr5[i].a    ; expect $33
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 74:     out2 = arr5[i].a    ; expect $33
 	STA __TMP3
 	TXA
 	STA __TMP4
@@ -234,7 +234,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA (__TMP0),Y
 	STA _OUT2
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 77:     arr6[0].a = $AA
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 77:     arr6[0].a = $AA
 	TXA
 	CLC
 	ADC #<_ARR6
@@ -244,7 +244,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$AA
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 78:     arr6[1].a = $BB
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 78:     arr6[1].a = $BB
 	LDA #$06
 	CLC
 	ADC #<_ARR6
@@ -254,7 +254,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$BB
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 79:     arr6[2].a = $CC
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 79:     arr6[2].a = $CC
 	LDA #$0C
 	CLC
 	ADC #<_ARR6
@@ -264,7 +264,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$CC
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 80:     arr6[3].a = $DD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 80:     arr6[3].a = $DD
 	LDA #$12
 	CLC
 	ADC #<_ARR6
@@ -274,10 +274,10 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$DD
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 81:     i = 3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 81:     i = 3
 	LDA #$03
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 82:     out3 = arr6[i].a    ; expect $DD
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 82:     out3 = arr6[i].a    ; expect $DD
 	STA __TMP3
 	TXA
 	STA __TMP4
@@ -299,7 +299,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA (__TMP0),Y
 	STA _OUT3
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 85:     arr12[0].f0 = $01
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 85:     arr12[0].f0 = $01
 	TXA
 	CLC
 	ADC #<_ARR12
@@ -309,7 +309,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$01
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 86:     arr12[1].f0 = $02
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 86:     arr12[1].f0 = $02
 	LDA #$0C
 	CLC
 	ADC #<_ARR12
@@ -319,7 +319,7 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$02
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 87:     arr12[2].f0 = $03
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 87:     arr12[2].f0 = $03
 	LDA #$18
 	CLC
 	ADC #<_ARR12
@@ -329,10 +329,10 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA __TMP0+1
 	LDA #$03
 	STA (__TMP0),Y
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 88:     i = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 88:     i = 1
 	LDA #$01
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 89:     out4 = arr12[i].f0  ; expect $02
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 89:     out4 = arr12[i].f0  ; expect $02
 	STA __TMP3
 	TXA
 	STA __TMP4
@@ -359,10 +359,10 @@ _MAIN$__SBM_2           = __LVSLOT_2
 	STA _MAIN$__SBM_2+1
 	LDA (__TMP0),Y
 	STA _OUT4
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 90:     i = 2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 90:     i = 2
 	LDA #$02
 	STA _MAIN$I
-; /home/dusan/src/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 91:     out5 = arr12[i].f0  ; expect $03
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/165-struct-array-mixed-index/165-struct-array-mixed-index.zap 91:     out5 = arr12[i].f0  ; expect $03
 	STA __TMP3
 	TXA
 	STA __TMP4

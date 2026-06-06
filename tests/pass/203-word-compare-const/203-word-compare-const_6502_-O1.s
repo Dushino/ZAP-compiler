@@ -22,7 +22,7 @@ __LVSLOT_3:	.res 2
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 6: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 6: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,27 +36,27 @@ _MAIN:
 _MAIN$I                 = __LVSLOT_1
 _MAIN$COUNT             = __LVSLOT_2
 _MAIN$FOR_END_1         = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 10:     word count = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 10:     word count = 0
 	LDA #$00
 	STA _MAIN$COUNT
 	STA _MAIN$COUNT+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 14:     i = 256
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 14:     i = 256
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 15:     if i < 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 15:     if i < 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCS __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 16:         result += 1     ; +1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 16:         result += 1     ; +1
 	INC _RESULT
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 20:     i = 768
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 20:     i = 768
 	LDA #$00
 	STA _MAIN$I
 	LDA #$03
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 21:     if i < 767
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 21:     if i < 767
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_then_7
@@ -65,59 +65,59 @@ __ZAP_else_1:
 	CMP #$FF
 	BCS __ZAP_else_5
 __ZAP_then_7:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 22:         result += 100   ; should NOT happen
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 22:         result += 100   ; should NOT happen
 	LDA _RESULT
 	CLC
 	ADC #$64
 	STA _RESULT
 __ZAP_else_5:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 26:     i = 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 26:     i = 512
 	LDA #$00
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 27:     if i < 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 27:     if i < 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCS __ZAP_else_9
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 28:         result += 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 28:         result += 100
 	LDA _RESULT
 	CLC
 	ADC #$64
 	STA _RESULT
 __ZAP_else_9:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 32:     i = 511
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 32:     i = 511
 	LDA #$FF
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 33:     if i < 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 33:     if i < 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCS __ZAP_else_13
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 34:         result += 1     ; +2
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 34:         result += 1     ; +2
 	INC _RESULT
 __ZAP_else_13:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 39:     i = 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 39:     i = 512
 	LDA #$00
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 40:     if i <= 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 40:     if i <= 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_then_19
 	BNE __ZAP_else_17
 __ZAP_then_19:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 41:         result += 1     ; +3
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 41:         result += 1     ; +3
 	INC _RESULT
 __ZAP_else_17:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 45:     i = 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 45:     i = 512
 	LDA #$00
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 46:     if i <= 511
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 46:     if i <= 511
 	LDX _MAIN$I+1
 	CPX #$01
 	BCC __ZAP_then_22
@@ -127,32 +127,32 @@ __ZAP_else_17:
 	BCC __ZAP_then_22
 	BNE __ZAP_else_20
 __ZAP_then_22:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 47:         result += 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 47:         result += 100
 	LDA _RESULT
 	CLC
 	ADC #$64
 	STA _RESULT
 __ZAP_else_20:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 51:     i = 511
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 51:     i = 511
 	LDA #$FF
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 52:     if i <= 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 52:     if i <= 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_then_26
 	BNE __ZAP_else_24
 __ZAP_then_26:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 53:         result += 1     ; +4
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 53:         result += 1     ; +4
 	INC _RESULT
 __ZAP_else_24:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 58:     i = 768
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 58:     i = 768
 	LDA #$00
 	STA _MAIN$I
 	LDA #$03
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 59:     if i > 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 59:     if i > 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_27
@@ -160,15 +160,15 @@ __ZAP_else_24:
 	LDA _MAIN$I
 	BEQ __ZAP_else_27
 __ZAP_then_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 60:         result += 1     ; +5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 60:         result += 1     ; +5
 	INC _RESULT
 __ZAP_else_27:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 64:     i = 256
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 64:     i = 256
 	LDA #$00
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 65:     if i > 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 65:     if i > 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_31
@@ -176,18 +176,18 @@ __ZAP_else_27:
 	LDA _MAIN$I
 	BEQ __ZAP_else_31
 __ZAP_then_33:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 66:         result += 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 66:         result += 100
 	LDA _RESULT
 	CLC
 	ADC #$64
 	STA _RESULT
 __ZAP_else_31:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 70:     i = 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 70:     i = 512
 	LDA #$00
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 71:     if i > 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 71:     if i > 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_35
@@ -195,18 +195,18 @@ __ZAP_else_31:
 	LDA _MAIN$I
 	BEQ __ZAP_else_35
 __ZAP_then_37:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 72:         result += 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 72:         result += 100
 	LDA _RESULT
 	CLC
 	ADC #$64
 	STA _RESULT
 __ZAP_else_35:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 76:     i = 513
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 76:     i = 513
 	LDA #$01
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 77:     if i > 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 77:     if i > 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_39
@@ -214,82 +214,82 @@ __ZAP_else_35:
 	LDA _MAIN$I
 	BEQ __ZAP_else_39
 __ZAP_then_41:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 78:         result += 1     ; +6
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 78:         result += 1     ; +6
 	INC _RESULT
 __ZAP_else_39:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 83:     i = 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 83:     i = 512
 	LDA #$00
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 84:     if i >= 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 84:     if i >= 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_43
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 85:         result += 1     ; +7
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 85:         result += 1     ; +7
 	INC _RESULT
 __ZAP_else_43:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 89:     i = 256
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 89:     i = 256
 	LDA #$00
 	STA _MAIN$I
 	LDA #$01
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 90:     if i >= 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 90:     if i >= 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_46
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 91:         result += 100
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 91:         result += 100
 	LDA _RESULT
 	CLC
 	ADC #$64
 	STA _RESULT
 __ZAP_else_46:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 95:     i = 513
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 95:     i = 513
 	LDA #$01
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 96:     if i >= 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 96:     if i >= 512
 	LDX _MAIN$I+1
 	CPX #$02
 	BCC __ZAP_else_49
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 97:         result += 1     ; +8
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 97:         result += 1     ; +8
 	INC _RESULT
 __ZAP_else_49:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 102:     i = 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 102:     i = 512
 	LDA #$00
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 103:     if i == 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 103:     if i == 512
 	LDA _MAIN$I
 	BNE __ZAP_else_52
 	LDX _MAIN$I+1
 	CPX #$02
 	BNE __ZAP_else_52
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 104:         result += 1     ; +9
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 104:         result += 1     ; +9
 	INC _RESULT
 __ZAP_else_52:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 108:     i = 513
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 108:     i = 513
 	LDA #$01
 	STA _MAIN$I
 	LDA #$02
 	STA _MAIN$I+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 109:     if i != 512
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 109:     if i != 512
 	LDA _MAIN$I
 	BNE __ZAP_then_58
 	LDX _MAIN$I+1
 	CPX #$02
 	BEQ __ZAP_else_56
 __ZAP_then_58:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 110:         result += 1     ; +10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 110:         result += 1     ; +10
 	INC _RESULT
 __ZAP_else_56:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 115:     count = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 115:     count = 0
 	LDA #$00
 	STA _MAIN$COUNT
 	STA _MAIN$COUNT+1
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 116:     for i = 0 to 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 116:     for i = 0 to 300
 	STA _MAIN$I
 	STA _MAIN$I+1
 	LDA #$2C
@@ -305,7 +305,7 @@ __ZAP_while_59:
 	CMP _MAIN$FOR_END_1
 	BCS __ZAP_endwhile_60
 __ZAP_while_body_61:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 117:         count += 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 117:         count += 1
 	INC _MAIN$COUNT
 	BNE __ZAP_INC_WORD_63
 	INC _MAIN$COUNT+1
@@ -315,14 +315,14 @@ __ZAP_INC_WORD_63:
 	INC _MAIN$I+1
 	JMP __ZAP_while_59
 __ZAP_endwhile_60:
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 119:     if count == 300
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 119:     if count == 300
 	LDA _MAIN$COUNT
 	CMP #$2C
 	BNE __ZAP_else_65
 	LDX _MAIN$COUNT+1
 	CPX #$01
 	BNE __ZAP_else_65
-; /home/dusan/src/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 120:         result += 1     ; +11
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/203-word-compare-const/203-word-compare-const.zap 120:         result += 1     ; +11
 	INC _RESULT
 __ZAP_else_65:
 	RTS

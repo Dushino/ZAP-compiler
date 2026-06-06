@@ -25,7 +25,7 @@ __LVSLOT_3:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -36,10 +36,10 @@ __LVSLOT_3:	.res 4
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 4:     byte expr @40001 = ((1 + 2) * (3 + 4)) - ((5 - 2) * 2)   ; 3*7 - 3*2 = 21 - 6 = 15
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 4:     byte expr @40001 = ((1 + 2) * (3 + 4)) - ((5 - 2) * 2)   ; 3*7 - 3*2 = 21 - 6 = 15
 	LDA #$0F
 	STA _MAIN$EXPR
-; /home/dusan/src/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 6:     if ((expr > 5) && (expr < 20)) || (expr == 0) 
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 6:     if ((expr > 5) && (expr < 20)) || (expr == 0) 
 	CMP #$05
 	BCC __ZAP_CMP_END_5
 	BNE __ZAP_CMP_TRUE_4
@@ -93,12 +93,12 @@ __ZAP_OR_ONE_12:
 __ZAP_OR_END_13:
 	STA __MATH0
 	BEQ __ZAP_else_1
-; /home/dusan/src/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 7:         result = 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 7:         result = 1
 	LDA #$01
 	STA _RESULT
 	JMP __ZAP_endif_2
 __ZAP_else_1:
-; /home/dusan/src/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 9:         result = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/063-expressions-complex/063-expressions-complex.zap 9:         result = 0
 	LDA #$00
 	STA _RESULT
 __ZAP_endif_2:

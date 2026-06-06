@@ -28,7 +28,7 @@ __LVSLOT_6:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 1: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 1: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -43,16 +43,16 @@ _MAIN$A                 = __LVSLOT_1
 _MAIN$B                 = __LVSLOT_2
 _MAIN$C                 = __LVSLOT_3
 _MAIN$R                 = __LVSLOT_1
-; /home/dusan/src/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 4:     byte a = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 4:     byte a = 5
 	LDA #$05
 	STA _MAIN$A
-; /home/dusan/src/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 5:     byte b = 10
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 5:     byte b = 10
 	LDA #$0A
 	STA _MAIN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 6:     byte c = 5
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 6:     byte c = 5
 	LDA #$05
 	STA _MAIN$C
-; /home/dusan/src/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 8:     byte r = ((a < b) && (b < c)) || (a == c)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 8:     byte r = ((a < b) && (b < c)) || (a == c)
 	LDA _MAIN$A
 	CMP _MAIN$B
 	BCC __ZAP_CMP_TRUE_1
@@ -109,7 +109,7 @@ __ZAP_OR_END_10:
 	STA __MATH0
 	LDX #$00
 	STA _MAIN$R
-; /home/dusan/src/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 9:     result = r
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/112-mixed-logical-rpn/112-mixed-logical-rpn.zap 9:     result = r
 	STA _RESULT
 	RTS
 

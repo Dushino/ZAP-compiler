@@ -19,7 +19,7 @@ _HELPER$A:	.res 1
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/077-static/077-static.zap 4: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/077-static/077-static.zap 4: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 	LDA #$01
@@ -32,9 +32,9 @@ _HELPER$A:	.res 1
 ; ---------------------------------------------------------------------------
 ; -- Function HELPER --
 _HELPER:
-; /home/dusan/src/ZAP-compiler/tests/pass/077-static/077-static.zap 9:     a = a + 1
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/077-static/077-static.zap 9:     a = a + 1
 	INC _HELPER$A
-; /home/dusan/src/ZAP-compiler/tests/pass/077-static/077-static.zap 10:     return a
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/077-static/077-static.zap 10:     return a
 	LDA _HELPER$A
 	RTS
 
@@ -42,13 +42,13 @@ _HELPER:
 ; ---------------------------------------------------------------------------
 ; -- Procedure MAIN --
 _MAIN:
-; /home/dusan/src/ZAP-compiler/tests/pass/077-static/077-static.zap 15:     result = helper()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/077-static/077-static.zap 15:     result = helper()
 	JSR _HELPER
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/077-static/077-static.zap 16:     result = helper()
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/077-static/077-static.zap 16:     result = helper()
 	JSR _HELPER
 	STA _RESULT
-; /home/dusan/src/ZAP-compiler/tests/pass/077-static/077-static.zap 17:     result = helper()    
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/077-static/077-static.zap 17:     result = helper()    
 	JSR _HELPER
 	STA _RESULT
 	RTS

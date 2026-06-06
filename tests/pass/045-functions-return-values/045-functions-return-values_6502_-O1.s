@@ -27,7 +27,7 @@ __LVSLOT_6:	.res 4
 
 .segment "CODE"
 ; Globals initialization
-; /home/dusan/src/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 9: byte result @40000 = 0
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 9: byte result @40000 = 0
 	LDA #$00
 	STA _RESULT
 ; Call MAIN
@@ -41,7 +41,7 @@ _LO:
 _LO$W                   = __LVSLOT_3
 	STA _LO$W
 	STX _LO$W+1
-; /home/dusan/src/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 2:     return w
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 2:     return w
 	RTS
 
 
@@ -50,7 +50,7 @@ _LO$W                   = __LVSLOT_3
 _WIDEN:
 _WIDEN$B                = __LVSLOT_2
 	STA _WIDEN$B
-; /home/dusan/src/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 6:     return b
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 6:     return b
 	LDX #$00
 	RTS
 
@@ -60,17 +60,17 @@ _WIDEN$B                = __LVSLOT_2
 _MAIN:
 _MAIN$R1                = __LVSLOT_1
 _MAIN$W1                = __LVSLOT_3
-; /home/dusan/src/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 12:     byte r1 = lo($12ab)       ; low byte expected $ab
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 12:     byte r1 = lo($12ab)       ; low byte expected $ab
 	LDA #$AB
 	LDX #$12
 	JSR _LO
 	STA _MAIN$R1
-; /home/dusan/src/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 13:     word w1 = widen(1)
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 13:     word w1 = widen(1)
 	LDA #$01
 	JSR _WIDEN
 	STA _MAIN$W1
 	STX _MAIN$W1+1
-; /home/dusan/src/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 14:     result = r1 + w1          ; $ab + 1 -> $ac
+; /home/dusan/src/Ex65C02SBC_G3/ZAP-compiler/tests/pass/045-functions-return-values/045-functions-return-values.zap 14:     result = r1 + w1          ; $ab + 1 -> $ac
 	LDA _MAIN$R1
 	STA __MATH0
 	LDA _MAIN$W1

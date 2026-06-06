@@ -111,11 +111,16 @@ class ModuleSystem:
         kept_line_nums = getattr(self.preprocessor, 'last_kept_line_numbers', None)
         if kept_line_nums is not None:
             # Iterate over original line numbers that were kept by the preprocessor
+            in_asm: bool = False
             for ln in kept_line_nums:
                 line = orig_lines[ln-1]
                 stripped: str = line.strip()
                 lower_stripped: str = stripped.lower()
-                if stripped.startswith('.module'):
+                if lower_stripped == 'asm':
+                    in_asm = True
+                elif lower_stripped == 'end' and in_asm:
+                    in_asm = False
+                if not in_asm and stripped.startswith('.module'):
                     # Extract module name from .module "filename" and validate quotes
                     is_module = True
                     # Find quotes in the original line to get accurate column
@@ -135,7 +140,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q+1:second_q]
                     module_directive_info = (ln, first_q+1, line)
-                elif stripped.startswith('.include'):
+                elif not in_asm and stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     parts: list[str] = line.split('"')
                     if len(parts) >= 2:
@@ -146,16 +151,21 @@ class ModuleSystem:
                         if first_q != -1:
                             include_directives[inc_name] = (ln, first_q+1, line)
                 else:
-                    # Keep non-directive lines for parsing
+                    # Keep non-directive lines for parsing (including all asm block content)
                     cleaned_lines.append(line)
                     cleaned_line_map.append(ln)
         else:
             # Fallback: operate on the processed_source lines (no kept mapping available)
             lines: list[str] = processed_source.split('\n')
+            in_asm = False
             for ln, line in enumerate(lines, start=1):
                 stripped: str = line.strip()
                 lower_stripped: str = stripped.lower()
-                if stripped.startswith('.module'):
+                if lower_stripped == 'asm':
+                    in_asm = True
+                elif lower_stripped == 'end' and in_asm:
+                    in_asm = False
+                if not in_asm and stripped.startswith('.module'):
                     # Extract module name from .module "filename" and validate quotes
                     is_module = True
                     # Find quotes in the original line to get accurate column
@@ -175,7 +185,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q+1:second_q]
                     module_directive_info = (ln, first_q+1, line)
-                elif stripped.startswith('.include'):
+                elif not in_asm and stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     # Capture the directive position so we can report errors at the include site
                     parts: list[str] = line.split('"')
@@ -188,11 +198,10 @@ class ModuleSystem:
                             if 'include_directives' not in locals():
                                 include_directives: dict[str, tuple[int, int, str]] = {}
                         include_directives[inc_name] = (ln, first_q+1, line)
-
-            else:
-                # Keep non-directive lines for parsing
-                cleaned_lines.append(line)
-                cleaned_line_map.append(ln)
+                else:
+                    # Keep non-directive lines for parsing (including all asm block content)
+                    cleaned_lines.append(line)
+                    cleaned_line_map.append(ln)
         
         # Parse the cleaned source
         cleaned_source: str = '\n'.join(cleaned_lines)
@@ -480,10 +489,16 @@ class ModuleSystem:
         kept_line_nums = getattr(self.preprocessor, 'last_kept_line_numbers', None)
 
         if kept_line_nums is not None:
+            in_asm: bool = False
             for ln in kept_line_nums:
                 line = orig_lines[ln - 1]
                 stripped: str = line.strip()
-                if stripped.startswith('.module'):
+                lower_stripped: str = stripped.lower()
+                if lower_stripped == 'asm':
+                    in_asm = True
+                elif lower_stripped == 'end' and in_asm:
+                    in_asm = False
+                if not in_asm and stripped.startswith('.module'):
                     is_module = True
                     first_q: int = line.find('"')
                     if first_q == -1:
@@ -499,16 +514,22 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q + 1:second_q]
                     module_directive_info = (ln, first_q + 1, line)
-                elif stripped.startswith('.include'):
+                elif not in_asm and stripped.startswith('.include'):
                     parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         first_q: int = line.find('"')
                         includes.append((parts[1], ln, first_q + 1 if first_q != -1 else 1))
         else:
             lines: list[str] = processed_source.split('\n')
+            in_asm = False
             for ln, line in enumerate(lines, start=1):
                 stripped: str = line.strip()
-                if stripped.startswith('.module'):
+                lower_stripped: str = stripped.lower()
+                if lower_stripped == 'asm':
+                    in_asm = True
+                elif lower_stripped == 'end' and in_asm:
+                    in_asm = False
+                if not in_asm and stripped.startswith('.module'):
                     is_module = True
                     first_q: int = line.find('"')
                     if first_q == -1:
@@ -524,7 +545,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q + 1:second_q]
                     module_directive_info = (ln, first_q + 1, line)
-                elif stripped.startswith('.include'):
+                elif not in_asm and stripped.startswith('.include'):
                     parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         first_q: int = line.find('"')
