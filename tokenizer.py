@@ -448,8 +448,32 @@ class Tokenizer:
                 # emit as DECLMOD so parser can recognize modifiers attached to PROC/FUNC
                 self._emit(TOK_DECLMOD, self.sline, self.scol, text.upper())
                 # #asm on a proc means the entire body is raw assembly — consume it now
-                # so the tokenizer never tries to parse ca65 syntax (e.g. lda #$FF)
+                # so the tokenizer never tries to parse ca65 syntax (e.g. lda #$FF).
+                # First, emit any remaining #MOD tokens on this line (e.g. #NOEXPORT after #asm)
+                # so the parser can process them; then skip to the next line before consuming.
                 if text.upper() == 'ASM':
+                    while self._peek() not in (None, '\n'):
+                        c = self._peek()
+                        if c is None or c.isspace():
+                            self._advance(1)
+                        elif c == '#':
+                            self._advance(1)  # skip '#'
+                            mod_start = self.pos
+                            while True:
+                                mc = self._peek()
+                                if mc is None or not (mc.isalpha() or mc.isdigit() or mc == '_'):
+                                    break
+                                self._advance(1)
+                            mod_text = self.src[mod_start:self.pos]
+                            if mod_text:
+                                self._emit(TOK_DECLMOD, self.sline, self.scol, mod_text.upper())
+                        elif c == ';':
+                            while self._peek() not in (None, '\n'):
+                                self._advance(1)
+                        else:
+                            self._advance(1)
+                    if self._peek() == '\n':
+                        self._advance(1)
                     self._consume_asm_block()
                 continue
 
