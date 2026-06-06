@@ -485,10 +485,11 @@ class Parser:
                 params.append(p)
         self.expect(TOK_RBRACE)
 
-        # Optional declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        # Optional declaration modifiers: #KEEP, #NOEXPORT, #EXPORT, #ASM
         keep = False
         noexport = False
         export = False
+        pure_asm = False
         while self.cur.type == TOK_DECLMOD:
             val: str = self.cur.value.upper()
             if val == 'KEEP':
@@ -497,9 +498,22 @@ class Parser:
                 noexport = True
             elif val == 'EXPORT':
                 export = True
+            elif val == 'ASM':
+                pure_asm = True
             else:
                 self.error(f"Unsupported declaration modifier '{val}'")
             self.advance()
+
+        # #asm proc: body was consumed by tokenizer as a raw ASM_BLOCK token
+        if pure_asm:
+            if self.cur.type != TOK_ASM_BLOCK:
+                self.error("Expected assembly body after #asm")
+            asm_body: str = self.cur.value
+            self.advance()
+            self.current_proc_name = None
+            return ProcDecl(name, params, [], [], keep=keep, noexport=noexport, export=export,
+                            pure_asm=True, asm_body=asm_body, line=start_line, col=start_col,
+                            filename=self.filename)
 
         def _is_declaration_start() -> bool:
             """Check if current position starts a declaration"""

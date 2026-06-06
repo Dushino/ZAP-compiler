@@ -447,6 +447,10 @@ class Tokenizer:
                 text: str = self.src[start:self.pos]
                 # emit as DECLMOD so parser can recognize modifiers attached to PROC/FUNC
                 self._emit(TOK_DECLMOD, self.sline, self.scol, text.upper())
+                # #asm on a proc means the entire body is raw assembly — consume it now
+                # so the tokenizer never tries to parse ca65 syntax (e.g. lda #$FF)
+                if text.upper() == 'ASM':
+                    self._consume_asm_block()
                 continue
 
             # compound assignment and two-char ops

@@ -112,6 +112,7 @@ class ModuleSystem:
         if kept_line_nums is not None:
             # Iterate over original line numbers that were kept by the preprocessor
             in_asm: bool = False
+            in_pure_asm_proc: bool = False
             for ln in kept_line_nums:
                 line = orig_lines[ln-1]
                 stripped: str = line.strip()
@@ -120,7 +121,12 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if not in_asm and stripped.startswith('.module'):
+                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                    in_pure_asm_proc = True
+                elif lower_stripped == 'end' and in_pure_asm_proc:
+                    in_pure_asm_proc = False
+                skip = in_asm or in_pure_asm_proc
+                if not skip and stripped.startswith('.module'):
                     # Extract module name from .module "filename" and validate quotes
                     is_module = True
                     # Find quotes in the original line to get accurate column
@@ -140,7 +146,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q+1:second_q]
                     module_directive_info = (ln, first_q+1, line)
-                elif not in_asm and stripped.startswith('.include'):
+                elif not skip and stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     parts: list[str] = line.split('"')
                     if len(parts) >= 2:
@@ -158,6 +164,7 @@ class ModuleSystem:
             # Fallback: operate on the processed_source lines (no kept mapping available)
             lines: list[str] = processed_source.split('\n')
             in_asm = False
+            in_pure_asm_proc = False
             for ln, line in enumerate(lines, start=1):
                 stripped: str = line.strip()
                 lower_stripped: str = stripped.lower()
@@ -165,7 +172,12 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if not in_asm and stripped.startswith('.module'):
+                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                    in_pure_asm_proc = True
+                elif lower_stripped == 'end' and in_pure_asm_proc:
+                    in_pure_asm_proc = False
+                skip = in_asm or in_pure_asm_proc
+                if not skip and stripped.startswith('.module'):
                     # Extract module name from .module "filename" and validate quotes
                     is_module = True
                     # Find quotes in the original line to get accurate column
@@ -185,7 +197,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q+1:second_q]
                     module_directive_info = (ln, first_q+1, line)
-                elif not in_asm and stripped.startswith('.include'):
+                elif not skip and stripped.startswith('.include'):
                     # Extract include filename from .include "filename"
                     # Capture the directive position so we can report errors at the include site
                     parts: list[str] = line.split('"')
@@ -348,7 +360,8 @@ class ModuleSystem:
                         if info is not None:
                             proc_src_map[new_name] = info
                 # Create new proc decl with modified flags and new name
-                new_p = ProcDecl(new_name, p.params, p.locals, p.body, keep=True, noexport=True, export=False)
+                new_p = ProcDecl(new_name, p.params, p.locals, p.body, keep=True, noexport=True, export=False,
+                                 pure_asm=getattr(p, 'pure_asm', False), asm_body=getattr(p, 'asm_body', ''))
                 new_procs.append(new_p)
             else:
                 new_procs.append(p)
@@ -490,6 +503,7 @@ class ModuleSystem:
 
         if kept_line_nums is not None:
             in_asm: bool = False
+            in_pure_asm_proc: bool = False
             for ln in kept_line_nums:
                 line = orig_lines[ln - 1]
                 stripped: str = line.strip()
@@ -498,7 +512,12 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if not in_asm and stripped.startswith('.module'):
+                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                    in_pure_asm_proc = True
+                elif lower_stripped == 'end' and in_pure_asm_proc:
+                    in_pure_asm_proc = False
+                skip = in_asm or in_pure_asm_proc
+                if not skip and stripped.startswith('.module'):
                     is_module = True
                     first_q: int = line.find('"')
                     if first_q == -1:
@@ -514,7 +533,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q + 1:second_q]
                     module_directive_info = (ln, first_q + 1, line)
-                elif not in_asm and stripped.startswith('.include'):
+                elif not skip and stripped.startswith('.include'):
                     parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         first_q: int = line.find('"')
@@ -522,6 +541,7 @@ class ModuleSystem:
         else:
             lines: list[str] = processed_source.split('\n')
             in_asm = False
+            in_pure_asm_proc = False
             for ln, line in enumerate(lines, start=1):
                 stripped: str = line.strip()
                 lower_stripped: str = stripped.lower()
@@ -529,7 +549,12 @@ class ModuleSystem:
                     in_asm = True
                 elif lower_stripped == 'end' and in_asm:
                     in_asm = False
-                if not in_asm and stripped.startswith('.module'):
+                if lower_stripped.startswith('proc') and '#asm' in lower_stripped:
+                    in_pure_asm_proc = True
+                elif lower_stripped == 'end' and in_pure_asm_proc:
+                    in_pure_asm_proc = False
+                skip = in_asm or in_pure_asm_proc
+                if not skip and stripped.startswith('.module'):
                     is_module = True
                     first_q: int = line.find('"')
                     if first_q == -1:
@@ -545,7 +570,7 @@ class ModuleSystem:
                         raise err
                     module_name = line[first_q + 1:second_q]
                     module_directive_info = (ln, first_q + 1, line)
-                elif not in_asm and stripped.startswith('.include'):
+                elif not skip and stripped.startswith('.include'):
                     parts: list[str] = line.split('"')
                     if len(parts) >= 2:
                         first_q: int = line.find('"')

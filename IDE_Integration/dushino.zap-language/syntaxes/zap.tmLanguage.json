@@ -45,7 +45,7 @@
             "patterns": [
                 {
                     "name": "constant.other.zap",
-                    "match": "#(?:[Pp][Oo][Rr][Tt]|[Rr][Dd]|[Ww][Rr]|[Kk][Ee][Ee][Pp]|[Ee][Xx][Pp][Oo][Rr][Tt]|[Nn][Oo][Ee][Xx][Pp][Oo][Rr][Tt])"
+                    "match": "#(?:[Pp][Oo][Rr][Tt]|[Rr][Dd]|[Ww][Rr]|[Kk][Ee][Ee][Pp]|[Ee][Xx][Pp][Oo][Rr][Tt]|[Nn][Oo][Ee][Xx][Pp][Oo][Rr][Tt]|[Aa][Ss][Mm])"
                 },
                 {
                     "name": "keyword.operator.address.zap",

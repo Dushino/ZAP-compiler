@@ -1997,6 +1997,8 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
                     keep=getattr(ap.ast, 'keep', False),
                     noexport=getattr(ap.ast, 'noexport', False),
                     export=getattr(ap.ast, 'export', False),
+                    pure_asm=getattr(ap.ast, 'pure_asm', False),
+                    asm_body=getattr(ap.ast, 'asm_body', ''),
                 )
         elif isinstance(p, FuncDecl):
             af = next((af for af in analyzed_funcs if af.ast.name == p.name), None)

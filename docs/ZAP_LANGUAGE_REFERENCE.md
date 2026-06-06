@@ -428,7 +428,7 @@ func byte allocate_handle()
 end
 ```
 
-#### Declaration Modifiers (#KEEP, #NOEXPORT, #EXPORT, #PORT, #RD, #WR) 🔖
+#### Declaration Modifiers (#KEEP, #NOEXPORT, #EXPORT, #PORT, #RD, #WR, #ASM) 🔖
 
 ZAP! supports a set of trailing declaration modifiers that influence export behaviour, dead-code elimination, and port semantics. Modifiers are case-insensitive and are written after a declaration header (after the `)` of `proc`/`func`, or after a variable declarator list).
 
@@ -449,8 +449,40 @@ Modifiers:
 - `#EXPORT` — When the file is *not* a `.module`, this forces the symbol to be exported (useful for small libraries implemented in plain files).
 - `#PORT` — Marks a variable as a hardware port-mapped variable. See the "Port Variables" section for details.
 - `#RD` / `#WR` — Read/write qualifiers used together with `#PORT` to indicate whether the port is readable and/or writable. If neither `#RD` nor `#WR` is specified, both are allowed by default.
+- `#ASM` — Marks a `proc` as a **pure assembly procedure**. The entire body between `proc...end` is treated as raw ca65 assembly text — no ZAP statements are allowed, no automatic `RTS` is emitted, and no prologue or epilogue code is generated. This is intended for interrupt service routines and other low-level handlers that must control their own exit sequence (e.g., `rti`).
 
-Rules and notes:
+#### Pure Assembly Procedures (#ASM)
+
+The `#asm` modifier on a `proc` declaration turns the entire body into verbatim assembly code. The body is passed directly to the ca65 assembler output unchanged — comments, ca65 directives (`.segment`, `.byte`, etc.), and any instruction syntax (including ca65 immediate-mode addressing like `lda #$FF`) are all legal.
+
+```zap
+proc NMI_HANDLER() #keep #asm
+    ; NMI handler — must return with RTI, not RTS
+    rti
+end
+
+proc IRQ_HANDLER() #keep #asm
+    ; Acknowledge interrupt, then return
+    lda #$FF
+    sta $D200   ; clear IRQ source
+    rti
+end
+
+proc RESET_HANDLER() #keep #asm
+    jmp _MAIN
+end
+```
+
+Rules and notes for `#asm` procedures:
+- `#asm` is only valid on `proc` declarations, not `func`.
+- The body may contain any ca65 assembly syntax: instructions, directives, labels, comments.
+- **No automatic `RTS` is appended.** The programmer is responsible for the return sequence (typically `rti` for interrupt handlers, or `jmp` for reset handlers).
+- No local variable declarations or ZAP statements are allowed in the body.
+- `#asm` may be combined with `#keep`, `#noexport`, and `#export`.
+- The body is emitted verbatim into the output assembly surrounded by `; ASM_BLOCK_BEGIN` / `; ASM_BLOCK_END` markers (same as inline `asm...end` blocks).
+- Optimization passes skip the body entirely.
+
+Rules and notes (general modifiers):
 - In a `.module` file, **all** top-level symbols are exported by default except those explicitly marked `#NOEXPORT`.
 - In non-module files, **no** symbols are exported by default; use `#EXPORT` to explicitly export a symbol.
 - `#KEEP` does **not** imply exporting; use `#EXPORT` if you want the symbol to be visible to includes.

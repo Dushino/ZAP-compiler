@@ -59,7 +59,7 @@ declaration     ::= [ type_modifier { type_modifier } ] type declarator_list [ d
 type_modifier   ::= "const" | "static" ;
 
 decl_modifiers  ::= { decl_modifier } ;
-decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" ;
+decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" | "#ASM" ;
 
 declarator_list ::= declarator { "," declarator } ;
 
@@ -86,7 +86,12 @@ struct_field    ::= type IDENT [ array_spec ] [ address_spec ] [ decl_modifiers 
 (* ============ PROCEDURES ============ *)
 proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" [ decl_modifiers ] proc_body "end" ;
 
-proc_body       ::= { local_decl } { statement } ;
+(* proc_body is raw assembly text when #asm is present in decl_modifiers;
+   otherwise it is normal ZAP declarations and statements. *)
+proc_body       ::= { local_decl } { statement }   (* normal ZAP body *)
+                  | asm_block_text                  (* pure assembly body when #asm modifier used — no automatic RTS *) ;
+
+asm_block_text  ::= (* verbatim ca65 assembly text up to the closing "end" line *) ;
 
 (* ============ FUNCTIONS ============ *)
 func_decl       ::= "func" type IDENT "(" [ param_list ] ")" [ decl_modifiers ] func_body "end" ;

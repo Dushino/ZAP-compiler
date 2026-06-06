@@ -14504,6 +14504,24 @@ class CodeGen:
         self.emit("; -- Procedure " + proc.ast.name + " --")
         self.emit(f"{self.asm_symbol_name(proc.ast.name)}:")
 
+        # Pure-asm proc: emit body verbatim with no prologue/epilogue/RTS
+        if getattr(proc.ast, 'pure_asm', False):
+            self.emit("; ASM_BLOCK_BEGIN")
+            for asm_line in proc.ast.asm_body.splitlines():
+                sl = asm_line.strip()
+                if not sl:
+                    self.emit("")
+                elif sl.endswith(":") or (sl.split() and ":" in sl.split()[0]):
+                    self.emit(sl)
+                else:
+                    self.emit(f"\t{sl}")
+            self.emit("; ASM_BLOCK_END")
+            self.emit(f'\t.segment "{self.seg_code}"')
+            self.current_symtab = prev_symtab
+            if prev_tc_symtab is not None:
+                self.tc.symtab = prev_tc_symtab
+            return
+
         # Emit parameter name equates for inline assembly references
         proc_specs: list[tuple[str, int, object, SemType]] | None = self.proc_param_specs.get(proc.ast.name)
         if proc_specs:

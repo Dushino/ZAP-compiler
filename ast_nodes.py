@@ -437,6 +437,8 @@ class ProcDecl:
     keep: bool = False      # #KEEP prevents dead-code elimination of unused proc
     noexport: bool = False  # #NOEXPORT prevents exporting from a module
     export: bool = False    # #EXPORT forces export even in non-module files
+    pure_asm: bool = False  # #ASM - entire body is raw assembly, no RTS emitted
+    asm_body: str = ""      # raw assembly text for pure_asm procs
     line: int = 0
     col: int = 0
     filename: str = ""

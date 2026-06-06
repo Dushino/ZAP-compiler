@@ -9,6 +9,16 @@
         "description": "Procedure declaration"
     },
 
+    "Pure ASM Procedure": {
+        "prefix": "procasm",
+        "body": [
+            "proc ${1:name}() #keep #asm",
+            "\t$0",
+            "end"
+        ],
+        "description": "Pure assembly procedure — body is raw assembly, no automatic RTS"
+    },
+
     "Function": {
         "prefix": "func",
         "body": [
