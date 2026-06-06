@@ -4,6 +4,9 @@
     "scopeName": "source.zap",
     "patterns": [
         {
+            "include": "#proc-asm-block"
+        },
+        {
             "include": "#comments"
         },
         {
@@ -41,6 +44,27 @@
         }
     ],
     "repository": {
+        "proc-asm-block": {
+            "comment": "proc/func #asm body — declaration header gets ZAP highlighting, body gets ca65 highlighting",
+            "begin": "^(\\s*(?:[Pp][Rr][Oo][Cc]|[Ff][Uu][Nn][Cc])\\b[^\\n]*#[Aa][Ss][Mm]\\b[^\\n]*)$",
+            "beginCaptures": {
+                "1": {
+                    "patterns": [
+                        { "include": "#keywords" },
+                        { "include": "#attributes" },
+                        { "include": "#storage-types" },
+                        { "include": "#numbers" }
+                    ]
+                }
+            },
+            "end": "^\\s*([Ee][Nn][Dd])\\b",
+            "endCaptures": {
+                "1": { "name": "keyword.control.zap" }
+            },
+            "patterns": [
+                { "include": "source.ca65" }
+            ]
+        },
         "attributes": {
             "patterns": [
                 {

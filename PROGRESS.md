@@ -33,9 +33,14 @@ symbols. Also, `#asm` was not supported on `func` declarations at all.
 - All 176 pass + 139 fail tests pass.
 
 ### VS Code / IDE
-- **`zap-ca65.injection.json`** — Added second injection pattern for `proc/func #asm` bodies:
-  `begin` matches a declaration line containing `#asm`, `end` matches bare `end`; content
-  between gets `source.ca65` highlighting (assembly starts on the line after the header)
+- **`zap.tmLanguage.json`** — Added `proc-asm-block` as the first repository entry and first
+  include in the top-level patterns array. `begin` matches any `proc`/`func` declaration line
+  that contains `#asm`; `beginCaptures` applies `#keywords`, `#attributes`, `#storage-types`,
+  and `#numbers` sub-patterns to the header so `proc`/`func`/`byte`/`word`/`#asm`/`#noexport`
+  all remain correctly coloured; body lines get `source.ca65` embedding; `end` closes the block.
+  Putting it in the base grammar (not injection) avoids injection-priority issues where the base
+  grammar's `keywords` rule would win at position 0 before the injection `begin` could match.
+- **`zap-ca65.injection.json`** — Kept for inline `asm...end` blocks only (unchanged behaviour).
 - **`zap-language-0.9.4.vsix`** — Rebuilt with `vsce package --no-dependencies`
 
 ---
