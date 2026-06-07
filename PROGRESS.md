@@ -7,6 +7,35 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Fix: module proc/func labels missing when `label_cleanup` drops them (2026-06-07)
+
+### Problem
+Procedures (and functions) defined in an included module (e.g. `vectors.zap`) were compiled
+correctly by `gen_proc`, which emits their entry-point label (e.g. `_NMI_HANDLER:`). However,
+the standalone `cleanup_labels` pass in `label_cleanup.py` subsequently removed those labels
+because they were not the target of any JSR/JMP instruction in the generated code — interrupt
+handlers are referenced only via `.word _NMI_HANDLER` in a vector table, which the old pass
+did not recognise as a reference.
+
+### Root Cause
+`label_cleanup.cleanup_labels` was removing any label not reachable via JMP/JSR/Bxx or a
+`#<`/`#>` immediate. This violated the stated design rule (CLAUDE.md): *"Only `__ZAP_*`
+prefixed labels are compiler-generated internal labels. All other labels must be preserved by
+optimization passes."* The internal `_remove_unreferenced_labels` in `codegen_expr.py` already
+implemented this rule correctly (only removes `__ZAP_*`); `label_cleanup.py` did not.
+
+### Changes
+- **`label_cleanup.py`** — Rewrote `cleanup_labels` to only remove `__ZAP_*` prefixed labels
+  that are unreferenced. All other labels (user proc/func entries, ASM-block labels, math
+  routines, variable declarations) are kept unconditionally. ASM blocks are skipped entirely.
+
+### Tests
+- All 176 pass tests still compile without error.
+- Manual verification: `vectors.zap` module procs now emit `_VECTORS:`, `_NMI_HANDLER:`,
+  `_IRQ_HANDLER:`, `_RESET_HANDLER:` labels in the output.
+
+---
+
 ## `#asm` on `proc`/`func`: emit equates before body; extend to `func` (2026-06-06)
 
 ### Problem

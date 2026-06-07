@@ -87,6 +87,15 @@
 - Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
 - Tests 209-210: use fixed absolute address 0x4200 for dump (stable across optimization variants)
 
+## VS Code profile gotcha — check profile before debugging syntax highlighting
+- If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
+- Opening a different folder can silently switch to the default profile which uses a different colour scheme
+
+## label_cleanup bug fix (2026-06-07): module proc/func labels were dropped
+- `label_cleanup.py` now only removes `__ZAP_*` internal labels; all other labels kept unconditionally
+- Root cause: old pass removed any unreferenced label; `.word _NMI_HANDLER` vector refs were invisible to it
+- All 176 pass tests still pass
+
 ## `#asm` proc/func infrastructure fix (2026-06-06)
 - `#asm` now works on both `proc` AND `func` declarations
 - Compiler emits param name equates (`_NAME$PARAM = slot`) BEFORE the raw body so assembly can reference them

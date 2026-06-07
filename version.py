@@ -4,4 +4,4 @@
 # We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.
 
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"
