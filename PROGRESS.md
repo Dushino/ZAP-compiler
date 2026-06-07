@@ -7,6 +7,45 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Fix: #port struct field reads dead-store eliminated (2026-06-07)
+
+### Problem
+`_elim_dead_stores` (AST-level pass) correctly skips elimination when the LHS is a PORT
+variable, but did NOT check whether the RHS reads from a port variable or port struct field.
+
+In code like:
+```
+tmp = ACIA.STATUS
+tmp = ACIA.CONTROL
+tmp = ACIA.COMMAND
+tmp = ACIA.DATA
+```
+The first three reads were eliminated as "dead stores" because `tmp` is immediately overwritten.
+However, reading a hardware port has observable side effects (clearing flags, advancing FIFOs)
+that must not be suppressed.
+
+### Root Cause
+`_lhs_is_port` guarded writes to port LHS, but there was no equivalent guard for RHS port reads.
+`sema.py` already propagates `is_port=True` from a `#port` struct definition to any variable of
+that struct type, so the information was available — it just wasn't being checked for the RHS.
+
+### Changes
+- **`codegen_expr.py`** — Added `_expr_reads_port(expr)` helper (~30 lines) that recursively
+  walks an expression tree and returns True if any node reads from a PORT variable or PORT struct
+  field (via `Identifier`, `FieldAccess`, `BinaryExpr`, `UnaryExpr`, `SubscriptExpr`,
+  `DerefExpr`, `CallExpr`).
+- **`codegen_expr.py`** (`_elim_dead_stores`) — Added `not self._expr_reads_port(stmt.rhs)`
+  guard so dead-store elimination never suppresses a port read.
+
+### Tests
+- **211-port-struct-no-dead-store**: declares a 4-field `#port` struct, reads all 4 fields
+  consecutively into `tmp` (the exact bug pattern), then accumulates them independently into
+  a sum. Checks that `result = $0A` ($01+$02+$03+$04). All 8 LDA instructions appear in the
+  generated assembly with no "dead store eliminated" comments for the port reads.
+- All 177 pass tests compile without error.
+
+---
+
 ## Fix: module proc/func labels missing when `label_cleanup` drops them (2026-06-07)
 
 ### Problem

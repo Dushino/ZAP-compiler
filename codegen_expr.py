@@ -2014,6 +2014,37 @@ class CodeGen:
         except KeyError:
             return False
 
+    def _expr_reads_port(self, expr) -> bool:
+        """Return True if expr reads from any PORT variable or PORT struct field.
+
+        Reading a hardware port has observable side effects (e.g. reading a
+        status register clears interrupt flags), so any expression that touches
+        a port must not be suppressed by dead-store elimination even when the
+        result is immediately overwritten.
+        """
+        from ast_nodes import Identifier, BinaryExpr, UnaryExpr, SubscriptExpr, DerefExpr, FieldAccess, CallExpr
+        if isinstance(expr, Identifier):
+            try:
+                sym = self.current_symtab.lookup(expr.name)
+                return bool(sym.is_port)
+            except KeyError:
+                return False
+        if isinstance(expr, FieldAccess):
+            # The base object (e.g. ACIA in ACIA.STATUS) carries is_port when
+            # the struct was declared #port — recurse to catch it via Identifier.
+            return self._expr_reads_port(expr.object)
+        if isinstance(expr, BinaryExpr):
+            return self._expr_reads_port(expr.left) or self._expr_reads_port(expr.right)
+        if isinstance(expr, UnaryExpr):
+            return self._expr_reads_port(expr.expr)
+        if isinstance(expr, SubscriptExpr):
+            return self._expr_reads_port(expr.array) or self._expr_reads_port(expr.index)
+        if isinstance(expr, DerefExpr):
+            return self._expr_reads_port(expr.pointer)
+        if isinstance(expr, CallExpr):
+            return any(self._expr_reads_port(a) for a in expr.args if a is not None)
+        return False
+
     def _elim_dead_stores(self, stmts: list) -> list:
         """Eliminate dead stores: if two consecutive AssignStmts target the
         same simple (non-PORT) scalar identifier, and the first is immediately
@@ -2024,6 +2055,8 @@ class CodeGen:
         - LHS must be a bare Identifier (no arrays, struct fields, derefs).
         - The variable must NOT have the PORT attribute (hardware registers
           must always be written, even if the value is immediately overwritten).
+        - The RHS must not read from a PORT variable or PORT struct field —
+          reading a hardware port has observable side effects.
         - We only skip the earlier store when the very next statement is another
           AssignStmt to the same identifier.
         - The overwriting RHS must be pure (no CallExpr) to stay conservative.
@@ -2043,7 +2076,8 @@ class CodeGen:
                 and isinstance(stmts[i + 1], AssignStmt)
                 and isinstance(stmts[i + 1].lhs, Identifier)
                 and stmts[i + 1].lhs.name == stmt.lhs.name
-                and not self._lhs_is_port(stmt.lhs)                       # skip PORT vars
+                and not self._lhs_is_port(stmt.lhs)                       # skip PORT vars on LHS
+                and not self._expr_reads_port(stmt.rhs)                   # skip PORT reads on RHS (side effects)
                 and not self._expr_has_calls(stmt.rhs)                    # RHS of skipped store is pure
                 and not self._expr_reads_var(stmts[i + 1].rhs, stmt.lhs.name)  # next RHS doesn't read same var
             ):
