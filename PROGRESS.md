@@ -7,6 +7,30 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Add GLOBAL_START label before globals initialization (2026-06-09)
+
+### Change
+Added `GLOBAL_START:` label immediately after `.segment "CODE"` and before the globals
+initialization block, so the reset vector can jump directly to the program entry point.
+
+Generated output:
+```
+.segment "CODE"
+GLOBAL_START:
+; Globals initialization
+; Call MAIN
+    JSR _MAIN
+    JMP *
+```
+
+### Files
+- **`codegen_expr.py`** (`gen_globals_header`) — one-line addition: `self.emit("GLOBAL_START:")`
+
+### Tests
+All 177 pass tests compile without error.
+
+---
+
 ## Fix: #port struct field reads dead-store eliminated (2026-06-07)
 
 ### Problem
