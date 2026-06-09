@@ -7517,6 +7517,7 @@ class CodeGen:
         self.emit("")
         self.emit("; ---------------------------------------------------------------------------")        
         self.emit(f".segment \"{self.seg_code}\"")
+        self.emit("GLOBAL_START:")
         self.emit("; Globals initialization")
                
 
