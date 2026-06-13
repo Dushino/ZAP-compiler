@@ -389,13 +389,20 @@ def prune_unused_locals(analyzed_procs, analyzed_funcs):
         for st in body:
             _walk_stmt_locals(st, used, local_symtab)
 
+        def _should_keep(sym) -> bool:
+            return (
+                sym.name in used
+                or sym.address is not None   # fixed-address locals
+                or getattr(sym, 'is_keep', False)  # #keep locals (may only appear in ASM blocks)
+            )
+
         new_symbols = {
             name: sym
             for name, sym in local_symtab._symbols.items()
-            if name in used or sym.address is not None  # keep fixed-address locals
+            if _should_keep(sym)
         }
         local_symtab._symbols = new_symbols
-        return [sym for sym in locals_list if sym.name in used or sym.address is not None]
+        return [sym for sym in locals_list if _should_keep(sym)]
 
     for ap in analyzed_procs:
         ap.locals = prune_one(ap.ast.body, ap.locals, ap.symtab.local, ap.ast.params)

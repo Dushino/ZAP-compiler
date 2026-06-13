@@ -7,6 +7,47 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Fix: #keep local variable gets no memory slot + spurious name rewrite (2026-06-09)
+
+### Problem
+A local variable declared with `#keep` inside a proc (e.g. `word tmp1 #keep`) that is only
+referenced inside an ASM block was given no memory slot and no equate was emitted. ASM blocks
+are raw strings invisible to the AST walker, so `tmp1` appeared unused and was pruned.
+
+Additionally, when the equate WAS generated (`_SET_2K_MEM$TMP1 = __LVSLOT_3`), the name was
+corrupted to `_SET_2K_MEM$__TMP1` because `_rewrite_internal_names` replaced `TMP1` with
+`__TMP1` inside the proc-local name — the `$` separator was not in the regex boundary set.
+As a side effect, the detector incorrectly inferred that the system temp `__TMP1` was in use
+and allocated an extra 2 bytes for it.
+
+### Root Causes
+1. `prune_unused_locals` kept locals only if they were referenced in the body or had a fixed
+   address. The `sym.is_keep` flag was never checked.
+2. `_build_internal_name_regex` used `(?<![A-Za-z0-9_])` as word boundary, which does not
+   exclude `$` — so `$TMP1` (inside `_SET_2K_MEM$TMP1`) incorrectly matched the rewrite rule.
+
+### Changes
+- **`compiler_pipeline.py`** (`prune_unused_locals`) — Added `or getattr(sym, 'is_keep', False)`
+  to the symbol retention predicate, so `#keep` locals are never pruned regardless of whether
+  they appear in the AST body.
+- **`codegen_expr.py`** (`_build_internal_name_regex`) — Added `$` to the negative
+  lookbehind/lookahead character class (`(?<![A-Za-z0-9_$])`) so that proc-local names
+  containing `$TMP1` (e.g. `_SET_2K_MEM$TMP1`) are not rewritten.
+
+### Correct usage for `#keep` locals in ASM blocks
+```
+word tmp1 #keep
+asm
+    stz _SET_2K_MEM$TMP1     ; single underscore — use the declarator name uppercased
+    stx _SET_2K_MEM$TMP1+1
+end
+```
+
+### Tests
+All 177 pass tests compile without error.
+
+---
+
 ## Add GLOBAL_START label before globals initialization (2026-06-09)
 
 ### Change

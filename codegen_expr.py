@@ -1741,7 +1741,9 @@ class CodeGen:
             return None
         import re
         pattern = "|".join(re.escape(name) for name in sorted(name_map.keys(), key=len, reverse=True))
-        return re.compile(rf"(?<![A-Za-z0-9_])({pattern})(?![A-Za-z0-9_])")
+        # '$' is included in the boundary set so that proc-local equate names like
+        # _SET_2K_MEM$TMP1 are not rewritten to _SET_2K_MEM$__TMP1.
+        return re.compile(rf"(?<![A-Za-z0-9_$])({pattern})(?![A-Za-z0-9_$])")
 
     def _rewrite_internal_names(self, line: str) -> str:
         """Helper for rewrite internal names.

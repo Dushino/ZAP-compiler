@@ -3,6 +3,27 @@
 
 .include "vectors.zap"
 
+proc set_2k_mem(byte val, byte pg_from) #noexport #keep
+
+    word tmp1 #keep
+
+    asm
+    ; val is in A
+    ; pg_from is in X
+        stz _SET_2K_MEM$TMP1
+        stx _SET_2K_MEM$TMP1+1
+        ldy #0
+        ldx #7
+    set_2k_mem_loop:
+        sta (_SET_2K_MEM$TMP1),y
+        iny
+        bne set_2k_mem_loop
+        inc _SET_2K_MEM$TMP1+1
+        dex
+        bpl set_2k_mem_loop
+    end
+end
+
 
 ; Read / write Addresses
 struct ACIA_struct #port
