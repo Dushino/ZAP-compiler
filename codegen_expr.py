@@ -1017,10 +1017,10 @@ class CodeGen:
                     # - "MATH0": left was already in MATH0
                     # - other (variable name): was loaded to A/X by load_to_ax_for_math
                     _iac_a_has_low: bool = (left_loc != "MATH0")
-                    # For high byte with carry: need a memory location to INC/DEC.
-                    # When A/X: store X to MATH0+1 first for INC/DEC target.
-                    if _iac_a_has_low and _iac_hi == 0:
-                        # Need a memory loc for INC/DEC. Use MATH0+1.
+                    # When left is in A/X, store X (high byte) to MATH0+1 now.
+                    # Required for both the _iac_hi==0 INC/DEC path and the
+                    # _iac_hi!=0 path that does LDA MATH0+1 to start the add.
+                    if _iac_a_has_low:
                         self.emit("\tSTX MATH0+1")
                     _iac_hi_loc: str = "MATH0+1"  # always use MATH0+1 for high byte storage
 

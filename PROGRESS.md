@@ -7,6 +7,30 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Fix: Stale MATH0+1 in inline word-constant ADD/SUB (2026-06-14)
+
+### Problem
+When computing `word_expr + word_constant` where the left operand is in A:X registers and the
+constant has a non-zero high byte (e.g. `$7800 + 40*y + x`), the inline ADD16 code path read
+`MATH0+1` for the high byte of the left operand without first storing X there. The result was
+that `MATH0+1` retained its value from the previous computation, and each call accumulated the
+constant's high byte on top of stale state. In `GOTOXY`, this caused `cursor_ptr` to grow by
+`$7800` on every invocation instead of being deterministically `$7800 + 40*y + x`.
+
+### Root Cause
+In `codegen_expr.py` (`_inline_add_sub_const` path, `BinOp.ADD`/`BinOp.SUB` with non-zero high
+byte): `STX MATH0+1` was only emitted when `_iac_hi == 0` (needed for the INC/DEC carry
+trick). When `_iac_hi != 0`, the code did `LDA MATH0+1; ADC #$hi` without ever storing X to
+MATH0+1, so it used stale data.
+
+### Change
+- **`codegen_expr.py`** (inline add/sub constant path, lines ~1022-1025): Changed condition
+  from `if _iac_a_has_low and _iac_hi == 0` to `if _iac_a_has_low` so that `STX MATH0+1` is
+  always emitted when the left operand is in A:X registers — regardless of the constant's high byte.
+- **`tests/pass/212-word-const-add-stale-math0/`**: New regression test. Calls a proc that
+  computes `$7800 + 40*y + x` (y=0, x=0) twice and verifies both calls produce `$78` (not an
+  accumulating value).
+
 ## Fix: #keep local variable gets no memory slot + spurious name rewrite (2026-06-09)
 
 ### Problem

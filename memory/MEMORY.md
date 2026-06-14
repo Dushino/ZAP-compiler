@@ -91,6 +91,12 @@
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
 
+## Inline ADD16 stale MATH0+1 bug fix (2026-06-14)
+- `codegen_expr.py` inline constant ADD/SUB path: when left operand in A:X and constant has non-zero high byte, `STX MATH0+1` was not emitted before `LDA MATH0+1` → stale value accumulated on each call
+- Fix: changed `if _iac_a_has_low and _iac_hi == 0` to `if _iac_a_has_low` (always store X to MATH0+1 when left is in registers)
+- Symptom: `cursor_ptr = $7800 + 40*y + x` gave different values on each GOTOXY call even with y=0, x=0
+- Test 212 added: `212-word-const-add-stale-math0`; 178 pass / 139 fail — all OK
+
 ## label_cleanup bug fix (2026-06-07): module proc/func labels were dropped
 - `label_cleanup.py` now only removes `__ZAP_*` internal labels; all other labels kept unconditionally
 - Root cause: old pass removed any unreferenced label; `.word _NMI_HANDLER` vector refs were invisible to it
