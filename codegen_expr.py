@@ -12831,6 +12831,22 @@ class CodeGen:
                     # Case 2a: Constant RHS — compute address first, then store constant directly
                     # Avoids TMP2 round-trip (saves ~4-6 instructions per store)
                     if isinstance(rhs, IntLiteral):
+                        # LONG element (element_width==4): load constant into MATH0 first,
+                        # then _gen_subscript handles address computation and the store.
+                        # The _gen_subscript store path reads from MATH0, so MATH0 must be
+                        # populated before the call (not after as the original code did).
+                        if element_width == 4:
+                            _rhs_long: int = rhs.value
+                            for _k in range(4):
+                                _bv: int = (_rhs_long >> (_k * 8)) & 0xFF
+                                _suffix: str = "" if _k == 0 else f"+{_k}"
+                                if _bv == 0:
+                                    self._stz(f"MATH0{_suffix}")
+                                else:
+                                    self.emit(f"\tLDA #${_bv:02X}")
+                                    self.emit(f"\tSTA MATH0{_suffix}")
+                            self._gen_subscript(lhs, load_only=False)
+                            return
                         _e_idx_type_c: ExprType = self.tc_check(lhs.index)
                         _e_is_word_c: bool = _e_idx_type_c.sem_type.base != "BYTE" or _e_idx_type_c.sem_type.is_pointer
                         # Optimization: word Identifier index + const base + byte element
@@ -12931,8 +12947,20 @@ class CodeGen:
                         self.emit(f"\tADC #>{arr_addr}")
                         self.emit(f"\tSTA TMP0+1")
                     else:
-                        # Complex element width: fall back to general handler
-                        # RHS is already in TMP2, need to handle index
+                        # Complex element width (element_width==4, LONG array).
+                        # _gen_subscript(load_only=False) reads from MATH0.
+                        # If RHS is non-LONG (byte/word), gen_expr left A/X in TMP2;
+                        # promote TMP2 into MATH0 with zero-extension before the store.
+                        if rhs_t.sem_type.base != "LONG":
+                            self.emit("\tLDA TMP2")
+                            self.emit("\tSTA MATH0")
+                            if rhs_t.sem_type.base == "WORD" or rhs_t.sem_type.is_pointer:
+                                self.emit("\tLDA TMP2+1")
+                                self.emit("\tSTA MATH0+1")
+                            else:
+                                self._stz("MATH0+1")
+                            self._stz("MATH0+2")
+                            self._stz("MATH0+3")
                         self._gen_subscript(lhs, load_only=False)
                         return
                     
@@ -13993,6 +14021,22 @@ class CodeGen:
             self.emit("\tLDA MATH0")
             if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
                 self.emit("\tLDX MATH0+1")
+        # LONG widening: when LHS is LONG and RHS is a simple (non-LONG) Identifier or
+        # IntLiteral, gen_expr left the value in A (low) / X (high) — not in MATH0.
+        # Promote A/X into MATH0 with zero-extension so that the LONG store paths
+        # (Identifier and FieldAccess) can read it correctly.
+        # BinaryExpr with a LONG target go through _long_target_widen → ADD32/etc.
+        # and already place the result in MATH0, so they are excluded here.
+        elif (lhs_t.sem_type.base == "LONG" and not lhs_t.sem_type.is_pointer
+                and rhs_t.sem_type.base != "LONG"
+                and isinstance(rhs, (Identifier, IntLiteral))):
+            self.emit("\tSTA MATH0")
+            if rhs_t.sem_type.base == "WORD" or rhs_t.sem_type.is_pointer:
+                self.emit("\tSTX MATH0+1")
+            else:
+                self._stz("MATH0+1")
+            self._stz("MATH0+2")
+            self._stz("MATH0+3")
 
         # Handle type widening: if RHS is smaller than LHS, extend with zeros
         # This is needed when assigning a BYTE to a WORD target

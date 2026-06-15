@@ -276,7 +276,10 @@ __ZAP_else_5:
 ; /home/dusan/src/ZAP-compiler/tests/pass/164-struct-long-field/164-struct-long-field.zap 65:     pt.val = 0
 	LDA #$00
 	TAX
-	LDA __MATH0
+	STA __MATH0
+	STZ __MATH0+1
+	STZ __MATH0+2
+	STZ __MATH0+3
 	STA _PT+1
 	LDA __MATH0+1
 	STA _PT+1+1

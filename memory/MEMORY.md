@@ -91,6 +91,14 @@
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
 
+## LONG pointer/array/struct correctness fixes (2026-06-15)
+
+- `codegen_expr.py` Case 2a (gen_assign, SubscriptExpr, element_width==4): loads IntLiteral constant into MATH0 byte-by-byte BEFORE calling `_gen_subscript(store)`. Fixed: `larr[byte_i] = $CONST` was writing stale MATH0 contents.
+- `codegen_expr.py` Case 2b (gen_assign, SubscriptExpr, element_width==4): promotes TMP2→MATH0 (with zero-extension based on RHS width) when non-LONG variable RHS. Fixed: `larr[i] = byte_var` was writing stale MATH0.
+- `codegen_expr.py` line ~14024: after gen_expr(rhs), when LHS is LONG and RHS is a simple Identifier/IntLiteral of non-LONG type, promotes A/X→MATH0 with zero-extension. Fixed: `r1.val = 1000` and `long l = byte_var` writing stale MATH0 to Identifier and FieldAccess LONG targets. Restricted to Identifier/IntLiteral only — BinaryExpr with LONG target already places result in MATH0 via ADD32/etc.
+- Tests 223–225 added: LONG array variable-index read/write, LONG pointer distance/equality/for-loop, LONG struct compound += and LONG field arithmetic across two structs.
+- 191 pass / 139 fail — all OK
+
 ## LONG-target widening for RHS arithmetic (2026-06-15)
 
 - `codegen_expr.py`: LONG-target widening routes byte/word operands through ADD32/MUL32/etc. Tracks `_nat_*_width` (natural byte footprint) separately from widened widths so `emit_move_to_math` never reads beyond variable size. `_long_target_widen` flag set before fast-path byte ops; `both_byte` gains `and not _long_target_widen`; `gen_expr` fast path gains `_long_target_arith` guard. 32-bit path zero-extends pre-existing MATH0 values. Result pushed as `("MATH0", 4)`.

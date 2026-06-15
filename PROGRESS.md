@@ -1,5 +1,53 @@
 # Progress Tracker
 
+## Feature: LONG pointer/array/struct correctness fixes (2026-06-15)
+
+### Problem
+Three LONG codegen bugs were found while adding targeted tests:
+
+1. **LONG array store via variable index with constant RHS** (`larr[byte_i] = $AABBCCDD`):
+   In `gen_assign` Case 2a (constant RHS, element_width==4), `_gen_subscript(load_only=False)`
+   was called without first loading the constant into MATH0. The store wrote stale MATH0 data.
+
+2. **LONG array store via variable index with non-LONG variable RHS** (`larr[i] = byte_var`):
+   In `gen_assign` Case 2b (general RHS, element_width==4), `gen_expr(rhs)` left A/X in TMP2,
+   but `_gen_subscript(load_only=False)` reads from MATH0 — stale for non-LONG RHS.
+
+3. **LONG struct field and LONG variable assignment from non-LONG simple RHS**:
+   For `r1.val = 1000` (IntLiteral) and `long l = byte_var` (Identifier), gen_expr put the
+   value in A/X only. The LONG store path at line ~14034 and the LONG field fast path at
+   line ~14127 always read MATH0, producing wrong values when MATH0 wasn't loaded.
+
+### Changes
+
+- **`codegen_expr.py`** line ~12833 (`gen_assign`, Case 2a for SubscriptExpr with element_width==4):
+  Adds early-out: load the IntLiteral constant into MATH0 byte-by-byte (using `_stz` for zero
+  bytes) before calling `_gen_subscript(load_only=False)`.
+
+- **`codegen_expr.py`** line ~12949 (`gen_assign`, Case 2b for SubscriptExpr with element_width==4):
+  When `rhs_t.sem_type.base != "LONG"`, promotes TMP2/TMP2+1 (where gen_expr saved A/X) into
+  MATH0 with zero-extension before `_gen_subscript` reads it.
+
+- **`codegen_expr.py`** line ~14024 (after `gen_expr(rhs)` in gen_assign):
+  Adds `elif` branch: when LHS is LONG pointer-free and RHS is a simple Identifier/IntLiteral
+  of non-LONG type, promotes A/X into MATH0 with zero-extension so Identifier and FieldAccess
+  LONG store paths can read it correctly. BinaryExpr excluded (LONG-target widening already
+  places result in MATH0 via ADD32/etc.).
+
+### Tests Added (223–225)
+
+- **`tests/pass/223-long-array-var-index/`**: LONG array read and write via byte/word variable
+  index and expression index; LONG elements in arithmetic with variable index (result=6).
+- **`tests/pass/224-long-ptr-advanced/`**: LONG pointer distance (ptr - ptr in elements),
+  equality comparison, write via LONG variable RHS, for-loop walking LONG array via pointer (result=4).
+- **`tests/pass/225-long-struct-compound/`**: struct with multiple LONG fields; compound
+  `+=`/`-=` on LONG struct field; LONG field arithmetic; array-of-struct with variable index
+  on LONG field (result=6).
+
+191 pass / 139 fail — all OK
+
+---
+
 ## Feature: LONG-target type-width widening for RHS arithmetic (2026-06-15)
 
 ### Problem
