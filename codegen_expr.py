@@ -1071,7 +1071,12 @@ class CodeGen:
                     if node.value in {BinOp.MUL, BinOp.DIV, BinOp.MOD} and node.width <= 2:
                         eval_stack.append(("AX" if node.width == 2 else "A", node.width))
                     else:
-                        eval_stack.append(("MATH0", node.width))
+                        # For ADD/SUB/bitwise: an operand on the eval_stack may carry a
+                        # wider actual width than node.width if the code generator (e.g.
+                        # shift-add) widened it internally.  Use the max so the result
+                        # width reflects the full 16-bit computation that was done.
+                        _routine_res_w = max(node.width, left_width, right_width)
+                        eval_stack.append(("MATH0", _routine_res_w))
                 else:
                     # Inline 8-bit math
                     if node.value == BinOp.ADD and not (left_width > 1 or right_width > 1):

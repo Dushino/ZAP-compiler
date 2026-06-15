@@ -91,6 +91,12 @@
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
 
+## Shift-add result width mismatch (2026-06-15)
+- `codegen_expr.py` routine ADD/SUB result: `eval_stack.append(("MATH0", node.width))` used type-system width (1=byte for `40*y`) even though shift-add hardcodes width=2 on eval_stack
+- Fix: replaced `node.width` with `max(node.width, left_width, right_width)` — respects actual eval_stack widths
+- Symptom: `p1 = 40*y + x` (word p1, byte x/y) always had high byte = 0 for y > 6
+- Test 213 added: 179 pass / 139 fail — all OK
+
 ## Inline ADD16 stale MATH0+1 bug fix (2026-06-14)
 - `codegen_expr.py` inline constant ADD/SUB path: when left operand in A:X and constant has non-zero high byte, `STX MATH0+1` was not emitted before `LDA MATH0+1` → stale value accumulated on each call
 - Fix: changed `if _iac_a_has_low and _iac_hi == 0` to `if _iac_a_has_low` (always store X to MATH0+1 when left is in registers)

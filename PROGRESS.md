@@ -7,6 +7,27 @@ We encourage all users of this software to contribute to humanitarian efforts in
 
 ---
 
+## Fix: Shift-add result width mismatch drops high byte (2026-06-15)
+
+### Problem
+`p1 = 40*y + x` (with p1 word, x/y byte) always stored 0 in the high byte of p1, even when
+`40*y` overflows a byte (e.g. y=7 → 280 = $0118). The correct high byte was computed by the
+shift-add but then discarded.
+
+### Root Cause
+`get_expr_width(40*y)` returns 1 (byte) because 40 ≤ 255 and `y` is byte. So the `BinaryExpr`
+for `40*y + x` also gets node.width = 1. The shift-add however hardcodes `eval_stack.append(("AX", 2))` — a 16-bit result. The subsequent ADD BINOP handler used `node.width` (=1) for the result
+eval_stack entry: `eval_stack.append(("MATH0", node.width))` = ("MATH0", 1). With width=1, the
+word store emitted `LDX #$00` instead of `LDX MATH0+1`, zeroing the high byte.
+
+### Change
+- **`codegen_expr.py`** (routine ADD/SUB eval_stack append, line ~1074): replaced `node.width`
+  with `max(node.width, left_width, right_width)` for the MATH0 result entry. This respects the
+  actual width carried on the eval_stack by prior operations (e.g. shift-add) even when the type
+  system has narrower knowledge.
+- **`tests/pass/213-shiftadd-high-byte-word-result/`**: New regression test. `test(3, 7)` verifies
+  `40*7 + 3 = 283 = $011B`, checking both low byte ($1B) and high byte ($01).
+
 ## Fix: Stale MATH0+1 in inline word-constant ADD/SUB (2026-06-14)
 
 ### Problem
