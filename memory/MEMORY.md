@@ -78,7 +78,7 @@
 - Segments: .segment "name"
 
 ## Test suite
-- tests/pass/ — 176 positive tests (numbered 001–210, with some gaps)
+- tests/pass/ — 184 positive tests (numbered 001–218, with some gaps)
 - tests/fail/ — 139 negative tests (error detection)
 - Each positive test: 4 variants (65C02, 65C02+O1, 6502, 6502+O1)
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
@@ -91,9 +91,23 @@
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
 
+## LONG-target widening for RHS arithmetic (2026-06-15)
+
+- `codegen_expr.py`: LONG-target widening routes byte/word operands through ADD32/MUL32/etc. Tracks `_nat_*_width` (natural byte footprint) separately from widened widths so `emit_move_to_math` never reads beyond variable size. `_long_target_widen` flag set before fast-path byte ops; `both_byte` gains `and not _long_target_widen`; `gen_expr` fast path gains `_long_target_arith` guard. 32-bit path zero-extends pre-existing MATH0 values. Result pushed as `("MATH0", 4)`.
+- `codegen_expr.py` line ~2932: JSR added as register/memory-clobbering instruction in the redundant-LDA peephole — prevents eliminating `LDA MATH0` after `JSR ADD32` under -O1.
+- Tests 219–222: byte ADD/SUB → LONG, byte MUL/DIV/MOD → LONG, word operands → LONG crossing 16-bit boundary, bitwise with upper-byte zero-check.
+- 188 pass / 139 fail — all OK
+
+## WORD-target widening for RHS arithmetic (2026-06-15)
+
+- `codegen_expr.py`: Added WORD-target widening after BYTE-narrowing block. When `assign_target_type.base == "WORD"`, operand widths are promoted to 2 for ADD/SUB/MUL/DIV/MOD/AND/OR/XOR. `_eff_width = max(left_width, right_width)` replaces `node.width` in all eval_stack appends. `_load_left/right_width` tracks natural memory widths to avoid reading `byte_var+1`. `force_word_operands` extended to all 16-bit routines. Fixes `word w = byte_a + byte_b` silently giving a 1-byte result.
+- `codegen_expr.py` line ~13544: direct `word_var = var + imm` optimizer now uses `LDA #$00` instead of `LDA var+1` for byte variables (zero-extension).
+- Tests 214–218 added: byte+byte→word, byte*byte→word, bitwise, byte-target narrowing regression, mixed chain
+- 184 pass / 139 fail — all OK
+
 ## Shift-add result width mismatch (2026-06-15)
 - `codegen_expr.py` routine ADD/SUB result: `eval_stack.append(("MATH0", node.width))` used type-system width (1=byte for `40*y`) even though shift-add hardcodes width=2 on eval_stack
-- Fix: replaced `node.width` with `max(node.width, left_width, right_width)` — respects actual eval_stack widths
+- Fix: superseded by `_eff_width = max(left_width, right_width)` in widening change above
 - Symptom: `p1 = 40*y + x` (word p1, byte x/y) always had high byte = 0 for y > 6
 - Test 213 added: 179 pass / 139 fail — all OK
 

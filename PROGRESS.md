@@ -1,5 +1,102 @@
 # Progress Tracker
 
+## Feature: LONG-target type-width widening for RHS arithmetic (2026-06-15)
+
+### Problem
+Expressions like `long l = byte_a + byte_b` or `long l = word_a * word_b` silently produced
+wrong results. Byte operands ran through 8-bit ADD (overflow lost) and word operands ran through
+16-bit MUL (upper bits lost). The LONG assignment target had no mechanism to promote operands to
+32-bit arithmetic.
+
+Additionally, the `gen_expr` fast path (lines ~12555) bypassed the RPN evaluator for simple
+`byte op byte` expressions and left the result in A, while the LONG assignment handler expected
+the result in MATH0 (4 bytes). This caused LONG assignments to read uninitialised MATH0 data.
+
+A second bug: the peephole optimizer (redundant-LDA elimination) did not treat `JSR` as
+clobbering registers or memory, so `LDA MATH0` after `JSR ADD32` was incorrectly removed,
+causing wrong values to be stored in LONG variables under `-O1`.
+
+### Root Cause
+
+1. `is_32 = left_width > 2 or right_width > 2` was computed with natural operand widths; byte/word
+   operands never set `is_32=True` so the 32-bit path and ADD32/MUL32 etc. were never selected.
+2. `gen_expr` fast path at line ~12555 fires for `(Identifier|IntLiteral) op (Identifier|IntLiteral)`
+   with byte operands regardless of `assign_target_type`.
+3. The `-O1` redundant-LDA peephole scanned back through `JSR` without stopping.
+
+### Changes
+
+- **`codegen_expr.py`** — LONG-target widening, after popping operands from eval_stack:
+  - Records `_nat_left_width` / `_nat_right_width` (natural byte footprint) immediately after pop.
+  - Detects `_long_target_widen` flag when `assign_target_type.base == "LONG"`.
+  - `both_byte` (fast-path byte ops) gains `and not _long_target_widen` so byte operands are not
+    handled by the 8-bit fast path when the target is LONG.
+  - `_long_target_widen` guard added to `gen_expr` fast path (`_long_target_arith` check at
+    line ~12565): prevents the accumulator-only path for arithmetic/bitwise ops with LONG target.
+  - Fast-path immediate bitwise: `is_32_bitwise |= _long_target_widen`; `width = 4` for LONG;
+    uses `_nat_left_width` for `emit_move_to_math` width; zero-extends pre-existing MATH0.
+  - Early widening before `is_32` check: when `_long_target_widen`, bumps both operand widths
+    to 4, causing `is_32 = True` and routing to the 32-bit path.
+  - 32-bit path: all `emit_move_to_math` calls now use `_nat_*_width` (not widened widths) so
+    byte/word variables are not read beyond their actual memory size; zero-extends pre-existing
+    MATH0/MATH1 values when their natural width < 4.
+  - Line ~831: `eval_stack.append(("MATH0", 4 if _long_target_widen else node.width))` so
+    downstream consumers see the 4-byte result width.
+
+- **`codegen_expr.py`** line ~2932 — JSR added to the clobbering-instruction set in the
+  redundant-LDA elimination peephole: a `JSR` between `STA X` and `LDA X` prevents removal
+  since the called routine may have modified X and the registers.
+
+### Tests Added (219–222)
+
+- **`tests/pass/219-long-target-byte-add/`**: `long l = byte_a + byte_b` and `long l = byte_a - byte_b`;
+  verifies 32-bit result (byte 200+200 = 400, not 144); all 4 sub-tests pass (result=4).
+- **`tests/pass/220-long-target-byte-mul/`**: `long l = byte_a * byte_b`, `/`, `%`;
+  200×200=40000, 200/5=40, 200%7=4 (result=3).
+- **`tests/pass/221-long-target-word-add/`**: WORD operands widened to LONG — `$8000 + $8000 = 65536`,
+  `$C000 - $4000 = 32768`, `$100 * $100 = 65536` — all requiring bits beyond 16 (result=3).
+- **`tests/pass/222-long-target-byte-bitwise/`**: `long l = byte_a & byte_b` etc.; verifies
+  result value AND that `HIGHW(l) == 0` (upper bytes are zero-extended) (result=6).
+
+---
+
+## Feature: WORD-target type-width widening for RHS arithmetic (2026-06-15)
+
+### Problem
+Expressions like `word w = byte_a + byte_b` or `word w = byte_a * byte_b` silently truncated
+results to 8 bits, losing the high byte. The type system always gave byte operands width=1, so
+8-bit routines were selected even when the WORD assignment target required 16-bit arithmetic.
+A separate direct-optimization path for `word_var = byte_var + imm` read `byte_var+1` (garbage)
+as the high byte of the byte operand.
+
+### Root Cause
+The `assign_target_type` mechanism only performed BYTE-target narrowing (reducing operands to 1
+byte). No widening existed: a WORD target did not force operands or routines up to 16-bit. The
+direct `word_var = var + imm` optimizer at line ~13505 assumed `var` was a WORD variable.
+
+### Changes
+
+- **`codegen_expr.py`** — WORD-target widening block added after the BYTE-narrowing block:
+  - Saves `_load_left_width` / `_load_right_width` (natural byte sizes for memory loads) before widening, preventing `LDX var+1` reads on byte variables.
+  - Adds widening: when target is WORD, `left_width = max(left_width, 2)` and same for right for ADD, SUB, MUL, DIV, MOD, AND, OR, XOR.
+  - Computes `_eff_width = max(left_width, right_width)` and propagates it to all eval_stack appends in this BINOP handler (power-of-2 shift, inline const add/sub, MUL/DIV/MOD routine path, ADD/SUB routine path, bitwise ops).
+  - Extends `force_word_operands` to all 16-bit routines so byte operands get MATH0+1/MATH1+1 zero-extended at store time.
+  - Pre-zero-extends MATH0/MATH1/AX/A values that are being widened (clears the high byte before a word routine reads it).
+  - All load calls now use `_load_left/right_width` for the `is_16bit` flag so byte variables are not read as words.
+  - Inline const ADD/SUB with widened byte left: emits `LDX #$00` before `STX MATH0+1`.
+  - Power-of-2 shift with widened byte: wraps load in `suppress_byte_return_x=False` to get `LDX #$00` zero-extension.
+  - `_skip_math_for_inline_mul` shift-add condition uses `_load_left_width` (not `left_width`) so byte×const shift-add still triggers in WORD context.
+
+- **`codegen_expr.py`** line ~13544 — direct `word_var = var + imm` optimizer now emits `LDA #$00` instead of `LDA var+1` when `var` is a BYTE variable (width < 2), zero-extending correctly before adding the high byte of the immediate.
+
+### Tests Added
+
+- **`tests/pass/214-word-target-byte-add/`**: `word w = byte_a + byte_b`, a=200, b=100 → 300 = $012C
+- **`tests/pass/215-word-target-byte-mul-runtime/`**: `word w = byte_a * byte_b`, a=b=200 → 40000 = $9C40
+- **`tests/pass/216-word-target-byte-bitwise/`**: `word w = a & b`, `a | b`, `a ^ b`, a=b=$FF
+- **`tests/pass/217-byte-target-word-operands/`**: Narrowing regression — `byte b = word_a + word_b` still gives low byte
+- **`tests/pass/218-word-target-mixed-chain/`**: Chain covering shift-add, inline const add (small and word-size constant), power-of-2 multiply — all in WORD context
+
 The author of this software stands in solidarity with 🇺🇦 Ukraine. 
 We believe in a world where international borders are respected and human rights are upheld. 
 We encourage all users of this software to contribute to humanitarian efforts in 🇺🇦 Ukraine.

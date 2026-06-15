@@ -195,12 +195,18 @@ Complex operations are delegated to generated subroutines appended to the output
 |---|---|
 | `MUL8` | 8-bit unsigned multiply |
 | `MUL16` | 16-bit unsigned multiply |
+| `MUL32` | 32-bit unsigned multiply |
 | `DIV8` | 8-bit unsigned divide/modulo |
 | `DIV16` | 16-bit unsigned divide/modulo |
-| `DIV32` | 32-bit divide |
+| `DIV32` | 32-bit divide/modulo |
+| `ADD32` | 32-bit addition |
+| `SUB32` | 32-bit subtraction |
+| `MOD32` | 32-bit modulo |
 | `LSHIFT32` / `RSHIFT32` | 32-bit shifts by ≥5 |
 | `COPY_BYTES` | Byte copy; X = count (1–255), TMP0=src, TMP2=dst |
 | `COPY_BYTES16` | Byte copy; TMP4/TMP4+1 = 16-bit count, for blocks > 255 bytes |
+
+**LONG-target widening:** When the assignment LHS is `long`, all arithmetic and bitwise sub-expressions (even byte/word operands) are promoted to 32-bit and evaluated via the `*32` routines. The compiler tracks natural operand widths (`_nat_*_width`) to avoid reading beyond each variable's actual memory footprint; zero-extension of narrower values to 4 bytes is handled by `emit_move_to_math`. Result is always placed in `MATH0` (4 bytes).
 
 ### Array Initialization
 

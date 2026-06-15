@@ -650,13 +650,32 @@ class CodeGen:
                 right_loc, right_width = eval_stack.pop()
                 left_loc, left_width = eval_stack.pop()
 
+                # Track natural (pre-widening) widths for correct memory read sizing.
+                # These must be set before any narrowing/widening so emit_move_to_math
+                # uses the actual byte footprint of each operand in memory.
+                _nat_left_width = left_width
+                _nat_right_width = right_width
+
                 # FAST PATH OPTIMIZATION: For simple byte operations (var/const op var/const),
                 # generate direct accumulator code instead of using MATH0/MATH1 registers
                 from ast_nodes import BinOp
+
+                # Detect LONG-target widening: when the assignment LHS is LONG, promote
+                # all arithmetic/bitwise operands to 32-bit precision before the is_32
+                # check, so full 32-bit routines are used even for byte/word operands.
+                _long_widen_ops = {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD,
+                                   BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                _long_target_widen: bool = (
+                    self.assign_target_type is not None
+                    and not self.assign_target_type.is_pointer
+                    and self.assign_target_type.base == "LONG"
+                    and node.value in _long_widen_ops
+                )
+
                 simple_left = not left_loc.startswith("MATH_STACK") and left_loc not in ("MATH0", "MATH1", "AX")
                 simple_right = not right_loc.startswith("MATH_STACK") and right_loc not in ("MATH0", "MATH1", "AX")
-                # Fast path only for 8-bit ops for now
-                both_byte = left_width <= 1 and right_width <= 1
+                # Fast path only for 8-bit ops; skip when LONG target needs 32-bit precision
+                both_byte = left_width <= 1 and right_width <= 1 and not _long_target_widen
                 fast_path_ops = {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, 
                                 BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
                 
@@ -757,18 +776,25 @@ class CodeGen:
                         eval_stack.append(("MATH0", False))
                         continue  # Skip general path
 
-                # FAST PATH OPTIMIZATION: 16-bit and 32-bit immediate bitwise 
+                # FAST PATH OPTIMIZATION: 16-bit and 32-bit immediate bitwise
                 if node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR} and right_loc.startswith("CONST:"):
-                    is_32_bitwise = left_width > 2 or right_width > 2
+                    # LONG target forces 32-bit path even for byte/word operands
+                    is_32_bitwise = left_width > 2 or right_width > 2 or _long_target_widen
                     if is_32_bitwise or node.width == 2:
                         spill_math0_if_needed(eval_stack)
                         val = int(right_loc.split(":")[1])
                         asm_op = "AND" if node.value == BinOp.BAND else "ORA" if node.value == BinOp.BOR else "EOR"
-                        width = node.width
-                        
+                        # Use 4-byte width for LONG targets; natural node.width otherwise
+                        width = 4 if _long_target_widen else node.width
+
                         if is_32_bitwise:
                             if left_loc != "MATH0":
-                                emit_move_to_math(left_loc, "MATH0", left_width, target_width=width)
+                                # Use natural width for the memory read; target_width zero-extends
+                                emit_move_to_math(left_loc, "MATH0", _nat_left_width, target_width=width)
+                            elif _nat_left_width < width:
+                                # Pre-existing MATH0 value is narrower than target; zero-extend
+                                for _k in range(_nat_left_width, width):
+                                    self._stz(f"MATH0+{_k}")
                             for j in range(4):
                                 suffix = "" if j == 0 else f"+{j}"
                                 self.emit(f"\tLDA MATH0{suffix}")
@@ -798,37 +824,54 @@ class CodeGen:
 
                 # If an older stack entry still lives in MATH0, spill it before reuse.
                 spill_math0_if_needed(eval_stack)
-                
+
+                # Early LONG-target widening: promote both operands to 4 bytes before
+                # the is_32 check, so the 32-bit code path handles full-precision
+                # arithmetic when the assignment target is LONG.
+                if _long_target_widen:
+                    left_width = max(left_width, 4)
+                    right_width = max(right_width, 4)
+
                 # Check for 32-bit operations
                 is_32 = left_width > 2 or right_width > 2
                 
                 if is_32:
-                    # 32-bit Path: Logic is simpler, always use MATH0/MATH1 and routines
-                    # Load operands to MATH/MATH1
-                    # Optimization: if left is MATH0, just load right to MATH1.
+                    # 32-bit Path: Logic is simpler, always use MATH0/MATH1 and routines.
+                    # Load operands to MATH0/MATH1.
+                    # Use _nat_*_width (natural memory footprint) for emit_move_to_math
+                    # width parameter so we never read beyond the actual variable size.
+                    # target_width=4 ensures zero-extension for narrower operands.
                     commutative_ops = {BinOp.ADD, BinOp.MUL, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
-                    
+
                     if left_loc == "MATH0":
-                         emit_move_to_math(right_loc, "MATH1", right_width, target_width=4)
+                        # Zero-extend pre-existing MATH0 value when it is narrower than 4 bytes
+                        if _nat_left_width < 4:
+                            for _k in range(_nat_left_width, 4):
+                                self._stz(f"MATH0+{_k}")
+                        emit_move_to_math(right_loc, "MATH1", _nat_right_width, target_width=4)
                     elif right_loc == "MATH0" and node.value in commutative_ops:
-                         emit_move_to_math(left_loc, "MATH1", left_width, target_width=4)
-                         # Implicit swap: MATH0 (new left) = old right, MATH1 (new right) = old left
+                        # Implicit swap: current MATH0 (right) stays as left; move old left to MATH1
+                        if _nat_right_width < 4:
+                            for _k in range(_nat_right_width, 4):
+                                self._stz(f"MATH0+{_k}")
+                        emit_move_to_math(left_loc, "MATH1", _nat_left_width, target_width=4)
                     else:
-                         # Default safe moves
-                         # If right is in MATH0, move it to MATH1 first
-                         if right_loc == "MATH0":
-                             emit_move_to_math(right_loc, "MATH1", right_width, target_width=4)
-                             emit_move_to_math(left_loc, "MATH0", left_width, target_width=4)
-                         else:
-                             # Move right first to avoid clobbering if left needs MATH0
-                             emit_move_to_math(right_loc, "MATH1", right_width, target_width=4)
-                             emit_move_to_math(left_loc, "MATH0", left_width, target_width=4)
+                        # Default safe moves; if right is in MATH0, move it to MATH1 first
+                        if right_loc == "MATH0":
+                            emit_move_to_math(right_loc, "MATH1", _nat_right_width, target_width=4)
+                            emit_move_to_math(left_loc, "MATH0", _nat_left_width, target_width=4)
+                        else:
+                            # Move right first to avoid clobbering if left needs MATH0
+                            emit_move_to_math(right_loc, "MATH1", _nat_right_width, target_width=4)
+                            emit_move_to_math(left_loc, "MATH0", _nat_left_width, target_width=4)
 
                     routine = get_math_routine_for_op(cast(BinOp, node.value), left_width, right_width)
                     if routine:
                        self.emit(f"\tJSR {routine}")
                        self.math_routines_needed.add(routine)
-                       eval_stack.append(("MATH0", node.width))
+                       # Result width is 4 for LONG-target widening; preserve node.width for
+                       # naturally-32-bit expressions (where the type checker set it correctly).
+                       eval_stack.append(("MATH0", 4 if _long_target_widen else node.width))
                     elif node.value == BinOp.LSHIFT:
                         self.emit("\tLDA MATH1")
                         self.emit("\tJSR LSHIFT32")
@@ -875,8 +918,58 @@ class CodeGen:
                     left_width = min(left_width, 1)
                     right_width = min(right_width, 1)
 
+                # Save post-narrowing natural widths for use in memory-load helpers.
+                # These reflect the actual byte sizes in memory, so we avoid reading
+                # {var}+1 garbage when zero-extending a byte variable to word.
+                _load_left_width = left_width
+                _load_right_width = right_width
+
+                # WORD-target widening: when the assignment target is WORD, promote
+                # all arithmetic/bitwise operands to 16-bit so full-precision routines
+                # are used. Symmetric to the BYTE-narrowing above.
+                _widen_ops = {BinOp.ADD, BinOp.SUB, BinOp.MUL, BinOp.DIV, BinOp.MOD,
+                              BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                _target_w: int = 0
+                if (self.assign_target_type is not None
+                        and not self.assign_target_type.is_pointer
+                        and self.assign_target_type.base == "WORD"
+                        and node.value in _widen_ops):
+                    _target_w = 2
+                if _target_w > 1:
+                    left_width = max(left_width, _target_w)
+                    right_width = max(right_width, _target_w)
+
+                # Effective result width: maximum of post-widening operand widths.
+                # Used for eval_stack pushes so consumers see the correct result width.
+                _eff_width: int = max(left_width, right_width)
+
+                # Pre-zero-extend operands in registers or MATH temps that are being
+                # widened from byte to word.  For VAR/CONST locations, zero-extension
+                # is handled later via force_word_operands at store time.  For values
+                # already sitting in MATH0/MATH1/AX/A the high byte must be cleared
+                # before a word routine reads it.
+                if left_width > _load_left_width:
+                    if left_loc == "MATH0":
+                        self._stz("MATH0+1")
+                    elif left_loc == "MATH1":
+                        self._stz("MATH1+1")
+                    elif left_loc in ("AX", "A"):
+                        self.emit("\tLDX #$00")
+                if right_width > _load_right_width:
+                    if right_loc == "MATH0":
+                        self._stz("MATH0+1")
+                    elif right_loc == "MATH1":
+                        self._stz("MATH1+1")
+                    elif right_loc in ("AX", "A"):
+                        self.emit("\tLDX #$00")
+
                 routine = get_math_routine_for_op(cast(BinOp, node.value), left_width, right_width)
-                force_word_operands = routine in {"ADD16", "SUB16"}
+                # Extend force_word_operands to all 16-bit routines so that byte
+                # operands are zero-extended into MATH0+1/MATH1+1 when widening.
+                _word_routines = {"ADD16", "SUB16", "MUL16", "MUL16_8",
+                                  "DIV16", "DIV16_8", "DIV8_16",
+                                  "MOD16", "MOD16_8", "MOD8_16"}
+                force_word_operands = routine in _word_routines
                 use_ax_right = False
                 routine_ax: str | None = None
                 if routine:
@@ -897,7 +990,7 @@ class CodeGen:
                     if _cv > 0 and (_cv & (_cv - 1)) == 0 and _cv.bit_length() - 1 > 0:
                         _skip_math_for_inline_mul = True  # power-of-2
                     elif (node.value == BinOp.MUL and _cv > 0 and
-                          left_width == 1 and bin(_cv).count('1') <= 3):
+                          _load_left_width == 1 and bin(_cv).count('1') <= 3):
                         _skip_math_for_inline_mul = True  # shift-add decomposition
 
                 # OPTIMIZATION: Inline ADD16/SUB16 with constant right operand.
@@ -916,27 +1009,27 @@ class CodeGen:
                             # Load left operand to A/X and use _AX variant (MATH0 stays intact, gets stored to MATH1 by _AX)
                             prev = self.suppress_byte_return_x
                             self.suppress_byte_return_x = False
-                            load_to_ax(left_loc, left_width == 2)
+                            load_to_ax(left_loc, _load_left_width == 2)
                             self.suppress_byte_return_x = prev
                             use_ax_right = True  # Signal to use the _AX variant
                         else:
                             # No _AX variant available, use traditional approach
-                            load_to_ax_for_math(left_loc, left_width == 2)
-                            emit_set_math1_from_ax(left_width == 2, force_word=force_word_operands)
+                            load_to_ax_for_math(left_loc, _load_left_width == 2)
+                            emit_set_math1_from_ax(_load_left_width == 2, force_word=force_word_operands)
                             use_ax_right = False
                     else:
                         # Preserve right in MATH1, then load left to MATH0 (order matters)
-                        load_to_ax_for_math(right_loc, right_width == 2)
-                        emit_set_math1_from_ax(right_width == 2, force_word=force_word_operands)
-                        load_to_ax_for_math(left_loc, left_width == 2)
-                        emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
+                        load_to_ax_for_math(right_loc, _load_right_width == 2)
+                        emit_set_math1_from_ax(_load_right_width == 2, force_word=force_word_operands)
+                        load_to_ax_for_math(left_loc, _load_left_width == 2)
+                        emit_set_math0_from_ax(_load_left_width == 2, force_word=force_word_operands)
                         use_ax_right = False
                 else:
                     if not _skip_math_for_inline_mul:
                         if left_loc != "MATH0":
-                            load_to_ax_for_math(left_loc, left_width == 2)
+                            load_to_ax_for_math(left_loc, _load_left_width == 2)
                             if not skip_math0_store and not _inline_add_sub_const:
-                                emit_set_math0_from_ax(left_width == 2, force_word=force_word_operands)
+                                emit_set_math0_from_ax(_load_left_width == 2, force_word=force_word_operands)
                         if _inline_add_sub_const:
                             pass  # Skip right operand loading — will be inlined
                         elif use_ax_right:
@@ -944,7 +1037,7 @@ class CodeGen:
                                 # For _AX entrypoints, always load both A and X (even for byte operands)
                                 prev = self.suppress_byte_return_x
                                 self.suppress_byte_return_x = False
-                                load_to_ax(right_loc, right_width == 2)
+                                load_to_ax(right_loc, _load_right_width == 2)
                                 self.suppress_byte_return_x = prev
                         else:
                             # OPTIMIZATION: Skip MATH1 loading for shift operations with constant counts
@@ -952,8 +1045,8 @@ class CodeGen:
                             skip_math1_load = (node.value in {BinOp.LSHIFT, BinOp.RSHIFT} and
                                              right_loc.startswith("CONST:"))
                             if right_loc != "MATH1" and not skip_math1_load:
-                                load_to_ax_for_math(right_loc, right_width == 2)
-                                emit_set_math1_from_ax(right_width == 2, force_word=force_word_operands)
+                                load_to_ax_for_math(right_loc, _load_right_width == 2)
+                                emit_set_math1_from_ax(_load_right_width == 2, force_word=force_word_operands)
                 
                 # Check for power of 2 multiplication / division (peephole optimization)
                 math_optimized = False
@@ -965,18 +1058,21 @@ class CodeGen:
                         if shift_amount > 0:
                             # Load operand into A/X to apply shifts
                             if left_loc != "MATH0":
-                                # The left operand is not in MATH0 yet, so load it into A/X natively
-                                load_to_ax(left_loc, left_width == 2)
+                                # Load using natural width; widened bytes need X=0
+                                prev = self.suppress_byte_return_x
+                                self.suppress_byte_return_x = False
+                                load_to_ax(left_loc, _load_left_width == 2)
+                                self.suppress_byte_return_x = prev
                             else:
                                 # Left operand is in MATH0, load it to A/X
                                 self.emit("\tLDA MATH0")
-                                if node.width == 2:
+                                if _eff_width == 2:
                                     self.emit("\tLDX MATH0+1")
 
                             # OPTIMIZATION: If next RPN tokens are CONST + BINOP:ADD/SUB,
                             # shift directly into MATH0 to avoid TMP0→MATH0 copy later.
                             _shift_scratch = "TMP0"
-                            if (node.width == 2 and i + 2 < len(rpn)
+                            if (_eff_width == 2 and i + 2 < len(rpn)
                                     and rpn[i + 1].node_type == 'CONST'
                                     and rpn[i + 2].node_type == 'BINOP'
                                     and rpn[i + 2].value in {BinOp.ADD, BinOp.SUB}):
@@ -984,14 +1080,14 @@ class CodeGen:
 
                             # Perform shifts
                             if node.value == BinOp.MUL:
-                                self._gen_lshift(node.width == 2, "A", shift_amount, scratch=_shift_scratch)
+                                self._gen_lshift(_eff_width == 2, "A", shift_amount, scratch=_shift_scratch)
                             else:
-                                self._gen_rshift(node.width == 2, "A", shift_amount)
+                                self._gen_rshift(_eff_width == 2, "A", shift_amount)
 
-                            eval_stack.append(("AX" if node.width == 2 else "A", node.width))
+                            eval_stack.append(("AX" if _eff_width == 2 else "A", _eff_width))
                             math_optimized = True
                     elif (node.value == BinOp.MUL and const_val > 0 and
-                          left_width == 1 and bin(const_val).count('1') <= 3):
+                          _load_left_width == 1 and bin(const_val).count('1') <= 3):
                         # Shift-add decomposition for non-power-of-2 constants on BYTE operands.
                         # e.g. *3 = *2+*1, *5 = *4+*1, *6 = *4+*2, *10 = *8+*2, *12 = *8+*4
                         if left_loc != "MATH0":
@@ -1020,7 +1116,10 @@ class CodeGen:
                     # When left is in A/X, store X (high byte) to MATH0+1 now.
                     # Required for both the _iac_hi==0 INC/DEC path and the
                     # _iac_hi!=0 path that does LDA MATH0+1 to start the add.
+                    # For widened byte operands X was never loaded, so zero it first.
                     if _iac_a_has_low:
+                        if _load_left_width < left_width:
+                            self.emit("\tLDX #$00")
                         self.emit("\tSTX MATH0+1")
                     _iac_hi_loc: str = "MATH0+1"  # always use MATH0+1 for high byte storage
 
@@ -1042,7 +1141,7 @@ class CodeGen:
                             self.emit(f"\tLDA MATH0")
                         # A has low byte, MATH0+1 has high byte → load X from MATH0+1
                         self.emit(f"\tLDX {_iac_hi_loc}")
-                        eval_stack.append(("AX", node.width))
+                        eval_stack.append(("AX", _eff_width))
                     else:  # SUB
                         if not _iac_a_has_low:
                             self.emit("\tLDA MATH0")
@@ -1060,7 +1159,7 @@ class CodeGen:
                             self.emit(f"\tSTA {_iac_hi_loc}")
                             self.emit(f"\tLDA MATH0")
                         self.emit(f"\tLDX {_iac_hi_loc}")
-                        eval_stack.append(("AX", node.width))
+                        eval_stack.append(("AX", _eff_width))
                 elif routine:
                     if use_ax_right and routine_ax:
                         self.emit(f"\tJSR {routine_ax}")
@@ -1068,15 +1167,10 @@ class CodeGen:
                         self.math_routines_needed.add(routine)
                     else:
                         self.emit(f"\tJSR {routine}")
-                    if node.value in {BinOp.MUL, BinOp.DIV, BinOp.MOD} and node.width <= 2:
-                        eval_stack.append(("AX" if node.width == 2 else "A", node.width))
+                    if node.value in {BinOp.MUL, BinOp.DIV, BinOp.MOD} and _eff_width <= 2:
+                        eval_stack.append(("AX" if _eff_width == 2 else "A", _eff_width))
                     else:
-                        # For ADD/SUB/bitwise: an operand on the eval_stack may carry a
-                        # wider actual width than node.width if the code generator (e.g.
-                        # shift-add) widened it internally.  Use the max so the result
-                        # width reflects the full 16-bit computation that was done.
-                        _routine_res_w = max(node.width, left_width, right_width)
-                        eval_stack.append(("MATH0", _routine_res_w))
+                        eval_stack.append(("MATH0", _eff_width))
                 else:
                     # Inline 8-bit math
                     if node.value == BinOp.ADD and not (left_width > 1 or right_width > 1):
@@ -1098,7 +1192,7 @@ class CodeGen:
                             self.emit("\tSTA MATH0")
                         eval_stack.append(("MATH0", 1))
                     elif node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
-                        result_width = node.width
+                        result_width = _eff_width
                         if result_width > 2:
                             # 32-bit bitwise op: MATH0 = MATH0 op MATH1
                             # Operands are already in MATH0 and MATH1
@@ -2832,6 +2926,11 @@ class CodeGen:
                                             verify_op = verify_line.split(maxsplit=1)[0].upper()
                                             # If ANY instruction that loads into our register, can't remove
                                             if verify_op == load_op:  # LDA, LDX, or LDY
+                                                can_remove = False
+                                                break
+                                            # JSR clobbers all registers and may modify any zero-page memory
+                                            # (e.g. ADD32 writes MATH0); never eliminate a load past a JSR.
+                                            if verify_op == "JSR":
                                                 can_remove = False
                                                 break
                                             # Arithmetic/logical ops also clobber
@@ -12468,7 +12567,16 @@ class CodeGen:
                 left_is_byte: bool = left_t.sem_type.base == "BYTE" and not left_t.sem_type.is_pointer
                 right_is_byte: bool = right_t.sem_type.base == "BYTE" and not right_t.sem_type.is_pointer
                 
-                if left_is_byte and right_is_byte and expr.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
+                # Skip fast path for LONG-target arithmetic/bitwise: the result must land
+                # in MATH0 (4 bytes) via ADD32 etc., not in A (1 byte).  Comparisons are
+                # always byte-valued so they are safe to keep in the fast path.
+                _long_target_arith = (
+                    self.assign_target_type is not None
+                    and not self.assign_target_type.is_pointer
+                    and self.assign_target_type.base == "LONG"
+                    and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+                )
+                if left_is_byte and right_is_byte and not _long_target_arith and expr.op in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE, BinOp.ADD, BinOp.SUB, BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
                     # Generate left operand into accumulator
                     if isinstance(expr.left, Identifier):
                         left_sym: Symbol = self.current_symtab.lookup(expr.left.name)
@@ -13490,7 +13598,12 @@ class CodeGen:
                                 self.emit(f"\tSBC #${lo:02X}")
                             self.emit(f"\tSTA {asm}")
 
-                            self.emit(f"\tLDA {var_asm}+1")
+                            # Load high byte of var: multi-byte vars use var+1;
+                            # byte vars (width=1) are zero-extended with LDA #$00.
+                            if var_sym.type.width >= 2:
+                                self.emit(f"\tLDA {var_asm}+1")
+                            else:
+                                self.emit(f"\tLDA #$00")
                             if is_add:
                                 self.emit(f"\tADC #${hi:02X}")
                             else:
