@@ -156,20 +156,16 @@ __ZAP_endif_11:
 	STA _MAIN$R+3
 ; /home/dusan/src/ZAP-compiler/tests/pass/174-struct-field-zp-access/174-struct-field-zp-access.zap 63:     if r.x0 + r.y0 + r.x1 + r.y1 == 26
 	LDA _MAIN$R
-	LDX #$00
 	STA __TMP1
 	LDA _MAIN$R+1
-	LDX #$00
 	CLC
 	ADC __TMP1
 	STA __TMP1
 	LDA _MAIN$R+2
-	LDX #$00
 	CLC
 	ADC __TMP1
 	STA __TMP1
 	LDA _MAIN$R+3
-	LDX #$00
 	CLC
 	ADC __TMP1
 	CMP #$1A

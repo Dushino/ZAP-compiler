@@ -85,6 +85,8 @@ def _eval_unary(op: UnOp, v: int, node: Expr | None = None) -> IntLiteral:
     if op == UnOp.BNOT:
         # Bitwise NOT - invert all 16 bits
         return IntLiteral((~v) & 0xFFFF)
+    if op == UnOp.NEG:
+        return IntLiteral(-v)
 
     raise SemanticError(f"Unsupported unary op in constant fold: {op}", node=node)
 

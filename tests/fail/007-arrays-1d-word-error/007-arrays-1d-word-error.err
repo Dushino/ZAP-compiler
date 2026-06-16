@@ -1,1 +1,1 @@
-3:18: error: Expected expression, got '-'
+3:18: error: Array index cannot be negative: -1

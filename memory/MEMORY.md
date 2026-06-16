@@ -78,7 +78,7 @@
 - Segments: .segment "name"
 
 ## Test suite
-- tests/pass/ — 184 positive tests (numbered 001–218, with some gaps)
+- tests/pass/ — 208 positive tests (numbered 001–242, with some gaps)
 - tests/fail/ — 139 negative tests (error detection)
 - Each positive test: 4 variants (65C02, 65C02+O1, 6502, 6502+O1)
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
@@ -86,10 +86,22 @@
 - `.ref` files must have exactly ONE trailing newline (two newlines → OUTPUT_MISMATCH)
 - Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
 - Tests 209-210: use fixed absolute address 0x4200 for dump (stable across optimization variants)
+- Tests 226-242: new regression tests for LONG/WORD/BYTE arithmetic, logical ops, struct fields, compound assignments
 
 ## VS Code profile gotcha — check profile before debugging syntax highlighting
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
+
+## Bugfixes: LOR/LAND Z-flag clobber + neg const indices (2026-06-15)
+
+- `_gen_field_access` (codegen_expr.py): BYTE field load emits `LDA _R; LDX #$00`; the `LDX #$00` sets Z=1, breaking subsequent `BNE`. Fixed: added `and not self.suppress_byte_return_x` to all three BYTE-field `LDX #$00` emits.
+- `_gen_logical` (codegen_expr.py): new `_gen_expr_for_branch` helper sets `suppress_byte_return_x=True` before calling `gen_expr` for BYTE operands, preventing Z-flag clobber before BNE/BEQ.
+- `sema_expr.py`: `tc_check(UnaryExpr(NEG, ...))` now preserves operand type (same as BNOT). Subscript bounds check now folds index first (catches `arr[-1]`).
+- `constfold.py`: `_eval_unary` now handles `UnOp.NEG` (returns `-v`).
+- `sema.py`: `eval_const_expr` handles `UnaryExpr` (NEG/NOT/BNOT). Fixed-address declarations reject negative addresses.
+- `tests/fail/007`: error updated from parse-error to `Array index cannot be negative: -1`.
+- `tests/fail/062`: error updated from parse-error to `Fixed variable address cannot be negative: -1`.
+- 208 pass / 139 fail — all OK
 
 ## LONG pointer/array/struct correctness fixes (2026-06-15)
 

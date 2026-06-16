@@ -45,7 +45,6 @@ _MAIN$O                 = __LVSLOT_1
 	STA _MAIN$O+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/033-structs-nested/033-structs-nested.zap 16:     result = o.inner.v + o.extra
 	LDA _MAIN$O
-	LDX #$00
 	STA __TMP1
 	LDA _MAIN$O+1
 	CLC

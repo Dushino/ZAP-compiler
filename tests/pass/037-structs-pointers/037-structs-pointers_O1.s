@@ -55,7 +55,6 @@ _MAIN$PP                = __LVSLOT_2
 	STA (_MAIN$PP),Y
 ; /home/dusan/src/ZAP-compiler/tests/pass/037-structs-pointers/037-structs-pointers.zap 16:     result = p.x + p.y
 	LDA _MAIN$P
-	LDX #$00
 	STA __TMP1
 	LDA _MAIN$P+1
 	CLC

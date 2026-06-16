@@ -885,8 +885,102 @@ class CodeGen:
                     elif node.value in {BinOp.BAND, BinOp.BOR, BinOp.BXOR}:
                         self._gen_bitwise32(cast(BinOp, node.value))
                         eval_stack.append(("MATH0", 4))
+                    elif node.value in {BinOp.LAND, BinOp.LOR}:
+                        # 32-bit logical AND/OR: check all 4 bytes of each operand.
+                        # Operands are already in MATH0 (left) and MATH1 (right).
+                        _lbl32_branch = self.new_label("LAND32_BRANCH" if node.value == BinOp.LAND else "LOR32_BRANCH")
+                        _lbl32_end = self.new_label("LAND32_END" if node.value == BinOp.LAND else "LOR32_END")
+                        if node.value == BinOp.LAND:
+                            self.emit("\tLDA MATH0")
+                            self.emit("\tORA MATH0+1")
+                            self.emit("\tORA MATH0+2")
+                            self.emit("\tORA MATH0+3")
+                            self.emit(f"\tBEQ {_lbl32_branch}")
+                            self.emit("\tLDA MATH1")
+                            self.emit("\tORA MATH1+1")
+                            self.emit("\tORA MATH1+2")
+                            self.emit("\tORA MATH1+3")
+                            self.emit(f"\tBEQ {_lbl32_branch}")
+                            self.emit("\tLDA #$01")
+                            self.emit(f"\tJMP {_lbl32_end}")
+                            self.emit(f"{_lbl32_branch}:")
+                            self.emit("\tLDA #$00")
+                        else:  # LOR
+                            self.emit("\tLDA MATH0")
+                            self.emit("\tORA MATH0+1")
+                            self.emit("\tORA MATH0+2")
+                            self.emit("\tORA MATH0+3")
+                            self.emit(f"\tBNE {_lbl32_branch}")
+                            self.emit("\tLDA MATH1")
+                            self.emit("\tORA MATH1+1")
+                            self.emit("\tORA MATH1+2")
+                            self.emit("\tORA MATH1+3")
+                            self.emit(f"\tBNE {_lbl32_branch}")
+                            self.emit("\tLDA #$00")
+                            self.emit(f"\tJMP {_lbl32_end}")
+                            self.emit(f"{_lbl32_branch}:")
+                            self.emit("\tLDA #$01")
+                        self.emit(f"{_lbl32_end}:")
+                        self.emit("\tSTA MATH0")
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")
+                        eval_stack.append(("MATH0", 1))
+                    elif node.value in {BinOp.EQ, BinOp.NE, BinOp.LT, BinOp.LE, BinOp.GT, BinOp.GE}:
+                        # 32-bit comparison in value context: operands in MATH0 (left) and MATH1 (right).
+                        # Produces BYTE (0 or 1) in MATH0.
+                        _lbl32_true = self.new_label("CMP32V_TRUE")
+                        _lbl32_end = self.new_label("CMP32V_END")
+                        if node.value == BinOp.EQ:
+                            _lbl32_neq = self.new_label("CMP32V_NEQ")
+                            for _bi32 in range(4):
+                                _sfx = f"+{_bi32}" if _bi32 > 0 else ""
+                                self.emit(f"\tLDA MATH0{_sfx}")
+                                self.emit(f"\tCMP MATH1{_sfx}")
+                                self.emit(f"\tBNE {_lbl32_neq}")
+                            self.emit(f"\tJMP {_lbl32_true}")
+                            self.emit(f"{_lbl32_neq}:")
+                            self.emit("\tLDA #$00")
+                            self.emit(f"\tJMP {_lbl32_end}")
+                        elif node.value == BinOp.NE:
+                            for _bi32 in range(4):
+                                _sfx = f"+{_bi32}" if _bi32 > 0 else ""
+                                self.emit(f"\tLDA MATH0{_sfx}")
+                                self.emit(f"\tCMP MATH1{_sfx}")
+                                self.emit(f"\tBNE {_lbl32_true}")
+                            self.emit("\tLDA #$00")
+                            self.emit(f"\tJMP {_lbl32_end}")
+                        else:
+                            # Relational: compare high-to-low; branch on first difference
+                            _lbl32_decide = self.new_label("CMP32V_DECIDE")
+                            for _bi32 in [3, 2, 1]:
+                                self.emit(f"\tLDA MATH0+{_bi32}")
+                                self.emit(f"\tCMP MATH1+{_bi32}")
+                                self.emit(f"\tBNE {_lbl32_decide}")
+                            self.emit("\tLDA MATH0")
+                            self.emit("\tCMP MATH1")
+                            self.emit(f"{_lbl32_decide}:")
+                            if node.value == BinOp.LT:
+                                self.emit(f"\tBCC {_lbl32_true}")
+                            elif node.value == BinOp.GE:
+                                self.emit(f"\tBCS {_lbl32_true}")
+                            elif node.value == BinOp.GT:
+                                _lbl32_not_gt = self.new_label("CMP32V_NGT")
+                                self.emit(f"\tBEQ {_lbl32_not_gt}")
+                                self.emit(f"\tBCS {_lbl32_true}")
+                                self.emit(f"{_lbl32_not_gt}:")
+                            elif node.value == BinOp.LE:
+                                self.emit(f"\tBCC {_lbl32_true}")
+                                self.emit(f"\tBEQ {_lbl32_true}")
+                            self.emit("\tLDA #$00")
+                            self.emit(f"\tJMP {_lbl32_end}")
+                        self.emit(f"{_lbl32_true}:")
+                        self.emit("\tLDA #$01")
+                        self.emit(f"{_lbl32_end}:")
+                        self.emit("\tSTA MATH0")
+                        if not self.suppress_byte_return_x:
+                            self.emit("\tLDX #$00")
+                        eval_stack.append(("MATH0", 1))
                     else:
-                        # Fallback for non-routine 32-bit ops (e.g. comparisons logic for 32-bit?)
                         self._raise_error(f"Unsupported 32-bit operation: {node.value}")
                     continue
 
@@ -1657,21 +1751,11 @@ class CodeGen:
                         eval_stack.append(("MATH0", 4))
                     
                     elif operand_width == 2:
-                         if operand_loc != "MATH0":
-                            # NEG16 routine expects arg in constants or MATH0?
-                            # Actually internal `NEG16` routine probably works on MATH0.
-                            # But wait, does `NEG16` exist?
-                            # I see `NEG16` in `_math_stack_push`? No.
-                            # Let's check `get_math_routine_for_op`. BINOP only.
-                            # UNOP NEG was inline before?
-                            # No, previous code had:
-                            # elif node.value == UnOp.NEG and operand_16: 
-                            # self.emit("\tJSR NEG16")
-                            # So NEG16 exists.
+                        if operand_loc != "MATH0":
                             emit_move_to_math(operand_loc, "MATH0", 2)
-                            self.emit("\tJSR NEG16")
-                            self.math_routines_needed.add("NEG16")
-                            eval_stack.append(("MATH0", 2))
+                        self.emit("\tJSR NEG16")
+                        self.math_routines_needed.add("NEG16")
+                        eval_stack.append(("MATH0", 2))
                     else:
                         # 8-bit NEG: -x = !x + 1
                         load_to_ax(operand_loc, False)
@@ -6531,6 +6615,43 @@ class CodeGen:
             self.emit("RSHIFT32_EXIT:")
             self.emit("\tRTS")
 
+        def emit_neg32() -> None:
+            self.emit("; NEG32: MATH0 = -MATH0 (32-bit 2's complement negation)")
+            self.emit("; Uses EOR #$FF + SEC/ADC to flip bits and add 1 with carry propagation")
+            self.emit("NEG32:")
+            self.emit("\tSEC")
+            self.emit("\tLDA MATH0")
+            self.emit("\tEOR #$FF")
+            self.emit("\tADC #$00")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tEOR #$FF")
+            self.emit("\tADC #$00")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tLDA MATH0+2")
+            self.emit("\tEOR #$FF")
+            self.emit("\tADC #$00")
+            self.emit("\tSTA MATH0+2")
+            self.emit("\tLDA MATH0+3")
+            self.emit("\tEOR #$FF")
+            self.emit("\tADC #$00")
+            self.emit("\tSTA MATH0+3")
+            self.emit("\tRTS")
+
+        def emit_neg16() -> None:
+            self.emit("; NEG16: MATH0 = -MATH0 (16-bit 2's complement negation)")
+            self.emit("NEG16:")
+            self.emit("\tSEC")
+            self.emit("\tLDA MATH0")
+            self.emit("\tEOR #$FF")
+            self.emit("\tADC #$00")
+            self.emit("\tSTA MATH0")
+            self.emit("\tLDA MATH0+1")
+            self.emit("\tEOR #$FF")
+            self.emit("\tADC #$00")
+            self.emit("\tSTA MATH0+1")
+            self.emit("\tRTS")
+
         emitters: list[tuple[str, Any]] = [
             ("SET_MATH0", emit_set_math0),
             ("SET_MATH1", emit_set_math1),
@@ -6569,6 +6690,8 @@ class CodeGen:
             ("MOD32", emit_mod32),
             ("LSHIFT32", emit_lshift32),
             ("RSHIFT32", emit_rshift32),
+            ("NEG32", emit_neg32),
+            ("NEG16", emit_neg16),
         ]
 
         self.emit("")
@@ -9975,13 +10098,15 @@ class CodeGen:
                     else:
                         # BYTE field -> X = 0
                         # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
+                        # Also skip if suppress_byte_return_x is set (e.g. in _gen_logical branch context,
+                        # where LDX #$00 would clobber the Z flag before a BNE/BEQ instruction).
                         target_is_byte: None | bool = (self.assign_target_type and
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and
                                         not getattr(self.assign_target_type, 'is_pointer', False))
-                        if not target_is_byte or self.force_word_result:
+                        if (not target_is_byte or self.force_word_result) and not self.suppress_byte_return_x:
                             self.emit("\tLDX #$00")
-                    
+
             elif isinstance(expr.object, SubscriptExpr):
                 # Array subscript: Point arr[i]; arr[i].x = ...
                 # Phase 3: check whether TMP0 already holds &arr[i] (element base).
@@ -10053,11 +10178,12 @@ class CodeGen:
                         else:
                             # BYTE field -> X = 0
                             # Optimization: skip LDX #$00 if assignment target is BYTE (no need to set high byte)
+                            # Also skip if suppress_byte_return_x is set (branch context).
                             target_is_byte: None | bool = (self.assign_target_type and
                                             hasattr(self.assign_target_type, 'base') and
                                             self.assign_target_type.base == "BYTE" and
                                             not getattr(self.assign_target_type, 'is_pointer', False))
-                            if not target_is_byte or self.force_word_result:
+                            if (not target_is_byte or self.force_word_result) and not self.suppress_byte_return_x:
                                 self.emit("\tLDX #$00")
 
                 elif isinstance(base_expr, SubscriptExpr):
@@ -10101,7 +10227,7 @@ class CodeGen:
                                         hasattr(self.assign_target_type, 'base') and
                                         self.assign_target_type.base == "BYTE" and
                                         not getattr(self.assign_target_type, 'is_pointer', False))
-                        if not target_is_byte or self.force_word_result:
+                        if (not target_is_byte or self.force_word_result) and not self.suppress_byte_return_x:
                             self.emit("\tLDX #$00")
             elif isinstance(expr.object, DerefExpr):
                 # fptr^.field parsed as FieldAccess(is_deref=False, object=DerefExpr(fptr))
@@ -12277,22 +12403,29 @@ class CodeGen:
         return False
 
     def _gen_logical(self, expr: BinaryExpr) -> None:
-        """Generate logical.
-        Internal helper used during code generation.
+        """Generate logical AND/OR with short-circuit evaluation.
+        Handles BYTE, WORD, and LONG operands; result is always BYTE (0 or 1).
+        After gen_expr: BYTE result is in A; WORD result in A/X; LONG result in MATH0.
         """
-        # Use TMP4 only when we must test a word value via A/X
-        def _is_word_value(e: Expr) -> bool:
-            """Return whether word value.
-            Internal helper used during code generation.
-            """
+        def _operand_type_flag(e: Expr) -> str:
+            """Return 'long', 'word', or 'byte' for branch-width selection."""
             t: ExprType = self.tc_check(e)
-            return t.sem_type.base == "WORD" or t.sem_type.is_pointer
+            if t.sem_type.base == "LONG" and not t.sem_type.is_pointer:
+                return "long"
+            if t.sem_type.base == "WORD" or t.sem_type.is_pointer:
+                return "word"
+            return "byte"
 
-        def _branch_if_zero(is_word_val: bool, label: str) -> None:
-            """Helper for branch if zero.
-            Internal helper used during code generation.
-            """
-            if is_word_val:
+        def _branch_if_zero(type_flag: str, label: str) -> None:
+            """Branch to label if the result of the most recent gen_expr is zero."""
+            if type_flag == "long":
+                # LONG result is always in MATH0 after gen_expr
+                self.emit("\tLDA MATH0")
+                self.emit("\tORA MATH0+1")
+                self.emit("\tORA MATH0+2")
+                self.emit("\tORA MATH0+3")
+                self.emit(f"\tBEQ {label}")
+            elif type_flag == "word":
                 self.used_temps.add("TMP4")
                 self.emit("\tSTA TMP4")
                 self.emit("\tTXA")
@@ -12301,11 +12434,15 @@ class CodeGen:
             else:
                 self.emit(f"\tBEQ {label}")
 
-        def _branch_if_nonzero(is_word_val: bool, label: str) -> None:
-            """Helper for branch if nonzero.
-            Internal helper used during code generation.
-            """
-            if is_word_val:
+        def _branch_if_nonzero(type_flag: str, label: str) -> None:
+            """Branch to label if the result of the most recent gen_expr is non-zero."""
+            if type_flag == "long":
+                self.emit("\tLDA MATH0")
+                self.emit("\tORA MATH0+1")
+                self.emit("\tORA MATH0+2")
+                self.emit("\tORA MATH0+3")
+                self.emit(f"\tBNE {label}")
+            elif type_flag == "word":
                 self.used_temps.add("TMP4")
                 self.emit("\tSTA TMP4")
                 self.emit("\tTXA")
@@ -12313,29 +12450,56 @@ class CodeGen:
                 self.emit(f"\tBNE {label}")
             else:
                 self.emit(f"\tBNE {label}")
+
+        def _gen_expr_for_branch(e: Expr) -> None:
+            """Generate expr for branching; suppress LDX #$00 for BYTE results.
+            LDX #$00 after LDA corrupts the Z flag, breaking BNE/BEQ that follow.
+            WORD expressions need X intact (for the STA TMP4;TXA;ORA check).
+            """
+            if _operand_type_flag(e) == "byte":
+                prev_suppress = self.suppress_byte_return_x
+                self.suppress_byte_return_x = True
+                self.gen_expr(e)
+                self.suppress_byte_return_x = prev_suppress
+            else:
+                self.gen_expr(e)
+
         if expr.op == BinOp.LAND:
             lbl_false: str = self.new_label("LAND_FALSE")
             lbl_end: str   = self.new_label("LAND_END")
 
-            # lhs
-            self.gen_expr(expr.left)
-            _branch_if_zero(_is_word_value(expr.left), lbl_false)  # lhs == 0 → false
+            _gen_expr_for_branch(expr.left)
+            _branch_if_zero(_operand_type_flag(expr.left), lbl_false)
 
-            # rhs
-            self.gen_expr(expr.right)
-            _branch_if_zero(_is_word_value(expr.right), lbl_false)  # rhs == 0 → false
+            _gen_expr_for_branch(expr.right)
+            _branch_if_zero(_operand_type_flag(expr.right), lbl_false)
 
-            # true
             self.emit("\tLDA #1")
             self.emit(f"\tJMP {lbl_end}")
-
-            # false
             self.emit(f"{lbl_false}:")
             self.emit("\tLDA #$00")
-
             self.emit(f"{lbl_end}:")
             if self.force_word_result:
-                self.emit("\tLDX #$00")   # X = result high byte
+                self.emit("\tLDX #$00")
+            return
+
+        if expr.op == BinOp.LOR:
+            lbl_true: str = self.new_label("LOR_TRUE")
+            lbl_end2: str = self.new_label("LOR_END")
+
+            _gen_expr_for_branch(expr.left)
+            _branch_if_nonzero(_operand_type_flag(expr.left), lbl_true)
+
+            _gen_expr_for_branch(expr.right)
+            _branch_if_nonzero(_operand_type_flag(expr.right), lbl_true)
+
+            self.emit("\tLDA #$00")
+            self.emit(f"\tJMP {lbl_end2}")
+            self.emit(f"{lbl_true}:")
+            self.emit("\tLDA #1")
+            self.emit(f"{lbl_end2}:")
+            if self.force_word_result:
+                self.emit("\tLDX #$00")
             return
 
     def _sizeof_struct_arg(self, arg: Expr) -> int:
@@ -12804,7 +12968,17 @@ class CodeGen:
                             self.gen_expr(rhs)
                         
                         # Direct store using calculated offset
-                        if lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
+                        if lhs_t.sem_type.base == "LONG" and not lhs_t.sem_type.is_pointer:
+                            # LONG element: result in MATH0, store all 4 bytes
+                            self.emit(f"\tLDA MATH0")
+                            self.emit(f"\tSTA {arr_addr}+{offset}")
+                            self.emit(f"\tLDA MATH0+1")
+                            self.emit(f"\tSTA {arr_addr}+{offset+1}")
+                            self.emit(f"\tLDA MATH0+2")
+                            self.emit(f"\tSTA {arr_addr}+{offset+2}")
+                            self.emit(f"\tLDA MATH0+3")
+                            self.emit(f"\tSTA {arr_addr}+{offset+3}")
+                        elif lhs_t.sem_type.base == "WORD" or lhs_t.sem_type.is_pointer:
                             # WORD element: store both bytes
                             self.emit(f"\tSTA {arr_addr}+{offset}")
                             self.emit(f"\tSTX {arr_addr}+{offset+1}")
@@ -16220,7 +16394,24 @@ class CodeGen:
         """
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
-        is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD"
+        is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer or right_t.sem_type.is_pointer
+        is_32bit: bool = left_t.sem_type.width > 2 or right_t.sem_type.width > 2
+
+        # 32-bit (LONG) comparison in value context: wrap the branch-based impl to produce 0/1
+        if is_32bit:
+            lbl_true_32: str  = self.new_label("REL32_TRUE")
+            lbl_false_32: str = self.new_label("REL32_FALSE")
+            lbl_end_32: str   = self.new_label("REL32_END")
+            self._emit_relational_branch_impl(expr, lbl_true=lbl_true_32, lbl_false=lbl_false_32)
+            self.emit(f"{lbl_false_32}:")
+            self.emit("\tLDA #$00")
+            self.emit(f"\tJMP {lbl_end_32}")
+            self.emit(f"{lbl_true_32}:")
+            self.emit("\tLDA #1")
+            self.emit(f"{lbl_end_32}:")
+            if self.force_word_result:
+                self.emit("\tLDX #$00")
+            return
 
         # Fast path: WORD == 0 / WORD != 0  →  LDA lo; ORA hi; BEQ/BNE
         if is_16bit and expr.op in (BinOp.EQ, BinOp.NE):

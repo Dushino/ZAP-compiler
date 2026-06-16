@@ -43,7 +43,6 @@ _MAIN$V                 = __LVSLOT_1
 	STA _PORT1
 ; /home/dusan/src/ZAP-compiler/tests/pass/158-port-struct-fields/158-port-struct-fields.zap 30:     if PORT1.rw_field == 42
 	LDA _PORT1
-	LDX #$00
 	CMP #$2A
 	BNE __ZAP_else_1
 ; /home/dusan/src/ZAP-compiler/tests/pass/158-port-struct-fields/158-port-struct-fields.zap 31:         result = result + 1     ; 1: inherited rd+wr works for both directions
@@ -56,7 +55,6 @@ __ZAP_endif_2:
 	STA _PORT1+3
 ; /home/dusan/src/ZAP-compiler/tests/pass/158-port-struct-fields/158-port-struct-fields.zap 36:     if PORT1.rdwr_field == 77
 	LDA _PORT1+3
-	LDX #$00
 	CMP #$4D
 	BNE __ZAP_else_4
 ; /home/dusan/src/ZAP-compiler/tests/pass/158-port-struct-fields/158-port-struct-fields.zap 37:         result = result + 1     ; 2: explicit #RD #WR works for both directions

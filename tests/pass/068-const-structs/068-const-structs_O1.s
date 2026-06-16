@@ -57,7 +57,6 @@ _MAIN$P                 = __LVSLOT_1
 	JSR __COPY_BYTES
 ; /home/dusan/src/ZAP-compiler/tests/pass/068-const-structs/068-const-structs.zap 11:     result = p.x + p.y
 	LDA _MAIN$P
-	LDX #$00
 	STA __TMP1
 	LDA _MAIN$P+1
 	CLC

@@ -203,7 +203,6 @@ __ZAP_endif_5:
 	STA _MAIN$V
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 73:     if v.x == 3
 	LDA _MAIN$V
-	LDX #$00
 	CMP #$03
 	BNE __ZAP_else_7
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 74:         result = result + 1     ; 3
@@ -219,7 +218,6 @@ __ZAP_endif_8:
 	STA _MAIN$V+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 77:     if v.y == 4
 	LDA _MAIN$V+1
-	LDX #$00
 	CMP #$04
 	BNE __ZAP_else_10
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 78:         result = result + 1     ; 4
@@ -337,7 +335,6 @@ __ZAP_else_25:
 __ZAP_endif_26:
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 102:     if tmp.x == 5
 	LDA _MAIN$TMP
-	LDX #$00
 	CMP #$05
 	BNE __ZAP_else_29
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 103:         result = result + 1     ; 9
@@ -347,7 +344,6 @@ __ZAP_else_29:
 __ZAP_endif_30:
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 105:     if tmp.y == 6
 	LDA _MAIN$TMP+1
-	LDX #$00
 	CMP #$06
 	BNE __ZAP_else_32
 ; /home/dusan/src/ZAP-compiler/tests/pass/154-struct-func-field-access/154-struct-func-field-access.zap 106:         result = result + 1     ; 10

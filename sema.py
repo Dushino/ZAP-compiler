@@ -9,7 +9,8 @@ from typing import Any
 from symbols import SemType, Symbol, SymbolTable, StructRegistry, StructInfo, StructFieldInfo, ScopedSymbolTable
 from ast_nodes import (
     Expr, IntLiteral, Identifier, BinaryExpr, BinOp, FieldAccess, CallExpr,
-    ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl, EnumItem
+    ListInit, StringInit, ExprInit, Declaration, Declarator, StructDef, EnumDecl, EnumItem,
+    UnaryExpr, UnOp
 )
 
 
@@ -55,6 +56,16 @@ def eval_const_expr(expr, symtab=None, struct_registry=None):
                     raise SemanticError(f"Enum '{expr.object.name}' has no member '{expr.field}'", node=expr)
                 return members[mname]
         raise SemanticError("Constant expression required", node=expr)
+
+    if isinstance(expr, UnaryExpr):
+        operand = eval_const_expr(expr.expr, symtab, struct_registry)
+        if expr.op == UnOp.NEG:
+            return -operand
+        if expr.op == UnOp.NOT:
+            return 0 if operand else 1
+        if expr.op == UnOp.BNOT:
+            return (~operand) & 0xFFFF
+        raise SemanticError("Unsupported unary op in constant expression", node=expr)
 
     if isinstance(expr, BinaryExpr):
         left = eval_const_expr(expr.left, symtab, struct_registry)
@@ -435,6 +446,8 @@ class DeclarationAnalyzer:
             else:
                 lookup_symtab = self.symtab
             address_val = eval_const_expr(d.address, lookup_symtab, self.struct_registry)
+            if address_val < 0:
+                raise SemanticError(f"Fixed variable address cannot be negative: {address_val}", node=d.address)
 
         if is_array and array_dims:
             # Process each dimension

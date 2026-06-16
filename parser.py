@@ -1211,7 +1211,16 @@ class Parser:
             self.advance()
             operand = self.parse_factor()  # Recursive call for nested unary operators
             return UnaryExpr(UnOp.NOT, operand, line=op_line, col=op_col, filename=self.filename)
-        
+
+        if self.cur.type == TOK_OP and self.cur.value == "-":
+            # Unary negation: -expr
+            op_line: int = self.cur.line
+            op_col: int = self.cur.col
+            self.advance()
+            operand = self.parse_factor()  # Recursive call for nested unary operators
+            return UnaryExpr(UnOp.NEG, operand, line=op_line, col=op_col, filename=self.filename)
+
+
         if self.cur.type == TOK_NUMBER:
             val: str = self.cur.value
             num_line: int = self.cur.line

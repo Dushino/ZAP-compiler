@@ -92,7 +92,6 @@ _MAIN$R2                = __LVSLOT_3
 	JSR __COPY_BYTES
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 49:     if p2.x == 10
 	LDA _MAIN$P2
-	LDX #$00
 	CMP #$0A
 	BNE __ZAP_else_1
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 50:         result = result + 1     ; 1
@@ -102,7 +101,6 @@ __ZAP_else_1:
 __ZAP_endif_2:
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 52:     if p2.y == 20
 	LDA _MAIN$P2+1
-	LDX #$00
 	CMP #$14
 	BNE __ZAP_else_4
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 53:         result = result + 1     ; 2
@@ -123,7 +121,6 @@ __ZAP_endif_5:
 	JSR __COPY_BYTES
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 58:     if p3.x == 10
 	LDA _MAIN$P3
-	LDX #$00
 	CMP #$0A
 	BNE __ZAP_else_7
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 59:         result = result + 1     ; 3
@@ -133,7 +130,6 @@ __ZAP_else_7:
 __ZAP_endif_8:
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 61:     if p3.y == 20
 	LDA _MAIN$P3+1
-	LDX #$00
 	CMP #$14
 	BNE __ZAP_else_10
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 62:         result = result + 1     ; 4
@@ -155,7 +151,6 @@ __ZAP_endif_11:
 	JSR __COPY_BYTES
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 67:     if p4.x == 100
 	LDA _MAIN$P4
-	LDX #$00
 	CMP #$64
 	BNE __ZAP_else_13
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 68:         result = result + 1     ; 5
@@ -165,7 +160,6 @@ __ZAP_else_13:
 __ZAP_endif_14:
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 70:     if p4.y == 200
 	LDA _MAIN$P4+1
-	LDX #$00
 	CMP #$C8
 	BNE __ZAP_else_16
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 71:         result = result + 1     ; 6
@@ -186,7 +180,6 @@ __ZAP_endif_17:
 	JSR __COPY_BYTES
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 76:     if r2.x == 1
 	LDA _MAIN$R2
-	LDX #$00
 	CMP #$01
 	BNE __ZAP_else_19
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 77:         result = result + 1     ; 7
@@ -196,7 +189,6 @@ __ZAP_else_19:
 __ZAP_endif_20:
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 79:     if r2.h == 4
 	LDA _MAIN$R2+3
-	LDX #$00
 	CMP #$04
 	BNE __ZAP_else_22
 ; /home/dusan/src/ZAP-compiler/tests/pass/145-struct-copy/145-struct-copy.zap 80:         result = result + 1     ; 8

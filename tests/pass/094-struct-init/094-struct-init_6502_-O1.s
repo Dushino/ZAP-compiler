@@ -45,7 +45,6 @@ _MAIN$S                 = __LVSLOT_1
 	STA _MAIN$S+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/094-struct-init/094-struct-init.zap 10:     result = s.a + s.b ; expect 3
 	LDA _MAIN$S
-	LDX #$00
 	STA __TMP1
 	LDA _MAIN$S+1
 	CLC

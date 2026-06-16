@@ -78,14 +78,12 @@ __ZAP_else_7:
 __ZAP_else_10:
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 64:     if g_pair.x == 0
 	LDA _G_PAIR
-	LDX #$00
 	BNE __ZAP_else_13
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 65:         result = result + 1     ; 5
 	INC _RESULT
 __ZAP_else_13:
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 67:     if g_pair.y == 0
 	LDA _G_PAIR+1
-	LDX #$00
 	BNE __ZAP_else_16
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 68:         result = result + 1     ; 6
 	INC _RESULT
@@ -122,14 +120,12 @@ __ZAP_else_25:
 __ZAP_else_28:
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 88:     if l_pair.x == 0
 	LDA _MAIN$L_PAIR
-	LDX #$00
 	BNE __ZAP_else_31
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 89:         result = result + 1     ; 11
 	INC _RESULT
 __ZAP_else_31:
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 91:     if l_pair.y == 0
 	LDA _MAIN$L_PAIR+1
-	LDX #$00
 	BNE __ZAP_else_34
 ; /home/dusan/src/ZAP-compiler/tests/pass/149-uninit-vars/149-uninit-vars.zap 92:         result = result + 1     ; 12
 	INC _RESULT

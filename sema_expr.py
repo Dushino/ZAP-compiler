@@ -97,8 +97,11 @@ class ExprTypeChecker:
                 raise SemanticError("Subscript requires array address", node=expr)
             
             # Check if index is a constant and validate bounds
-            if isinstance(expr.index, IntLiteral):
-                self._check_array_bounds(expr, expr.index.value)
+            # Fold the index first so that e.g. -1 (UnaryExpr NEG of 1) is recognized
+            from constfold import fold_expr as _fold
+            _folded_index = _fold(expr.index)
+            if isinstance(_folded_index, IntLiteral):
+                self._check_array_bounds(expr, _folded_index.value)
             
             # Check if this is a multi-dimensional array
             # For multi-dimensional arrays, partial subscripting returns ADDR (pointer to next dimension)
@@ -329,10 +332,10 @@ class ExprTypeChecker:
             if t.kind != ExprKind.VALUE and t.kind != ExprKind.ADDR:
                 raise SemanticError("Unary operator requires value", node=expr)
             
-            # For bitwise NOT (~), preserve the operand type
-            if expr.op.value == "~":
+            # For bitwise NOT (~) and arithmetic negation (-), preserve the operand type
+            if expr.op in {UnOp.BNOT, UnOp.NEG}:
                 return ExprType(t.sem_type, ExprKind.VALUE)
-            
+
             # For logical NOT (!), return BYTE
             return ExprType(SemType("BYTE", False), ExprKind.VALUE)
 

@@ -1,5 +1,70 @@
 # Progress Tracker
 
+## Bugfixes: BYTE field in LOR/LAND, negative constant array indices, NEG type inference (2026-06-15)
+
+### Problems Fixed
+
+1. **Struct BYTE field in LOR/LAND condition gave wrong result** (`r.flag || 0` always false):
+   `_gen_field_access` for BYTE fields emits `LDA _R; LDX #$00`. The `LDX #$00` sets Z=1,
+   so the following `BNE` (branch-if-nonzero) always fell through regardless of `_R`'s value.
+   Root cause: `_gen_logical` called `gen_expr` for BYTE operands without suppressing `LDX #$00`.
+
+2. **Unary NEG type inference (sema_expr.py)**: `tc_check(UnaryExpr(NEG, word_var))` returned
+   BYTE because only BNOT preserved the operand type. Fixed by extending the type-preservation
+   set to include NEG.
+
+3. **RPN NEG16 path skipped for MATH0 operands**: When the RPN stack top was already in MATH0,
+   the `JSR NEG16` and stack push were inside `if operand_loc != "MATH0":` — nothing happened.
+
+4. **LONG array compound store (Case 1, constant index)**: `larr[0] += 1000` only stored 1 byte
+   (WORD/BYTE path); added explicit 4-byte MATH0 → array+offset store.
+
+5. **Negative constant array/address indices now rejected**:
+   - `fold_expr` / `eval_const_expr` now handle `UnOp.NEG` on constants.
+   - Bounds check in `sema_expr.py` folds the index before checking, catching `arr[-1]`.
+   - Fixed-address variable declarations with negative addresses (`byte x @-1`) now error.
+
+### Changes
+
+- **`sema_expr.py`**: `tc_check(UnaryExpr)` — NEG now preserves operand type (same as BNOT).
+  Subscript bounds check now folds the index before checking (catches `arr[-1]`).
+- **`codegen_expr.py`**:
+  - `_gen_field_access`: Added `and not self.suppress_byte_return_x` to all three BYTE-field
+    `LDX #$00` emits (Identifier, nested FieldAccess, CallExpr object cases).
+  - `_gen_logical`: Added `_gen_expr_for_branch` helper that sets `suppress_byte_return_x=True`
+    before calling `gen_expr` for BYTE operands (prevents Z-flag clobber before BNE/BEQ).
+  - RPN NEG16 path: `JSR NEG16` and `eval_stack.append` moved outside the
+    `if operand_loc != "MATH0":` guard.
+  - Case 1 (constant-index array) LONG store: added 4-byte MATH0 emit before WORD/BYTE cases.
+- **`constfold.py`**: `_eval_unary` now handles `UnOp.NEG` (returns `-v`).
+- **`sema.py`**: `eval_const_expr` now handles `UnaryExpr` (NEG/NOT/BNOT).
+  Fixed-address variable: reject negative address values.
+- **`tests/fail/007-arrays-1d-word-error/007-arrays-1d-word-error.err`**: Updated from parse
+  error to semantic error ("Array index cannot be negative: -1").
+- **`tests/fail/062-fixed-address-variables-error/062-fixed-address-variables-error.err`**:
+  Updated from parse error to semantic error ("Fixed variable address cannot be negative: -1").
+
+### Tests Added (226–242)
+
+- **226**: LONG unary negation (NEG32 called, result=4)
+- **227**: LOR with struct field, word array, byte array operands (result=5); fixes silent bug
+- **228**: LONG comparison as value: `flag = (long_a == long_b)` (result=7)
+- **229**: LONG logical in while/repeat/for conditions (result=6)
+- **230**: WORD bitwise AND/OR/XOR/shifts (result=5)
+- **231**: WORD unary NEG and BNOT (result=5)
+- **232**: LONG compound operators +=/-=/*=/|= (result=6)
+- **233**: WORD compound operators (result=6)
+- **234**: Cross-type comparison BYTE==WORD, WORD==LONG (result=7)
+- **235**: Deref compound `ptr^ += value` (result=4)
+- **236**: Struct WORD field compound `s.w += 100` (result=4)
+- **237**: LONG array compound `larr[i] += 1000` (result=4)
+- **238**: LONG logical in loop conditions (result=4)
+- **239–242**: Debug/minimal reproduction tests retained as regression tests
+
+208 pass / 139 fail — all OK
+
+---
+
 ## Feature: LONG pointer/array/struct correctness fixes (2026-06-15)
 
 ### Problem

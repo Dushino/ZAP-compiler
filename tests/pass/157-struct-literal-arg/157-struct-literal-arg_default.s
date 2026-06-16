@@ -51,10 +51,8 @@ _ADD_PAIR:
 _ADD_PAIR$P             = __LVSLOT_3
 ; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 28:     return p.x + p.y
 	LDA _ADD_PAIR$P
-	LDX #$00
 	STA __TMP1
 	LDA _ADD_PAIR$P+1
-	LDX #$00
 	CLC
 	ADC __TMP1
 	RTS
@@ -112,15 +110,12 @@ _NESTED_SUM:
 _NESTED_SUM$N           = __LVSLOT_5
 ; /home/dusan/src/ZAP-compiler/tests/pass/157-struct-literal-arg/157-struct-literal-arg.zap 40:     return n.tag + n.p.x + n.p.y
 	LDA _NESTED_SUM$N
-	LDX #$00
 	STA __TMP1
 	LDA _NESTED_SUM$N+1
-	LDX #$00
 	CLC
 	ADC __TMP1
 	STA __TMP1
 	LDA _NESTED_SUM$N+2
-	LDX #$00
 	CLC
 	ADC __TMP1
 	RTS

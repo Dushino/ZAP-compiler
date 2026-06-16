@@ -38,7 +38,6 @@ _MAIN:
 	STA _VIA1+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/092-struct-field-pass/092-struct-field-pass.zap 14:     VIA1.DDRB = VIA1.DDRB & %01001111
 	LDA _VIA1+2
-	LDX #$00
 	AND #$4F
 	STA _VIA1+2
 	RTS
