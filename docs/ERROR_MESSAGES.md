@@ -227,6 +227,24 @@ error: Array index 10 is out of bounds for array dimension 1 with size 10
 **Cause**: A constant array index exceeds the array size (indices are 0-based).
 **Fix**: For `byte arr[10]`, valid indices are 0 through 9.
 
+### Array index cannot be negative
+
+```
+error: Array index cannot be negative: -1
+```
+
+**Cause**: A constant array index is negative (e.g., `arr[-1]`).
+**Fix**: Array indices must be 0 or greater. Use a runtime variable if negative offsets are intended via pointer arithmetic.
+
+### Fixed variable address cannot be negative
+
+```
+error: Fixed variable address cannot be negative: -1
+```
+
+**Cause**: The `@address` in a fixed-address declaration evaluates to a negative constant (e.g., `byte x @-1`).
+**Fix**: Provide a valid memory address (0–65535).
+
 ### Read from write-only port
 ```
 error: Read from write-only port

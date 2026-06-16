@@ -813,14 +813,30 @@ ZAP! represents boolean results as **byte** values. The compiler emits `0` for f
 
 ### Unary Operators
 
+| Operator | Example | Meaning | Result type |
+|----------|---------|---------|-------------|
+| `-` | `-x` | Arithmetic negation | Same as operand (byte/word/long) |
+| `!` | `!flag` | Logical NOT (0→1, non-zero→0) | byte |
+| `~` | `~mask` | Bitwise NOT | Same as operand (byte/word/long) |
+| `@` | `@arr[i]` | Address-of | word pointer |
+
+The `-` and `~` operators preserve the operand type: negating a `word` gives a `word`, negating a `long` gives a `long`.
+
 ```zap
 byte x = 5
-byte neg = -x       ; Negation
-byte neg2 = -10     ; Can be applied to literals
+byte neg = -x           ; byte negation: 251 ($FB)
+word wx = 1000
+word wneg = -wx         ; word negation: 64536 ($FC18)
+long lx = 100000L
+long lneg = -lx         ; long negation: -100000
 
 byte flag = 1
-byte notflag = !flag  ; Logical negation
+byte notflag = !flag    ; logical NOT → 0
+byte inv = ~flag        ; bitwise NOT → 254 ($FE)
 ```
+
+> **Note**: Negative constant array indices are not allowed. `arr[-1]` is a compile-time error.
+> Use pointer arithmetic (`ptr - 1`) for negative offsets.
 
 ### Bitwise Operators
 
