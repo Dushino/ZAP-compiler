@@ -78,7 +78,7 @@
 - Segments: .segment "name"
 
 ## Test suite
-- tests/pass/ — 208 positive tests (numbered 001–242, with some gaps)
+- tests/pass/ — 209 positive tests (numbered 001–243, with some gaps)
 - tests/fail/ — 139 negative tests (error detection)
 - Each positive test: 4 variants (65C02, 65C02+O1, 6502, 6502+O1)
 - Verification: ZAP → ca65 → ld65 → 6502 simulator → memory dump vs .ref file
@@ -87,10 +87,19 @@
 - Fail tests: `.ref` is documentation-only (runner checks exit code, not output)
 - Tests 209-210: use fixed absolute address 0x4200 for dump (stable across optimization variants)
 - Tests 226-242: new regression tests for LONG/WORD/BYTE arithmetic, logical ops, struct fields, compound assignments
+- Test 243: negative literal constants — verifies `byte a = -5` → 251, etc.
 
 ## VS Code profile gotcha — check profile before debugging syntax highlighting
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
+
+## Bugfix: Negative literal type classification (2026-06-16)
+
+- `sema_expr.py` `check(IntLiteral)`: negative values in -128..−1 now classified as BYTE (wraps mod 256); -32768..−129 as WORD. Previously all negatives fell to LONG, causing `byte a = -5` to store 0xFF (255) instead of 0xFB (251).
+- No codegen change needed — `_gen_literal` already uses `val & 0xFF` for byte emission.
+- Test 243 added: all 4 variants pass.
+- `docs/ZAP_LANGUAGE_REFERENCE.md`: "Negative Numbers and Two's Complement" subsection added to Data Types; Unary Operators section expanded.
+- 209 pass / 139 fail — all OK
 
 ## Bugfixes: LOR/LAND Z-flag clobber + neg const indices (2026-06-15)
 

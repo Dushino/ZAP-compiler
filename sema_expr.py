@@ -36,10 +36,12 @@ class ExprTypeChecker:
     def check(self, expr, read_check_enabled: bool = True) -> ExprType:
         """Type-check an expression and return its semantic type info."""
         if isinstance(expr, IntLiteral):
-            # Small literals (0-255) are BYTE, larger are WORD
-            if 0 <= expr.value <= 255:
+            # Classify by minimum type that can hold the two's-complement bit pattern.
+            # Negative values wrap: -128..−1 → BYTE (0x80..0xFF), -32768..−129 → WORD, etc.
+            v = expr.value
+            if 0 <= v <= 255 or -128 <= v <= -1:
                 return ExprType(SemType("BYTE", False), ExprKind.VALUE)
-            elif 0 <= expr.value <= 65535:
+            elif 0 <= v <= 65535 or -32768 <= v <= -1:
                 return ExprType(SemType("WORD", False), ExprKind.VALUE)
             else:
                 return ExprType(SemType("LONG", False), ExprKind.VALUE)

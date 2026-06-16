@@ -59,7 +59,13 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Read(//tmp/**)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(python3 run_tests.py)",
+      "Bash(cat > *)",
+      "Bash(python3 /home/dusan/src/ZAP-compiler/tools/sim6502.py /tmp/test_neg_final.com)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

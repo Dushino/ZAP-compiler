@@ -101,7 +101,7 @@ Statements do NOT require semicolons (they're optional and ignored).
 
 ## Data Types
 
-ZAP! supports three fundamental data types for 6502 systems:
+ZAP! supports three fundamental data types for 6502 systems. **All types are unsigned** — there are no signed integer types. Negative values are represented using two's complement bit patterns, just as the 6502 processor does natively.
 
 ### byte - 8-bit Unsigned Integer
 
@@ -110,9 +110,11 @@ byte x              ; Uninitialized byte variable
 byte y = 42         ; Byte with initializer
 byte z = $FF        ; Hex notation
 byte w = %10101010  ; Binary notation
+byte n = -5         ; Negative literal: wraps to 251 ($FB) via two's complement
 ```
 
-**Range**: 0-255
+**Range**: 0-255  
+**Negative literals**: Values -128 through -1 are valid and wrap modulo 256 (e.g., `-5` = 251).
 
 ### word - 16-bit Unsigned Integer
 
@@ -120,9 +122,11 @@ byte w = %10101010  ; Binary notation
 word address        ; Uninitialized word variable
 word counter = 1000 ; Word with initializer
 word value = $1234  ; Hex notation (4 digits for 16-bit)
+word neg = -200     ; Negative literal: wraps to 65336 ($FF38)
 ```
 
-**Range**: 0-65535
+**Range**: 0-65535  
+**Negative literals**: Values -32768 through -129 that don't fit in a byte are typed as WORD.
 
 ### long - 32-bit Unsigned Integer
 
@@ -133,6 +137,31 @@ long mask = $FFFFFFFF
 ```
 
 **Range**: 0-4294967295
+
+### Negative Numbers and Two's Complement
+
+ZAP! has no signed integer types, but the 6502 processor represents negative values naturally using two's complement arithmetic. ZAP! supports negative integer literals as a shorthand for their two's complement bit patterns:
+
+| Literal | Type | Stored value  |
+|---------|------|---------------|
+| `-1`    | byte | 255 ($FF)     |
+| `-5`    | byte | 251 ($FB)     |
+| `-128`  | byte | 128 ($80)     |
+| `-200`  | word | 65336 ($FF38) |
+
+Negative literals in the range -128..−1 are classified as **byte**; those in -32768..−129 are **word**. When assigned to a wider type, the value is zero-extended (not sign-extended):
+
+```zap
+byte a = -5         ; a = 251 ($FB)  — byte two's complement
+byte b = -1         ; b = 255 ($FF)
+byte c = -128       ; c = 128 ($80)
+
+; Runtime arithmetic wraps the same way:
+byte d = 0 - 5      ; d = 251 ($FB)  — identical result
+byte e = 200 + 56   ; e = 0 ($00)   — overflow wraps mod 256
+```
+
+> **Note**: Overflow and underflow at runtime always wraps modulo the type size (256 for byte, 65536 for word). No exception is raised.
 
 ### Character Literals
 
@@ -822,13 +851,21 @@ ZAP! represents boolean results as **byte** values. The compiler emits `0` for f
 
 The `-` and `~` operators preserve the operand type: negating a `word` gives a `word`, negating a `long` gives a `long`.
 
+**Negative literals vs. negation of a variable:**
+
+- `-5` as a **literal constant** is a BYTE with value 251 ($FB) — the two's complement bit pattern.
+- `-x` where `x` is a **variable** computes `0 - x` at runtime, wrapping mod the variable's type size.
+
+Both forms produce the same bit pattern; the distinction is only relevant when the compiler needs to determine the type of a standalone expression.
+
 ```zap
 byte x = 5
-byte neg = -x           ; byte negation: 251 ($FB)
+byte neg_lit = -5       ; literal: byte 251 ($FB) — no runtime subtraction
+byte neg_var = -x       ; runtime: 0 - x = 251 ($FB)
 word wx = 1000
 word wneg = -wx         ; word negation: 64536 ($FC18)
 long lx = 100000L
-long lneg = -lx         ; long negation: -100000
+long lneg = -lx         ; long negation wraps in 32-bit
 
 byte flag = 1
 byte notflag = !flag    ; logical NOT → 0

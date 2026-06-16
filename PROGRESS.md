@@ -1,5 +1,43 @@
 # Progress Tracker
 
+## Bugfix: Negative integer literal type classification (2026-06-16)
+
+### Problem
+
+`byte a = -5` compiled but stored **255** (wrong) instead of **251** (correct).
+
+Root cause: `IntLiteral(-5)` was typed as `LONG` in `sema_expr.py` because the range
+check `0 <= v <= 255` didn't cover negative values. The LONG literal generation path
+loads all 4 bytes into MATH0 sequentially; at the end A holds the most-significant
+byte (0xFF for -5), not the low byte (0xFB). The BYTE assignment then emits `STA var`
+using the current A = 0xFF — wrong result.
+
+### Fix
+
+`sema_expr.py` `check(IntLiteral)` — added negative ranges:
+
+- `-128 ... -1` → classified as **BYTE** (wraps mod 256 by `& 0xFF` already in `_gen_literal`)
+- `-32768 ... -129` → classified as **WORD**
+- More negative → LONG (unchanged)
+
+The code generator already uses `val & 0xFF` and `(val >> 8) & 0xFF` when emitting
+immediate values, so no codegen change was needed.
+
+### Test Added
+
+- **243**: Negative literal constants — `byte a = -5` (→ 251), `byte b = -1` (→ 255),
+  `byte c = -128` (→ 128), `byte d = 0-5` (→ 251 via runtime subtraction)
+
+### Documentation Updated
+
+- `docs/ZAP_LANGUAGE_REFERENCE.md`: Added "Negative Numbers and Two's Complement"
+  subsection in Data Types; expanded Unary Operators section to distinguish
+  negative literals from runtime negation.
+
+209 pass / 139 fail — all OK
+
+---
+
 ## Bugfixes: BYTE field in LOR/LAND, negative constant array indices, NEG type inference (2026-06-15)
 
 ### Problems Fixed
