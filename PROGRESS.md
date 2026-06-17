@@ -1,5 +1,40 @@
 # Progress Tracker
 
+## Bugfix: Shift-add multiply wrong result for y ≥ 16 (2026-06-17)
+
+### Problem
+
+`40 * 16` (and any constant × y where an intermediate ASL carry propagated into the
+high-byte accumulator and then a subsequent ASL produced carry=0) gave wrong results.
+
+Concrete symptom in GOTOXY: for row y=16, `p1 = 40*y` computed $0180 (384) instead
+of $0280 (640); similarly y=29 gave $0388 (904) instead of $0488 (1160).
+
+Root cause (codegen_expr.py `_gen_index_multiply`, 16-bit shift-add path):
+The algorithm used `BCC label; INC TMP4+1` after each `ASL TMP3`. `INC` only adds 1
+to the high-byte accumulator. But TMP4+1 may already be non-zero from a prior carry:
+the next shift should **double** TMP4+1 and add the new carry (`ROL` semantics), not
+just increment it by 1 (`INC` semantics). For 40=8+32, shift 4 sets TMP4+1=1 (correct
+for 16×16=256 overflow), but shift 5 of TMP3=0 had carry=0 so no INC — the missing
+doubling left TMP4+1 stuck at 1 instead of becoming 2.
+
+### Fix
+
+Replace the 16-bit shift-add body (`_gen_index_multiply`, `else` branch, ≤3-term
+constants) with a proper 16-bit algorithm:
+
+- TMP3:TMP3+1 is the 16-bit shifted index (using `ASL TMP3; ROL TMP3+1`)
+- TMP4:TMP4+1 is the 16-bit accumulator
+- Each partial term adds via a full 16-bit add (`CLC; LDA TMP3; ADC TMP4; STA TMP4; LDA TMP3+1; ADC TMP4+1; STA TMP4+1`)
+
+### Test Added
+
+- **244**: `40*16` → $0280, `40*29` → $0488, `24*8` → $00C0, `24*80` → $0780
+
+210 pass / 139 fail — all OK
+
+---
+
 ## Bugfix: Negative integer literal type classification (2026-06-16)
 
 ### Problem

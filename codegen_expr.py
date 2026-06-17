@@ -9252,29 +9252,35 @@ class CodeGen:
                 self.emit("\tLDA TMP4")
                 self.emit("\tLDX #$00")
             else:
-                # 16-bit shift-add with carry tracking.
-                self.emit("\tSTA TMP3")          # TMP3 = original index
+                # 16-bit shift-add with correct carry propagation.
+                # TMP3:TMP3+1 is the 16-bit shifted index.
+                # TMP4:TMP4+1 is the 16-bit accumulator.
+                # Each shift step uses ASL TMP3 / ROL TMP3+1 so that carries
+                # from TMP3 correctly double into TMP3+1 at every step.
+                # INC TMP4+1 (used in the old code) is wrong: when TMP4+1 is
+                # non-zero from a prior carry, the next shift should double it,
+                # not add 1 (e.g. 40*16: shift 4 sets TMP4+1=1 for the 16y
+                # overflow, shift 5 must double to 2 but INC left it at 1).
+                self.emit("\tSTA TMP3")           # TMP3 = index (low byte)
                 self.emit("\tLDA #$00")
+                self.emit("\tSTA TMP3+1")          # TMP3:TMP3+1 = zero-extended index
                 self.emit("\tSTA TMP4")
-                self.emit("\tSTA TMP4+1")        # TMP4:TMP4+1 = 0 (accumulator)
+                self.emit("\tSTA TMP4+1")           # TMP4:TMP4+1 = 0 (accumulator)
                 cur_shift = 0
                 for term in terms:
                     target_shift = term.bit_length() - 1
                     for _ in range(target_shift - cur_shift):
                         self.emit("\tASL TMP3")
-                        lbl = self.new_label("SHIFTADD_CARRY")
-                        self.emit(f"\tBCC {lbl}")
-                        self.emit("\tINC TMP4+1")
-                        self.emit(f"{lbl}:")
+                        self.emit("\tROL TMP3+1")   # 16-bit shift: carry propagates correctly
                     cur_shift = target_shift
+                    # 16-bit add: TMP4:TMP4+1 += TMP3:TMP3+1
                     self.emit("\tCLC")
                     self.emit("\tLDA TMP3")
                     self.emit("\tADC TMP4")
                     self.emit("\tSTA TMP4")
-                    lbl2 = self.new_label("SHIFTADD_CARRY")
-                    self.emit(f"\tBCC {lbl2}")
-                    self.emit("\tINC TMP4+1")
-                    self.emit(f"{lbl2}:")
+                    self.emit("\tLDA TMP3+1")
+                    self.emit("\tADC TMP4+1")
+                    self.emit("\tSTA TMP4+1")
                 self.emit("\tLDA TMP4")
                 self.emit("\tLDX TMP4+1")
             return

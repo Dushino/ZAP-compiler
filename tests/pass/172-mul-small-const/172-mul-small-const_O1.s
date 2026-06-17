@@ -66,25 +66,26 @@ _MAIN$B                 = __LVSLOT_1
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 18:     b = a * 3      ; 7 * 3  = 21 = $15
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_1
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_1:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_2
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_2:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_3
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_3:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$B
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 19:     out0 = b
@@ -95,29 +96,28 @@ __ZAP_SHIFTADD_CARRY_3:
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 22:     b = a * 5      ; 5 * 5  = 25 = $19
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_4
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_4:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_5
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_5:
+	ROL __TMP3+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_6
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_6:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_7
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_7:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$B
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 23:     out1 = b
@@ -128,29 +128,28 @@ __ZAP_SHIFTADD_CARRY_7:
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 26:     b = a * 6      ; 4 * 6  = 24 = $18
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_8
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_8:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_9
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_9:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_10
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_10:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_11
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_11:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$B
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 27:     out2 = b
@@ -161,33 +160,30 @@ __ZAP_SHIFTADD_CARRY_11:
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 30:     b = a * 10     ; 3 * 10 = 30 = $1E
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_12
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_12:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_13
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_13:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_14
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_14:
+	ROL __TMP3+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_15
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_15:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_16
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_16:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$B
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 31:     out3 = b
@@ -198,33 +194,30 @@ __ZAP_SHIFTADD_CARRY_16:
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 34:     b = a * 12     ; 2 * 12 = 24 = $18
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_17
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_17:
+	ROL __TMP3+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_18
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_18:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_19
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_19:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_20
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_20:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_21
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_21:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$B
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 35:     out4 = b
@@ -235,25 +228,26 @@ __ZAP_SHIFTADD_CARRY_21:
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 39:     b = 3 * a      ; 3 * 6  = 18 = $12
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_22
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_22:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_23
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_23:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_24
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_24:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$B
 ; /home/dusan/src/ZAP-compiler/tests/pass/172-mul-small-const/172-mul-small-const.zap 40:     out5 = b

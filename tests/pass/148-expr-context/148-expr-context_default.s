@@ -36,8 +36,8 @@ _VAL:	.res 1
 
 .segment "BSS"
 ; Byte variables (BSS)
-_MAIN$__ZAP_SWITCH_VAL_34:	.res 1
-_MAIN$__ZAP_SWITCH_VAL_48:	.res 1
+_MAIN$__ZAP_SWITCH_VAL_31:	.res 1
+_MAIN$__ZAP_SWITCH_VAL_45:	.res 1
 
 
 .segment "CODE"
@@ -168,83 +168,82 @@ __ZAP_endif_17:
 	LDA _VAL
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_19
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_19:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_20
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_20:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_21
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_21:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	LDA __TMP4
 	LDX __TMP4+1
 	STA _MAIN$FOR_END_2
-__ZAP_while_22:
+__ZAP_while_19:
 	LDA _MAIN$I
 	CMP _MAIN$FOR_END_2
-	BCS __ZAP_endwhile_23
+	BCS __ZAP_endwhile_20
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 77:         cnt = cnt + 1
 	INC _MAIN$CNT
 	INC _MAIN$I
-	JMP __ZAP_while_22
-__ZAP_endwhile_23:
+	JMP __ZAP_while_19
+__ZAP_endwhile_20:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 79:     if cnt == 9
 	LDA _MAIN$CNT
 	CMP #$09
-	BNE __ZAP_else_25
+	BNE __ZAP_else_22
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 80:         result = result + 1     ; 5
 	INC _RESULT
-	JMP __ZAP_endif_26
-__ZAP_else_25:
-__ZAP_endif_26:
+	JMP __ZAP_endif_23
+__ZAP_else_22:
+__ZAP_endif_23:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 84:     if id(val + 5) == 12
 	LDA _VAL
 	CLC
 	ADC #$05
 	JSR _ID
 	CMP #$0C
-	BNE __ZAP_else_28
+	BNE __ZAP_else_25
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 85:         result = result + 1     ; 6
+	INC _RESULT
+	JMP __ZAP_endif_26
+__ZAP_else_25:
+__ZAP_endif_26:
+; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 89:     if make_val() == 12
+	JSR _MAKE_VAL
+	CMP #$0C
+	BNE __ZAP_else_28
+; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 90:         result = result + 1     ; 7
 	INC _RESULT
 	JMP __ZAP_endif_29
 __ZAP_else_28:
 __ZAP_endif_29:
-; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 89:     if make_val() == 12
-	JSR _MAKE_VAL
-	CMP #$0C
-	BNE __ZAP_else_31
-; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 90:         result = result + 1     ; 7
-	INC _RESULT
-	JMP __ZAP_endif_32
-__ZAP_else_31:
-__ZAP_endif_32:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 94:     switch val + 5
 	LDA _VAL
 	CLC
 	ADC #5
-	STA _MAIN$__ZAP_SWITCH_VAL_34
-	LDA _MAIN$__ZAP_SWITCH_VAL_34
+	STA _MAIN$__ZAP_SWITCH_VAL_31
+	LDA _MAIN$__ZAP_SWITCH_VAL_31
 	CMP #$0C
-	BNE __ZAP_case_37
+	BNE __ZAP_case_34
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 96:             result = result + 1     ; 8
 	INC _RESULT
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 97:             break
-	JMP __ZAP_endswitch_35
-__ZAP_case_37:
+	JMP __ZAP_endswitch_32
+__ZAP_case_34:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 99:             break
-__ZAP_endswitch_35:
+__ZAP_endswitch_32:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 103:     if val * 2 - 2 == 12
 	LDA _VAL
 	LDX #$00
@@ -254,12 +253,12 @@ __ZAP_endswitch_35:
 	STA __MATH0
 	LDA __MATH0
 	CMP #$0C
-	BNE __ZAP_else_39
+	BNE __ZAP_else_36
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 104:         result = result + 1     ; 9
 	INC _RESULT
-	JMP __ZAP_endif_40
-__ZAP_else_39:
-__ZAP_endif_40:
+	JMP __ZAP_endif_37
+__ZAP_else_36:
+__ZAP_endif_37:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 108:     x = val * 2 - 2
 	LDA _VAL
 	LDX #$00
@@ -272,12 +271,12 @@ __ZAP_endif_40:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 109:     if x == 12
 	LDA _MAIN$X
 	CMP #$0C
-	BNE __ZAP_else_42
+	BNE __ZAP_else_39
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 110:         result = result + 1     ; 10
 	INC _RESULT
-	JMP __ZAP_endif_43
-__ZAP_else_42:
-__ZAP_endif_43:
+	JMP __ZAP_endif_40
+__ZAP_else_39:
+__ZAP_endif_40:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 114:     if id(val * 2 - 2) == 12
 	LDA _VAL
 	LDX #$00
@@ -288,12 +287,12 @@ __ZAP_endif_43:
 	LDA __MATH0
 	JSR _ID
 	CMP #$0C
-	BNE __ZAP_else_45
+	BNE __ZAP_else_42
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 115:         result = result + 1     ; 11
 	INC _RESULT
-	JMP __ZAP_endif_46
-__ZAP_else_45:
-__ZAP_endif_46:
+	JMP __ZAP_endif_43
+__ZAP_else_42:
+__ZAP_endif_43:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 119:     switch val * 2 - 2
 	LDA _VAL
 	LDX #$00
@@ -302,17 +301,17 @@ __ZAP_endif_46:
 	SBC #$02
 	STA __MATH0
 	LDA __MATH0
-	STA _MAIN$__ZAP_SWITCH_VAL_48
-	LDA _MAIN$__ZAP_SWITCH_VAL_48
+	STA _MAIN$__ZAP_SWITCH_VAL_45
+	LDA _MAIN$__ZAP_SWITCH_VAL_45
 	CMP #$0C
-	BNE __ZAP_case_51
+	BNE __ZAP_case_48
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 121:             result = result + 1     ; 12
 	INC _RESULT
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 122:             break
-	JMP __ZAP_endswitch_49
-__ZAP_case_51:
+	JMP __ZAP_endswitch_46
+__ZAP_case_48:
 ; /home/dusan/src/ZAP-compiler/tests/pass/148-expr-context/148-expr-context.zap 124:             break
-__ZAP_endswitch_49:
+__ZAP_endswitch_46:
 	RTS
 ; ---------------------------------------------------------------------------
 

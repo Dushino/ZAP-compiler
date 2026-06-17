@@ -93,6 +93,13 @@
 - If `#asm`/keywords look wrong, verify the user is on their personal VS Code profile (not default)
 - Opening a different folder can silently switch to the default profile which uses a different colour scheme
 
+## Bugfix: Shift-add multiply wrong for y ≥ 16 (2026-06-17)
+
+- `_gen_index_multiply` (codegen_expr.py), 16-bit shift-add path: `BCC; INC TMP4+1` after `ASL TMP3` is wrong when TMP4+1 is already non-zero — next shift should double it (ROL semantics), not increment. `40*16` computed $0180 instead of $0280; `40*29` computed $0388 instead of $0488.
+- Fix: use 16-bit pair TMP3:TMP3+1 with `ASL TMP3; ROL TMP3+1` for shifts, and a full 16-bit add (`LDA TMP3+1; ADC TMP4+1; STA TMP4+1`) for each partial term.
+- Test 244 added: all 4 variants pass.
+- 210 pass / 139 fail — all OK
+
 ## Bugfix: Negative literal type classification (2026-06-16)
 
 - `sema_expr.py` `check(IntLiteral)`: negative values in -128..−1 now classified as BYTE (wraps mod 256); -32768..−129 as WORD. Previously all negatives fell to LONG, causing `byte a = -5` to store 0xFF (255) instead of 0xFB (251).

@@ -126,29 +126,28 @@ _MAIN:
 	EOR #$FF
 	STA __TMP3
 	LDA #$00
+	STA __TMP3+1
 	STA __TMP4
 	STA __TMP4+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
 	STA __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_3
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_3:
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_4
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_4:
+	ROL __TMP3+1
 	ASL __TMP3
-	BCC __ZAP_SHIFTADD_CARRY_5
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_5:
+	ROL __TMP3+1
 	CLC
 	LDA __TMP3
 	ADC __TMP4
-	BCC __ZAP_SHIFTADD_CARRY_6
-	INC __TMP4+1
-__ZAP_SHIFTADD_CARRY_6:
+	STA __TMP4
+	LDA __TMP3+1
+	ADC __TMP4+1
+	STA __TMP4+1
+	LDA __TMP4
 	LDX __TMP4+1
 	STA _A
 ; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 86:    a = ~a / 5
@@ -200,14 +199,14 @@ __ZAP_SHIFTADD_CARRY_6:
 	LDA #$05
 	STA __MATH1
 	LDA __MATH0
-	BEQ __ZAP_AND_ZERO_7
+	BEQ __ZAP_AND_ZERO_3
 	LDA __MATH1
-	BEQ __ZAP_AND_ZERO_7
+	BEQ __ZAP_AND_ZERO_3
 	LDA #$01
-	JMP __ZAP_AND_END_8
-__ZAP_AND_ZERO_7:
+	JMP __ZAP_AND_END_4
+__ZAP_AND_ZERO_3:
 	LDA #$00
-__ZAP_AND_END_8:
+__ZAP_AND_END_4:
 	STA __MATH0
 ; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 116:    a = !ca
 ; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 138:    a = 0
@@ -245,14 +244,14 @@ __ZAP_AND_END_8:
 	LDA _B
 	STA __MATH1
 	LDA __MATH0
-	BEQ __ZAP_AND_ZERO_9
+	BEQ __ZAP_AND_ZERO_5
 	LDA __MATH1
-	BEQ __ZAP_AND_ZERO_9
+	BEQ __ZAP_AND_ZERO_5
 	LDA #$01
-	JMP __ZAP_AND_END_10
-__ZAP_AND_ZERO_9:
+	JMP __ZAP_AND_END_6
+__ZAP_AND_ZERO_5:
 	LDA #$00
-__ZAP_AND_END_10:
+__ZAP_AND_END_6:
 	STA __MATH0
 ; /home/dusan/src/ZAP-compiler/tests/pass/200-ops-byte/200-ops-byte.zap 158:    a = 1 + 2 * 3     ; expression to RPN
 	LDA #$07
