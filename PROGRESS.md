@@ -1,5 +1,73 @@
 # Progress Tracker
 
+## Bugfix: LONG propagation into RPN evaluator for MUL/DIV/SUB/ADD (2026-06-21)
+
+### Problem
+
+`checkl(w1 * w2, $10000)` with w1=w2=$100 produced $00000000 instead of $00010000.
+Similarly `checkl(w1 + w2, ...)` where sum overflows 16 bits was silently truncated.
+
+Root cause (`_emit_call_args`, `else` branch for width==4 params): when a BinaryExpr
+argument is RPN-safe (leaves are all Identifiers/IntLiterals), `_emit_call_args` used
+`force_word_result=True` without setting `assign_target_type = LONG`. The RPN evaluator
+therefore had `_long_target_widen=False` and emitted 16-bit routines (ADD16/MUL16 → A/X),
+and bytes 2–3 were hard-coded to `$00`.
+
+### Fix
+
+`codegen_expr.py` (`_emit_call_args` direct-store and deferred-store paths):
+Split the old `else` branch into two:
+- **RPN-safe BinaryExpr with `_arg_width >= 2`** (WORD-result): set
+  `assign_target_type = LONG` before `gen_expr`. This triggers `_long_target_widen=True`
+  in `rpn_eval_to_code`, which promotes operand widths to 4 and uses 32-bit routines
+  (ADD32/MUL32 etc.), leaving a 4-byte result in MATH0. Read all 4 bytes of MATH0.
+- **BYTE-result BinaryExpr or non-BinaryExpr**: keep the old `force_word_result=True`
+  path. Preserves 8-bit wrap-around semantics (e.g. `checkl(b1+b2, 0)` with
+  b1=b2=128 must give 0, not $100).
+
+### Tests (manual simulation)
+
+All 5 verified:
+1. `checkl(w1 - w2 - $2000, $2000)` — SUB chain ✓
+2. `checkl(w1 - w2, $4000)` — SUB 2-op ✓
+3. `checkl(loww(l1) * 2, $B43E)` — MUL with CallExpr ✓
+4. `checkl(w1 * w2, $10000)` — MUL overflow (w1=w2=$100) ✓ (was broken)
+5. `checkl(w1 / w2, $FF)` — DIV ✓
+- `checkl(b1+b2, 0)` with b1=b2=128: still 0 (8-bit wrap preserved) ✓
+- Full regression suite: 211 pass + 139 fail, zero errors.
+
+---
+
+## Bugfix: WORD+WORD chain for LONG param loses carry beyond bit 15 (2026-06-20)
+
+### Problem
+
+`checkl(loww(l1) + highw(l1) + loww(l2) + highw(l2), $1f722)` failed.
+With `l1=$1FEF5A1F`, `l2=$8122FBF2` the sum `$5A1F+$1FEF+$FBF2+$8122 = $1F722`
+requires 17-bit arithmetic, but the chain produced a 16-bit truncated result.
+
+Root cause (`codegen_expr.py`, `_gen_binary`):
+An early optimisation `_collect_add_sub_chain` / `_gen_add_sub_chain_rpn` at lines
+10730-10735 fires before the `_target_is_long` detection at line 10869. The
+optimisation collects chains of 3+ simple operands (including CallExpr like `loww()`/
+`highw()`) and emits them with `__ADD16` — a 16-bit routine that discards carry above
+bit 15. Because this path returns early, the 32-bit routing at line 11394 (which would
+call `_gen_math_binop(long_target=True)` → `ADD32`) was never reached.
+
+### Fix
+
+`codegen_expr.py`: Add `_is_long_assign` check in the chain optimisation guard
+(line 10732). When `assign_target_type.base == "LONG"` is active, skip the ADD16
+chain path so the LONG routing (`_gen_math_binop` + `ADD32`) takes over.
+
+### Tests
+
+- `tests/pass/245-math/245-math.zap` test $28 now passes (40/40 tests total).
+- `.ref` updated from `1F` (31) to `28` (40).
+- Full suite: 211 pass + 139 fail — no regressions.
+
+---
+
 ## Bugfix: Shift-add multiply wrong result for y ≥ 16 (2026-06-17)
 
 ### Problem

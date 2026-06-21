@@ -62,7 +62,13 @@
       "Bash(python3 -c ' *)",
       "Bash(python3 run_tests.py)",
       "Bash(cat > *)",
-      "Bash(python3 /home/dusan/src/ZAP-compiler/tools/sim6502.py /tmp/test_neg_final.com)"
+      "Bash(python3 /home/dusan/src/ZAP-compiler/tools/sim6502.py /tmp/test_neg_final.com)",
+      "Bash(python compiler.py tests/pass/245-math/245-math.zap)",
+      "Bash(python run_tests.py tests/pass/245-math)",
+      "Bash(python3 zap.py tests/pass/245-math/245-math.zap --target 6502)",
+      "Bash(python3 zap.py tests/pass/245-math/245-math.zap -o /tmp/245-default.s)",
+      "Bash(dasm /tmp/245-default.s -o/tmp/245.bin -f3)",
+      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /tmp/math_ops_test.zap -6502 -o /tmp/math_ops_test.s)"
     ],
     "additionalDirectories": [
       "/tmp"

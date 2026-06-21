@@ -10727,10 +10727,16 @@ class CodeGen:
         # OPTIMIZATION: Detect chained ADD/SUB operations and generate RPN-style with accumulator
         # Pattern: ((a + b) + c) + d --> Load a → MATH0, b → MATH1, ADD, c → MATH1, ADD, d → MATH1, ADD
         # This avoids intermediate temporaries and uses __MATH0 as running accumulator
+        # Skip when LONG target is active: the 32-bit routing at line ~11394 must handle it instead.
         if expr.op in {BinOp.ADD, BinOp.SUB}:
             chain = self._collect_add_sub_chain(expr)
-            if chain and (t.sem_type.base == "WORD" or t.sem_type.is_pointer):
-                # Only use chain optimization for 16-bit results
+            _is_long_assign = (
+                self.assign_target_type is not None
+                and self.assign_target_type.base == "LONG"
+                and not self.assign_target_type.is_pointer
+            )
+            if chain and (t.sem_type.base == "WORD" or t.sem_type.is_pointer) and not _is_long_assign:
+                # Only use chain optimization for 16-bit results (not LONG context)
                 self._gen_add_sub_chain_rpn(chain)
                 return
         
@@ -10861,11 +10867,24 @@ class CodeGen:
             elif self.assign_target_type.base == "WORD" or self.assign_target_type.is_pointer:
                 result_16_temp = True  # Final assignment is to WORD, treat as 16-bit
 
+        # When the outermost assignment target is LONG, propagate that context into
+        # sub-expression evaluation so every level of arithmetic uses 32-bit routines.
+        # This ensures chains like (word + word + word + word) for a LONG param preserve
+        # carry beyond bit 15 (e.g. loww(l1)+highw(l1)+loww(l2)+highw(l2) = $1F722).
+        # Only applies to non-pointer arithmetic; pointer arithmetic stays 16-bit.
+        _target_is_long: bool = (
+            self.assign_target_type is not None
+            and self.assign_target_type.base == "LONG"
+            and not self.assign_target_type.is_pointer
+        )
+
         # Clear assign_target_type so recursive gen_expr calls for sub-expressions
         # (e.g. pointer arithmetic in LHS of deref-assign) don't accidentally narrow.
         # The narrowing decision for THIS expression was already captured in result_16_temp.
+        # Exception: keep LONG context so sub-expressions also route through 32-bit paths.
         _saved_assign_target_type = self.assign_target_type
-        self.assign_target_type = None
+        if not _target_is_long:
+            self.assign_target_type = None
 
         chain = self._collect_array_subscript_chain(expr)
         if chain:
@@ -11368,10 +11387,20 @@ class CodeGen:
                     self.emit(f"\tAND #${mask:02X}")
                 return
 
-        if (expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD} or 
-                (expr.op in {BinOp.ADD, BinOp.SUB, BinOp.LSHIFT, BinOp.RSHIFT, 
-                             BinOp.BAND, BinOp.BOR, BinOp.BXOR} and t.width > 2)):
-            self._gen_math_binop(expr, left_t.width, right_t.width)
+        # Route to 32-bit _gen_math_binop when:
+        # (a) expression type is > 2 bytes wide (normal LONG arithmetic), OR
+        # (b) LONG target is active and op is arithmetic/bitwise (not pointer arithmetic)
+        _long_target_arith: bool = (
+            _target_is_long
+            and not left_is_ptr
+            and not right_is_ptr
+            and expr.op in {BinOp.ADD, BinOp.SUB, BinOp.LSHIFT, BinOp.RSHIFT,
+                            BinOp.BAND, BinOp.BOR, BinOp.BXOR}
+        )
+        if (expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD} or
+                (expr.op in {BinOp.ADD, BinOp.SUB, BinOp.LSHIFT, BinOp.RSHIFT,
+                             BinOp.BAND, BinOp.BOR, BinOp.BXOR} and (t.width > 2 or _long_target_arith))):
+            self._gen_math_binop(expr, left_t.width, right_t.width, long_target=_long_target_arith)
             return
 
         # Generate left operand
@@ -11614,8 +11643,12 @@ class CodeGen:
                 self.emit(f"\tLDA {left_tmp}")
                 self.emit("\tSBC TMP2")
     
-    def _gen_math_binop(self, expr: BinaryExpr, left_width: int, right_width: int) -> None:
-        """Generate MUL/DIV/MOD (and 32-bit ADD/SUB) using math stack."""
+    def _gen_math_binop(self, expr: BinaryExpr, left_width: int, right_width: int, long_target: bool = False) -> None:
+        """Generate MUL/DIV/MOD (and 32-bit ADD/SUB) using math stack.
+
+        When long_target=True all arithmetic is forced to 32-bit so carry is
+        preserved past bit 15 (e.g. WORD+WORD chains for a LONG parameter).
+        """
         def _is_simple_operand(op: Expr) -> bool:
             return isinstance(op, (Identifier, IntLiteral))
 
@@ -11697,19 +11730,39 @@ class CodeGen:
         if _is_simple_operand(expr.left) and _is_simple_operand(expr.right):
             _emit_op0(expr.left, left_width)
             _emit_op1(expr.right, right_width)
+            # For long_target: _emit_op0/1 already zero-extend MATH0/MATH1 bytes 2-3.
         else:
             # Save left operand on math stack
             self.gen_expr(expr.left)
-            # If gen_expr result is in A/X (width <= 2) or MATH0 (width > 2), push correctly
-            self._math_stack_push(left_width)
+            # Determine where the result landed and how many bytes to save.
+            # When long_target=True, a BinaryExpr left was evaluated with LONG context
+            # via _gen_math_binop → ADD32 → full 32-bit result in MATH0.
+            # Non-BinaryExpr left (CallExpr, Identifier, etc.) leaves result in A/X.
+            if long_target:
+                if isinstance(expr.left, BinaryExpr) or left_width > 2:
+                    # Full 32-bit result already in MATH0: save all 4 bytes.
+                    self._math_stack_push(4)
+                else:
+                    # Result in A (BYTE) or A/X (WORD): zero-extend into MATH0 first.
+                    self.emit("\tSTA MATH0")
+                    if left_width >= 2:
+                        self.emit("\tSTX MATH0+1")
+                    else:
+                        self._stz("MATH0+1")
+                    self._stz("MATH0+2")
+                    self._stz("MATH0+3")
+                    self._math_stack_push(4)
+            else:
+                # Normal path: push according to declared width (MATH0 for >2, A/X for ≤2).
+                self._math_stack_push(left_width)
 
             # Evaluate right operand
             self.gen_expr(expr.right)
-            # Result in A/X or MATH0. Move to MATH1.
-            if right_width > 2:
-                # Already in MATH0? Move to MATH1?
-                # gen_expr for 32-bit leaves result in MATH0.
-                # Just move MATH0 -> MATH1
+            # Determine where right landed and move into MATH1.
+            # For long_target + BinaryExpr right: full 32-bit in MATH0 → copy to MATH1.
+            # For right_width > 2: same MATH0 → MATH1 copy.
+            # Otherwise: result in A/X, zero-extend into MATH1.
+            if (long_target and isinstance(expr.right, BinaryExpr)) or right_width > 2:
                 self.emit("\tLDA MATH0")
                 self.emit("\tSTA MATH1")
                 self.emit("\tLDA MATH0+1")
@@ -11719,7 +11772,7 @@ class CodeGen:
                 self.emit("\tLDA MATH0+3")
                 self.emit("\tSTA MATH1+3")
             else:
-                # Result in A/X
+                # Result in A (BYTE) or A/X (WORD)
                 self.emit("\tSTA MATH1")
                 if right_width == 2:
                     self.emit("\tSTX MATH1+1")
@@ -11754,7 +11807,10 @@ class CodeGen:
         # Result is stored in MATH0; load low word into A/X for downstream codegen.
         left_16 = left_width >= 2
         right_16 = right_width >= 2
-        if not (left_16 or right_16):
+        # When long_target=True the full 32-bit result in MATH0 must be preserved
+        # intact for the caller to read all 4 bytes.  Only zero upper bytes for
+        # the normal path (both operands declared BYTE/WORD, no LONG context).
+        if not (left_16 or right_16) and not long_target:
             self._stz("MATH0+1")
             self._stz("MATH0+2")
             self._stz("MATH0+3")
@@ -15329,8 +15385,44 @@ class CodeGen:
                     deferred_stores.append((asm, 1))
                     continue
                 if width == 4:
-                    self.gen_expr(arg)
-                    # Result in MATH0 (4 bytes) — push high-to-low so PLA pops low-first
+                    _arg_t_d = self.tc_check(arg)
+                    _arg_width_d = _arg_t_d.sem_type.width if _arg_t_d else 0
+                    if _arg_width_d >= 4:
+                        # Native LONG: result in MATH0.
+                        self.gen_expr(arg)
+                    elif isinstance(arg, BinaryExpr) and not self._is_rpn_safe(arg):
+                        # Non-RPN-safe BinaryExpr: use LONG context for 32-bit chain arithmetic.
+                        _prev_assign_ld: SemType | None = self.assign_target_type
+                        self.assign_target_type = sem_type  # LONG
+                        try:
+                            self.gen_expr(arg)
+                        finally:
+                            self.assign_target_type = _prev_assign_ld
+                        # _gen_math_binop(long_target=True) already left result in MATH0.
+                    elif isinstance(arg, BinaryExpr) and _arg_width_d >= 2:
+                        # RPN-safe WORD-result BinaryExpr: propagate LONG assign-target so
+                        # RPN evaluator uses 32-bit routines, leaving result in MATH0.
+                        _prev_assign_ed: SemType | None = self.assign_target_type
+                        self.assign_target_type = sem_type  # LONG
+                        try:
+                            self.gen_expr(arg)
+                        finally:
+                            self.assign_target_type = _prev_assign_ed
+                        # Result already in MATH0 (4 bytes) via _long_target_widen.
+                    else:
+                        # BYTE-result BinaryExpr or non-BinaryExpr: force 16-bit eval,
+                        # zero-extend to MATH0 for the push below.
+                        _prev_force_d: bool = self.force_word_result
+                        self.force_word_result = True
+                        try:
+                            self.gen_expr(arg)
+                        finally:
+                            self.force_word_result = _prev_force_d
+                        self.emit("\tSTA MATH0")
+                        self.emit("\tSTX MATH0+1")
+                        self._stz("MATH0+2")
+                        self._stz("MATH0+3")
+                    # Push MATH0 high-to-low so PLA pops low-first
                     for bi in range(3, -1, -1):
                         self.emit(f"\tLDA MATH0+{bi}" if bi else "\tLDA MATH0")
                         self.emit("\tPHA")
@@ -15374,16 +15466,78 @@ class CodeGen:
                 if isinstance(arg, IntLiteral):
                     self._emit_const_bytes_to_addr(asm, arg.value, 4)
                     continue
-                # Non-constant: gen_expr puts result in MATH0 (4 bytes)
-                self.gen_expr(arg)
-                self.emit(f"\tLDA MATH0")
-                self.emit(f"\tSTA {asm}")
-                self.emit(f"\tLDA MATH0+1")
-                self.emit(f"\tSTA {asm}+1")
-                self.emit(f"\tLDA MATH0+2")
-                self.emit(f"\tSTA {asm}+2")
-                self.emit(f"\tLDA MATH0+3")
-                self.emit(f"\tSTA {asm}+3")
+                # Non-constant: dispatch on the natural width of the arg expression.
+                # Native LONG expressions leave their result in MATH0 (4 bytes).
+                # BYTE/WORD expressions leave result in A/X; force 16-bit mode so the
+                # carry bit is preserved (e.g. $FF+$FF → $01FF, not $FF), then store
+                # directly and zero-extend bytes 2-3 without going through MATH0.
+                _arg_t = self.tc_check(arg)
+                _arg_width = _arg_t.sem_type.width if _arg_t else 0
+                if _arg_width >= 4:
+                    # Native LONG expression: result lands in MATH0 (4 bytes).
+                    self.gen_expr(arg)
+                    self.emit(f"\tLDA MATH0")
+                    self.emit(f"\tSTA {asm}")
+                    self.emit(f"\tLDA MATH0+1")
+                    self.emit(f"\tSTA {asm}+1")
+                    self.emit(f"\tLDA MATH0+2")
+                    self.emit(f"\tSTA {asm}+2")
+                    self.emit(f"\tLDA MATH0+3")
+                    self.emit(f"\tSTA {asm}+3")
+                elif isinstance(arg, BinaryExpr) and not self._is_rpn_safe(arg):
+                    # Non-RPN-safe BinaryExpr (contains CallExpr such as loww/highw/low/high):
+                    # set LONG assign-target so _gen_binary propagates 32-bit context through
+                    # every level of the chain (preserving carry beyond bit 15).
+                    _prev_assign_l: SemType | None = self.assign_target_type
+                    self.assign_target_type = sem_type  # LONG
+                    try:
+                        self.gen_expr(arg)
+                    finally:
+                        self.assign_target_type = _prev_assign_l
+                    # _gen_math_binop(long_target=True) leaves the full 32-bit result in MATH0.
+                    self.emit(f"\tLDA MATH0")
+                    self.emit(f"\tSTA {asm}")
+                    self.emit(f"\tLDA MATH0+1")
+                    self.emit(f"\tSTA {asm}+1")
+                    self.emit(f"\tLDA MATH0+2")
+                    self.emit(f"\tSTA {asm}+2")
+                    self.emit(f"\tLDA MATH0+3")
+                    self.emit(f"\tSTA {asm}+3")
+                elif isinstance(arg, BinaryExpr) and _arg_width >= 2:
+                    # RPN-safe WORD-result BinaryExpr: propagate LONG assign-target context
+                    # so the RPN evaluator uses 32-bit routines (_long_target_widen=True),
+                    # capturing carry beyond bit 15 (e.g. w1*w2 where product > $FFFF).
+                    # BYTE-result expressions are excluded here to preserve 8-bit wrap-around
+                    # semantics (e.g. b1+b2 with b1=b2=128 → 0, not $100).
+                    _prev_assign_e: SemType | None = self.assign_target_type
+                    self.assign_target_type = sem_type  # LONG
+                    try:
+                        self.gen_expr(arg)
+                    finally:
+                        self.assign_target_type = _prev_assign_e
+                    # _long_target_widen causes rpn_eval_to_code to leave 4-byte result in MATH0.
+                    self.emit(f"\tLDA MATH0")
+                    self.emit(f"\tSTA {asm}")
+                    self.emit(f"\tLDA MATH0+1")
+                    self.emit(f"\tSTA {asm}+1")
+                    self.emit(f"\tLDA MATH0+2")
+                    self.emit(f"\tSTA {asm}+2")
+                    self.emit(f"\tLDA MATH0+3")
+                    self.emit(f"\tSTA {asm}+3")
+                else:
+                    # BYTE-result BinaryExpr or non-BinaryExpr (Identifier, CallExpr, etc.):
+                    # force 16-bit evaluation so carry from byte addition is preserved,
+                    # then zero-extend bytes 2-3 to fill the LONG slot.
+                    _prev_force: bool = self.force_word_result
+                    self.force_word_result = True
+                    try:
+                        self.gen_expr(arg)
+                    finally:
+                        self.force_word_result = _prev_force
+                    self.emit(f"\tSTA {asm}")
+                    self.emit(f"\tSTX {asm}+1")
+                    self._stz(f"{asm}+2")
+                    self._stz(f"{asm}+3")
                 continue
 
             # WORD / pointer parameter (width == 2)
