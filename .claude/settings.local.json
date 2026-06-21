@@ -68,7 +68,10 @@
       "Bash(python3 zap.py tests/pass/245-math/245-math.zap --target 6502)",
       "Bash(python3 zap.py tests/pass/245-math/245-math.zap -o /tmp/245-default.s)",
       "Bash(dasm /tmp/245-default.s -o/tmp/245.bin -f3)",
-      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /tmp/math_ops_test.zap -6502 -o /tmp/math_ops_test.s)"
+      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /tmp/math_ops_test.zap -6502 -o /tmp/math_ops_test.s)",
+      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py --help)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /home/dusan/src/ZAP-compiler/tests/pass/246-multi-ptr-decl/246-multi-ptr-decl.zap -o /tmp/246-test.s)"
     ],
     "additionalDirectories": [
       "/tmp"

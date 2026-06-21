@@ -289,14 +289,14 @@ class DeclarationAnalyzer:
             is_struct = True
             struct_info = self.struct_registry.lookup(base_name)
         
-        sem_type = SemType(
-            base=decl.type.base,
-            is_pointer=decl.type.is_pointer,
-            is_struct=is_struct,
-            struct_info=struct_info
-        )
-
         for d in decl.declarators:
+            # Build sem_type per declarator: is_pointer lives on each Declarator (C-style).
+            sem_type = SemType(
+                base=decl.type.base,
+                is_pointer=d.is_pointer,
+                is_struct=is_struct,
+                struct_info=struct_info
+            )
             try:
                 if not is_struct and base_name not in {"BYTE", "WORD", "LONG"}:
                     raise SemanticError(f"Unknown type '{decl.type.base}'")
@@ -405,7 +405,7 @@ class DeclarationAnalyzer:
                 raise SemanticError("PORT modifier cannot be used on arrays", node=d)
             
             # PORT cannot be used on pointers
-            if decl.type.is_pointer:
+            if d.is_pointer:
                 raise SemanticError("PORT modifier cannot be used on pointers", node=d)
             
             # PORT cannot have initializers (hardware ports can't be initialized)

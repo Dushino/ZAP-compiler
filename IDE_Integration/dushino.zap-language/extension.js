@@ -132,22 +132,38 @@ function parseEnums(lines) {
     return enums;
 }
 
+// Extract names from a declarator list string (after the type).
+// Handles C-style per-declarator ^: "^ptr1, ^ptr2, plain" → [{name:'ptr1',caret:true}, ...]
+// prefixCaret: true when the legacy "^TYPE" prefix form was used (applies ^ to first decl only).
+function parseDeclaratorList(rest, prefixCaret) {
+    const result = [];
+    let first = true;
+    for (const rawDecl of rest.split(',')) {
+        const dm = rawDecl.trim().match(/^(\^?)(\w+)/);
+        if (!dm) { first = false; continue; }
+        result.push({ name: dm[2], isPointer: dm[1] === '^' || (first && prefixCaret) });
+        first = false;
+    }
+    return result;
+}
+
 // Parse all variable declarations.
 // Returns Map<varName, {typeName, isPointer}>
-// Handles: TYPE varname, TYPE^ varname, TYPE varname[n], TYPE varname = ...
+// Handles: TYPE varname, TYPE^ varname, ^TYPE varname, type ^n1, ^n2, type n1, ^n2 ...
 function parseVarDecls(lines) {
     const vars = new CIMap();
     for (const raw of lines) {
         const code = stripLineComment(raw).trim();
-        // Match: TYPE[^] varname  (optional pointer caret)
-        const m = code.match(/^(\w+)(\^?)\s+(\w+)\s*(?:\[|=|$|;)/);
+        // Match: [^]TYPE[^] rest_of_declarators  (prefix ^ is legacy; suffix ^ is old style)
+        const m = code.match(/^(\^?)(\w+)(\^?)\s+(.+)/);
         if (!m) continue;
-        const type = m[1];
-        const isPointer = m[2] === '^';
-        const name = m[3];
+        const type = m[2];
         if (ZAP_KEYWORDS.has(type.toLowerCase())) continue;
-        if (ZAP_KEYWORDS.has(name.toLowerCase())) continue;
-        vars.set(name, { typeName: type, isPointer });
+        const prefixCaret = m[1] === '^' || m[3] === '^';
+        for (const { name, isPointer } of parseDeclaratorList(m[4], prefixCaret)) {
+            if (ZAP_KEYWORDS.has(name.toLowerCase())) continue;
+            vars.set(name, { typeName: type, isPointer });
+        }
     }
     return vars;
 }
@@ -218,19 +234,28 @@ function parseAllSymbols(lines) {
             continue;
         }
 
-        // const TYPE name [= value | [...]]
-        const constM = code.match(/^const\s+(\w+\^?)\s+(\w+)/i);
+        // const [^]TYPE[^] [^]name1, [^]name2 ...  (C-style per-declarator ^)
+        const constM = code.match(/^const\s+(\^?)(\w+)(\^?)\s+(.+)/i);
         if (constM) {
-            seen.set(constM[2], { kind: 'const', name: constM[2], type: constM[1] });
+            const baseType = constM[2];
+            const pfx = constM[1] === '^' || constM[3] === '^';
+            for (const { name, isPointer } of parseDeclaratorList(constM[4], pfx)) {
+                const typeLabel = isPointer ? baseType + '^' : baseType;
+                if (!seen.has(name)) seen.set(name, { kind: 'const', name, type: typeLabel });
+            }
             continue;
         }
 
-        // TYPE[^] name  (variable of any type, including byte/word/long)
-        const varM = code.match(/^(\w+)(\^?)\s+(\w+)\s*(?:\[|=|@|$)/);
-        if (varM) {
-            const type = varM[1], name = varM[3];
-            if (!ZAP_FLOW_KW.has(type.toLowerCase()) && !ZAP_KEYWORDS.has(name.toLowerCase())) {
-                if (!seen.has(name)) seen.set(name, { kind: 'var', name, type: type + varM[2] });
+        // [^]TYPE[^] [^]name1, [^]name2 ...  (variable of any type, incl byte/word/long)
+        const varM = code.match(/^(\^?)(\w+)(\^?)\s+(.+)/);
+        if (varM && !ZAP_FLOW_KW.has(varM[2].toLowerCase())) {
+            const baseType = varM[2];
+            const pfx = varM[1] === '^' || varM[3] === '^';
+            const decls = parseDeclaratorList(varM[4], pfx);
+            for (const { name, isPointer } of decls) {
+                if (ZAP_KEYWORDS.has(name.toLowerCase())) break; // first name is a keyword → not a declaration
+                const typeLabel = isPointer ? baseType + '^' : baseType;
+                if (!seen.has(name)) seen.set(name, { kind: 'var', name, type: typeLabel });
             }
         }
     }
@@ -293,15 +318,23 @@ function findDefinitionLocation(word, linesWithSource) {
         if (enumM && enumM[1].toLowerCase() === wl)
             return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
 
-        // const TYPE name
-        const constM = code.match(/^const\s+\w+\^?\s+(\w+)/i);
-        if (constM && constM[1].toLowerCase() === wl)
-            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+        // const TYPE [^]name1, [^]name2 ... (C-style per-declarator ^)
+        const constM = code.match(/^const\s+(\^?)(\w+)(\^?)\s+(.+)/i);
+        if (constM) {
+            const pfx = constM[1] === '^' || constM[3] === '^';
+            if (parseDeclaratorList(constM[4], pfx).some(d => d.name.toLowerCase() === wl))
+                return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+        }
 
-        // TYPE[^] [^]name (variable declaration — all primitive and struct types)
-        const varM = code.match(/^(\w+)\^?\s+\^?(\w+)\s*(?:\[|=|@|$)/);
-        if (varM && varM[2].toLowerCase() === wl && !ZAP_FLOW_KW.has(varM[1].toLowerCase()))
-            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+        // [^]TYPE[^] [^]name1, [^]name2 ... (variable declaration — all primitive and struct types)
+        const varM = code.match(/^(\^?)(\w+)(\^?)\s+(.+)/);
+        if (varM && !ZAP_FLOW_KW.has(varM[2].toLowerCase())) {
+            const pfx = varM[1] === '^' || varM[3] === '^';
+            const decls = parseDeclaratorList(varM[4], pfx);
+            if (decls.length > 0 && !ZAP_KEYWORDS.has(decls[0].name.toLowerCase())
+                    && decls.some(d => d.name.toLowerCase() === wl))
+                return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+        }
     }
     return undefined;
 }
@@ -494,17 +527,31 @@ function buildDocumentSymbols(document) {
             symbols.push(sym); i = endLine + 1; continue;
         }
 
-        // --- const TYPE NAME ---
-        const constM = code.match(/^const\s+(\w+\^?)\s+(\w+)/i);
+        // --- const TYPE [^]name1, [^]name2 ... ---
+        const constM = code.match(/^const\s+(\^?)(\w+)(\^?)\s+(.+)/i);
         if (constM) {
-            symbols.push(makeSymbol(constM[2], `const ${constM[1]}`, vscode.SymbolKind.Constant, lines, i, i));
+            const baseType = constM[2];
+            const pfx = constM[1] === '^' || constM[3] === '^';
+            for (const { name, isPointer } of parseDeclaratorList(constM[4], pfx)) {
+                const typeLabel = isPointer ? baseType + '^' : baseType;
+                symbols.push(makeSymbol(name, `const ${typeLabel}`, vscode.SymbolKind.Constant, lines, i, i));
+            }
             i++; continue;
         }
 
-        // --- global variable TYPE[^] NAME ---
-        const varM = code.match(/^(\w+)(\^?)\s+(\w+)\s*(?:\[|=|@|$)/);
-        if (varM && !ZAP_FLOW_KW.has(varM[1].toLowerCase()) && !ZAP_KEYWORDS.has(varM[3].toLowerCase())) {
-            symbols.push(makeSymbol(varM[3], varM[1] + varM[2], vscode.SymbolKind.Variable, lines, i, i));
+        // --- global variable [^]TYPE[^] [^]name1, [^]name2 ... ---
+        const varM = code.match(/^(\^?)(\w+)(\^?)\s+(.+)/);
+        if (varM && !ZAP_FLOW_KW.has(varM[2].toLowerCase())) {
+            const baseType = varM[2];
+            const pfx = varM[1] === '^' || varM[3] === '^';
+            const decls = parseDeclaratorList(varM[4], pfx);
+            if (decls.length > 0 && !ZAP_KEYWORDS.has(decls[0].name.toLowerCase())) {
+                for (const { name, isPointer } of decls) {
+                    if (ZAP_KEYWORDS.has(name.toLowerCase())) continue;
+                    const typeLabel = isPointer ? baseType + '^' : baseType;
+                    symbols.push(makeSymbol(name, typeLabel, vscode.SymbolKind.Variable, lines, i, i));
+                }
+            }
         }
 
         i++;

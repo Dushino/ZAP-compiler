@@ -54,7 +54,11 @@ type            ::= base_type [ "^" ] ;
 base_type       ::= "byte" | "word" | "long" | STRUCT_NAME ;
 
 (* ============ DECLARATIONS ============ *)
-declaration     ::= [ type_modifier { type_modifier } ] type declarator_list [ decl_modifiers ] ;
+(* ^ is per-declarator (C-style): byte ^p1, ^p2 makes p1 and p2 independent pointers.
+   The legacy prefix form "^base_type" is still accepted for a single declarator:
+     ^byte ptr        -- backward-compatible, applies ^ to the first declarator only.
+   In all other contexts (struct fields, parameters, func return) ^ is part of the type. *)
+declaration     ::= [ type_modifier { type_modifier } ] base_type declarator_list [ decl_modifiers ] ;
 
 type_modifier   ::= "const" | "static" ;
 
@@ -63,7 +67,7 @@ decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" 
 
 declarator_list ::= declarator { "," declarator } ;
 
-declarator      ::= IDENT
+declarator      ::= [ "^" ] IDENT
                     [ array_spec ]
                     [ address_spec ]
                     [ initializer ] ;
@@ -106,7 +110,7 @@ param_list      ::= param { "," param } ;
 param           ::= type IDENT [ array_spec ] [ "=" expression ] ;  (* array params, default values *)
 
 (* ============ STATEMENTS ============ *)
-local_decl      ::= [ type_modifier { type_modifier } ] type declarator_list ;
+local_decl      ::= [ type_modifier { type_modifier } ] base_type declarator_list ;
 
 statement       ::= assignment
                   | call_stmt
@@ -274,7 +278,7 @@ expr_list       ::= expression { "," expression } ;
    - All identifiers are case-insensitive internally (converted to uppercase)
    - String literals preserve case
    - Character literals ('x') are converted to numeric values at tokenization time
-   - Pointer types use ^ operator (e.g., byte ^ptr)
+   - Pointer types: ^ is per-declarator in declarations (e.g., byte ^p1, ^p2 declares two independent pointers); ^ is part of the type in struct fields, parameters, and func return types
    - Fixed-address variables use @ specifier in declaration (e.g., byte x @$2000)
    - ADDRESS-OF operator: @ prefix in expressions gets variable address (e.g., @var, @array[i], @struct.field)
    - Procedures end with END, functions end with END (implicit return)

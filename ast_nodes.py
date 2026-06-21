@@ -107,6 +107,7 @@ class StringInit(InitValue):
 class Declarator(ASTNode):
     """Declarator for a single variable instance."""
     name: str
+    is_pointer: bool = False              # True if this declarator has ^ (C-style per-declarator pointer)
     array_size: "Expr | None" = None      # DEPRECATED: use array_sizes
     address: "Expr | None" = None         # None = bez @
     initializer: InitValue | None = None
@@ -118,7 +119,7 @@ class Declarator(ASTNode):
 
     def __repr__(self) -> str:
         """Return a readable declarator representation."""
-        parts = [self.name]
+        parts = ["^" + self.name if self.is_pointer else self.name]
 
         # Show array dimensions
         sizes = self.array_sizes if self.array_sizes else (

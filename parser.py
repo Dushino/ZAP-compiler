@@ -736,14 +736,11 @@ class Parser:
                 self.error("Unsupported type modifier")
             self.advance()
 
-        # Check for pointer prefix - two possible orders:
-        # 1. ^type name (pointer prefix first - used in structs and procs)
-        # 2. type ^name (pointer suffix after type - global declarations)
-        is_pointer = False
-
-        # Try order 1: ^type name
+        # C-style per-declarator pointers: ^ goes with each declarator name, not the type.
+        # Legacy prefix form (^type name) is accepted but applies only to the first declarator.
+        _prefix_caret_pending: bool = False
         if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
-            is_pointer = True
+            _prefix_caret_pending = True
             self.advance()
 
         # type (built-in or struct name)
@@ -756,11 +753,6 @@ class Parser:
             self.advance()
         else:
             self.expect(TOK_TYPE)
-
-        # Check for order 2: type ^name (pointer suffix after type)
-        if not is_pointer and (self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^")):
-            is_pointer = True
-            self.advance()
 
         def _is_sqb(val=None):
             """Check for a square bracket token, optionally matching a value."""
@@ -779,6 +771,15 @@ class Parser:
 
         def parse_declarator() -> Declarator:
             """Parse a single declarator including arrays, init, and address."""
+            nonlocal _prefix_caret_pending
+            # Per-declarator ^ (C-style): "byte ^ptr1, ^ptr2" makes each independently a pointer.
+            # Legacy prefix form "^byte ptr1" sets _prefix_caret_pending for the first declarator only.
+            _decl_is_ptr: bool = _prefix_caret_pending
+            _prefix_caret_pending = False  # consumed; subsequent declarators must use their own ^
+            if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
+                _decl_is_ptr = True
+                self.advance()
+
             # ident
             name: str = self.cur.value
             if name.startswith('_'):
@@ -857,6 +858,7 @@ class Parser:
             # Create Declarator with multi-dimensional support
             return Declarator(
                 name=name,
+                is_pointer=_decl_is_ptr,
                 array_size=array_size,
                 address=address,
                 initializer=init,
@@ -897,7 +899,7 @@ class Parser:
 
         return Declaration(
             is_const=is_const,
-            type=TypeNode(type_tok.value, is_pointer),
+            type=TypeNode(type_tok.value, False),
             declarators=declarators,
             is_static=is_static,
             is_port=is_port,

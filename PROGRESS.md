@@ -1,5 +1,48 @@
 # Progress Tracker
 
+## Feature: C-style per-declarator pointer declarations (2026-06-21)
+
+### Problem
+
+`byte ^ptr1, ^ptr2` failed with a parse error on the second `^`. Only `byte ^ptr1` (one
+pointer per line) worked. This was inconsistent with `byte a, b` (multiple non-pointers
+on one line).
+
+### Fix
+
+Three-file change to implement C-style per-declarator `^` (like C's `char *p1, *p2`):
+
+- **`ast_nodes.py`** (`Declarator`): added `is_pointer: bool = False` field. Pointer
+  status is now per-declarator, not shared across all declarators in a `Declaration`.
+
+- **`parser.py`** (`parse_declaration`): removed type-level suffix `^` detection (old
+  "order 2" check). Added per-declarator `^` detection inside `parse_declarator()`.
+  The legacy prefix form `^byte name` is preserved as backward compat — it sets a
+  `_prefix_caret_pending` flag that applies only to the first declarator; subsequent
+  declarators need their own `^` (C-style).
+
+- **`sema.py`** (`DeclarationAnalyzer.analyze`): moved `SemType` construction inside the
+  `for d in decl.declarators` loop, using `d.is_pointer` instead of `decl.type.is_pointer`.
+  Also updated the PORT-on-pointer check to use `d.is_pointer`.
+
+### Semantics
+
+| Syntax | ptr1 | plain |
+| --- | --- | --- |
+| `byte ^ptr1, ^ptr2` | pointer | pointer |
+| `byte ^ptr1, plain` | pointer | plain byte |
+| `byte ptr1, ptr2` | plain byte | plain byte |
+| `^byte ptr1` | pointer | — (legacy, single decl) |
+| `^byte ptr1, ptr2` | pointer | plain byte (C-style) |
+
+### Regression test
+
+`tests/pass/246-multi-ptr-decl` — 10 checks across `byte ^a, ^b`, `word ^a, ^b`,
+mixed `byte ^ptr, plain`, 3-pointer `byte ^a, ^b, ^c`, and legacy prefix form.
+All 4 variants pass (212 pass total, 139 fail, 0 errors).
+
+---
+
 ## Bugfix: LONG propagation into RPN evaluator for MUL/DIV/SUB/ADD (2026-06-21)
 
 ### Problem

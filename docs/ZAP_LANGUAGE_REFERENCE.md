@@ -545,10 +545,14 @@ Rules and notes (general modifiers):
 
 #### Pointer Types
 
+`^` is written before each variable name, not before the type (C-style, per-declarator):
+
 ```zap
-byte ^ptr           ; Pointer to byte
-word ^addr          ; Pointer to word
-struct Point ^p     ; Pointer to struct
+byte ^ptr             ; Pointer to byte
+word ^addr            ; Pointer to word
+Point ^p              ; Pointer to struct
+byte ^p1, ^p2         ; Two independent byte pointers
+byte ^ptr, plain      ; ptr is a pointer, plain is a plain byte
 ```
 
 See [Pointers](#pointers) section for detailed information.
@@ -720,11 +724,19 @@ end
 
 ### Multiple Declarations
 
+Multiple variables of the same base type can be declared on one line. `^` is written per-declarator (C-style), so each variable independently decides whether it is a pointer:
+
 ```zap
-byte x, y, z           ; Three bytes
+byte x, y, z           ; Three plain bytes
 byte a = 1, b = 2      ; With initialization
 byte ^p1, ^p2          ; Two byte pointers
+byte ^ptr, plain       ; ptr is a pointer; plain is a plain byte
+word ^wp1, ^wp2        ; Two word pointers
+Point ^sp1, ^sp2       ; Two pointers-to-struct
+byte ^arr1[10], ^arr2[20]  ; Two pointer arrays
 ```
+
+This mirrors C's `type *name` style: the `^` belongs to the name, not the type, so `byte ^p1, p2` declares `p1` as a pointer and `p2` as a plain byte.
 
 ---
 
@@ -2636,9 +2648,13 @@ Mixed P1 @$A000 #PORT #RD   ; P1 is read-only overall
 
 ### Pointer Declaration
 
+`^` is written before each variable name (C-style, per-declarator). Multiple pointers can be declared on one line:
+
 ```zap
-byte ^ptr           ; Pointer to byte
-word ^addr          ; Pointer to word
+byte ^ptr              ; Pointer to byte
+word ^addr             ; Pointer to word
+byte ^p1, ^p2          ; Two independent byte pointers
+byte ^ptr2, plain      ; ptr2 is a pointer; plain is a plain byte
 ```
 
 ### Taking Addresses
