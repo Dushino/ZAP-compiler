@@ -7,6 +7,9 @@
             "include": "#proc-asm-block"
         },
         {
+            "include": "#inline-asm-block"
+        },
+        {
             "include": "#comments"
         },
         {
@@ -56,6 +59,20 @@
                         { "include": "#numbers" }
                     ]
                 }
+            },
+            "end": "^\\s*([Ee][Nn][Dd])\\b",
+            "endCaptures": {
+                "1": { "name": "keyword.control.zap" }
+            },
+            "patterns": [
+                { "include": "source.ca65" }
+            ]
+        },
+        "inline-asm-block": {
+            "comment": "Inline asm...end block inside a proc/func body — body gets ca65 highlighting",
+            "begin": "^(\\s*)([Aa][Ss][Mm])\\b",
+            "beginCaptures": {
+                "2": { "name": "keyword.control.zap" }
             },
             "end": "^\\s*([Ee][Nn][Dd])\\b",
             "endCaptures": {

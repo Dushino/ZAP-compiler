@@ -2,22 +2,6 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "scopeName": "source.zap.asm.injection",
   "injectionSelector": "source.zap",
-  "patterns": [
-    {
-      "name": "meta.embedded.asm.ca65.zap",
-      "begin": "^\\s*([Aa][Ss][Mm])\\b",
-      "beginCaptures": {
-        "1": { "name": "keyword.control.zap" }
-      },
-      "end": "^\\s*([Ee][Nn][Dd])\\b",
-      "endCaptures": {
-        "1": { "name": "keyword.control.zap" }
-      },
-      "patterns": [
-        {
-          "include": "source.ca65"
-        }
-      ]
-    },
-  ]
+  "comment": "This injection grammar is superseded by the inline-asm-block rule in zap.tmLanguage.json. The main grammar rule has higher priority and correctly handles asm...end blocks. This file is kept to satisfy the injectTo registration in package.json.",
+  "patterns": []
 }
