@@ -11282,8 +11282,11 @@ class CodeGen:
                 finally:
                     self.force_word_result = prev_force
                 self.emit("\tPHA")
-                self.emit("\tTXA")
-                self.emit("\tPHA")
+                if self.is_65c02:
+                    self.emit("\tPHX")
+                else:
+                    self.emit("\tTXA")
+                    self.emit("\tPHA")
 
                 # Generate right operand (callee may clobber temps)
                 prev_force = self.force_word_result
@@ -11299,9 +11302,13 @@ class CodeGen:
                 self.emit("\tSTX TMP0+1")
 
                 # Restore left (low in A, high in X)
-                self.emit("\tPLA")
-                self.emit("\tTAX")
-                self.emit("\tPLA")
+                if self.is_65c02:
+                    self.emit("\tPLX")
+                    self.emit("\tPLA")
+                else:
+                    self.emit("\tPLA")
+                    self.emit("\tTAX")
+                    self.emit("\tPLA")
 
                 # Use ADD16/SUB16 routines for better accumulator usage
                 if expr.op == BinOp.ADD:
@@ -12563,6 +12570,27 @@ class CodeGen:
             if self.force_word_result:
                 self.emit("\tLDX #$00")
             return
+
+    def _try_eval_const_word(self, e: Expr) -> int | None:
+        """Try to evaluate e to a compile-time integer constant without emitting any code.
+        Returns the integer value, or None if e is not a compile-time constant.
+        Handles: IntLiteral, sizeof(T), low(const), high(const).
+        """
+        if isinstance(e, IntLiteral):
+            return e.value
+        if isinstance(e, CallExpr) and len(e.args) == 1 and e.args[0] is not None:
+            name = e.name.upper()
+            if name == "SIZEOF":
+                try:
+                    return self._sizeof_struct_arg(e.args[0])
+                except Exception:
+                    return None
+            if name in {"LOW", "HIGH"}:
+                inner = self._try_eval_const_word(e.args[0])
+                if inner is None:
+                    return None
+                return inner & 0xFF if name == "LOW" else (inner >> 8) & 0xFF
+        return None
 
     def _sizeof_struct_arg(self, arg: Expr) -> int:
         """Helper for sizeof struct arg.
@@ -15135,27 +15163,28 @@ class CodeGen:
             )
 
         def _y_simple_loadable(e: Expr) -> bool:
-            """Helper for y simple loadable.
-            Internal helper used during code generation.
-            """
+            """Return True when e can be loaded into Y via LDY without touching A or X."""
             if isinstance(e, IntLiteral):
                 return True
             if isinstance(e, Identifier):
                 sym = self.current_symtab.lookup(e.name)
                 return (sym.type.base == "BYTE" and not sym.type.is_pointer and
                         not sym.is_array and not sym.is_volatile)
-            return False
+            # Compile-time constants such as low(sizeof(T)) or high(sizeof(T))
+            return self._try_eval_const_word(e) is not None
 
         def _emit_load_y_simple(e: Expr) -> None:
-            """Emit load y simple.
-            Internal helper used during code generation.
-            """
+            """Emit LDY for a y-simple-loadable expression (never touches A or X)."""
             if isinstance(e, IntLiteral):
                 self.emit(f"\tLDY #${e.value & 0xFF:02X}")
                 return
             if isinstance(e, Identifier):
                 sym = self.current_symtab.lookup(e.name)
                 self.emit(f"\tLDY {sym.asm_name()}")
+                return
+            const_val = self._try_eval_const_word(e)
+            if const_val is not None:
+                self.emit(f"\tLDY #${const_val & 0xFF:02X}")
                 return
 
         def _can_reorder_regs() -> bool:
@@ -15309,9 +15338,13 @@ class CodeGen:
                     self.force_word_result = prev_force
                 self.emit("\tPHA")
                 restore_ops.append("A")
-                self.emit("\tTXA")
-                self.emit("\tPHA")
-                restore_ops.append("X")
+                if self.is_65c02:
+                    self.emit("\tPHX")
+                    restore_ops.append("X_native")
+                else:
+                    self.emit("\tTXA")
+                    self.emit("\tPHA")
+                    restore_ops.append("X")
                 continue
 
             if reg_case in {"byte0", "two_bytes", "three_bytes"} and index == reg_a_index:
@@ -15349,8 +15382,12 @@ class CodeGen:
                     self.gen_expr(arg)
                 finally:
                     self.suppress_byte_return_x = prev_suppress
-                self.emit("\tPHA")
-                restore_ops.append("Y")
+                if index == last_index:
+                    # Y is the last argument — no later args can clobber Y, so set it directly.
+                    self.emit("\tTAY")
+                else:
+                    self.emit("\tPHA")
+                    restore_ops.append("Y")
                 continue
 
             # -- Deferred store: a later arg has a call that may clobber this slot --
@@ -15662,11 +15699,16 @@ class CodeGen:
         else:
             while restore_ops:
                 op = restore_ops.pop()
-                self.emit("\tPLA")
-                if op == "X":
-                    self.emit("\tTAX")
-                elif op == "Y":
-                    self.emit("\tTAY")
+                if op == "X_native":
+                    self.emit("\tPLX")
+                elif op == "Y_native":
+                    self.emit("\tPLY")
+                else:
+                    self.emit("\tPLA")
+                    if op == "X":
+                        self.emit("\tTAX")
+                    elif op == "Y":
+                        self.emit("\tTAY")
 
     def _emit_struct_literal_store(
         self,

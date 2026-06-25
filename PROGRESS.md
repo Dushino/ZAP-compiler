@@ -1,5 +1,63 @@
 # Progress Tracker
 
+## Optimization: PHX/PLX for word-arg save and TAY for Y-arg (2026-06-25)
+
+### Problem
+
+Calls with a word first argument and a byte second argument (passed in A/X and Y
+respectively) generated unnecessarily long code:
+
+```asm
+PHA        ; save A (word low byte)
+TXA        ; A = X (word high byte)
+PHA        ; save X via A
+LDA #$03   ; compute byte arg
+PHA        ; pointless push
+PLA        ; pointless pop
+TAY        ; Y = byte arg
+PLA        ; restore X (via A)
+TAX
+PLA        ; restore A
+```
+
+Two problems: (1) On 65c02, `TXA;PHA` should be `PHX` and `PLA;TAX` should be `PLX`.
+(2) Pushing the Y-arg to the stack then immediately popping it (`PHA;PLA;TAY`) is pointless.
+
+### Fix (`codegen_expr.py`)
+
+**Fix 1 — Y-arg direct load** (`_emit_call_args`, Y-register branch): when the Y-register
+argument is the last argument (no memory params follow), emit `TAY` directly instead of
+`PHA; restore_ops.append("Y")`. Y cannot be clobbered by later args in this case.
+
+**Fix 2 — PHX/PLX for word arg** (`_emit_call_args`, word0/word0_byte1 branch): on 65c02
+replace `TXA; PHA; restore_ops.append("X")` with `PHX; restore_ops.append("X_native")`.
+The restore loop handles `"X_native"` → `PLX` (no `PLA; TAX` round-trip).
+
+**Fix 3 — PHX/PLX in binary-expr save** (`_gen_binary`, right-has-call path): same
+`TXA;PHA` / `PLA;TAX;PLA` pattern replaced with `PHX` / `PLX;PLA` on 65c02.
+
+After all four fixes (see Fix 4 below), the 10-instruction sequence collapses to 3:
+
+```asm
+LDA #<_CIO_INIT$MSG
+LDX #>_CIO_INIT$MSG
+LDY #$03
+JMP _ACIA_WR
+```
+
+**Fix 4 — compile-time constant Y-arg recognition** (`_try_eval_const_word`, `_y_simple_loadable`,
+`_emit_load_y_simple`): added `_try_eval_const_word(expr)` which evaluates `IntLiteral`,
+`sizeof(T)`, `low(const)`, and `high(const)` to integers without emitting any code.
+Extended `_y_simple_loadable` to return True for any compile-time-constant expression
+(not just `IntLiteral` and simple byte `Identifier`). Extended `_emit_load_y_simple` to
+emit `LDY #$const` for those cases. This makes `reorder_regs = True` fire for patterns
+like `low(sizeof(T))`, so the word arg is loaded into A/X first (no save needed) and Y
+is loaded directly with `LDY #imm` — eliminating all save/restore overhead.
+
+All 351 tests pass (212 pass + 139 fail variants, 0 errors).
+
+---
+
 ## Feature: C-style per-declarator pointer declarations (2026-06-21)
 
 ### Problem
