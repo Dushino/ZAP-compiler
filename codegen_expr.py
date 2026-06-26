@@ -6798,14 +6798,50 @@ class CodeGen:
                     shared_zp_sizes[sl] = sz
         zp_offset += sum(shared_zp_sizes.values())
 
+        def _forced_sym_size(sym: Symbol) -> int:
+            """Return allocation size of a variable for ZP budget purposes."""
+            if sym.type.is_struct and sym.type.struct_info:
+                base_size = sym.type.struct_info.size
+            elif sym.type.is_pointer or sym.type.base == "WORD":
+                base_size = 2
+            elif sym.type.base == "LONG":
+                base_size = 4
+            else:
+                base_size = 1
+            if sym.is_array:
+                return sym.get_total_array_size()
+            return base_size
+
+        # Pre-pass 0: handle #ZP forced variables — highest priority, deducted before auto-allocation.
+        # #BSS variables are simply never entered into any ZP allocation step.
+        for sym in all_vars:
+            if not getattr(sym, 'force_zp', False):
+                continue
+            if sym.is_const or sym.address is not None or getattr(sym, 'shared_slot', None):
+                continue
+            size = _forced_sym_size(sym)
+            if zp_offset + size <= ZEROPAGE_SIZE:
+                sym.in_zeropage = True
+                zp_offset += size
+            else:
+                from errors import CompileError
+                raise CompileError(
+                    f"Zero page full: '#ZP' variable '{sym.name}' ({size} bytes) "
+                    f"cannot fit — only {ZEROPAGE_SIZE - zp_offset} bytes free "
+                    f"in ZP range ${self.zp_start:02X}-$FF"
+                )
+
         # Pre-decide placement for pointer scalars/arrays (arrays go to ZP only if they fit)
+        # Skip #ZP/#BSS vars — already locked in the pre-pass or explicitly excluded.
         pointer_scalars: list[Symbol] = [
             s for s in all_vars
             if not s.is_const and s.address is None and s.type.is_pointer and not s.is_array
+            and not getattr(s, 'force_zp', False) and not getattr(s, 'force_bss', False)
         ]
         pointer_arrays: list[Symbol] = [
             s for s in all_vars
             if not s.is_const and s.address is None and s.type.is_pointer and s.is_array
+            and not getattr(s, 'force_zp', False) and not getattr(s, 'force_bss', False)
         ]
 
         # Pointer scalars
@@ -6847,15 +6883,16 @@ class CodeGen:
                 for sym in pointer_array_slots[slot_label]:
                     sym.in_zeropage = True
 
-        # Step 2: Try to put BYTE variables in zero page
-        byte_vars: list[Symbol] = [s for s in all_vars 
-                    if not s.is_const and s.address is None 
+        # Step 2: Try to put BYTE variables in zero page (skip #ZP/#BSS — already decided)
+        byte_vars: list[Symbol] = [s for s in all_vars
+                    if not s.is_const and s.address is None
                     and not s.type.is_pointer and not s.is_array
-                    and s.type.base == "BYTE"]
-        
+                    and s.type.base == "BYTE"
+                    and not getattr(s, 'force_zp', False) and not getattr(s, 'force_bss', False)]
+
         zp_priority_bytes = sorted([s for s in byte_vars if s.zp_priority > 0], key=lambda s: -s.zp_priority)
         regular_bytes = [s for s in byte_vars if s.zp_priority <= 0]
-        
+
         for sym in zp_priority_bytes:
             if zp_offset + 1 <= ZEROPAGE_SIZE:
                 sym.in_zeropage = True
@@ -6864,13 +6901,14 @@ class CodeGen:
             if zp_offset + 1 <= ZEROPAGE_SIZE:
                 sym.in_zeropage = True
                 zp_offset += 1
-                
-        # Step 3: Try to put WORD variables in zero page
-        word_vars: list[Symbol] = [s for s in all_vars 
-                    if not s.is_const and s.address is None 
+
+        # Step 3: Try to put WORD variables in zero page (skip #ZP/#BSS — already decided)
+        word_vars: list[Symbol] = [s for s in all_vars
+                    if not s.is_const and s.address is None
                     and not s.type.is_pointer and not s.is_array
-                    and s.type.base == "WORD"]
-                    
+                    and s.type.base == "WORD"
+                    and not getattr(s, 'force_zp', False) and not getattr(s, 'force_bss', False)]
+
         zp_priority_words = sorted([s for s in word_vars if s.zp_priority > 0], key=lambda s: -s.zp_priority)
         regular_words = [s for s in word_vars if s.zp_priority <= 0]
 
@@ -6882,13 +6920,14 @@ class CodeGen:
             if zp_offset + 2 <= ZEROPAGE_SIZE:
                 sym.in_zeropage = True
                 zp_offset += 2
-                
-        # Step 4: Try to put LONG variables in zero page
-        long_vars: list[Symbol] = [s for s in all_vars 
-                    if not s.is_const and s.address is None 
+
+        # Step 4: Try to put LONG variables in zero page (skip #ZP/#BSS — already decided)
+        long_vars: list[Symbol] = [s for s in all_vars
+                    if not s.is_const and s.address is None
                     and not s.type.is_pointer and not s.is_array
-                    and s.type.base == "LONG"]
-                    
+                    and s.type.base == "LONG"
+                    and not getattr(s, 'force_zp', False) and not getattr(s, 'force_bss', False)]
+
         zp_priority_longs = sorted([s for s in long_vars if s.zp_priority > 0], key=lambda s: -s.zp_priority)
         regular_longs = [s for s in long_vars if s.zp_priority <= 0]
 
@@ -7166,6 +7205,37 @@ class CodeGen:
                 if not getattr(sym, 'shared_slot', None):
                     self.emit(f"{sym.asm_name()}:\t.res 4")
 
+        # Step 3.5: STRUCT (non-pointer, non-array) variables.
+        # Default: BSS. #ZP forces them to ZP (in_zeropage already set by assign_zeropage pre-pass).
+        struct_vars: list[Symbol] = [s for s in all_vars
+                    if not s.is_const and s.address is None
+                    and not s.type.is_pointer and not s.is_array
+                    and s.type.is_struct]
+
+        zp_struct_vars  = [s for s in struct_vars if s.in_zeropage]
+        bss_struct_vars = [s for s in struct_vars if not s.in_zeropage]
+
+        if zp_struct_vars:
+            self.emit("\n; Struct variables (#ZP forced)")
+            for sym in zp_struct_vars:
+                if not getattr(sym, 'shared_slot', None) and sym.type.struct_info:
+                    self.emit(f"{sym.asm_name()}:\t.res {sym.type.struct_info.size}")
+
+        # Step 4: ALL non-pointer ARRAYS.
+        # Default: BSS. #ZP forces them to ZP (in_zeropage already set by assign_zeropage pre-pass).
+        array_vars: list[Symbol] = [
+            s for s in all_vars
+            if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
+        ]
+        zp_array_vars  = [s for s in array_vars if s.in_zeropage]
+        bss_array_vars = [s for s in array_vars if not s.in_zeropage]
+
+        if zp_array_vars:
+            self.emit("\n; Arrays (#ZP forced)")
+            for sym in zp_array_vars:
+                if not getattr(sym, 'shared_slot', None):
+                    self.emit(f"{sym.asm_name()}:\t.res {sym.get_total_array_size()}")
+
         # ZP overflow check: compute actual total ZP usage and verify it fits
         # Count dedicated system temps (not aliases to shared slots)
         zp_total = 0
@@ -7193,6 +7263,13 @@ class CodeGen:
         for sym in zp_long_vars:
             if not getattr(sym, 'shared_slot', None):
                 zp_total += 4
+        for sym in zp_struct_vars:
+            if not getattr(sym, 'shared_slot', None) and sym.type.struct_info:
+                zp_total += sym.type.struct_info.size
+        for sym in zp_array_vars:
+            if not getattr(sym, 'shared_slot', None):
+                zp_total += sym.get_total_array_size()
+        # Also count #ZP forced pointer scalars and pointer arrays (already in pointer_scalars/arrays lists)
         zp_budget = 256 - self.zp_start
         if zp_total > zp_budget:
             from errors import CompileError
@@ -7205,21 +7282,6 @@ class CodeGen:
         zp_end = self.zp_start + zp_total - 1 if zp_total > 0 else self.zp_start
         self.emit(f"; ZP usage: {zp_total} of {zp_budget} bytes (${self.zp_start:02X}-${zp_end:02X}), {zp_budget - zp_total} free")
 
-        # Step 3.5: STRUCT (non-pointer, non-array) variables - always go to BSS
-        struct_vars: list[Symbol] = [s for s in all_vars
-                    if not s.is_const and s.address is None
-                    and not s.type.is_pointer and not s.is_array
-                    and s.type.is_struct]
-
-        bss_struct_vars: list[Symbol] = struct_vars  # All struct vars go to BSS
-
-
-        # Step 4: ALL non-pointer ARRAYS must go to BSS segment (pointer arrays were handled in Step 1)
-        array_vars: list[Symbol] = [
-            s for s in all_vars
-            if not s.is_const and s.address is None and s.is_array and not s.type.is_pointer
-        ]
-
         pointer_array_bss: list[Symbol] = [
             s for s in all_vars
             if (not s.is_const and s.address is None and s.is_array and s.type.is_pointer and not s.in_zeropage)
@@ -7231,7 +7293,7 @@ class CodeGen:
         ]
 
         # Switch to BSS for overflow, struct vars, arrays, and BSS shared slots
-        if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
+        if bss_byte_vars or bss_word_vars or bss_long_vars or bss_struct_vars or bss_array_vars or pointer_array_bss or pointer_scalar_bss or shared_slots_bss:
             self.emit("")
             self.emit("")
             self.emit("; ---------------------------------------------------------------------------")
@@ -7290,9 +7352,9 @@ class CodeGen:
                         total_size = sym.get_total_array_size()
                         self.emit(f"{sym.asm_name()}:\t.res {total_size}")
 
-            if array_vars:
+            if bss_array_vars:
                 self.emit("; Arrays (BSS)")
-                for sym in array_vars:
+                for sym in bss_array_vars:
                     # Skip if already in shared slots
                     if not getattr(sym, 'shared_slot', None):
                         total_size = sym.get_total_array_size()

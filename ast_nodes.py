@@ -151,6 +151,8 @@ class Declaration(ASTNode):
     keep: bool = False      # #KEEP prevents dead-code elimination of unused globals
     noexport: bool = False  # #NOEXPORT prevents exporting from a module
     export: bool = False    # #EXPORT forces export even in non-module files
+    force_zp: bool = False  # #ZP forces variable into zero-page segment
+    force_bss: bool = False # #BSS forces variable into BSS segment (skip auto ZP)
 
     def __repr__(self) -> str:
         """Return a readable declaration representation."""

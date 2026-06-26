@@ -1,5 +1,35 @@
 # Progress Tracker
 
+## Feature: Storage modifiers `#ZP` and `#BSS` (2026-06-26)
+
+### Summary
+
+Added `#ZP` and `#BSS` declaration modifiers that override the compiler's automatic variable
+placement. `#ZP` forces a variable into the zero-page segment with highest priority (allocated
+before auto-promotion). `#BSS` forces a variable into BSS, preventing any automatic ZP promotion.
+
+### Changes
+
+- **ast_nodes.py**: Added `force_zp: bool = False` and `force_bss: bool = False` to `Declaration`.
+- **symbols.py**: Added `force_zp: bool = False` and `force_bss: bool = False` to `Symbol`.
+- **parser.py**: `parse_declaration()` modifier loop now recognises `ZP` and `BSS`; passes flags through to `Declaration`.
+- **sema.py**: Validates `#ZP`/`#BSS` — rejects: combined on same variable, on `const`, on fixed-address (`@`), on `#PORT`, and `#BSS` on pointer scalars. Propagates flags to `Symbol`.
+- **codegen_expr.py**: `assign_zeropage()` — added `_forced_sym_size()` helper and Pre-pass 0 that allocates all `#ZP` variables before the normal priority loops; raises `CompileError` on ZP overflow. All auto-allocation filter lists exclude `force_zp`/`force_bss` variables. `gen_vars_block()` now splits struct/array variables by `in_zeropage` so `#ZP` structs and arrays land in the ZEROPAGE segment.
+- **docs/grammar.ebnf**: Added `#ZP` and `#BSS` to `decl_modifier`.
+- **docs/ZAP_LANGUAGE_REFERENCE.md**: Added "Storage Modifiers: `#ZP` and `#BSS`" subsection under Variables.
+- **IDE_Integration/.../syntaxes/zap.tmLanguage.json**: Added `[Zz][Pp]` and `[Bb][Ss][Ss]` to attributes regex so `#ZP`/`#BSS` are syntax-highlighted.
+- **tests/pass/248-storage-modifiers/**: New regression test — 8 checks covering ZP byte/word/long/struct/array and BSS byte.
+- **tests/fail/storage-zp-bss-conflict/**: Rejected: `#ZP #BSS` on same variable.
+- **tests/fail/storage-bss-pointer/**: Rejected: `#BSS` on pointer scalar.
+- **tests/fail/storage-zp-const/**: Rejected: `#ZP` on `const`.
+- **tests/fail/storage-zp-fixed-addr/**: Rejected: `#ZP` on fixed-address variable.
+- **tests/fail/storage-zp-overflow-forced/**: Rejected: ZP overflow when forced variable doesn't fit.
+
+### Verification
+- `make tests`: 214 pass-tests pass, 148 fail-tests correctly rejected — 0 regressions.
+
+---
+
 ## Feature: Union types (2026-06-26)
 
 ### Summary

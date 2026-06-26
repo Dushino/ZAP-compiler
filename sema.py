@@ -518,6 +518,22 @@ class DeclarationAnalyzer:
         if (getattr(decl, 'port_rd', False) or getattr(decl, 'port_wr', False)) and not decl.is_port:
             raise SemanticError("#RD and #WR modifiers are only valid on #PORT declarations", node=d)
 
+        # Validate #ZP / #BSS storage modifiers
+        force_zp: bool = getattr(decl, 'force_zp', False)
+        force_bss: bool = getattr(decl, 'force_bss', False)
+        if force_zp and force_bss:
+            raise SemanticError("#ZP and #BSS modifiers cannot be combined", node=d)
+        if force_zp or force_bss:
+            if decl.is_const:
+                raise SemanticError("#ZP/#BSS modifiers cannot be used on const variables (consts have no storage)", node=d)
+            if d.address is not None:
+                raise SemanticError("#ZP/#BSS modifiers cannot be used on fixed-address variables (@ address)", node=d)
+            if decl.is_port:
+                raise SemanticError("#ZP/#BSS modifiers cannot be combined with #PORT", node=d)
+        d_is_array = d.array_size is not None or bool(d.array_sizes)
+        if force_bss and d.is_pointer and not d_is_array:
+            raise SemanticError("#BSS modifier cannot be used on pointer scalars (pointer dereference requires zero-page indirect addressing)", node=d)
+
         # Extract array dimensions (supports multi-dimensional arrays)
         array_sizes_to_eval: list[Expr] = d.array_sizes if d.array_sizes else (
             [d.array_size] if d.array_size is not None else []
@@ -901,6 +917,8 @@ class DeclarationAnalyzer:
             is_keep=getattr(decl, 'keep', False),
             noexport=getattr(decl, 'noexport', False),
             export=getattr(decl, 'export', False),
+            force_zp=getattr(decl, 'force_zp', False),
+            force_bss=getattr(decl, 'force_bss', False),
         )
 
 

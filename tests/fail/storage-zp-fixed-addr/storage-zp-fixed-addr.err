@@ -1,0 +1,1 @@
+2:6: error: #ZP/#BSS modifiers cannot be used on fixed-address variables (@ address)

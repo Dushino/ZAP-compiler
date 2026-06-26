@@ -64,7 +64,9 @@ declaration     ::= [ type_modifier { type_modifier } ] base_type declarator_lis
 type_modifier   ::= "const" | "static" ;
 
 decl_modifiers  ::= { decl_modifier } ;
-decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" | "#ASM" ;
+decl_modifier   ::= "#KEEP" | "#NOEXPORT" | "#EXPORT" | "#PORT" | "#RD" | "#WR" | "#ASM"
+                  | "#ZP"   (* force variable into zero-page segment — overrides auto ZP allocation *)
+                  | "#BSS"  (* force variable into BSS segment — bypasses ZP auto-promotion *) ;
 
 declarator_list ::= declarator { "," declarator } ;
 

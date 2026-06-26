@@ -739,6 +739,42 @@ byte ^arr1[10], ^arr2[20]  ; Two pointer arrays
 
 This mirrors C's `type *name` style: the `^` belongs to the name, not the type, so `byte ^p1, p2` declares `p1` as a pointer and `p2` as a plain byte.
 
+### Storage Modifiers: `#ZP` and `#BSS`
+
+By default, the compiler automatically decides where to allocate global and local variables:
+- Pointer scalars and frequently-used variables go to **zero-page** (faster access)
+- Arrays and structs go to **BSS** (initialized-to-zero data segment)
+
+You can override this automatic placement with `#ZP` or `#BSS` at the end of a declaration (after any initializer):
+
+```zap
+byte   fast   = 0  #ZP   ; force into zero-page — even if ZP quota would skip it
+word   speed  = 0  #ZP   ; word forced to ZP (2 bytes consumed)
+long   tick   = 0  #ZP   ; long forced to ZP (4 bytes consumed)
+SPoint pos        #ZP    ; struct forced to ZP (sizeof(SPoint) bytes)
+byte   buf[16]    #ZP    ; array forced to ZP (16 bytes consumed)
+
+byte   data[256]  #BSS   ; force into BSS — skip ZP, even if it would normally be promoted
+```
+
+**`#ZP`** has highest priority in zero-page allocation — these variables are placed first, before the automatic promotion heuristics run. If the zero-page budget is exhausted, the compiler reports an error pointing to the declaration.
+
+**`#BSS`** prevents a variable from being placed in zero-page under any circumstances, even if the automatic allocator would normally promote it. Useful for large buffers that should never consume precious ZP space.
+
+**Restrictions:**
+- `#ZP` and `#BSS` cannot be combined on the same variable
+- Neither modifier can be used with `const` (constants have no storage)
+- Neither modifier can be used with fixed-address variables (`@ address`)
+- Neither modifier can be combined with `#PORT`
+- `#BSS` cannot be used on a pointer scalar — pointer dereference on 6502 requires zero-page indirect addressing; if you need a BSS pointer array, that is allowed
+
+**Modifier placement** — the modifier comes after the initializer (or after the declarator if there is no initializer):
+
+```zap
+byte x = 42 #ZP       ; correct: modifier after initializer
+byte y      #ZP       ; correct: modifier after declarator (no initializer)
+```
+
 ---
 
 ## Operators

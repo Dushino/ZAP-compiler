@@ -1,0 +1,1 @@
+2:7: error: #BSS modifier cannot be used on pointer scalars (pointer dereference requires zero-page indirect addressing)

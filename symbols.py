@@ -154,6 +154,8 @@ class Symbol:
     is_keep: bool = False           # #KEEP - don't dead-strip this symbol
     noexport: bool = False          # #NOEXPORT - do not export this symbol from .module
     export: bool = False            # #EXPORT - force export even from non-module
+    force_zp: bool = False          # #ZP - must be placed in zero-page segment
+    force_bss: bool = False         # #BSS - must be placed in BSS segment (never auto-ZP)
     # Optional shared storage slot for local sharing
     shared_slot: str | None = None
     # ZP prioritization: frequency score for allocation ordering (higher = more important for ZP)

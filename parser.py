@@ -887,10 +887,12 @@ class Parser:
             self.advance()
             declarators.append(parse_declarator())
 
-        # Optional trailing declaration modifiers: #KEEP, #NOEXPORT, #EXPORT
+        # Optional trailing declaration modifiers: #KEEP, #NOEXPORT, #EXPORT, #ZP, #BSS
         keep = False
         noexport = False
         export = False
+        force_zp = False
+        force_bss = False
         while self.cur.type == TOK_DECLMOD:
             val: str = self.cur.value.upper()
             if val == 'KEEP':
@@ -905,6 +907,10 @@ class Parser:
                 port_rd = True
             elif val == 'WR':
                 port_wr = True
+            elif val == 'ZP':
+                force_zp = True
+            elif val == 'BSS':
+                force_bss = True
             else:
                 self.error(f"Unsupported declaration modifier '{val}'")
             self.advance()
@@ -920,6 +926,8 @@ class Parser:
             keep=keep,
             noexport=noexport,
             export=export,
+            force_zp=force_zp,
+            force_bss=force_bss,
         )
 
 

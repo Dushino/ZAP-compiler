@@ -1,0 +1,1 @@
+2:12: error: #ZP/#BSS modifiers cannot be used on const variables (consts have no storage)

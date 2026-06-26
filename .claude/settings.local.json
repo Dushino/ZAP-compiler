@@ -71,7 +71,8 @@
       "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /tmp/math_ops_test.zap -6502 -o /tmp/math_ops_test.s)",
       "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py --help)",
       "Bash(xargs -I {} basename {})",
-      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /home/dusan/src/ZAP-compiler/tests/pass/246-multi-ptr-decl/246-multi-ptr-decl.zap -o /tmp/246-test.s)"
+      "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /home/dusan/src/ZAP-compiler/tests/pass/246-multi-ptr-decl/246-multi-ptr-decl.zap -o /tmp/246-test.s)",
+      "Bash(make tests *)"
     ],
     "additionalDirectories": [
       "/tmp"
