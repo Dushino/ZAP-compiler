@@ -219,6 +219,22 @@ class ExprTypeChecker:
             if (lt.sem_type.is_struct and not lt.sem_type.is_pointer) or (
                 rt.sem_type.is_struct and not rt.sem_type.is_pointer
             ):
+                # Allow == and != between two struct values of the same size (type need not match)
+                if op in {BinOp.EQ, BinOp.NE}:
+                    both = (lt.sem_type.is_struct and not lt.sem_type.is_pointer and
+                            rt.sem_type.is_struct and not rt.sem_type.is_pointer)
+                    if not both:
+                        raise SemanticError(
+                            "Struct comparison requires both operands to be struct values", node=expr)
+                    lt_size = lt.sem_type.struct_info.size if lt.sem_type.struct_info else 0
+                    rt_size = rt.sem_type.struct_info.size if rt.sem_type.struct_info else 0
+                    if lt_size == 0 or rt_size == 0:
+                        raise SemanticError("Cannot determine struct size for comparison", node=expr)
+                    if lt_size != rt_size:
+                        raise SemanticError(
+                            f"Cannot compare structs of different sizes ({lt_size} vs {rt_size} bytes)",
+                            node=expr)
+                    return ExprType(SemType("BYTE", False), ExprKind.VALUE)
                 raise SemanticError("Struct values cannot be used in binary expressions", node=expr)
 
             # Convert LVALUE to VALUE when used in expression context (reading)

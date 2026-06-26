@@ -343,13 +343,15 @@ Adding two pointers is not allowed (`ptr1 + ptr2`). You can add a pointer and an
 ### No Struct Arithmetic
 
 A struct variable holds a group of fields, not a single number, so the
-compiler cannot add, subtract, multiply, or compare two structs as a whole.
-Any binary operator (`+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`,
-`&&`, `||`) applied directly to a struct value is rejected at compile time.
+compiler cannot add, subtract, multiply, order-compare, or apply logical/bitwise
+operators to two structs as a whole.
+The following operators on struct values are rejected at compile time:
+`+`, `-`, `*`, `/`, `%`, `<`, `>`, `<=`, `>=`, `&&`, `||`.
 
-This restriction applies **only to whole struct values**. Individual struct
-fields behave like ordinary scalars, and pointers to structs behave like
-ordinary pointers:
+**Exception: `==` and `!=` are supported** for two struct values of the same
+size (the struct types do not need to match — only their byte sizes must be
+equal). The compiler generates a byte-by-byte memory comparison (MEMCMP
+subroutine, included only when used):
 
 ```zap
 struct Point
@@ -357,28 +359,54 @@ struct Point
     byte y
 end
 
+struct Vec2     ; different type, but same size (2 bytes)
+    byte dx
+    byte dy
+end
+
 Point p1
 Point p2
-Point ptr a, b
+Vec2  v
 
-; NOT allowed — whole struct values:
-; byte sum = p1 + p2           ; ERROR: struct in arithmetic
-; if p1 == p2 then ... end if  ; ERROR: struct in comparison
-
-; Allowed — scalar fields:
-byte sum = p1.x + p2.x         ; OK: BYTE + BYTE
-if p1.x == p2.x then           ; OK: comparing scalars
+; Allowed: == and != between same-size structs
+if p1 == p2
     ; ...
-end if
+end
+if p1 != v      ; OK: Point (2 bytes) vs Vec2 (2 bytes)
+    ; ...
+end
 
-; Allowed — struct pointers:
-if a == b then ... end if      ; OK: pointer comparison
-a = a + 1                      ; OK: pointer arithmetic
+; NOT allowed: size mismatch
+; struct Big  byte a  byte b  byte c  end
+; if p1 == big_var   ; ERROR: Cannot compare structs of different sizes (2 vs 3 bytes)
+
+; NOT allowed: arithmetic or ordering on structs
+; byte sum = p1 + p2          ; ERROR: Struct values cannot be used in binary expressions
+; if p1 < p2 ...              ; ERROR: Struct values cannot be used in binary expressions
 ```
 
-**Workaround:** If you need to "compare" or "combine" two structs,
-operate on their fields one by one, or write a helper PROC that does the
-field-wise work for you.
+This restriction applies **only to whole struct values**. Individual struct
+fields behave like ordinary scalars, and pointers to structs behave like
+ordinary pointers:
+
+```zap
+Point ^a, ^b
+
+; Allowed — scalar fields:
+byte sum = p1.x + p2.x     ; OK: BYTE + BYTE
+if p1.x == p2.x            ; OK: comparing scalar fields
+    ; ...
+end
+
+; Allowed — struct pointers:
+if a == b                  ; OK: pointer comparison (compares addresses)
+    ; ...
+end
+a = a + 1                  ; OK: pointer arithmetic
+```
+
+**Workaround for unsupported operators:** Operate on fields one by one, or
+write a helper PROC that does the field-wise work for you.
 
 ### No Bitwise Operations on Pointers
 

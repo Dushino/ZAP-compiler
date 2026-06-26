@@ -841,6 +841,48 @@ All comparison operators work on `byte`, `word`, and `long` operands. The result
 | `<=` | `x <= 5` | Less than or equal |
 | `>=` | `x >= 5` | Greater than or equal |
 
+#### Struct equality (`==` and `!=`)
+
+`==` and `!=` also work on **struct values**, provided both operands have the
+same size in bytes (the struct types do not need to be identical). The
+comparison is a byte-by-byte memory compare. The MEMCMP helper subroutine is
+included in the output only when struct comparison is used.
+
+Structs can be up to 255 bytes; the comparison is always exact (all bytes must
+match for `==`). Ordering operators (`<`, `>`, `<=`, `>=`) are **not** supported
+on struct values.
+
+```zap
+struct Point
+    byte x
+    byte y
+end
+
+struct Vec2     ; same size (2 bytes) as Point
+    byte dx
+    byte dy
+end
+
+Point p1
+Point p2
+Vec2  v
+
+p1.x = 3  p1.y = 7
+p2.x = 3  p2.y = 7
+v.dx = 3  v.dy = 7
+
+if p1 == p2     ; TRUE: same bytes
+    ; ...
+end
+if p1 == v      ; TRUE: same size and same byte content
+    ; ...
+end
+p2.y = 99
+if p1 != p2     ; TRUE: bytes differ
+    ; ...
+end
+```
+
 ```zap
 proc comparison_example()
     byte x = 42

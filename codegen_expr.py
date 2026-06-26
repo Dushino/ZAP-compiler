@@ -63,6 +63,7 @@ class CodeGen:
         self.array_id = 0
         self.copy_bytes_needed = False
         self.copy_bytes16_needed = False
+        self.memcmp_needed: bool = False
         self.math_routines_needed: set[str] = set()
         self.is_65c02: bool = is_65c02
         self.used_globals: set[str] = used_globals or set()
@@ -1819,6 +1820,14 @@ class CodeGen:
                     return False  # @ takes address, RPN handles values
                 return check_node(node.expr)
             elif isinstance(node, (Identifier, IntLiteral)):
+                # Struct-typed variables are not RPN-safe: struct == uses MEMCMP, not registers
+                if isinstance(node, Identifier) and hasattr(self, 'current_symtab'):
+                    try:
+                        sym = self.current_symtab.lookup(node.name)
+                        if sym.type.is_struct and not sym.type.is_pointer:
+                            return False
+                    except Exception:
+                        pass
                 return True
             elif isinstance(node, StringLiteral):
                 return False
@@ -1883,6 +1892,7 @@ class CodeGen:
         sys_names = {"MATH_STACK", "MATH0", "MATH1", "TMP0", "TMP1", "TMP2", "TMP3", "TMP4", "TMP5"}
         runtime_names = {
             "COPY_BYTES",
+            "MEMCMP",
             "SET_MATH0",
             "SET_MATH1",
             "GET_MATH0",
@@ -5522,6 +5532,7 @@ class CodeGen:
         self.emit(f".segment \"{self.seg_code}\"")
         self._gen_copy_bytes_routine()
         self._gen_copy_bytes16_routine()
+        self._gen_memcmp_routine()
         self._gen_math_routines()
         self._gen_string_data()
         self.emit("\n; End of file")
@@ -5589,6 +5600,32 @@ class CodeGen:
         self.emit("\tDEC TMP4")
         self.emit("\tBNE CB16_PARTIAL_LOOP")
         self.emit("CB16_DONE:")
+        self.emit("\tRTS\n")
+
+    def _gen_memcmp_routine(self) -> None:
+        """Memory compare routine for struct == / != comparisons (up to 255 bytes)."""
+        if not self.memcmp_needed:
+            return
+
+        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
+
+        self.emit("; __ZAPC_FOOTER_BLOCK__")
+        self.emit("; ------------------------------")
+        self.emit("; MEMCMP: compare up to 255 bytes at two addresses")
+        self.emit("; Inputs: TMP0/TMP0+1=addr1, TMP2/TMP2+1=addr2, X=len (1..255)")
+        self.emit("; Output: Z=1 if equal, Z=0 if different")
+        self.emit("; Clobbers: A, X, Y")
+        self.emit("MEMCMP:")
+        self.emit("\tLDY #$00")
+        self.emit("MEMCMP_LOOP:")
+        self.emit("\tLDA (TMP0),Y")
+        self.emit("\tCMP (TMP2),Y")
+        self.emit("\tBNE MEMCMP_DONE")
+        self.emit("\tINY")
+        self.emit("\tDEX")
+        self.emit("\tBNE MEMCMP_LOOP")
+        self.emit("; all bytes matched; DEX left Z=1")
+        self.emit("MEMCMP_DONE:")
         self.emit("\tRTS\n")
 
     def _gen_string_data(self) -> None:
@@ -12402,6 +12439,51 @@ class CodeGen:
             return max(left, right) + 1
         return 1
 
+    def _gen_struct_addr_to_tmp(self, expr: Expr, tmp: str) -> None:
+        """Load the 16-bit address of a struct-typed expression into tmp/tmp+1."""
+        if isinstance(expr, Identifier):
+            sym: Symbol = self.current_symtab.lookup(expr.name)
+            label: str = self._get_label_for_symbol(sym)
+            self.emit(f"\tLDA #<{label}")
+            self.emit(f"\tSTA {tmp}")
+            self.emit(f"\tLDA #>{label}")
+            self.emit(f"\tSTA {tmp}+1")
+        elif isinstance(expr, FieldAccess) and isinstance(expr.object, Identifier):
+            # Nested struct field: base address + field offset
+            sym = self.current_symtab.lookup(expr.object.name)
+            label = self._get_label_for_symbol(sym)
+            offset: int = self._get_field_offset(expr.object, expr.field)
+            if offset == 0:
+                self.emit(f"\tLDA #<{label}")
+                self.emit(f"\tSTA {tmp}")
+                self.emit(f"\tLDA #>{label}")
+                self.emit(f"\tSTA {tmp}+1")
+            else:
+                self.emit(f"\tLDA #<({label}+{offset})")
+                self.emit(f"\tSTA {tmp}")
+                self.emit(f"\tLDA #>({label}+{offset})")
+                self.emit(f"\tSTA {tmp}+1")
+        elif isinstance(expr, DerefExpr) and isinstance(expr.pointer, Identifier):
+            # Pointer-to-struct: the pointer variable holds the address
+            ptr_sym: Symbol = self.current_symtab.lookup(expr.pointer.name)
+            ptr_asm: str = self._get_label_for_symbol(ptr_sym)
+            self.emit(f"\tLDA {ptr_asm}")
+            self.emit(f"\tSTA {tmp}")
+            self.emit(f"\tLDA {ptr_asm}+1")
+            self.emit(f"\tSTA {tmp}+1")
+        else:
+            self._raise_error("Complex struct expression in comparison is not supported; "
+                              "use a simple variable, field access, or pointer dereference")
+
+    def _gen_struct_comparison_to_z(self, left: Expr, right: Expr, struct_size: int) -> None:
+        """Call MEMCMP to compare two struct expressions. Leaves Z=1 if equal, Z=0 if different."""
+        self.memcmp_needed = True
+        self.used_temps.update({"TMP0", "TMP1", "TMP2", "TMP3"})
+        self._gen_struct_addr_to_tmp(left, "TMP0")
+        self._gen_struct_addr_to_tmp(right, "TMP2")
+        self.emit(f"\tLDX #${struct_size:02X}")
+        self.emit("\tJSR MEMCMP")
+
     def _gen_address_of(self, operand: Expr) -> None:
         """Generate code to load address of operand into A (low byte) and X (high byte)"""
         if isinstance(operand, Identifier):
@@ -16703,6 +16785,27 @@ class CodeGen:
         """
         left_t: ExprType = self.tc_check(expr.left)
         right_t: ExprType = self.tc_check(expr.right)
+
+        # Struct == / != : compare raw bytes with MEMCMP
+        if (left_t.sem_type.is_struct and not left_t.sem_type.is_pointer and
+                right_t.sem_type.is_struct and not right_t.sem_type.is_pointer):
+            struct_size: int = left_t.sem_type.struct_info.size  # sizes already validated equal
+            lbl_true: str = self.new_label("SCMP_TRUE")
+            lbl_end: str = self.new_label("SCMP_END")
+            self._gen_struct_comparison_to_z(expr.left, expr.right, struct_size)
+            if expr.op == BinOp.EQ:
+                self.emit(f"\tBEQ {lbl_true}")
+            else:
+                self.emit(f"\tBNE {lbl_true}")
+            self.emit("\tLDA #$00")
+            self.emit(f"\tJMP {lbl_end}")
+            self.emit(f"{lbl_true}:")
+            self.emit("\tLDA #1")
+            self.emit(f"{lbl_end}:")
+            if self.force_word_result:
+                self.emit("\tLDX #$00")
+            return
+
         is_16bit: bool = left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer or right_t.sem_type.is_pointer
         is_32bit: bool = left_t.sem_type.width > 2 or right_t.sem_type.width > 2
 
@@ -16892,11 +16995,24 @@ class CodeGen:
         """Internal implementation for _emit_relational_branch."""
         left_t: ExprType = self.tc_check(cond.left)
         right_t: ExprType = self.tc_check(cond.right)
-        
+
+        # Struct == / != : compare raw bytes with MEMCMP, then branch
+        if (left_t.sem_type.is_struct and not left_t.sem_type.is_pointer and
+                right_t.sem_type.is_struct and not right_t.sem_type.is_pointer):
+            struct_size: int = left_t.sem_type.struct_info.size
+            self._gen_struct_comparison_to_z(cond.left, cond.right, struct_size)
+            if cond.op == BinOp.EQ:
+                self.emit(f"\tBEQ {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+            else:
+                self.emit(f"\tBNE {lbl_true}")
+                self.emit(f"\tJMP {lbl_false}")
+            return
+
         # Check widths to determine operation size
         left_width: int = left_t.sem_type.width
         right_width: int = right_t.sem_type.width
-        
+
         is_32bit: bool = left_width > 2 or right_width > 2
         is_16bit: bool = not is_32bit and (left_t.sem_type.base == "WORD" or right_t.sem_type.base == "WORD" or left_t.sem_type.is_pointer or right_t.sem_type.is_pointer)
 

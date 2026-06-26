@@ -6,7 +6,7 @@ proc main()
   Point a
   Point b
   byte x
-  if a == b
+  if a < b
     x = 1
   end
 end

@@ -1,5 +1,56 @@
 # Progress Tracker
 
+## Feature: Struct `==` and `!=` operators (2026-06-26)
+
+### Summary
+
+Added `==` and `!=` for struct values. Both operands must be non-pointer struct
+values of the **same size in bytes** (the struct types need not be identical —
+only byte sizes must match). The comparison is a byte-by-byte memory compare
+via a new `MEMCMP` runtime subroutine, included in the output only when struct
+comparison is used. Structs up to 255 bytes are supported (same limit as the
+rest of the struct subsystem). Ordering operators (`<`, `>`, `<=`, `>=`) on
+structs remain a compile-time error.
+
+### Changes
+
+- **sema_expr.py**: In `ExprTypeChecker.check()` for `BinaryExpr`, the "Struct
+  values cannot be used in binary expressions" guard now allows `BinOp.EQ` and
+  `BinOp.NE` when both operands are non-pointer struct values of equal size.
+  Reports a clear error for size mismatches.
+- **codegen_expr.py**:
+  - Added `self.memcmp_needed: bool` flag (parallel to `copy_bytes_needed`).
+  - Added `"MEMCMP"` to the internal name map so `JSR MEMCMP` is rewritten to
+    `JSR __MEMCMP` in the output.
+  - `_is_rpn_safe()`: struct-typed `Identifier` nodes now return `False` so
+    the RPN fast-path never attempts to load a struct into registers.
+  - `_gen_struct_addr_to_tmp(expr, tmp)`: emits code to load the 16-bit
+    address of a struct expression (`Identifier`, `FieldAccess(Identifier)`,
+    or `DerefExpr(Identifier)`) into `tmp`/`tmp+1`.
+  - `_gen_struct_comparison_to_z(left, right, size)`: sets up TMP0/TMP2 and
+    calls MEMCMP; leaves Z=1 if equal.
+  - `_gen_relational()`: early return via `_gen_struct_comparison_to_z` +
+    `BEQ`/`BNE` + produce 0/1 in A when both operands are structs.
+  - `_emit_relational_branch_impl()`: same early return for branch context.
+  - `_gen_memcmp_routine()`: emits the MEMCMP subroutine (only when
+    `memcmp_needed`). Called from `gen_file_footer()`.
+- **docs/KNOWN_LIMITATIONS.md**: Updated "No Struct Arithmetic" section —
+  `==`/`!=` are no longer listed as unsupported; size-mismatch error documented.
+- **docs/ZAP_LANGUAGE_REFERENCE.md**: Added "Struct equality (`==` and `!=`)"
+  subsection under Comparison Operators with examples.
+- **tests/pass/249-struct-comparison/**: New regression test — 3 checks:
+  equal same-type, not-equal same-type, equal different-type same-size.
+- **tests/fail/struct-cmp-size-mismatch/**: Rejected: `==` on structs of
+  different sizes (2 vs 3 bytes).
+- **tests/fail/struct-cmp-invalid-op/**: Rejected: `+` on struct values
+  (non-equality operators still forbidden).
+
+### Verification
+
+- `make tests`: all prior tests still pass; new pass/fail tests correct.
+
+---
+
 ## Feature: Storage modifiers `#ZP` and `#BSS` (2026-06-26)
 
 ### Summary
@@ -26,6 +77,7 @@ before auto-promotion). `#BSS` forces a variable into BSS, preventing any automa
 - **tests/fail/storage-zp-overflow-forced/**: Rejected: ZP overflow when forced variable doesn't fit.
 
 ### Verification
+
 - `make tests`: 214 pass-tests pass, 148 fail-tests correctly rejected — 0 regressions.
 
 ---

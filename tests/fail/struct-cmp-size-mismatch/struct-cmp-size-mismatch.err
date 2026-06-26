@@ -1,0 +1,1 @@
+17:10: error: Cannot compare structs of different sizes (2 vs 3 bytes)
