@@ -72,7 +72,10 @@
       "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py --help)",
       "Bash(xargs -I {} basename {})",
       "Bash(python3 /home/dusan/src/ZAP-compiler/compiler.py /home/dusan/src/ZAP-compiler/tests/pass/246-multi-ptr-decl/246-multi-ptr-decl.zap -o /tmp/246-test.s)",
-      "Bash(make tests *)"
+      "Bash(make tests *)",
+      "Bash(find /home/dusan/src/Ex65C02SBC_G3 -name \"CIO.zap\" 2>/dev/null)",
+      "Read(//home/dusan/src/Ex65C02SBC_G3/**)",
+      "Bash(make test *)"
     ],
     "additionalDirectories": [
       "/tmp"

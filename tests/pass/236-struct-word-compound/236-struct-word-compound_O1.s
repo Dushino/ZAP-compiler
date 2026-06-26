@@ -15,6 +15,8 @@ __MATH0                 = __LVSLOT_2
 __MATH1                 = __LVSLOT_3
 __TMP0                  = __LVSLOT_4
 __TMP1:	.res 2
+__TMP2                  = __LVSLOT_5
+__TMP3                  = __LVSLOT_6
 ; Fixed-address variables
 _RESULT                 = $0200
 ; Shared slots (for aliased locals)
@@ -22,7 +24,9 @@ __LVSLOT_1:	.res 32
 __LVSLOT_2:	.res 4
 __LVSLOT_3:	.res 4
 __LVSLOT_4:	.res 2
-; ZP usage: 44 of 256 bytes ($00-$2B), 212 free
+__LVSLOT_5:	.res 2
+__LVSLOT_6:	.res 2
+; ZP usage: 48 of 256 bytes ($00-$2F), 208 free
 ; ---------------------------------------------------------------------------
 
 
@@ -81,27 +85,12 @@ __ZAP_else_1:
 ; /home/dusan/src/ZAP-compiler/tests/pass/236-struct-word-compound/236-struct-word-compound.zap 33:     r.x *= 2
 	LDA _R
 	LDX _R+1
-	STA __MATH_STACK+0
-	STX __MATH_STACK+1
-	LDX #$00
-	STX __MATH_STACK+2
-	STX __MATH_STACK+3
-	LDA #$02
-	STA __MATH1
-	STZ __MATH1+1
-	STZ __MATH1+2
-	STZ __MATH1+3
-	LDA __MATH_STACK+0
-	STA __MATH0
-	LDA __MATH_STACK+1
-	STA __MATH0+1
-	LDA __MATH_STACK+2
-	STA __MATH0+2
-	LDA __MATH_STACK+3
-	STA __MATH0+3
-	JSR __MUL16_8
-	LDA __MATH0
-	LDX __MATH0+1
+	STA __TMP0
+	STX __TMP0+1
+	ASL __TMP0
+	ROL __TMP0+1
+	LDA __TMP0
+	LDX __TMP0+1
 	STA _R
 	STX _R+1
 ; /home/dusan/src/ZAP-compiler/tests/pass/236-struct-word-compound/236-struct-word-compound.zap 34:     if r.x == 300
@@ -201,71 +190,6 @@ __SUB16:
 	STA __MATH0+1
 	STZ __MATH0+2
 	STZ __MATH0+3
-	RTS
-__MUL8:
-	LDA __MATH0
-	STA __TMP0
-	STZ __TMP0+1
-	LDA __MATH1
-	STA __TMP1
-	STZ __MATH0
-	STZ __MATH0+1
-	STZ __MATH0+2
-	STZ __MATH0+3
-	LDX #$08
-MUL8_LOOP:
-	LSR __TMP1
-	BCC MUL8_SKIP
-	LDA __MATH0
-	CLC
-	ADC __TMP0
-	STA __MATH0
-	LDA __MATH0+1
-	ADC __TMP0+1
-	STA __MATH0+1
-MUL8_SKIP:
-	ASL __TMP0
-	ROL __TMP0+1
-	DEX
-	BNE MUL8_LOOP
-	LDA __MATH0
-	LDX __MATH0+1
-	RTS
-__MUL16_8:
-	LDA __MATH0
-	STA __TMP0
-	LDA __MATH0+1
-	STA __TMP0+1
-	LDA __MATH1
-	STA __TMP1
-	STZ __MATH0
-	STZ __MATH0+1
-	STZ __MATH0+2
-	STZ __MATH0+3
-	LDX #$08
-MUL16_8_LOOP:
-	LSR __TMP1
-	BCC MUL16_8_SKIP
-	LDA __MATH0
-	CLC
-	ADC __TMP0
-	STA __MATH0
-	LDA __MATH0+1
-	ADC __TMP0+1
-	STA __MATH0+1
-	LDA __MATH0+2
-	ADC #$00
-	STA __MATH0+2
-	LDA __MATH0+3
-	ADC #$00
-	STA __MATH0+3
-MUL16_8_SKIP:
-	ASL __TMP0
-	ROL __TMP0+1
-	DEX
-	BNE MUL16_8_LOOP
-	LDA __MATH0
-	LDX __MATH0+1
 	RTS
 __DIV16_8:
 	STZ __MATH0+2

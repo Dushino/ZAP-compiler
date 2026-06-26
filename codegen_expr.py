@@ -11437,23 +11437,68 @@ class CodeGen:
             # Special-case handled inline, skip the generic handlers
             return
 
-        # Strength-reduce byte DIV/MOD by power-of-two constants.
-        if (expr.op in {BinOp.DIV, BinOp.MOD} and isinstance(expr.right, IntLiteral) and
-                not left_16 and not right_16 and not result_16_adj and
-                not left_is_ptr and not right_is_ptr and
-                not left_is_promoted_byte_arith and not right_is_promoted_byte_arith):
-            divisor: int = expr.right.value & 0xFF
-            if divisor != 0 and (divisor & (divisor - 1)) == 0:
-                div_shift_count: int = 0
-                while (1 << div_shift_count) < divisor:
-                    div_shift_count += 1
-                self.gen_expr(expr.left)
-                if expr.op == BinOp.DIV:
-                    for _ in range(div_shift_count):
-                        self.emit("\tLSR A")
+        # Strength-reduce MUL/DIV/MOD by power-of-2 constants for BYTE and WORD left operands.
+        #
+        # BYTE left, byte result  : inline ASL/LSR/AND in accumulator — no temps needed.
+        # BYTE left, word result  : inline shifts then LDX #$00 to zero-extend the result.
+        # WORD left               : 16-bit shift helpers (_gen_lshift/_gen_rshift) via TMP0.
+        #
+        # All three cases avoid MATH_STACK / MATH0 / MATH1 / JSR __MULx entirely.
+        # Covers non-trivial left operands (function calls, sub-expressions) which are not
+        # reached by the RPN path's own power-of-2 optimization.
+        if (expr.op in {BinOp.MUL, BinOp.DIV, BinOp.MOD}
+                and isinstance(expr.right, IntLiteral)
+                and left_t.sem_type.base in {"BYTE", "WORD"}
+                and not left_t.sem_type.is_pointer
+                and not left_is_ptr and not right_is_ptr
+                and not _target_is_long):
+            _sr_is_word: bool = left_t.sem_type.base == "WORD"
+            _sr_cv: int = expr.right.value & (0xFFFF if _sr_is_word else 0xFF)
+            if _sr_cv > 0 and (_sr_cv & (_sr_cv - 1)) == 0:
+                _sr_shift: int = _sr_cv.bit_length() - 1
+                # Evaluate left operand (word path needs A/X; byte path needs only A)
+                if _sr_is_word:
+                    _sr_pf = self.force_word_result
+                    self.force_word_result = True
+                    try:
+                        self.gen_expr(expr.left)
+                    finally:
+                        self.force_word_result = _sr_pf
                 else:
-                    mask: int = divisor - 1
-                    self.emit(f"\tAND #${mask:02X}")
+                    self.gen_expr(expr.left)
+                    if result_16_adj:
+                        # Zero-extend byte to word for 16-bit result context
+                        self.emit("\tLDX #$00")
+                _sr_do16: bool = _sr_is_word or result_16_adj
+                if expr.op == BinOp.MUL:
+                    if _sr_do16:
+                        self._gen_lshift(True, "A", _sr_shift)
+                    else:
+                        for _ in range(_sr_shift):
+                            self.emit("\tASL")
+                elif expr.op == BinOp.DIV:
+                    if _sr_do16:
+                        self._gen_rshift(True, "A", _sr_shift)
+                    else:
+                        for _ in range(_sr_shift):
+                            self.emit("\tLSR A")
+                else:  # MOD: x % (2^n) == x & (2^n - 1)
+                    _sr_mask: int = _sr_cv - 1
+                    if _sr_do16:
+                        _sr_lo: int = _sr_mask & 0xFF
+                        _sr_hi: int = (_sr_mask >> 8) & 0xFF
+                        self.emit(f"\tAND #${_sr_lo:02X}")   # mask low byte (in A)
+                        if _sr_hi == 0x00:
+                            self.emit("\tLDX #$00")           # high byte → 0
+                        elif _sr_hi != 0xFF:
+                            self.emit("\tPHA")
+                            self.emit("\tTXA")
+                            self.emit(f"\tAND #${_sr_hi:02X}")
+                            self.emit("\tTAX")
+                            self.emit("\tPLA")
+                        # _sr_hi == 0xFF: high byte unchanged (X already correct)
+                    else:
+                        self.emit(f"\tAND #${_sr_mask & 0xFF:02X}")
                 return
 
         # Route to 32-bit _gen_math_binop when:
