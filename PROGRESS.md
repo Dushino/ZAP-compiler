@@ -1,5 +1,32 @@
 # Progress Tracker
 
+## Feature: Union types (2026-06-26)
+
+### Summary
+
+Added C-style `union` keyword. All fields share offset 0; `sizeof(union)` = size of
+the largest field. Syntax: `union Name ... end`. Usage identical to structs.
+
+### Changes
+
+- **tokenizer.py**: Added `"union"` to KEYWORDS set.
+- **ast_nodes.py**: Added `is_union: bool = False` field to `StructDef`.
+- **symbols.py**: Added `is_union: bool = False` to `StructInfo`; added `StructRegistry.is_union()` method.
+- **sema.py**: Added `UnionAnalyzer` class (parallel to `StructAnalyzer`; sets `offset=0` for all fields, `size=max`).
+- **parser.py**: First-pass scan handles `UNION` keyword; added `parse_union_def()` and shared `_parse_structlike_body()` helper. Duplicate field error now points to the field name, not the token after.
+- **compiler_pipeline.py**: Both `StructAnalyzer` and `UnionAnalyzer` dispatched in one pass.
+- **docs/grammar.ebnf**: Added `union_decl` production; updated `top_level` and `base_type` rules; added UNION note.
+- **docs/ZAP_LANGUAGE_REFERENCE.md**: Added "Unions" section with examples; updated Table of Contents.
+- **IDE_Integration/...extension.js**: Full union support — keywords, `parseStructs()` covers unions, `parseAllSymbols()`, `findDefinitionLocation()`, `findStructFieldDefinition()`, `buildDocumentSymbols()`, hover (with "Fields (all at offset 0)" label), completion, formatter, folding ranges.
+- **IDE_Integration/.../zap.tmLanguage.json**: Added `union` to keyword highlight regex.
+- **tests/pass/247-unions/**: 15-check regression test (basic overlay, sizeof, union-in-struct, struct-in-union, array, pointer).
+- **tests/fail/union-duplicate-name/**: Rejects duplicate union name.
+- **tests/fail/union-duplicate-field/**: Rejects duplicate field within a union.
+- **tests/fail/union-too-large/**: Rejects union exceeding 255 bytes.
+- **tests/fail/union-unknown-type/**: Rejects unknown field type in union.
+
+---
+
 ## Optimization: PHX/PLX for word-arg save and TAY for Y-arg (2026-06-25)
 
 ### Problem

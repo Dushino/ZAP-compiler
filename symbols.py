@@ -53,10 +53,11 @@ class StructFieldInfo:
 
 @dataclass(frozen=True)
 class StructInfo:
-    """Information about a defined struct"""
+    """Information about a defined struct or union. is_union=True for unions."""
     name: str
     fields: list[StructFieldInfo]
-    size: int  # Total size in bytes
+    size: int  # Total size in bytes (sum of fields for structs; max for unions)
+    is_union: bool = False           # True when defined with 'union' keyword
     # Optional default port modifiers for this struct type
     is_port_default: bool = False
     port_rd_default: bool | None = None
@@ -71,27 +72,34 @@ class StructInfo:
 
 
 class StructRegistry:
-    """Registry for struct definitions"""
+    """Registry for struct and union definitions (both use StructInfo; unions have is_union=True)."""
     def __init__(self) -> None:
-        """Initialize an empty struct registry."""
+        """Initialize an empty struct/union registry."""
         self._structs: dict[str, StructInfo] = {}
 
     def define(self, struct_info: StructInfo, node=None) -> None:
-        """Register a struct definition. Optional `node` can be provided so the raised
-        SemanticError carries source context when appropriate."""
-        if struct_info.name.upper() in self._structs:
-            # Prefer to attach provided node (if caller has it); otherwise keep None so
-            # callers can catch/wrap and attach their own context.
-            raise SemanticError(f"Struct '{struct_info.name}' already defined", node=node)
-        self._structs[struct_info.name.upper()] = struct_info
+        """Register a struct or union definition."""
+        key = struct_info.name.upper()
+        if key in self._structs:
+            kind = "Union" if struct_info.is_union else "Struct"
+            existing_kind = "union" if self._structs[key].is_union else "struct"
+            raise SemanticError(
+                f"{kind} '{struct_info.name}' already defined as a {existing_kind}", node=node
+            )
+        self._structs[key] = struct_info
 
     def lookup(self, name: str) -> StructInfo | None:
-        """Look up a struct by name"""
+        """Look up a struct or union by name."""
         return self._structs.get(name.upper())
 
     def is_defined(self, name: str) -> bool:
-        """Check if a struct is defined"""
+        """Check if a struct or union with this name is defined."""
         return name.upper() in self._structs
+
+    def is_union(self, name: str) -> bool:
+        """Return True if the named type is a union (not a struct)."""
+        info = self._structs.get(name.upper())
+        return info is not None and info.is_union
 
 
 @dataclass(frozen=True)

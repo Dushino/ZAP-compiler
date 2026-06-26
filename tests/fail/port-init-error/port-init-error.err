@@ -1,1 +1,1 @@
-1:21: error: Expected declaration, PROC, FUNC, or STRUCT
+1:21: error: Expected declaration, PROC, FUNC, STRUCT, or UNION

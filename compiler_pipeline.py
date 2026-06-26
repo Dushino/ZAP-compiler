@@ -13,7 +13,7 @@ and post-processing (peephole, jump threading, label cleanup).
 
 from ast_nodes import Program, ProcDecl, FuncDecl, IncbinDirective, StructDef
 from symbols import SymbolTable, ProcTable, FuncTable, StructRegistry, Symbol, SemType, StructInfo
-from sema import DeclarationAnalyzer, StructAnalyzer, EnumAnalyzer
+from sema import DeclarationAnalyzer, StructAnalyzer, UnionAnalyzer, EnumAnalyzer
 from sema_expr import ExprTypeChecker
 from sema_proc import ProcAnalyzer
 from sema_func import FuncAnalyzer
@@ -1681,11 +1681,15 @@ def compile_program(program: Program, *, target_6502: bool = False, command_line
         if isinstance(d, EnumDecl):
             enum_an.analyze(d)
 
-    # --- struct definitions ---
+    # --- struct and union definitions (processed in source order) ---
     struct_an = StructAnalyzer(struct_registry, enum_symtab=global_symtab)
+    union_an = UnionAnalyzer(struct_registry, enum_symtab=global_symtab)
     for item in program.procs:
         if isinstance(item, StructDef):
-            struct_an.analyze(item)
+            if item.is_union:
+                union_an.analyze(item)
+            else:
+                struct_an.analyze(item)
 
     # --- declarations ---    
     decl_an = DeclarationAnalyzer(

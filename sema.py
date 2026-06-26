@@ -267,6 +267,109 @@ class StructAnalyzer:
             raise SemanticError(f"Struct definition error: {e.message}", node=struct_def)
 
 
+class UnionAnalyzer:
+    """Analyzes and registers union definitions.
+    All fields share offset 0; size = max(field widths).
+    """
+    def __init__(self, struct_registry: StructRegistry, enum_symtab: SymbolTable | None = None) -> None:
+        """Initialize with a shared struct/union registry to populate."""
+        self.registry: StructRegistry = struct_registry
+        self.enum_symtab: SymbolTable | None = enum_symtab
+
+    def analyze(self, union_def: StructDef) -> None:
+        """Analyze a union definition and register it. union_def.is_union must be True."""
+        fields: list[StructFieldInfo] = []
+        max_size: int = 0
+
+        for field_ast in union_def.fields:
+            field_type: str = field_ast.type.base.upper()
+            is_pointer: bool = field_ast.type.is_pointer
+            field_base_type: str = field_type
+
+            if field_type == "BYTE":
+                elem_width = 1
+            elif field_type == "WORD":
+                elem_width = 2
+            elif field_type == "LONG":
+                elem_width = 4
+            elif field_type in self.registry._structs:
+                nested: StructInfo = self.registry._structs[field_type]
+                elem_width = nested.size
+            elif self.enum_symtab is not None and field_type in getattr(self.enum_symtab, "_enums", {}):
+                enum_def = self.enum_symtab._enums[field_type]
+                enum_base = enum_def.get("base", "BYTE")
+                field_base_type = enum_base
+                elem_width = 1 if enum_base == "BYTE" else 2
+            elif is_pointer:
+                elem_width = 2
+            else:
+                raise SemanticError(f"Unsupported field type '{field_type}' in union", node=field_ast)
+
+            if is_pointer:
+                elem_width = 2
+
+            array_sizes = None
+            if field_ast.array_sizes:
+                array_sizes = []
+                for size_expr in field_ast.array_sizes:
+                    try:
+                        size = eval_const_expr(size_expr, struct_registry=self.registry)
+                        array_sizes.append(size)
+                    except SemanticError as e:
+                        raise SemanticError(
+                            f"Invalid array size in union field '{field_ast.name}': {e.message}",
+                            node=field_ast,
+                        )
+
+            width: int = elem_width
+            if array_sizes:
+                total_elements = 1
+                for s in array_sizes:
+                    total_elements *= s
+                width = elem_width * total_elements
+
+            fixed_addr = None
+            if field_ast.address is not None:
+                try:
+                    fixed_addr = eval_const_expr(field_ast.address, struct_registry=self.registry)
+                except SemanticError as e:
+                    raise SemanticError(f"Invalid field address: {e.message}", node=field_ast)
+
+            field_info = StructFieldInfo(
+                name=field_ast.name.upper(),
+                base_type=field_base_type,
+                is_pointer=is_pointer,
+                offset=0,           # all union fields share offset 0
+                fixed_address=fixed_addr,
+                array_sizes=array_sizes,
+                is_port=getattr(field_ast, 'is_port', False),
+                port_rd=getattr(field_ast, 'port_rd', None),
+                port_wr=getattr(field_ast, 'port_wr', None),
+            )
+            fields.append(field_info)
+            max_size = max(max_size, width)
+
+        if max_size > 255:
+            raise SemanticError(
+                f"Union '{union_def.name}' is {max_size} bytes - maximum union size is 255 bytes",
+                node=union_def,
+            )
+
+        union_info = StructInfo(
+            name=union_def.name.upper(),
+            fields=fields,
+            size=max_size,
+            is_union=True,
+            is_port_default=getattr(union_def, 'is_port', False),
+            port_rd_default=getattr(union_def, 'port_rd', None),
+            port_wr_default=getattr(union_def, 'port_wr', None),
+        )
+
+        try:
+            self.registry.define(union_info, node=union_def)
+        except SemanticError as e:
+            raise SemanticError(f"Union definition error: {e.message}", node=union_def)
+
 
 class DeclarationAnalyzer:
     """Analyzes variable declarations and populates symbol tables."""

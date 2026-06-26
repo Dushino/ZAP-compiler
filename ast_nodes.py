@@ -197,9 +197,10 @@ class StructField(ASTNode):
 
 @dataclass(frozen=True)
 class StructDef(ASTNode):
-    """Struct type definition"""
+    """Struct or union type definition. is_union=True for 'union ... end' blocks."""
     name: str
     fields: list[StructField]
+    is_union: bool = False           # True when defined with 'union' keyword
     # Optional struct-level port defaults
     is_port: bool = False
     port_rd: bool | None = None

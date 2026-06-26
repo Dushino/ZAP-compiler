@@ -20,7 +20,7 @@ function stripLineComment(raw) {
 const ZAP_KEYWORDS = new Set([
     'proc', 'func', 'if', 'else', 'elseif', 'while', 'for', 'repeat',
     'switch', 'case', 'default', 'break', 'continue', 'return', 'end',
-    'until', 'struct', 'enum', 'const', 'asm', 'byte', 'word', 'long',
+    'until', 'struct', 'union', 'enum', 'const', 'asm', 'byte', 'word', 'long',
     'and', 'or', 'not', 'true', 'false', 'nil',
     'peek', 'poke', 'low', 'high', 'loww', 'highw', 'sizeof'
 ]);
@@ -30,7 +30,7 @@ const ZAP_KEYWORDS = new Set([
 const ZAP_FLOW_KW = new Set([
     'proc', 'func', 'if', 'else', 'elseif', 'while', 'for', 'repeat',
     'switch', 'case', 'default', 'break', 'continue', 'return', 'end',
-    'until', 'struct', 'enum', 'const', 'asm', 'and', 'or', 'not', 'true', 'false', 'nil',
+    'until', 'struct', 'union', 'enum', 'const', 'asm', 'and', 'or', 'not', 'true', 'false', 'nil',
     'peek', 'poke', 'low', 'high', 'loww', 'highw', 'sizeof'
 ]);
 
@@ -64,8 +64,9 @@ function collectAllLines(text, dir, visited = new Set()) {
     return result;
 }
 
-// Parse all struct definitions.
-// Returns Map<structName, Array<{name, type, comment}>>
+// Parse all struct and union definitions.
+// Returns Map<name, Array<{name, type, comment}>>
+// Both struct and union have the same field syntax; callers use this for hover/completion.
 function parseStructs(lines) {
     const structs = new CIMap();
     let current = null;
@@ -73,7 +74,7 @@ function parseStructs(lines) {
     for (const raw of lines) {
         const code = stripLineComment(raw).trim();
         if (current === null) {
-            const m = code.match(/^struct\s+(\w+)/i);
+            const m = code.match(/^(?:struct|union)\s+(\w+)/i);
             if (m) { current = m[1]; fields = []; }
         } else {
             if (/^end\b/i.test(code)) {
@@ -195,7 +196,7 @@ function buildCallSnippet(name, params) {
 
 // Parse ALL named symbols from lines for bare-identifier completion.
 // Returns array of {kind, name, type?, retType?, params?}
-// Handles: proc, func, const, variables of any type (byte/word/long/struct), struct names, enum names.
+// Handles: proc, func, const, variables of any type (byte/word/long/struct/union), struct names, union names, enum names.
 function parseAllSymbols(lines) {
     const seen = new CIMap(); // name → symbol (last definition wins, dedup across includes)
     let inStructOrEnum = false;
@@ -204,10 +205,15 @@ function parseAllSymbols(lines) {
         const code = stripLineComment(raw).trim();
         if (!code) continue;
 
-        // Struct/enum body — capture the type name, skip internal field lines
+        // Struct/union/enum body — capture the type name, skip internal field lines
         if (/^struct\b/i.test(code)) {
             const sm = code.match(/^struct\s+(\w+)/i);
             if (sm) seen.set(sm[1], { kind: 'struct', name: sm[1] });
+            inStructOrEnum = true; continue;
+        }
+        if (/^union\b/i.test(code)) {
+            const um = code.match(/^union\s+(\w+)/i);
+            if (um) seen.set(um[1], { kind: 'union', name: um[1] });
             inStructOrEnum = true; continue;
         }
         if (/^enum\b/i.test(code)) {
@@ -313,6 +319,11 @@ function findDefinitionLocation(word, linesWithSource) {
         if (structM && structM[1].toLowerCase() === wl)
             return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
 
+        // union NAME
+        const unionM = code.match(/^union\s+(\w+)/i);
+        if (unionM && unionM[1].toLowerCase() === wl)
+            return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, word)));
+
         // enum NAME
         const enumM = code.match(/^enum\s+(\w+)/i);
         if (enumM && enumM[1].toLowerCase() === wl)
@@ -339,18 +350,18 @@ function findDefinitionLocation(word, linesWithSource) {
     return undefined;
 }
 
-// Navigate to a specific field inside a struct definition.
+// Navigate to a specific field inside a struct or union definition.
 // Returns vscode.Location or undefined.
 function findStructFieldDefinition(linesWithSource, structName, fieldName) {
-    let inStruct = false;
+    let inBlock = false;
     const snl = structName.toLowerCase(), fnl = fieldName.toLowerCase();
     for (const { text, file, lineNum } of linesWithSource) {
         const code = stripLineComment(text).trim();
-        if (!inStruct) {
-            const m = code.match(/^struct\s+(\w+)/i);
-            if (m && m[1].toLowerCase() === snl) inStruct = true;
+        if (!inBlock) {
+            const m = code.match(/^(?:struct|union)\s+(\w+)/i);
+            if (m && m[1].toLowerCase() === snl) inBlock = true;
         } else {
-            if (/^end\b/i.test(code)) { inStruct = false; continue; }
+            if (/^end\b/i.test(code)) { inBlock = false; continue; }
             const fm = code.match(/^(\w+)\s+(\w+)/);
             if (fm && fm[2].toLowerCase() === fnl)
                 return new vscode.Location(vscode.Uri.file(file), new vscode.Position(lineNum, wordCol(text, fieldName)));
@@ -428,7 +439,7 @@ function getFunctionCallContext(linePrefix) {
 }
 
 // Keywords that open a new nesting level (each needs a matching end/until).
-const BLOCK_OPEN_RX  = /^(proc|func|if|while|for|repeat|switch|asm|struct|enum)\b/i;
+const BLOCK_OPEN_RX  = /^(proc|func|if|while|for|repeat|switch|asm|struct|union|enum)\b/i;
 // Keywords that close a nesting level.
 const BLOCK_CLOSE_RX = /^(end|until)\b/i;
 
@@ -455,8 +466,8 @@ function makeSymbol(name, detail, kind, lines, startLine, endLine) {
 }
 
 // Parse the current document into a DocumentSymbol tree (current file only, not includes).
-// Top-level: proc, func, struct, enum, const, global var.
-// Children:  struct fields, enum members, proc/func params.
+// Top-level: proc, func, struct, union, enum, const, global var.
+// Children:  struct/union fields, enum members, proc/func params.
 function buildDocumentSymbols(document) {
     const text  = document.getText();
     const lines = text.split('\n');
@@ -474,6 +485,21 @@ function buildDocumentSymbols(document) {
             const endLine = findBlockEnd(lines, i);
             const sym = makeSymbol(structM[1], 'struct', vscode.SymbolKind.Class, lines, i, endLine);
             // Children: field declarations inside the struct body
+            for (let j = i + 1; j < endLine; j++) {
+                const fc = stripLineComment(lines[j]).trim();
+                const fm = fc.match(/^(\w+)\s+(\w+)/);
+                if (fm && !ZAP_FLOW_KW.has(fm[1].toLowerCase())) {
+                    sym.children.push(makeSymbol(fm[2], fm[1], vscode.SymbolKind.Field, lines, j, j));
+                }
+            }
+            symbols.push(sym); i = endLine + 1; continue;
+        }
+
+        // --- union NAME ---
+        const unionM = code.match(/^union\s+(\w+)/i);
+        if (unionM) {
+            const endLine = findBlockEnd(lines, i);
+            const sym = makeSymbol(unionM[1], 'union', vscode.SymbolKind.Class, lines, i, endLine);
             for (let j = i + 1; j < endLine; j++) {
                 const fc = stripLineComment(lines[j]).trim();
                 const fm = fc.match(/^(\w+)\s+(\w+)/);
@@ -572,7 +598,7 @@ function formatZapDocument(document, tabSize, insertSpaces) {
     // Matches keywords that de-indent the current line (decrease level before emitting)
     const reDecrease = /^(end|else|elseif|until|case|\.else|\.endif)\b/i;
     // Matches keywords that open a new block (increase level after emitting)
-    const reIncrease = /^(proc|func|if|elseif|else|while|for|repeat|switch|case|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/i;
+    const reIncrease = /^(proc|func|if|elseif|else|while|for|repeat|switch|case|asm|struct|union|enum|\.ifdef|\.ifndef|\.else)\b/i;
 
     const outLines = [];
     let level = 0;
@@ -685,7 +711,7 @@ function activate(context) {
                 const stack = [];
                 let currentStart = null;
                 let inBlockComment = false;
-                const startRx = /^(proc|func|if|else|elseif|switch|while|repeat|for|asm|struct|enum|\.ifdef|\.ifndef|\.else)\b/;
+                const startRx = /^(proc|func|if|else|elseif|switch|while|repeat|for|asm|struct|union|enum|\.ifdef|\.ifndef|\.else)\b/;
                 const endRx   = /^(return|end|until|else|elseif|\.endif|\.else)\b/;
 
                 for (let i = 0; i < document.lineCount; i++) {
@@ -728,8 +754,8 @@ function activate(context) {
         })
     );
 
-    // 5. Completion provider — struct member + enum member completions (triggered by ".")
-    //    "fd."          → fields of the struct type declared for variable "fd"
+    // 5. Completion provider — struct/union member + enum member completions (triggered by ".")
+    //    "fd."          → fields of the struct/union type declared for variable "fd"
     //    "ICAX1_Mode."  → members of enum ICAX1_Mode (enum name used directly)
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider(
@@ -828,6 +854,11 @@ function activate(context) {
                             case 'struct': {
                                 const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Class);
                                 item.detail = `struct ${sym.name}`;
+                                return item;
+                            }
+                            case 'union': {
+                                const item = new vscode.CompletionItem(sym.name, vscode.CompletionItemKind.Class);
+                                item.detail = `union ${sym.name}`;
                                 return item;
                             }
                             case 'enum': {
@@ -1100,7 +1131,7 @@ function activate(context) {
                     if (ownerMatch) {
                         const owner = ownerMatch[1];
 
-                        // Struct field hover
+                        // Struct/union field hover
                         const vars    = parseVarDecls(allLines);
                         const decl    = vars.get(owner);
                         if (decl) {
@@ -1172,6 +1203,19 @@ function activate(context) {
                             md.appendCodeblock(`struct ${sym.name}`, 'zap');
                             if (fields.length > 0) {
                                 md.appendMarkdown('\n\n**Fields:**\n');
+                                fields.forEach(f => {
+                                    const c = f.comment ? ` — ${f.comment}` : '';
+                                    md.appendMarkdown(`- \`${f.type} ${f.name}\`${c}\n`);
+                                });
+                            }
+                            break;
+                        }
+                        case 'union': {
+                            const structs = parseStructs(allLines);
+                            const fields  = structs.get(sym.name) || [];
+                            md.appendCodeblock(`union ${sym.name}`, 'zap');
+                            if (fields.length > 0) {
+                                md.appendMarkdown('\n\n**Fields (all at offset 0):**\n');
                                 fields.forEach(f => {
                                     const c = f.comment ? ` — ${f.comment}` : '';
                                     md.appendMarkdown(`- \`${f.type} ${f.name}\`${c}\n`);

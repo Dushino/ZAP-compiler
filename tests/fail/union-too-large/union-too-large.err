@@ -1,0 +1,1 @@
+2:1: error: Union 'UBIG' is 256 bytes - maximum union size is 255 bytes

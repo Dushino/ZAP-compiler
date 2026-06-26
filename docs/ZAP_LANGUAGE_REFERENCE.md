@@ -30,10 +30,11 @@ We encourage all users of this software to contribute to humanitarian efforts in
 7. [Procedures & Functions](#procedures--functions)
 8. [Arrays & Strings](#arrays--strings)
 9. [Structs](#structs)
-10. [Pointers](#pointers)
-11. [Module System](#module-system)
-12. [Directives](#directives)
-13. [Advanced Topics](#advanced-topics)
+10. [Unions](#unions)
+11. [Pointers](#pointers)
+12. [Module System](#module-system)
+13. [Directives](#directives)
+14. [Advanced Topics](#advanced-topics)
 
 ---
 
@@ -2643,6 +2644,91 @@ Mixed P1 @$A000 #PORT #RD   ; P1 is read-only overall
 - The instance variable must have an explicit `@address`.
 - Port variables cannot have initializers.
 - `#RD` and `#WR` on an instance variable require `#PORT` on the same declaration; using them without `#PORT` is a compile error.
+
+## Unions
+
+Unions are composite types where all fields **share the same memory address** (offset 0). The size of a union equals the size of its largest field. They are useful for overlaying different views of the same memory — for example, accessing a 16-bit word as two individual bytes.
+
+### Union Definition
+
+```zap
+union UOverlay
+    byte lo       ; low byte
+    word val      ; full 16-bit value
+end
+```
+
+All fields start at offset 0. `sizeof(UOverlay)` is 2 (max of 1, 2).
+
+### Declaring Union Variables
+
+Usage is identical to structs: plain variable, array, or pointer.
+
+```zap
+UOverlay u              ; variable
+UOverlay buf[4]         ; array of 4 unions (each 2 bytes)
+UOverlay ^uptr          ; pointer to a union
+```
+
+### Accessing Union Fields
+
+Use the same dot notation as structs:
+
+```zap
+u.val = $1234       ; write as word
+byte lo = u.lo      ; read as byte → $34
+```
+
+### Nested Unions and Structs
+
+Structs can contain unions; unions can contain structs; unions can contain unions:
+
+```zap
+struct SPoint
+    byte x
+    byte y
+end
+
+union UData
+    byte   raw       ; single-byte view
+    SPoint pt        ; two-byte struct view
+end
+
+UData d
+d.pt.x = 10
+d.pt.y = 20
+byte r = d.raw      ; r == 10 (overlaps d.pt.x)
+```
+
+### sizeof with Unions
+
+`sizeof(UnionName)` returns the size of the largest member:
+
+```zap
+union URaw
+    byte  bytes[4]
+    word  words[2]
+end
+
+; sizeof(URaw) == 4
+```
+
+### Pointer to Union
+
+```zap
+UOverlay ^uptr
+UOverlay u
+uptr = @u
+uptr^.val = $5678
+```
+
+### Union Constraints
+
+- **Maximum size**: A union may not exceed **255 bytes** (same limit as structs).
+- **Field names** must be unique within the union.
+- **No declaration modifiers** (`#PORT`, `#NOEXPORT`, etc.) on union definitions in Phase 1.
+- **No anonymous unions**: every union must be named.
+- **All local declarations** (including union variables) must precede the first statement in a `proc`/`func` body.
 
 ## Pointers
 

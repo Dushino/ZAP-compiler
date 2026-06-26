@@ -20,6 +20,7 @@ top_level       ::= declaration
                   | proc_decl
                   | func_decl
                   | struct_decl
+                  | union_decl
                   | enum_decl
                   | module_decl
                   | include_decl
@@ -51,7 +52,7 @@ preproc_directive ::= ".define" IDENT                (* define a preprocessor sy
 (* ============ TYPES ============ *)
 type            ::= base_type [ "^" ] ;
 
-base_type       ::= "byte" | "word" | "long" | STRUCT_NAME ;
+base_type       ::= "byte" | "word" | "long" | STRUCT_NAME | UNION_NAME ;
 
 (* ============ DECLARATIONS ============ *)
 (* ^ is per-declarator (C-style): byte ^p1, ^p2 makes p1 and p2 independent pointers.
@@ -86,6 +87,12 @@ init_list       ::= expression { "," expression } ;
 struct_decl     ::= "struct" IDENT [ decl_modifiers ] struct_body "end" ;
 struct_body     ::= { struct_field } ;
 struct_field    ::= type IDENT [ array_spec ] [ address_spec ] [ decl_modifiers ] ;
+
+(* ============ UNION DEFINITIONS ============ *)
+(* All fields share offset 0; sizeof(union) = max field size. *)
+union_decl      ::= "union" IDENT union_body "end" ;
+union_body      ::= { union_field } ;
+union_field     ::= type IDENT [ array_spec ] ;
 
 (* ============ PROCEDURES ============ *)
 proc_decl       ::= "proc" IDENT "(" [ param_list ] ")" [ decl_modifiers ] proc_body "end" ;
@@ -289,6 +296,7 @@ expr_list       ::= expression { "," expression } ;
    - Module system: .module marks a file as importable, .include loads dependencies
    - ASM blocks embed raw 6502 assembly code; ca65 directives like .segment are only valid inside ASM...END blocks
    - STRUCT types: Composite types with named fields of various types
+   - UNION types: All fields share offset 0; sizeof(union) = max(sizeof(fields)). Usage identical to structs (variable, array, pointer, nested in struct/union). Declared with "union Name ... end".
    - STRUCT INITIALIZATION: { value1, value2, ... } for creating struct instances
    - CONST STRUCTS: const <struct_type> name = { init_values } prevents modification
    - CONST STRUCT FIELDS: Cannot assign to fields of const structs at runtime

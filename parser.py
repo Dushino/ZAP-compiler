@@ -133,16 +133,15 @@ class Parser:
         decls = []
         procs = []
 
-        # FIRST PASS: Collect struct names
-        # This allows us to recognize struct names as types in declarations
+        # FIRST PASS: Collect struct/union/enum names so they can be used as types in declarations.
         temp_pos: int = self.pos
         temp_cur: Token = self.cur
         while self.cur.type != TOK_EOF:
-            if self.cur.type == TOK_KEYWORD and self.cur.value == "STRUCT":
-                self.advance()  # skip "struct"
+            if self.cur.type == TOK_KEYWORD and self.cur.value in ("STRUCT", "UNION"):
+                self.advance()  # skip "struct" / "union"
                 if self.cur.type == TOK_IDENT:
                     self.struct_names.add(self.cur.value.upper())
-                # Skip to end of struct
+                # Skip to end of struct/union
                 while self.cur.type != TOK_EOF and not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
                     self.advance()
                 if self.cur.type == TOK_KEYWORD:
@@ -238,6 +237,8 @@ class Parser:
                     self.error("Expected identifier after '.'")
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "STRUCT":
                 procs.append(self.parse_struct_def())
+            elif self.cur.type == TOK_KEYWORD and self.cur.value == "UNION":
+                procs.append(self.parse_union_def())
             elif self.cur.type == TOK_KEYWORD and self.cur.value == "ENUM":
                 decls.append(self.parse_enum())
             elif self.cur.type in (TOK_TYPE, TOK_TYPEMOD):
@@ -257,7 +258,7 @@ class Parser:
                 # Otherwise skip stray identifier (e.g. BOM misinterpreted as 'Ï')
                 self.advance()
             else:
-                self.error("Expected declaration, PROC, FUNC, or STRUCT")
+                self.error("Expected declaration, PROC, FUNC, STRUCT, or UNION")
         program = Program(decls, procs)
         program.debug = {
             "stmt_src": self.stmt_src,
@@ -270,104 +271,96 @@ class Parser:
         return program
 
 
-    def parse_struct_def(self) -> StructDef:
-        """Parse struct definition: struct Name field_list end"""
+    def _parse_structlike_body(self, kind_name: str) -> tuple:
+        """Parse the shared body of struct/union definitions after the name has been consumed.
+        Returns (name, fields, is_port, port_rd, port_wr, noexport, export, start_line, start_col).
+        `kind_name` is "struct" or "union" — used only in error messages.
+        """
         start_line: int = self.cur.line
         start_col: int = self.cur.col
-        self.expect(TOK_KEYWORD, "STRUCT")
-        
-        struct_name: str = self.cur.value
+
+        type_name: str = self.cur.value
         self.expect(TOK_IDENT)
 
-        # Optional struct-level declaration modifiers: #PORT #RD #WR
-        struct_is_port: bool = False
-        struct_port_rd: bool | None = None
-        struct_port_wr: bool | None = None
-        struct_noexport: bool = False
-        struct_export: bool = False
+        is_port: bool = False
+        port_rd: bool | None = None
+        port_wr: bool | None = None
+        noexport: bool = False
+        export: bool = False
         while self.cur.type == TOK_DECLMOD:
             val: str = self.cur.value.upper()
             if val == 'PORT':
-                struct_is_port = True
+                is_port = True
             elif val == 'RD':
-                struct_port_rd = True
+                port_rd = True
             elif val == 'WR':
-                struct_port_wr = True
+                port_wr = True
             elif val == 'NOEXPORT':
-                struct_noexport = True
+                noexport = True
             elif val == 'EXPORT':
-                struct_export = True
+                export = True
             else:
-                self.error(f"Unsupported struct modifier '{val}'")
+                self.error(f"Unsupported {kind_name} modifier '{val}'")
             self.advance()
 
         fields = []
         seen_names: set[str] = set()
-        
-        # Parse field list until END
+
         while not (self.cur.type == TOK_KEYWORD and self.cur.value == "END"):
-            # Parse: [^] type [^] IDENT [dimensions] [ address_spec ] [decl_modifiers]
-            # Check for pointer prefix first (structs historically allowed only this).
             is_pointer = False
             if self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^"):
                 is_pointer = True
                 self.advance()
 
-            # type (either built-in like byte/word, or a struct name)
             if self.cur.type == TOK_TYPE:
-                type_name: str = self.cur.value
-                type_tok: Token = self.cur
+                field_type_name: str = self.cur.value
                 self.advance()
             elif self.cur.type == TOK_IDENT and self.cur.value.upper() in self.struct_names:
-                type_name: str = self.cur.value
-                type_tok: Token = self.cur
+                field_type_name = self.cur.value
                 self.advance()
             else:
-                self.error(f"Expected type in struct field, got {self._readable_token(self.cur.type, self.cur.value)}")
+                self.error(
+                    f"Expected type in {kind_name} field, got "
+                    f"{self._readable_token(self.cur.type, self.cur.value)}"
+                )
 
-            # Allow pointer suffix after type (type ^name), matching normal declarations.
             if not is_pointer and (self.cur.type == TOK_PTR or (self.cur.type == TOK_OP and self.cur.value == "^")):
                 is_pointer = True
                 self.advance()
 
-            field_type = TypeNode(type_name, is_pointer)
-            
-            # field name
+            field_type_node = TypeNode(field_type_name, is_pointer)
+
             field_name: str = self.cur.value
             field_name_line: int = self.cur.line
             field_name_col: int = self.cur.col
             if field_name.startswith('_'):
                 self.error("Field names cannot start with underscore")
-            self.expect(TOK_IDENT)
-            
             if field_name in seen_names:
-                raise SyntaxError(f"Duplicate field '{field_name}' in struct '{struct_name}'", 
-                                line=self.cur.line, col=self.cur.col)
+                raise SyntaxError(
+                    f"Duplicate field '{field_name}' in {kind_name} '{type_name}'",
+                    line=field_name_line, col=field_name_col,
+                )
+            self.expect(TOK_IDENT)
             seen_names.add(field_name)
-            
-            # Parse optional array dimensions
+
             array_sizes = None
             if self.cur.type == TOK_OP and self.cur.value == "[":
                 array_sizes = []
                 while self.cur.type == TOK_OP and self.cur.value == "[":
                     self.advance()
-                    # Parse array size expression
-                    size_expr = self.parse_expr()
-                    array_sizes.append(size_expr)
+                    array_sizes.append(self.parse_expr())
                     self.expect(TOK_OP, "]")
-            
-            # Parse optional address spec
+
             field_addr = None
             if self.cur.type == TOK_AT:
                 self.advance()
                 field_addr = self.parse_expr()
 
-            # Optional trailing modifiers on field: #PORT, #RD, #WR
             field_is_port = False
             field_port_rd: bool | None = None
             field_port_wr: bool | None = None
             while self.cur.type == TOK_DECLMOD:
-                val: str = self.cur.value.upper()
+                val = self.cur.value.upper()
                 if val == 'PORT':
                     field_is_port = True
                 elif val == 'RD':
@@ -378,22 +371,41 @@ class Parser:
                     self.error(f"Unsupported field modifier '{val}'")
                 self.advance()
 
-            fields.append(StructField(field_type, field_name, field_addr, array_sizes,
-                                      is_port=field_is_port, port_rd=field_port_rd, port_wr=field_port_wr,
-                                      line=field_name_line, col=field_name_col, filename=self.filename))
-        
+            fields.append(StructField(
+                field_type_node, field_name, field_addr, array_sizes,
+                is_port=field_is_port, port_rd=field_port_rd, port_wr=field_port_wr,
+                line=field_name_line, col=field_name_col, filename=self.filename,
+            ))
+
         self.expect(TOK_KEYWORD, "END")
+        return (type_name, fields, is_port, port_rd, port_wr, noexport, export, start_line, start_col)
+
+    def parse_struct_def(self) -> StructDef:
+        """Parse struct definition: struct Name field_list end"""
+        sl, sc = self.cur.line, self.cur.col  # position of 'struct' keyword
+        self.expect(TOK_KEYWORD, "STRUCT")
+        name, fields, is_port, port_rd, port_wr, noexport, export, _, _ = \
+            self._parse_structlike_body("struct")
         return StructDef(
-            struct_name,
-            fields,
-            is_port=struct_is_port,
-            port_rd=struct_port_rd,
-            port_wr=struct_port_wr,
-            noexport=struct_noexport,
-            export=struct_export,
-            line=start_line,
-            col=start_col,
-            filename=self.filename,
+            name, fields,
+            is_union=False,
+            is_port=is_port, port_rd=port_rd, port_wr=port_wr,
+            noexport=noexport, export=export,
+            line=sl, col=sc, filename=self.filename,
+        )
+
+    def parse_union_def(self) -> StructDef:
+        """Parse union definition: union Name field_list end"""
+        sl, sc = self.cur.line, self.cur.col  # position of 'union' keyword
+        self.expect(TOK_KEYWORD, "UNION")
+        name, fields, is_port, port_rd, port_wr, noexport, export, _, _ = \
+            self._parse_structlike_body("union")
+        return StructDef(
+            name, fields,
+            is_union=True,
+            is_port=is_port, port_rd=port_rd, port_wr=port_wr,
+            noexport=noexport, export=export,
+            line=sl, col=sc, filename=self.filename,
         )
 
     def parse_enum(self) -> EnumDecl:

@@ -17,12 +17,12 @@ from token_types import *
 from errors import TokenizerError
 
 ESCAPES: dict[str, str]         = {"n":"\n","t":"\t","\"":"\"","'":"'","\\":"\\","0":"\0"}
-KEYWORDS: set[str]        = {"proc", "func", "struct", "enum",
-                   "if","else", "elseif", "end", 
+KEYWORDS: set[str]        = {"proc", "func", "struct", "union", "enum",
+                   "if","else", "elseif", "end",
                    "for", "to", "step",
                    "while", "repeat", "until",
                    "switch", "case", "default",
-                   "return", "break", "continue",                    
+                   "return", "break", "continue",
                    "asm"}
 PREPROC: set[str]         = {".module", ".include", ".define", ".undef", ".ifdef", ".ifndef", ".else", ".endif",
                    ".error", ".warning", ".info"}
